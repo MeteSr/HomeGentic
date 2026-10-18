@@ -106,6 +106,9 @@ dfx canister call fee         setListingCanisterId    "(\"$LISTING_ID\")"
 dfx canister call market      setPropertyCanisterId   "(\"$PROPERTY_ID\")"
 dfx canister call market      setJobCanisterId        "(\"$JOB_ID\")"
 dfx canister call market      setListingCanisterId    "(\"$LISTING_ID\")"
+dfx canister call market      setReportCanisterId     "(\"$REPORT_ID\")"
+dfx canister call report      setMarketCanisterId     "(\"$MARKET_ID\")"
+dfx canister call property    setJobCanisterId        "(principal \"$JOB_ID\")"
 dfx canister call recurring   setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
 
 # ── Trusted canister lists ───────────────────────────────────────────
@@ -121,6 +124,7 @@ dfx canister call property   addTrustedCanister "(principal \"$REPORT_ID\")"
 dfx canister call job        addTrustedCanister "(principal \"$SENSOR_ID\")"
 dfx canister call job        addTrustedCanister "(principal \"$REPORT_ID\")"
 dfx canister call job        addTrustedCanister "(principal \"$CONTRACTOR_ID\")"
+dfx canister call job        addTrustedCanister "(principal \"$PROPERTY_ID\")"
 
 # ── Audit canister wiring ────────────────────────────────────────────
 dfx canister call audit setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")"

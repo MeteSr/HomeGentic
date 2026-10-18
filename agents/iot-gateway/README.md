@@ -446,3 +446,21 @@ icp canister call sensor addGateway '(principal "YOUR_GATEWAY_PRINCIPAL")' -e ic
 ```
 
 The gateway also prints its principal on startup via `GET /health`.
+
+## Verified device linking (security audit M9 / F-14)
+
+Ecobee, Honeywell Home, LG ThinQ and GE SmartHQ devices are bound to a
+property only through the gateway: the browser sends its `x-agent-session`
+token (from `auth.issueAgentSession()`) to `POST /oauth/device/link`, completes
+the vendor OAuth in a popup, picks one of the devices the vendor API lists for
+that account, and `POST /oauth/device/register` makes the gateway call
+`sensor.registerVerifiedDevice(owner, …)`. Once any gateway is registered with
+`addGateway`, the sensor canister refuses those platforms on the self-asserted
+`registerDevice` (admin-adjustable with `setVerifiedOnlySources`).
+
+Required env: `CANISTER_ID_AUTH` (resolves session tokens; without it, and
+outside production, the gateway trusts a `principal` in the request body for
+local dev), `SENSOR_CANISTER_ID`, `GATEWAY_IDENTITY_SEED`, `ICP_HOST`.
+
+Events are sent with `sensor.recordEventFor(source, vendorAccountId, …)`, so a
+platform's events never land on another platform's or a `#Manual` device.

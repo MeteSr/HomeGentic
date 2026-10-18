@@ -666,7 +666,8 @@ persistent actor Contractor {
     #ok(())
   };
 
-  /// Mark a contractor as verified (admin only).
+  /// Mark a contractor as verified (admin only). Idempotent; also tells the job
+  /// canister to count this contractor's earlier signatures (R2).
   public shared(msg) func verifyContractor(c: Principal) : async Result.Result<ContractorProfile, Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     switch (Map.get(contractors, Principal.compare, c)) {
@@ -692,6 +693,16 @@ persistent actor Contractor {
           origin        = existing.origin;
         };
         Map.add(contractors, Principal.compare, c, updated);
+        // R2: job signatures this contractor made while unverified start
+        // counting toward scores / certificates. The profile change is already
+        // committed; a failed call is ignored (re-run verifyContractor to retry,
+        // it is idempotent).
+        if (Text.size(jobCanisterId) > 0) {
+          let jobActor = actor(jobCanisterId) : actor {
+            refreshContractorAttestation : (Principal, Bool) -> async { #ok : Nat; #err : Any };
+          };
+          try { ignore await jobActor.refreshContractorAttestation(c, true) } catch (_) {};
+        };
         #ok(updated)
       };
     }

@@ -145,7 +145,7 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
     }
   };
 
-  const verifiedCount = jobs.filter((j) => j.verified).length;
+  const verifiedCount = jobs.filter((j) => j.verified && !j.contractorUnverified).length;
 
   const sortedJobs = React.useMemo(
     () => [...jobs].sort((a, b) => newestFirst ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)),
@@ -239,6 +239,11 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
                       <Pill tone={job.status === "verified" ? "good" : job.status === "completed" ? "info" : "warn"}>
                         {isFlashing ? "⛓ locked on-chain" : job.status}
                       </Pill>
+                      {job.verified && job.contractorUnverified && (
+                        <div style={{ marginTop: "0.25rem" }}>
+                          <Pill tone="warn">Contractor not yet verified · not counted</Pill>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {job.description && <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", fontWeight: 300, marginTop: "0.5rem" }}>{job.description}</p>}

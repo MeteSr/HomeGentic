@@ -13,7 +13,6 @@ const DAYTONA_CITIES = new Set([
 ]);
 
 const DISMISS_KEY = "hg_local_broker_dismissed";
-const BROKER_RECIPIENT_ENV = (import.meta as any).env?.VITE_LOCAL_BROKER_EMAIL ?? "";
 
 export function isLocalBrokerArea(cities: string[]): boolean {
   return cities.some((c) => DAYTONA_CITIES.has(c.trim()));
@@ -43,18 +42,11 @@ export default function LocalBrokerModal({ propertyAddress, onClose }: Props) {
     if (!form.name || !form.email) { toast.error("Name and email are required"); return; }
     setSubmitting(true);
     try {
-      const html = `
-        <p><strong>Local Broker Consultation Request</strong></p>
-        <p><strong>Name:</strong> ${form.name}</p>
-        <p><strong>Email:</strong> ${form.email}</p>
-        <p><strong>Phone:</strong> ${form.phone || "—"}</p>
-        <p><strong>Property:</strong> ${propertyAddress}</p>
-      `;
-      await aiProxyService.sendEmail(
-        BROKER_RECIPIENT_ENV,
-        "HomeGentic: Local Broker Consultation Request",
-        html,
-      );
+      // The Worker sends this to its fixed LOCAL_BROKER_EMAIL inbox.
+      const res = await aiProxyService.sendBrokerLead({
+        name: form.name, email: form.email, phone: form.phone || undefined, propertyAddress,
+      });
+      if (res.error) throw new Error(res.error);
       setSent(true);
       try { localStorage.setItem(DISMISS_KEY, "1"); } catch {}
     } catch {

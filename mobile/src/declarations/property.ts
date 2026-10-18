@@ -220,6 +220,15 @@ export const idlFactory = ({ IDL }: any) => {
     getMyManagedProperties: IDL.Func([], [IDL.Vec(ManagedProperty)], ["query"]),
     getPropertyManagers: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(PropertyManager), err: Error })], ["query"]),
     getManagerInviteByToken: IDL.Func([IDL.Text], [IDL.Opt(ManagerInvite)], ["query"]),
+    // Token-gated property views for the claim pages (address included, PII blanked)
+    getPropertyByTransferToken: IDL.Func([IDL.Text], [IDL.Opt(Property)], ["query"]),
+    getPropertyByManagerInviteToken: IDL.Func([IDL.Text], [IDL.Opt(Property)], ["query"]),
+    // Street addresses for jobs the caller is a party to (contractor views)
+    getJobPropertyAddresses: IDL.Func(
+      [IDL.Vec(IDL.Text)],
+      [IDL.Vec(IDL.Record({ jobId: IDL.Text, propertyId: IDL.Text, address: IDL.Text }))],
+      []
+    ),
     recordManagerActivity: IDL.Func([IDL.Text, IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     getOwnerNotifications: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(OwnerNotification), err: Error })], ["query"]),
     dismissNotifications: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),

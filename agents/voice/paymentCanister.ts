@@ -109,6 +109,14 @@ const idlFactory = ({ IDL }: { IDL: any }) => {
       [IDL.Variant({ ok: IDL.Nat, err: Err })],
       [],
     ),
+    stripeRecordGift: IDL.Func(
+      [IDL.Text, Tier, IDL.Variant({ Monthly: IDL.Null, Yearly: IDL.Null }), IDL.Record({
+        recipientEmail: IDL.Text, recipientName: IDL.Text, senderName: IDL.Text,
+        giftMessage: IDL.Text, deliveryDate: IDL.Text,
+      })],
+      [IDL.Variant({ ok: IDL.Null, err: Err })],
+      [],
+    ),
     getTierForPrincipal: IDL.Func(
       [IDL.Principal],
       [IDL.Variant({ Free: IDL.Null, Pro: IDL.Null, ContractorFree: IDL.Null, ContractorPro: IDL.Null, RealtorFree: IDL.Null, RealtorPro: IDL.Null })],
@@ -142,6 +150,17 @@ type PaymentActor = {
     stripeRef: string,
   ): Promise<{ ok: bigint } | { err: unknown }>;
   getTierForPrincipal(user: Principal): Promise<Record<string, null>>;
+  stripeRecordGift(
+    giftToken: string,
+    tier: Record<string, null>,
+    billing: Record<string, null>,
+    meta: GiftMetaArg,
+  ): Promise<{ ok: null } | { err: unknown }>;
+};
+
+export type GiftMetaArg = {
+  recipientEmail: string; recipientName: string; senderName: string;
+  giftMessage: string; deliveryDate: string;
 };
 
 async function getActor(): Promise<PaymentActor> {
@@ -215,6 +234,23 @@ export async function activateSubscriptionUntil(
     stripeRef,
   );
   if ("err" in result) throw new Error("Canister activation failed");
+}
+
+/**
+ * Register a paid gift checkout in the payment canister so the recipient can
+ * redeem it on-chain with redeemGift(giftToken). Idempotent in the canister
+ * (an existing gift is never overwritten). Stripe relay only.
+ */
+export async function recordGift(
+  giftToken: string,
+  tier: string,
+  billing: string,
+  meta: GiftMetaArg,
+): Promise<void> {
+  if (!PAID_TIERS.has(tier)) throw new Error(`Invalid tier: ${tier}`);
+  const b = billing === "Yearly" ? "Yearly" : "Monthly";
+  const result = await (await getActor()).stripeRecordGift(giftToken, { [tier]: null }, { [b]: null }, meta);
+  if ("err" in result) throw new Error("Gift registration failed");
 }
 
 /** Thrown when a Stripe reference has already produced a grant. */

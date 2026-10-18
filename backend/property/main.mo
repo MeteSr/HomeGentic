@@ -361,6 +361,10 @@ persistent actor Property {
   /// When set, registerProperty() cross-calls getTierForPrincipal(); without it every
   /// caller is treated as #Free (fail closed).
   private var payCanisterId            : Text        = "";
+  /// Job canister ID — set post-deploy via setJobCanisterId(). Used by
+  /// getJobPropertyAddresses() to confirm the caller is a party to a job
+  /// before revealing that job's street address. Unset = fail closed.
+  private var jobCanisterId            : ?Principal  = null;
 
   private var transferCounter        : Nat                            = 0;
 
@@ -533,9 +537,10 @@ persistent actor Property {
       or checkAuthorized(p.id, caller, false)
   };
 
-  /// D-1/H-5: the public view of a property. Address, type and size stay
-  /// (the claim pages and contractor views need them); identity and
-  /// verification evidence are blanked.
+  /// D-1/H-5: a property with identity and verification evidence blanked.
+  /// The street address stays — this is the view for token holders (a buyer
+  /// with a transfer link, an invitee with a manager-invite link) who need to
+  /// see which home they are accepting. Strangers get publicView instead.
   private func redactProperty(p : Property) : Property {
     {
       p with
@@ -550,8 +555,18 @@ persistent actor Property {
     }
   };
 
+  /// The view for a caller with no relationship to the property: also blanks
+  /// the street address. City, state, ZIP, type, year built and size stay
+  /// public (coarse, non-identifying on their own; FSBO / report pages use
+  /// them). Token holders and job contractors get the address through
+  /// getPropertyByTransferToken / getPropertyByManagerInviteToken /
+  /// getJobPropertyAddresses.
+  private func publicView(p : Property) : Property {
+    { redactProperty(p) with address = "" }
+  };
+
   private func viewFor(p : Property, caller : Principal) : Property {
-    if (canSeePrivate(p, caller)) p else redactProperty(p)
+    if (canSeePrivate(p, caller)) p else publicView(p)
   };
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
@@ -1340,6 +1355,28 @@ persistent actor Property {
     }
   };
 
+  /// The property behind a live transfer link, for the claim page. The token
+  /// is the credential: the buyer sees the street address of the home they
+  /// are about to accept, with identity/verification evidence blanked.
+  /// Returns null for an unknown or expired token.
+  public query func getPropertyByTransferToken(token: Text) : async ?Property {
+    switch (Map.get(tokenIndex, Text.compare, token)) {
+      case null null;
+      case (?propertyId) {
+        switch (Map.get(pendingTransfers, Text.compare, propertyId)) {
+          case null null;
+          case (?pt) {
+            if (pt.token != token or Time.now() > pt.expiresAt) return null;
+            switch (Map.get(properties, Text.compare, propertyId)) {
+              case null null;
+              case (?p) ?redactProperty(p);
+            }
+          };
+        }
+      };
+    }
+  };
+
   /// Public, unauthenticated ownership history for a property.
   /// Returns records sorted by timestamp ascending (oldest first).
   public query func getOwnershipHistory(propertyId: Text) : async [TransferRecord] {
@@ -1655,6 +1692,82 @@ persistent actor Property {
     Map.get(managerInvites, Text.compare, token)
   };
 
+  /// The property behind a live manager invite, for the claim page. Same
+  /// rules as getPropertyByTransferToken: token-gated, address included,
+  /// identity/verification evidence blanked, null when unknown or expired.
+  public query func getPropertyByManagerInviteToken(token: Text) : async ?Property {
+    switch (Map.get(managerInvites, Text.compare, token)) {
+      case null null;
+      case (?invite) {
+        if (Time.now() > invite.expiresAt) return null;
+        switch (Map.get(properties, Text.compare, invite.propertyId)) {
+          case null null;
+          case (?p) ?redactProperty(p);
+        }
+      };
+    }
+  };
+
+  public type JobPropertyAddress = {
+    jobId      : Text;
+    propertyId : Text;
+    address    : Text;
+  };
+
+  private let MAX_JOB_ADDRESS_LOOKUPS : Nat = 50;
+
+  /// Street addresses for the caller's own jobs (contractor views list jobs on
+  /// other people's homes). For each job ID, the job canister is asked for the
+  /// job as this (trusted) canister; the address is returned only when the
+  /// caller is that job's homeowner, or its linked contractor once the
+  /// homeowner has accepted the job (an unaccepted proposal reveals nothing: any
+  /// contractor can propose a job on any property ID). Jobs the caller
+  /// is not a party to, and unknown IDs, are left out. Capped at 50 IDs.
+  /// Returns [] when the job canister is not wired (fail closed).
+  public shared(msg) func getJobPropertyAddresses(jobIds: [Text]) : async [JobPropertyAddress] {
+    switch (requireActive(msg.caller)) { case (#err _) return []; case _ {} };
+    let jid = switch (jobCanisterId) { case null return []; case (?j) j };
+    if (jobIds.size() > MAX_JOB_ADDRESS_LOOKUPS) return [];
+    let jobActor = actor (Principal.toText(jid)) : actor {
+      getJob : query (Text) -> async { #ok : { propertyId : Text; homeowner : Principal; contractor : ?Principal; status : { #Pending; #InProgress; #Completed; #Verified; #PendingHomeownerApproval; #RejectedByHomeowner } }; #err : Any };
+    };
+    // Start every lookup first, then await them, so the calls run concurrently.
+    var pending : [async { #ok : { propertyId : Text; homeowner : Principal; contractor : ?Principal; status : { #Pending; #InProgress; #Completed; #Verified; #PendingHomeownerApproval; #RejectedByHomeowner } }; #err : Any }] = [];
+    for (id in jobIds.vals()) {
+      pending := Array.concat(pending, [jobActor.getJob(id)]);
+    };
+    var out : [JobPropertyAddress] = [];
+    var i = 0;
+    for (f in pending.vals()) {
+      let jobId = jobIds[i];
+      i += 1;
+      let r = try { await f } catch _ { #err(()) };
+      switch (r) {
+        case (#ok(j)) {
+          let accepted = switch (j.status) {
+            case (#PendingHomeownerApproval or #RejectedByHomeowner) false;
+            case _ true;
+          };
+          let isParty = j.homeowner == msg.caller or
+            (accepted and (switch (j.contractor) { case (?c) c == msg.caller; case null false }));
+          if (isParty) {
+            // Read the property after the await (state may have changed).
+            switch (Map.get(properties, Text.compare, j.propertyId)) {
+              case (?p) {
+                if (p.isActive) {
+                  out := Array.concat<JobPropertyAddress>(out, [{ jobId; propertyId = p.id; address = p.address }]);
+                };
+              };
+              case null {};
+            };
+          };
+        };
+        case (#err(_)) {};
+      };
+    };
+    out
+  };
+
   /// Called by a Manager-role user (via the frontend) after completing a
   /// significant write action to notify the property owner.
   public shared(msg) func recordManagerActivity(
@@ -1869,6 +1982,14 @@ persistent actor Property {
   public shared(msg) func setPaymentCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     payCanisterId := Principal.toText(id);
+    #ok(())
+  };
+
+  /// Wire the property canister to the job canister (admin only). The job
+  /// canister must also list this canister as trusted so getJob answers it.
+  public shared(msg) func setJobCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    jobCanisterId := ?id;
     #ok(())
   };
 

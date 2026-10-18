@@ -173,11 +173,14 @@ export default function FsboListingPage() {
   const [reportLink, setReportLink] = useState<ShareLink | null>(null);
   const [panoramas,  setPanoramas]  = useState<PanoramaEntry[]>([]);
 
+  // getProperty returns the street only to the owner; others see the city.
+  const displayAddress = property ? (property.address || `${property.city}, ${property.state}`) : "";
+
   const helmetTitle = property && fsbo
-    ? `${property.address} — For Sale by Owner | HomeGentic™`
+    ? `${displayAddress} — For Sale by Owner | HomeGentic™`
     : "For Sale by Owner | HomeGentic™";
   const helmetDesc = property && fsbo
-    ? `${property.address} — $${(fsbo.listPriceCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} · ${property.city}, ${property.state}. Verified maintenance history on HomeGentic.`
+    ? `${displayAddress} — $${(fsbo.listPriceCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} · ${property.city}, ${property.state}. Verified maintenance history on HomeGentic.`
     : "Browse verified FSBO listings with blockchain-backed maintenance history on HomeGentic.";
 
   useEffect(() => {
@@ -311,7 +314,7 @@ export default function FsboListingPage() {
           {formatPrice(fsbo.listPriceCents)}
         </div>
         <div style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "1.15rem", color: UI.ink }}>
-          {property.address}
+          {displayAddress}
         </div>
         <div style={{ fontFamily: UI.sans, fontSize: "0.95rem", color: UI.inkLight }}>
           {property.city}, {property.state} {property.zipCode}

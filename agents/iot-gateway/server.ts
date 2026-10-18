@@ -22,6 +22,12 @@
  *   - Moen Flo: Validates X-Moen-Signature HMAC-SHA256 against MOEN_FLO_WEBHOOK_SECRET
  *   - LG ThinQ: Validates Authorization Bearer against LG_THINQ_PAT
  *
+ * Verified device linking (security audit M9 / F-14, see deviceLink.ts):
+ *   POST /oauth/device/link      — x-agent-session → one-time ticket
+ *   GET  /oauth/device/start/:p  — ?ticket= → vendor OAuth (state bound to cookie + principal)
+ *   GET  /oauth/device/callback/:p — lists the vendor account's devices → pickToken
+ *   POST /oauth/device/register  — x-agent-session + pickToken → sensor.registerVerifiedDevice
+ *
  * GET /health — returns gateway status and the service identity principal
  */
 
@@ -32,7 +38,12 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { logger } from "./logger";
 import { handleNestEvent, handleEcobeeEvent, handleMoenFloEvent, handleHoneywellHomeEvent, handleSmartThingsEvent, handleLGThinQEvent } from "./handlers";
-import { recordSensorEvent, getGatewayPrincipal } from "./icp";
+import { recordSensorEvent, getGatewayPrincipal, registerVerifiedDevice } from "./icp";
+import { requestPrincipal } from "./session";
+import {
+  PLATFORM_SOURCE, isLinkPlatform, issueTicket, consumeTicket, bindState,
+  takeStateIntent, openPickSession, checkPick,
+} from "./deviceLink";
 import { startEcobeePoller } from "./pollers/ecobee";
 import { startHoneywellPoller, persistTokenState as persistHoneywellTokens } from "./pollers/honeywellHome";
 import { startEnphasePoller } from "./pollers/enphase";
@@ -418,7 +429,7 @@ app.post("/webhooks/nest", nestLimiter, async (req: Request, res: Response): Pro
 
   const eventName = Object.keys(reading.eventType)[0];
   logger.info("nest", `event: ${eventName}`, { reqId, device: reading.externalDeviceId });
-  const result = await recordSensorEvent(reading);
+  const result = await recordSensorEvent(reading, "Nest");
 
   if (result.success) {
     markSeen(replayK);
@@ -465,7 +476,7 @@ app.post("/webhooks/ecobee", ecobeeLimiter, async (req: Request, res: Response):
 
   const eventName = Object.keys(reading.eventType)[0];
   logger.info("ecobee", `event: ${eventName}`, { reqId, device: reading.externalDeviceId });
-  const result = await recordSensorEvent(reading);
+  const result = await recordSensorEvent(reading, "Ecobee");
 
   if (result.success) {
     markSeen(replayK);
@@ -512,7 +523,7 @@ app.post("/webhooks/moen-flo", moenFloLimiter, async (req: Request, res: Respons
 
   const eventName = Object.keys(reading.eventType)[0];
   logger.info("moen-flo", `event: ${eventName}`, { reqId, device: reading.externalDeviceId });
-  const result = await recordSensorEvent(reading);
+  const result = await recordSensorEvent(reading, "MoenFlo");
 
   if (result.success) {
     markSeen(replayK);
@@ -611,7 +622,7 @@ app.post("/webhooks/smartthings", smartThingsLimiter, async (req: Request, res: 
     const eventName = Object.keys(reading.eventType)[0];
     logger.info("smartthings", `event: ${eventName}`, { reqId, device: reading.externalDeviceId });
 
-    const result = await recordSensorEvent(reading);
+    const result = await recordSensorEvent(reading, "SmartThings");
     if (result.success) {
       logger.info("smartthings", "recorded", { reqId, eventId: result.eventId, jobId: result.jobId });
       processed++;
@@ -772,7 +783,7 @@ app.post("/webhooks/lgthinq", lgThinQLimiter, async (req: Request, res: Response
 
   const eventName = Object.keys(reading.eventType)[0];
   logger.info("lgthinq", `event: ${eventName}`, { reqId, device: reading.externalDeviceId });
-  const result = await recordSensorEvent(reading);
+  const result = await recordSensorEvent(reading, "LGThinQ");
 
   if (result.success) {
     markSeen(replayK);
@@ -855,14 +866,58 @@ app.get("/oauth/callback/ge", adminOAuthLimiter, async (req: Request, res: Respo
   }
 });
 
+// ── Device-picker popup pages ────────────────────────────────────────────────
+function sendPickerMessage(res: Response, message: object, text: string): void {
+  // JSON.stringify output is embedded in a <script>; escape "<" so a vendor
+  // device name can't close the script element.
+  const payload      = JSON.stringify(message).replace(/</g, "\\u003c");
+  const targetOrigin = JSON.stringify(FRONTEND_ORIGIN);
+  res.send(`<!doctype html>
+<html><body>
+<script>
+  window.opener && window.opener.postMessage(${payload}, ${targetOrigin});
+  window.close();
+</script>
+<p>${text}</p>
+</body></html>`);
+}
+
+// ── POST /oauth/device/link ──────────────────────────────────────────────────
+// M9 / F-14: step 1 of verified device linking. The signed-in homeowner (proved
+// by x-agent-session) gets a one-time ticket for the popup's start URL, bound
+// to their principal, the property and the platform.
+app.post("/oauth/device/link", deviceOAuthLimiter, async (req: Request, res: Response): Promise<void> => {
+  const principal = await requestPrincipal(req);
+  if (!principal) { res.status(401).json({ error: "Sign in again to connect a device" }); return; }
+  const { platform, propertyId } = (req.body ?? {}) as { platform?: unknown; propertyId?: unknown };
+  if (typeof platform !== "string" || !isLinkPlatform(platform)) {
+    res.status(400).json({ error: "Unknown platform" });
+    return;
+  }
+  if (typeof propertyId !== "string" || propertyId.length === 0 || propertyId.length > 200) {
+    res.status(400).json({ error: "propertyId required" });
+    return;
+  }
+  res.json({ ticket: issueTicket({ principal, propertyId, platform }) });
+});
+
 // ── GET /oauth/device/start/:platform ────────────────────────────────────────
 // Tier B device picker: redirect to platform's authorization URL.
 // The `redirect_uri` points back to /oauth/device/callback/:platform.
+// M9 / F-14: requires a ticket from POST /oauth/device/link, so the OAuth state
+// is bound to the HomeGentic principal that will own the device.
 app.get("/oauth/device/start/:platform", deviceOAuthLimiter, (req: Request, res: Response): void => {
   const { platform } = req.params;
+  if (!isLinkPlatform(platform)) { res.status(400).send("Unknown platform"); return; }
+  const intent = consumeTicket(req.query.ticket, platform);
+  if (!intent) {
+    sendPickerMessage(res, { type: "oauth-devices", error: "This link has expired — start again from HomeGentic" }, "Authorization failed: invalid ticket.");
+    return;
+  }
   const redirectUri  = `http://localhost:${port}/oauth/device/callback/${platform}`;
   const state = generateOAuthState();
   storeOAuthState(state, platform);
+  bindState(state, intent);
   res.setHeader("Set-Cookie", deviceStateCookie(state, OAUTH_STATE_TTL_MS / 1000));
 
   try {
@@ -909,13 +964,10 @@ app.get("/oauth/device/callback/:platform", deviceOAuthLimiter, async (req: Requ
   const cookieState = readCookie(req, DEVICE_STATE_COOKIE);
   // Clear the one-time cookie whatever the outcome.
   res.setHeader("Set-Cookie", deviceStateCookie("", 0));
-  if (!state || !cookieState || !tokenMatches(state, cookieState) || !consumeOAuthState(state, platform)) {
-    const errMsg      = JSON.stringify({ type: "oauth-devices", error: "Invalid or expired OAuth state — CSRF protection rejected this callback" });
-    const targetOrigin = JSON.stringify(FRONTEND_ORIGIN);
-    res.send(`<!doctype html><html><body><script>
-      window.opener && window.opener.postMessage(${errMsg}, ${targetOrigin});
-      window.close();
-    </script><p>Authorization failed: invalid state.</p></body></html>`);
+  const intent = state ? takeStateIntent(state) : null;
+  if (!state || !cookieState || !tokenMatches(state, cookieState) || !consumeOAuthState(state, platform) ||
+      !intent || intent.platform !== platform) {
+    sendPickerMessage(res, { type: "oauth-devices", error: "Invalid or expired OAuth state — CSRF protection rejected this callback" }, "Authorization failed: invalid state.");
     return;
   }
 
@@ -956,30 +1008,53 @@ app.get("/oauth/device/callback/:platform", deviceOAuthLimiter, async (req: Requ
         return;
     }
 
-    const payload     = JSON.stringify({ type: "oauth-devices", devices });
+    // M9 / F-14: only devices this OAuth token's vendor account lists can be
+    // linked. None of the four picker APIs names the account itself, so the
+    // binding is scoped per (platform, externalId) — vendorAccountId "".
+    const pickToken = openPickSession(intent, "", devices);
     // Use a specific target origin so only the configured frontend can receive
     // the device list — prevents interception by other pages in the opener.
-    const targetOrigin = JSON.stringify(FRONTEND_ORIGIN);
-    res.send(`<!doctype html>
-<html><body>
-<script>
-  window.opener && window.opener.postMessage(${payload}, ${targetOrigin});
-  window.close();
-</script>
-<p>Connected! This window will close automatically.</p>
-</body></html>`);
+    sendPickerMessage(
+      res,
+      { type: "oauth-devices", devices, pickToken, propertyId: intent.propertyId },
+      "Connected! This window will close automatically.",
+    );
   } catch (err: any) {
-    const errMsg      = JSON.stringify({ type: "oauth-devices", error: String((err as any)?.message ?? err) });
-    const targetOrigin = JSON.stringify(FRONTEND_ORIGIN);
-    res.send(`<!doctype html>
-<html><body>
-<script>
-  window.opener && window.opener.postMessage(${errMsg}, ${targetOrigin});
-  window.close();
-</script>
-<p>Authorization failed. This window will close automatically.</p>
-</body></html>`);
+    sendPickerMessage(
+      res,
+      { type: "oauth-devices", error: String((err as any)?.message ?? err) },
+      "Authorization failed. This window will close automatically.",
+    );
   }
+});
+
+// ── POST /oauth/device/register ──────────────────────────────────────────────
+// M9 / F-14: step 4. Binds one device from the vendor-verified list to the
+// property via sensor.registerVerifiedDevice (gateway-only on the canister,
+// which re-checks the owner's write access to the property).
+app.post("/oauth/device/register", deviceOAuthLimiter, async (req: Request, res: Response): Promise<void> => {
+  const reqId = (req as RequestWithId).reqId;
+  const principal = await requestPrincipal(req);
+  if (!principal) { res.status(401).json({ error: "Sign in again to connect a device" }); return; }
+  const { pickToken, deviceId, name } = (req.body ?? {}) as { pickToken?: unknown; deviceId?: unknown; name?: unknown };
+  const pick = checkPick(pickToken, principal, deviceId);
+  if (!pick.ok) { res.status(pick.status).json({ error: pick.error }); return; }
+  const label = typeof name === "string" && name.trim().length > 0 ? name.trim().slice(0, 200) : pick.device.name.slice(0, 200) || pick.device.id;
+
+  const result = await registerVerifiedDevice(
+    principal, pick.session.propertyId, pick.device.id,
+    PLATFORM_SOURCE[pick.session.platform], pick.session.vendorAccountId, label,
+  );
+  if (result.success) {
+    logger.info("oauth-device", "verified device linked", { reqId, platform: pick.session.platform, deviceId: result.device.id });
+    res.json({ device: result.device });
+    return;
+  }
+  const status = result.error === "NotAuthorized" ? 403
+    : result.error === "AlreadyExists" ? 409
+    : result.error.startsWith("InvalidInput") ? 400 : 502;
+  logger.warn("oauth-device", "verified link refused", { reqId, error: result.error });
+  res.status(status).json({ error: result.error });
 });
 
 // ── POST /accounts/:platform ──────────────────────────────────────────────────

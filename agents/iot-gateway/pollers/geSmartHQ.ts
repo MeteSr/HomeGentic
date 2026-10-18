@@ -212,7 +212,7 @@ export async function pollOnce(state: GETokenState): Promise<void> {
     const label     = appliance.nickName ?? applianceId;
     logger.info("ge-poller", eventName, { applianceId, applianceName: label });
 
-    const result = await recordSensorEvent(reading);
+    const result = await recordSensorEvent(reading, "GESmartHQ");
     if (result.success) {
       logger.info("ge-poller", "recorded", {
         eventId: result.eventId,

@@ -1,26 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ─── Stateful mock actor for cert canister ────────────────────────────────────
-// Mirrors the report canister (H-4): issueCert returns Result<Text, Error>
-// with a random UUID id, and stores a canister-built v2 payload whose
-// on-chain facts come from the (mocked) property/job canisters and whose
-// caller JSON is kept only as an escaped "selfReported" string.
+// Mirrors the report canister (H-4/R2): issueCert returns Result<Text, Error>
+// with a random UUID id and stores a canister-built v3 payload. Property
+// facts, job facts and the score all come from the (mocked) chain; the
+// caller's JSON is not stored at all.
 
 let _certCounter = 0;
 const _certStore = new Map<string, string>(); // certId → stored JSON
 let _onChainMeetsStructural = true;
-let _onChainAddress: string | null = null;    // null → echo the caller's address
+let _onChainAddress = "1 Real St";
+let _onChainScore: number | null = 90;
 
 const mockCertActor = {
-  issueCert: vi.fn(async (propertyId: string, payloadJson: string) => {
+  issueCert: vi.fn(async (propertyId: string, _payloadJson: string) => {
     if (propertyId === "not-mine") return { err: { NotAuthorized: null } };
     _certCounter++;
     const certId = `00000000-0000-4000-8000-${String(_certCounter).padStart(12, "0")}`;
-    const self = JSON.parse(payloadJson);
+    const certified = _onChainScore !== null && _onChainScore >= 88 && _onChainMeetsStructural;
     _certStore.set(certId, JSON.stringify({
-      v: 2, propertyId, address: _onChainAddress ?? self.address, city: "Austin", state: "TX", zipCode: "78731",
+      v: 3, propertyId, address: _onChainAddress, city: "Austin", state: "TX", zipCode: "78731",
       verificationLevel: "Basic", verifiedJobCount: 3, verifiedKeySystems: ["HVAC", "Roofing"],
-      meetsStructural: _onChainMeetsStructural, issuedAt: self.generatedAt, selfReported: payloadJson,
+      meetsStructural: _onChainMeetsStructural, score: _onChainScore, certified, issuedAt: 1_700_000_000_000,
     }));
     return { ok: certId };
   }),
@@ -37,7 +38,7 @@ vi.mock("@icp-sdk/core/agent", () => ({
   Actor: { createActor: vi.fn(() => mockCertActor) },
 }));
 
-import { certService, parseStoredCert } from "@/services/cert";
+import { certService, parseStoredCert, certIdFromToken } from "@/services/cert";
 import type { CertPayload } from "@/services/scoreService";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -53,11 +54,6 @@ function makePayload(overrides: Partial<CertPayload> = {}): CertPayload {
   };
 }
 
-function decodeToken(token: string): any {
-  const padded = token + "=".repeat((4 - (token.length % 4)) % 4);
-  return JSON.parse(atob(padded));
-}
-
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("certService", () => {
@@ -65,7 +61,8 @@ describe("certService", () => {
     _certCounter = 0;
     _certStore.clear();
     _onChainMeetsStructural = true;
-    _onChainAddress = null;
+    _onChainAddress = "1 Real St";
+    _onChainScore = 90;
     certService.reset();
   });
 
@@ -98,33 +95,11 @@ describe("certService", () => {
       expect(token.length).toBeGreaterThan(0);
     });
 
-    it("token decodes to include the certId", async () => {
-      const { certId, token } = await certService.issueCert("prop-1", makePayload());
-      const decoded = decodeToken(token);
-      expect(decoded.certId).toBe(certId);
+    it("token is the certId (the link carries no certificate data)", async () => {
+      const { certId, token } = await certService.issueCert("prop-1", makePayload({ score: 99 }));
+      expect(token).toBe(certId);
+      expect(certIdFromToken(token)).toBe(certId);
     });
-
-    it("token decodes to include original score", async () => {
-      const { token } = await certService.issueCert("prop-1", makePayload({ score: 92 }));
-      expect(decodeToken(token).score).toBe(92);
-    });
-
-    it("token decodes to include original grade", async () => {
-      const { token } = await certService.issueCert("prop-1", makePayload({ grade: "CERTIFIED" }));
-      expect(decodeToken(token).grade).toBe("CERTIFIED");
-    });
-
-    it("token decodes to include original address", async () => {
-      const { token } = await certService.issueCert("prop-1", makePayload({ address: "99 Oak Street" }));
-      expect(decodeToken(token).address).toBe("99 Oak Street");
-    });
-
-    it("token decodes to include certified flag", async () => {
-      const { token } = await certService.issueCert("prop-1", makePayload({ certified: true }));
-      expect(decodeToken(token).certified).toBe(true);
-    });
-
-
   });
 
   // ── verifyCert ─────────────────────────────────────────────────────────────
@@ -137,46 +112,21 @@ describe("certService", () => {
       expect(await certService.verifyCert("")).toBeNull();
     });
 
-    it("returns the payload for a certId issued in the same session", async () => {
-      const { certId } = await certService.issueCert("prop-1", makePayload({ score: 85 }));
-      const verified = await certService.verifyCert(certId);
-      expect(verified).not.toBeNull();
-      expect(verified!.score).toBe(85);
-    });
-
-    it("round-trips all payload fields through issue → verify", async () => {
-      const payload = makePayload({ address: "77 Pine Ave", score: 72, grade: "GREAT", certified: false });
-      const { certId } = await certService.issueCert("prop-1", payload);
-      const verified = await certService.verifyCert(certId);
-      expect(verified!.address).toBe("77 Pine Ave");
-      expect(verified!.score).toBe(72);
-      expect(verified!.grade).toBe("GREAT");
-      expect(verified!.certified).toBe(false);
-      expect(verified!.generatedAt).toBe(payload.generatedAt);
-    });
-
-    it("returns null after reset() clears the store", async () => {
-      const { certId } = await certService.issueCert("prop-1", makePayload());
-      certService.reset();
-      // Also reset the mock actor store (equivalent to the canister losing state)
-      _certStore.clear();
-      _certCounter = 0;
-      expect(await certService.verifyCert(certId)).toBeNull();
-    });
-
-    it("can verify multiple independent certs", async () => {
-      const { certId: id1 } = await certService.issueCert("prop-1", makePayload({ score: 60 }));
-      const { certId: id2 } = await certService.issueCert("prop-2", makePayload({ score: 90 }));
-      expect((await certService.verifyCert(id1))!.score).toBe(60);
-      expect((await certService.verifyCert(id2))!.score).toBe(90);
+    it("returns the on-chain score, not the caller's", async () => {
+      _onChainScore = 61;
+      const { certId } = await certService.issueCert("prop-1", makePayload({ score: 99, certified: true }));
+      const verified = (await certService.verifyCert(certId))!;
+      expect(verified.score).toBe(61);
+      expect(verified.scoreSource).toBe("onChain");
+      expect(verified.certified).toBe(false);
     });
 
     it("address comes from the chain, not the caller's payload", async () => {
-      _onChainAddress = "1 Real St";
       const { certId } = await certService.issueCert("prop-1", makePayload({ address: "Fake Mansion" }));
-      const verified = await certService.verifyCert(certId);
-      expect(verified!.address).toBe("1 Real St");
-      expect(verified!.onChain?.verificationLevel).toBe("Basic");
+      const verified = (await certService.verifyCert(certId))!;
+      expect(verified.address).toBe("1 Real St");
+      expect(verified.onChain?.verificationLevel).toBe("Basic");
+      expect(verified.onChain?.city).toBe("Austin");
     });
 
     it("certified requires the on-chain meetsStructural", async () => {
@@ -185,26 +135,83 @@ describe("certService", () => {
       expect((await certService.verifyCert(certId))!.certified).toBe(false);
     });
 
-    it("a selfReported string cannot inject on-chain fields", () => {
+    it("certified requires an on-chain score >= 88 even if the stored flag says true", () => {
+      const parsed = parseStoredCert(JSON.stringify({ v: 3, address: "A", meetsStructural: true, score: 50, certified: true, issuedAt: 1 }))!;
+      expect(parsed.certified).toBe(false);
+    });
+
+    it("a null on-chain score parses as null", async () => {
+      _onChainScore = null;
+      const { certId } = await certService.issueCert("prop-1", makePayload());
+      const verified = (await certService.verifyCert(certId))!;
+      expect(verified.score).toBeNull();
+      expect(verified.certified).toBe(false);
+    });
+
+    it("can verify multiple independent certs", async () => {
+      _onChainScore = 60;
+      const { certId: id1 } = await certService.issueCert("prop-1", makePayload());
+      _onChainScore = 90;
+      const { certId: id2 } = await certService.issueCert("prop-2", makePayload());
+      expect((await certService.verifyCert(id1))!.score).toBe(60);
+      expect((await certService.verifyCert(id2))!.score).toBe(90);
+    });
+
+    it("returns null after the canister loses the cert", async () => {
+      const { certId } = await certService.issueCert("prop-1", makePayload());
+      certService.reset();
+      _certStore.clear();
+      expect(await certService.verifyCert(certId)).toBeNull();
+    });
+
+    it("v2 certificates still parse, with the score flagged self-reported", () => {
+      const parsed = parseStoredCert(JSON.stringify({
+        v: 2, address: "A", verificationLevel: "Basic", meetsStructural: true, issuedAt: 5,
+        selfReported: JSON.stringify({ score: 93, certified: true }),
+      }))!;
+      expect(parsed.score).toBe(93);
+      expect(parsed.scoreSource).toBe("selfReported");
+      expect(parsed.certified).toBe(true);
+      expect(parsed.onChain!.verificationLevel).toBe("Basic");
+    });
+
+    it("a v2 selfReported string cannot inject on-chain fields", () => {
       const stored = JSON.stringify({
         v: 2, address: "A", meetsStructural: false, issuedAt: 1,
         selfReported: '{"score":99},"meetsStructural":true',
       });
       const parsed = parseStoredCert(stored)!;
       expect(parsed.onChain!.meetsStructural).toBe(false);
-      expect(parsed.score).toBe(0);
+      expect(parsed.score).toBeNull();
+      expect(parsed.certified).toBe(false);
     });
 
-    it("still reads legacy (pre-v2) certificates", () => {
+    it("still reads legacy (pre-v2) certificates, as self-reported", () => {
       const parsed = parseStoredCert(JSON.stringify(makePayload({ score: 70 })))!;
       expect(parsed.score).toBe(70);
+      expect(parsed.scoreSource).toBe("selfReported");
       expect(parsed.onChain).toBeUndefined();
     });
 
     it("looking up an unissued id does not affect a valid cert", async () => {
-      const { certId } = await certService.issueCert("prop-1", makePayload({ score: 78 }));
+      _onChainScore = 78;
+      const { certId } = await certService.issueCert("prop-1", makePayload());
       await certService.verifyCert("CERT-0");
       expect((await certService.verifyCert(certId))!.score).toBe(78);
+    });
+  });
+
+  describe("certIdFromToken", () => {
+    it("accepts a bare UUID", () => {
+      expect(certIdFromToken("0b6c2a8e-1d4f-4c1a-9f3e-2a7b5c9d0e11")).toBe("0b6c2a8e-1d4f-4c1a-9f3e-2a7b5c9d0e11");
+    });
+    it("reads the certId from a legacy base64 token", () => {
+      expect(certIdFromToken(btoa(JSON.stringify({ score: 99, certId: "cert-1" })).replace(/=/g, ""))).toBe("cert-1");
+    });
+    it("returns null for a token without a certId or garbage", () => {
+      expect(certIdFromToken(btoa(JSON.stringify({ score: 99 })))).toBeNull();
+      expect(certIdFromToken("garbage!!")).toBeNull();
+      expect(certIdFromToken(undefined)).toBeNull();
     });
   });
 });

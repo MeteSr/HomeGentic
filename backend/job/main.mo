@@ -148,6 +148,19 @@ persistent actor Job {
 
   private let jobs        = Map.empty<Text, Job>();
   private let inviteTokens = Map.empty<Text, InviteToken>();
+  /// R2: jobId → was the contractor who signed a VERIFIED contractor profile
+  /// (contractor.isVerified) at signing time? Kept beside `jobs` because a new
+  /// field on Job (stored in a Map) is not stable-compatible, even as ?T.
+  ///   absent  → no contractor signature recorded since this field existed:
+  ///             DIY jobs, admin builder imports, and jobs that were already
+  ///             verified before the upgrade. These keep counting as before.
+  ///   ?true   → verified contractor signed; counts as a verified job.
+  ///   ?false  → unverified contractor signed; the job is still dual-signed
+  ///             (#Verified) but does NOT count toward scores, certificates
+  ///             or report verified-job counts (see countsAsVerified).
+  /// The contractor canister flips entries to true when an admin verifies
+  /// the contractor (refreshContractorAttestation).
+  private let contractorAttest = Map.empty<Text, Bool>();
   private let errsByMethod : Map.Map<Text, Nat> = Map.empty();
 
   // Secondary indexes over `jobs` (transient, rebuilt on every upgrade).
@@ -351,6 +364,36 @@ persistent actor Job {
   /// as Text (the contractor canister, job snapshots).
   private func serviceTypeText(s: ServiceType) : Text { ServiceTypes.toText(s) };
 
+  /// R2: a verified job counts toward scores / certificates / reports only when
+  /// it is DIY (homeowner-only), or its contractor signature came from a
+  /// verified contractor profile. Absent entries (pre-R2 history, admin
+  /// imports) keep counting so no historical record silently changes.
+  private func countsAsVerified(j: Job) : Bool {
+    if (not j.verified) return false;
+    if (j.isDiy) return true;
+    switch (Map.get(contractorAttest, Text.compare, j.id)) {
+      case null   { true };
+      case (?ok)  { ok };
+    }
+  };
+
+  /// R2: look up `p` in the contractor canister.
+  /// null = contractor canister not wired (local dev / isolated tests);
+  /// ?(hasProfile, isVerified) otherwise. Fails closed: a failed call reads
+  /// as "no profile, not verified".
+  private func contractorStatus(p: Principal) : async ?(Bool, Bool) {
+    if (Text.size(contrCanisterId) == 0) return null;
+    let contrActor = actor(contrCanisterId) : actor {
+      getContractorStats : query (Principal) -> async ?{ isVerified : Bool };
+    };
+    try {
+      switch (await contrActor.getContractorStats(p)) {
+        case null    { ?(false, false) };
+        case (?st)   { ?(true, st.isVerified) };
+      }
+    } catch (_) { ?(false, false) }
+  };
+
   // ─── Core Functions ───────────────────────────────────────────────────────────
 
   /// Create a new job for a property. Caller becomes the homeowner.
@@ -473,9 +516,22 @@ persistent actor Job {
           completedYear = 1970 + secsSince1970 / secsPerYear;
           amountCents   = j.amount;
           isDiy         = j.isDiy;
-          isVerified    = j.verified;
+          isVerified    = countsAsVerified(j);
         }
       }
+    ))
+  };
+
+  /// R2: ids of this property's dual-signed jobs whose contractor signature
+  /// came from an UNVERIFIED contractor profile. Those jobs are excluded from
+  /// scores, certificates and report verified-job counts. Read by the report
+  /// canister and by the frontend (to label them).
+  public query func getUnattestedJobIds(propertyId: Text) : async [Text] {
+    Iter.toArray(Iter.map<Job, Text>(
+      Iter.filter<Job>(Index.records(jobsByProperty, propertyId, jobs), func(j: Job) : Bool {
+        j.verified and not countsAsVerified(j)
+      }),
+      func(j: Job) : Text { j.id }
     ))
   };
 
@@ -579,6 +635,13 @@ persistent actor Job {
         if (not authOk) return #err(#NotAuthorized);
         if (await isPropertyParty(existing.propertyId, contractorPrincipal))
           return #err(#InvalidInput("The contractor must be a different person from the homeowner"));
+        // R2: only principals with a contractor profile can be linked (fails
+        // closed if the contractor canister errors; skipped only when it is
+        // not wired, i.e. local dev).
+        switch (await contractorStatus(contractorPrincipal)) {
+          case (?(false, _)) { return #err(#InvalidInput("That principal has no contractor profile")) };
+          case _ {};
+        };
 
         // Re-read fresh after the await above — a concurrent call could have
         // already verified or otherwise mutated this job while this call was
@@ -653,6 +716,23 @@ persistent actor Job {
           return #err(#NotAuthorized);
         };
 
+        // R2: record whether the contractor signature comes from a verified
+        // contractor profile — when the contractor signs now, or when the
+        // homeowner completes a job whose contractor signed before R2.
+        let attestNow : ?Bool = if (existing.isDiy) null else {
+          let needed = isContractor
+            or Map.get(contractorAttest, Text.compare, jobId) == null;
+          switch (existing.contractor) {
+            case (?con) {
+              if (not needed) null else switch (await contractorStatus(con)) {
+                case null          { null };
+                case (?(_, isVer)) { ?isVer };
+              }
+            };
+            case null { null };
+          }
+        };
+
         // Re-read fresh after the (conditional) await above — a concurrent
         // verifyJob call from the other party could have already recorded
         // its signature while this call was suspended waiting on
@@ -664,6 +744,8 @@ persistent actor Job {
           case (?job) { job };
         };
         if (existing2.verified) return #err(#AlreadyVerified);
+        // The linked contractor may have changed while this call awaited.
+        if (existing2.contractor != existing.contractor) return #err(#InvalidInput("Job changed, retry"));
 
         let newHomeownerSigned  = existing2.homeownerSigned  or isHomeowner;
         let newContractorSigned = existing2.contractorSigned or isContractor;
@@ -698,6 +780,13 @@ persistent actor Job {
           sourceQuoteId    = existing2.sourceQuoteId;
         };
         putJob(updated);
+        switch (attestNow) {
+          case (?ok) {
+            if (isContractor or (fullyVerified and Map.get(contractorAttest, Text.compare, jobId) == null))
+              Map.add(contractorAttest, Text.compare, jobId, ok);
+          };
+          case null {};
+        };
 
         if (isContractor and not existing2.contractorSigned and not newHomeownerSigned) {
           notifyAwaitingSignature(updated);
@@ -944,6 +1033,28 @@ persistent actor Job {
     #ok(())
   };
 
+  /// R2: called by the contractor canister when an admin verifies (or
+  /// un-verifies) a contractor, so that contractor's recorded signatures start
+  /// (or stop) counting. Only touches jobs that already have an attestation
+  /// entry. Contractor canister or admin only. Returns the entries changed.
+  public shared(msg) func refreshContractorAttestation(contractor: Principal, isVerified: Bool) : async Result.Result<Nat, Error> {
+    let fromContr = Text.size(contrCanisterId) > 0 and Principal.toText(msg.caller) == contrCanisterId;
+    if (not fromContr and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    var changed : Nat = 0;
+    for (j in Index.records(jobsByContractor, Principal.toText(contractor), jobs)) {
+      switch (Map.get(contractorAttest, Text.compare, j.id)) {
+        case (?cur) {
+          if (cur != isVerified) {
+            Map.add(contractorAttest, Text.compare, j.id, isVerified);
+            changed += 1;
+          };
+        };
+        case null {};
+      };
+    };
+    #ok(changed)
+  };
+
   /// Certification data for a property.
   /// Returns how many jobs are verified, how many distinct key systems are verified,
   /// and which key systems (HVAC / Roofing / Plumbing / Electrical) have at least
@@ -958,7 +1069,7 @@ persistent actor Job {
     var foundSystems : [Text] = [];
 
     for (j in Index.records(jobsByProperty, propertyId, jobs)) {
-      if (j.verified) {
+      if (countsAsVerified(j)) {
         verifiedCount += 1;
         let svcText = switch (j.serviceType) {
           case (#HVAC)       "HVAC";
@@ -1105,7 +1216,9 @@ persistent actor Job {
       createdAt           = now;
       expiresAt           = now + 48 * 60 * 60 * 1_000_000_000;
       usedAt              = null;
-      contractorPrincipal = null; // M-12: not locked to a specific contractor at creation
+      // R2: when a contractor is already linked to the job the invite is
+      // bound to that profile; otherwise it is a bearer link (guest flow).
+      contractorPrincipal = job.contractor;
     };
     Map.add(inviteTokens, Text.compare, token, entry);
     #ok(token)
@@ -1217,6 +1330,15 @@ persistent actor Job {
       };
     };
 
+    // R2: the redeemer must hold a contractor profile (the guest flow above
+    // creates one, unverified). Record whether it is admin-verified: only a
+    // verified profile's signature counts toward scores and certificates.
+    let attest : ?Bool = switch (await contractorStatus(msg.caller)) {
+      case null              { null };   // contractor canister not wired (local dev)
+      case (?(false, _))     { return #err(#InvalidInput("A contractor profile is required to sign this job")) };
+      case (?(true, isVer))  { ?isVer };
+    };
+
     // Re-read fresh after the await above — a concurrent call could have
     // already redeemed this same token (or otherwise mutated the job) while
     // this call was suspended waiting on the contractor canister.
@@ -1234,6 +1356,10 @@ persistent actor Job {
     if (msg.caller == freshJob.homeowner)   return #err(#NotAuthorized);
     switch (freshJob.contractor) {
       case (?linked) { if (msg.caller != linked) return #err(#NotAuthorized) };
+      case null {};
+    };
+    switch (freshInvite.contractorPrincipal) {
+      case (?intended) { if (msg.caller != intended) return #err(#NotAuthorized) };
       case null {};
     };
 
@@ -1261,6 +1387,10 @@ persistent actor Job {
       sourceQuoteId    = freshJob.sourceQuoteId;
     };
     putJob(updated);
+    switch (attest) {
+      case (?ok) { Map.add(contractorAttest, Text.compare, updated.id, ok) };
+      case null {};
+    };
 
     // Mark token as used
     let usedInvite : InviteToken = {
@@ -1347,14 +1477,13 @@ persistent actor Job {
 
     // M-9: only registered contractors (a ContractorProfile exists for the
     // caller) may propose jobs. Fails closed if the contractor canister errors.
-    if (Text.size(contrCanisterId) > 0 and not isAdmin(msg.caller)) {
-      let contrActor = actor(contrCanisterId) : actor {
-        getContractor : query (Principal) -> async { #ok : Any; #err : Any };
-      };
-      let registered = try {
-        switch (await contrActor.getContractor(msg.caller)) { case (#ok(_)) true; case (#err(_)) false }
-      } catch (_) { false };
-      if (not registered) return #err(#NotAuthorized);
+    // R2: also record whether that profile is admin-verified.
+    let attest : ?Bool = if (isAdmin(msg.caller)) null else {
+      switch (await contractorStatus(msg.caller)) {
+        case null             { null };
+        case (?(false, _))    { return #err(#NotAuthorized) };
+        case (?(true, isVer)) { ?isVer };
+      }
     };
 
     // Look up the property owner via cross-canister call (if property canister is wired).
@@ -1415,6 +1544,10 @@ persistent actor Job {
     };
 
     putJob(job);
+    switch (attest) {
+      case (?ok) { Map.add(contractorAttest, Text.compare, id, ok) };
+      case null {};
+    };
     // M-9: the push text is fixed, not the contractor-supplied title, so a
     // proposal can't carry phishing text into the homeowner's notifications.
     notifyLatestSeq := Notify.record(
@@ -1495,6 +1628,7 @@ persistent actor Job {
     };
 
     Index.delete(jobs, jobIndexes, jobId);
+    Map.remove(contractorAttest, Text.compare, jobId);
     #ok(())
   };
 

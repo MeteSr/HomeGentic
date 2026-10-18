@@ -203,10 +203,44 @@ echo ""
 echo "── [16] getProperty — final state ───────────────────────────────────────"
 dfx canister call $CANISTER getProperty "(\"$PROP_ID\")"
 
+# ─── Street address is private (D-1) ──────────────────────────────────────────
+echo ""
+echo "── [16b] getProperty as a stranger → address blanked, city kept ─────────"
+if ! dfx identity list 2>/dev/null | grep -q "^property-stranger-test$"; then
+  dfx identity new property-stranger-test --disable-encryption 2>/dev/null || true
+fi
+STRANGER_VIEW=$(dfx canister call $CANISTER getProperty "(\"$PROP_ID\")" --identity property-stranger-test)
+OWNER_VIEW=$(dfx canister call $CANISTER getProperty "(\"$PROP_ID\")")
+if [[ "$STRANGER_VIEW" == *'address = ""'* && "$STRANGER_VIEW" == *'city = "Austin"'* ]]; then
+  echo "  ↳ Stranger sees no street address — ✓"
+else
+  echo "  ↳ ❌ Stranger view should blank the address: $STRANGER_VIEW"; exit 1
+fi
+[[ "$OWNER_VIEW" == *'address = "123 Main Street"'* ]] \
+  && echo "  ↳ Owner still sees the address — ✓" \
+  || { echo "  ↳ ❌ Owner view lost the address: $OWNER_VIEW"; exit 1; }
+
 # ─── Ownership transfer — 7-day conflict window (12.4.2) ──────────────────────
 echo ""
 echo "── [17] initiateTransfer ────────────────────────────────────────────────"
-dfx canister call $CANISTER initiateTransfer "(\"$PROP_ID\")"
+XFER_OUT=$(dfx canister call $CANISTER initiateTransfer "(\"$PROP_ID\")")
+echo "$XFER_OUT"
+XFER_TOKEN=$(echo "$XFER_OUT" | grep -oP 'token = "\K[^"]+' | head -1 || true)
+
+echo ""
+echo "── [17b] getPropertyByTransferToken → the link holder sees the address ──"
+if [ -n "$XFER_TOKEN" ]; then
+  TOKEN_VIEW=$(dfx canister call $CANISTER getPropertyByTransferToken "(\"$XFER_TOKEN\")" --identity property-stranger-test)
+  [[ "$TOKEN_VIEW" == *'address = "123 Main Street"'* ]] \
+    && echo "  ↳ Token holder sees the address — ✓" \
+    || { echo "  ↳ ❌ Expected the address via the transfer token: $TOKEN_VIEW"; exit 1; }
+  BAD_VIEW=$(dfx canister call $CANISTER getPropertyByTransferToken '("not-a-token")' --identity property-stranger-test)
+  [[ "$BAD_VIEW" == *"(null)"* ]] \
+    && echo "  ↳ Unknown token → null — ✓" \
+    || { echo "  ↳ ❌ Expected null for an unknown token: $BAD_VIEW"; exit 1; }
+else
+  echo "  ↳ ❌ Could not parse the transfer token"; exit 1
+fi
 
 echo ""
 echo "── [18] getPendingTransfer ──────────────────────────────────────────────"
@@ -219,6 +253,10 @@ dfx canister call $CANISTER cancelTransfer "(\"$PROP_ID\")"
 echo ""
 echo "── [20] getPendingTransfer after cancel — expect empty ──────────────────"
 dfx canister call $CANISTER getPendingTransfer "(\"$PROP_ID\")"
+CANCELLED_VIEW=$(dfx canister call $CANISTER getPropertyByTransferToken "(\"$XFER_TOKEN\")" --identity property-stranger-test)
+[[ "$CANCELLED_VIEW" == *"(null)"* ]] \
+  && echo "  ↳ Cancelled transfer token no longer reveals the property — ✓" \
+  || { echo "  ↳ ❌ Expected null after cancelTransfer: $CANCELLED_VIEW"; exit 1; }
 
 # ─── getOwnershipHistory ──────────────────────────────────────────────────────
 echo ""

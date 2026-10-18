@@ -56,6 +56,7 @@ export const idlFactory = ({ IDL }: any) => {
     resolveAgentSession: IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
     hasRole:       IDL.Func([UserRole], [IDL.Bool], ["query"]),
     getUserStats:  IDL.Func([], [UserStats], ["query"]),
+    isAdminPrincipal: IDL.Func([IDL.Principal], [IDL.Bool], ["query"]),
     getMetrics: IDL.Func(
       [],
       [IDL.Record({

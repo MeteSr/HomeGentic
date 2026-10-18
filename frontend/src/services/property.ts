@@ -421,6 +421,15 @@ export const propertyService = {
     return fromPendingTransfer(result[0]);
   },
 
+  /** The property behind a live transfer link (claim page). Token-gated: the
+   *  address is included; null for an unknown or expired token. */
+  async getPropertyByTransferToken(token: string): Promise<Property | null> {
+    const a = await getActor();
+    const result: any[] = await a.getPropertyByTransferToken(token);
+    if (!result[0]) return null;
+    return fromProperty(result[0]);
+  },
+
   /** Returns the owner principal of a property, or null if not found.
    *  Used by job/photo/quote canisters to resolve manager tier bypass. */
   async getPropertyOwner(propertyId: string): Promise<string | null> {
@@ -586,6 +595,14 @@ export const propertyService = {
     const result: any[] = await a.getManagerInviteByToken(token);
     if (!result[0]) return null;
     return fromManagerInvite(result[0]);
+  },
+
+  /** The property behind a live manager invite (claim page). Token-gated. */
+  async getPropertyByManagerInviteToken(token: string): Promise<Property | null> {
+    const a = await getActor();
+    const result: any[] = await a.getPropertyByManagerInviteToken(token);
+    if (!result[0]) return null;
+    return fromProperty(result[0]);
   },
 
   /** Manager calls this to record a significant action (triggers owner notification). */

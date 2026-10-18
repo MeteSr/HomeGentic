@@ -176,6 +176,31 @@ echo ""
 echo "── [14] getDevicesForProperty — deactivated device should still appear ──"
 dfx canister call sensor getDevicesForProperty '("PROP_1")'
 
+# ─── Platform-scoped ingestion (M9 / F-14) ────────────────────────────────────
+echo ""
+echo "── [14b] recordEventFor — lands only on the device's own platform ───────"
+SCOPED_OK=$(dfx canister call sensor recordEventFor '(variant { Nest }, "", "nest-abc123", variant { HighHumidity }, 71.0, "%RH", "{}")')
+if [[ "$SCOPED_OK" == *"ok"* ]]; then
+  echo "  ↳ Nest event recorded on the Nest device — ✓"
+else
+  echo "  ↳ ❌ Expected ok for a Nest event on a Nest device; got: $SCOPED_OK"
+  exit 1
+fi
+SCOPED_BAD=$(dfx canister call sensor recordEventFor '(variant { Ecobee }, "", "nest-abc123", variant { HighHumidity }, 71.0, "%RH", "{}")')
+if [[ "$SCOPED_BAD" == *"NotFound"* ]]; then
+  echo "  ↳ Ecobee event refused for a Nest device — ✓"
+else
+  echo "  ↳ ❌ Expected NotFound for a cross-platform event; got: $SCOPED_BAD"
+  exit 1
+fi
+MANUAL_REG=$(dfx canister call sensor registerVerifiedDevice '(principal "aaaaa-aa", "PROP_1", "x-1", variant { Manual }, "", "Manual")')
+if [[ "$MANUAL_REG" == *"InvalidInput"* ]]; then
+  echo "  ↳ registerVerifiedDevice refuses #Manual — ✓"
+else
+  echo "  ↳ ❌ Expected InvalidInput for a #Manual verified device; got: $MANUAL_REG"
+  exit 1
+fi
+
 # ─── Final metrics ────────────────────────────────────────────────────────────
 echo ""
 echo "── [15] Get metrics (after tests) ──────────────────────────────────────"

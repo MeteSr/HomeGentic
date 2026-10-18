@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.11.0"
+DEPLOY_SCRIPT_VERSION="1.12.0"
 ENV=${1:-local}
 
 echo "============================================"
@@ -794,6 +794,13 @@ if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
   grant monitoring addReporter "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker report errors and cycle checks"
   grant agent addContactReader "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker read agent emails for Bid to List mail"
 fi
+if [ -n "${IOT_GATEWAY_PRINCIPAL:-}" ]; then
+  # Once a gateway is registered, sensor refuses self-asserted registerDevice
+  # for the vendor-OAuth platforms (Ecobee, Honeywell, LG ThinQ, GE SmartHQ).
+  grant sensor addGateway "$IOT_GATEWAY_PRINCIPAL" "Letting the IoT gateway bind vendor-verified devices and record events"
+else
+  echo "  ⚠️  IOT_GATEWAY_PRINCIPAL not set: sensor accepts self-asserted device IDs for every platform"
+fi
 if [ -n "$CONTRACTOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> contractor..."
   icp canister call contractor setJobCanisterId        "(\"$JOB_ID\")"               -e "$ENV" &
@@ -857,6 +864,15 @@ fi
 if [ -n "$MARKET_ID" ]     && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> market (score computation)..."
   icp canister call market     setJobCanisterId        "(\"$JOB_ID\")"              -e "$ENV" &
+fi
+if [ -n "$MARKET_ID" ]     && [ -n "$REPORT_ID" ]; then
+  echo "  Wiring market <-> report (on-chain certificate score)..."
+  icp canister call market     setReportCanisterId     "(\"$REPORT_ID\")"           -e "$ENV" &
+  icp canister call report     setMarketCanisterId     "(\"$MARKET_ID\")"           -e "$ENV" &
+fi
+if [ -n "$PROPERTY_ID" ]   && [ -n "$JOB_ID" ]; then
+  echo "  Wiring job -> property (contractor job addresses)..."
+  icp canister call property   setJobCanisterId        "(principal \"$JOB_ID\")"   -e "$ENV" &
 fi
 if [ -n "$MARKET_ID" ]     && [ -n "$LISTING_ID" ]; then
   echo "  Wiring listing -> market (FSBO score lookups)..."
@@ -924,6 +940,10 @@ if [ -n "$CONTRACTOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting contractor ($CONTRACTOR_ID) (review cross-check)..."
   icp canister call job addTrustedCanister "(principal \"$CONTRACTOR_ID\")"   -e "$ENV" 2>/dev/null &
 fi
+if [ -n "$JOB_ID" ] && [ -n "$PROPERTY_ID" ]; then
+  echo "  job: trusting property ($PROPERTY_ID) (contractor job addresses)..."
+  icp canister call job addTrustedCanister "(principal \"$PROPERTY_ID\")"    -e "$ENV" 2>/dev/null &
+fi
 
 # Wire audit canister: register source canisters as trusted writers, then give
 # each source canister the audit canister ID so it can call log().
@@ -977,35 +997,14 @@ if [ -n "$AI_PROXY_ID" ]; then
   # ai_proxy's admin is already bootstrapped above (nonce-gated, alongside the
   # other ADMIN_CANISTERS) — nothing to do here.
 
-  if [ -n "${RESEND_API_KEY:-}" ]; then
-    echo "  ai_proxy: setting Resend API key..."
-    icp canister call ai_proxy setResendApiKey "(\"$RESEND_API_KEY\")" -e "$ENV" \
-      2>/dev/null || echo "  ⚠️  setResendApiKey failed"
-  else
-    echo "  ⚠️  RESEND_API_KEY not set — email sending will be disabled"
-  fi
-
-  if [ -n "${OPEN_PERMIT_API_KEY:-}" ]; then
-    echo "  ai_proxy: setting OpenPermit API key..."
-    icp canister call ai_proxy setOpenPermitApiKey "(\"$OPEN_PERMIT_API_KEY\")" -e "$ENV" \
-      2>/dev/null || echo "  ⚠️  setOpenPermitApiKey failed"
-  else
-    echo "  ⚠️  OPEN_PERMIT_API_KEY not set — OpenPermit lookups will be disabled"
-  fi
-
-  if [ -n "${RESEND_FROM_ADDRESS:-}" ]; then
-    echo "  ai_proxy: setting Resend from address..."
-    icp canister call ai_proxy setResendFromAddress "(\"$RESEND_FROM_ADDRESS\")" -e "$ENV" \
-      2>/dev/null || echo "  ⚠️  setResendFromAddress failed"
-  fi
-
-  if [ -n "${ATTOM_API_KEY:-}" ]; then
-    echo "  ai_proxy: setting ATTOM API key..."
-    icp canister call ai_proxy setAttomApiKey "(\"$ATTOM_API_KEY\")" -e "$ENV" \
-      2>/dev/null || echo "  ⚠️  setAttomApiKey failed"
-  else
-    echo "  ⚠️  ATTOM_API_KEY not set — ATTOM property-record lookups will be disabled"
-  fi
+  # Third-party keys no longer live in canister memory (node operators can
+  # read it). Resend, ATTOM and OpenPermit calls run in the voice Worker:
+  #   wrangler secret put RESEND_API_KEY / ATTOM_API_KEY / OPENPERMIT_API_KEY
+  for k in RESEND_API_KEY OPEN_PERMIT_API_KEY ATTOM_API_KEY; do
+    if [ -n "${!k:-}" ]; then
+      echo "  ⚠️  $k is set here but is now a voice Worker secret; it is not sent to ai_proxy."
+    fi
+  done
 fi
 
 echo ""

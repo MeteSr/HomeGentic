@@ -21,6 +21,7 @@ interface PropertyActor {
   verifyProperty:   (id: string, level: object, method: [] | [string]) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   getProperty:      (id: string) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   getMetrics:       () => Promise<Record<string, bigint | boolean>>;
+  setIdentity:      (identity: any) => void;
 }
 
 function ok<T>(result: { ok: T } | { err: object }): T {
@@ -145,5 +146,21 @@ describe("property canister — upgrade persistence", () => {
     const after = await actor.getMetrics();
     expect(Number(after.totalProperties)).toBe(Number(before.totalProperties));
     expect(Number(after.verifiedProperties)).toBe(Number(before.verifiedProperties));
+  });
+
+  it("after upgrade the street address is still owner-only", async () => {
+    await pic.upgradeCanister({ canisterId, wasm: WASM });
+
+    const owner: any = ok(await actor.getProperty(propertyId));
+    expect(owner.address).toBe("123 Main Street");
+
+    actor.setIdentity(createIdentity("stranger"));
+    try {
+      const pub: any = ok(await actor.getProperty(propertyId));
+      expect(pub.address).toBe("");
+      expect(pub.city).toBe("Austin");
+    } finally {
+      actor.setIdentity(createIdentity("alice"));
+    }
   });
 });

@@ -143,6 +143,19 @@ persistent actor Sensor {
   /// externalDeviceId → internal device id
   private let externalIdIdx = Map.empty<Text, Text>();
 
+  /// M9 / F-14: devices whose ownership the IoT gateway verified through the
+  /// vendor's own API (OAuth device picker). Keyed by
+  /// "<source>\n<vendorAccountId>\n<externalDeviceId>" → internal device id.
+  private let verifiedIdx = Map.empty<Text, Text>();
+  /// Internal device id → vendor account it was verified under. Presence of
+  /// an entry marks the device as verified.
+  private let deviceVendorAccount = Map.empty<Text, Text>();
+  /// Sources that, once a gateway is registered, may only be bound through the
+  /// gateway's vendor-account flow (registerVerifiedDevice). These are the
+  /// platforms the gateway has an OAuth device picker for. Admin-adjustable as
+  /// the gateway gains flows for more platforms.
+  private var verifiedOnlySources : [DeviceSource] = [#Ecobee, #HoneywellHome, #LGThinQ, #GESmartHQ];
+
   // ─── Ingress Inspection ───────────────────────────────────────────────────────
 
   /// Reject recordEvent and registerDevice calls from principals that are neither
@@ -276,6 +289,52 @@ persistent actor Sensor {
       case (?idxId) { if (idxId == d.id) { Map.remove(externalIdIdx, Text.compare, d.externalDeviceId) } };
       case null {};
     };
+    switch (Map.get(deviceVendorAccount, Text.compare, d.id)) {
+      case (?acct) {
+        let key = verifiedKey(d.source, acct, d.externalDeviceId);
+        switch (Map.get(verifiedIdx, Text.compare, key)) {
+          case (?idxId) { if (idxId == d.id) { Map.remove(verifiedIdx, Text.compare, key) } };
+          case null {};
+        };
+      };
+      case null {};
+    };
+  };
+
+  private func verifiedKey(source : DeviceSource, vendorAccountId : Text, externalDeviceId : Text) : Text {
+    debug_show(source) # "\n" # vendorAccountId # "\n" # externalDeviceId
+  };
+
+  private func isVerifiedDevice(id : Text) : Bool {
+    Option.isSome(Map.get(deviceVendorAccount, Text.compare, id))
+  };
+
+  private func requiresVerification(source : DeviceSource) : Bool {
+    Option.isSome(Array.find<DeviceSource>(verifiedOnlySources, func(v) { v == source }))
+  };
+
+  /// The active device an index entry points to; drops dangling/inactive entries.
+  private func activeAt(ix : Map.Map<Text, Text>, key : Text) : ?SensorDevice {
+    switch (Map.get(ix, Text.compare, key)) {
+      case null { null };
+      case (?id) {
+        switch (Map.get(devices, Text.compare, id)) {
+          case (?d) { if (d.isActive) ?d else { Map.remove(ix, Text.compare, key); null } };
+          case null { Map.remove(ix, Text.compare, key); null };
+        }
+      };
+    }
+  };
+
+  /// Validation shared by both registration paths.
+  private func validateRegistration(propertyId : Text, externalDeviceId : Text, name : Text) : ?Error {
+    if (Text.size(propertyId)       == 0)  return ?#InvalidInput("propertyId required");
+    if (Text.size(propertyId)       > 200) return ?#InvalidInput("propertyId exceeds 200 characters");
+    if (Text.size(externalDeviceId) == 0)  return ?#InvalidInput("externalDeviceId required");
+    if (Text.size(externalDeviceId) > 200) return ?#InvalidInput("externalDeviceId exceeds 200 characters");
+    if (Text.size(name)             == 0)  return ?#InvalidInput("name required");
+    if (Text.size(name)             > 200) return ?#InvalidInput("name exceeds 200 characters");
+    null
   };
 
   system func postupgrade() {
@@ -440,12 +499,15 @@ persistent actor Sensor {
   ) : async Result.Result<SensorDevice, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
-    if (Text.size(propertyId)       == 0)  return #err(#InvalidInput("propertyId required"));
-    if (Text.size(propertyId)       > 200) return #err(#InvalidInput("propertyId exceeds 200 characters"));
-    if (Text.size(externalDeviceId) == 0)  return #err(#InvalidInput("externalDeviceId required"));
-    if (Text.size(externalDeviceId) > 200) return #err(#InvalidInput("externalDeviceId exceeds 200 characters"));
-    if (Text.size(name)             == 0)  return #err(#InvalidInput("name required"));
-    if (Text.size(name)             > 200) return #err(#InvalidInput("name exceeds 200 characters"));
+    switch (validateRegistration(propertyId, externalDeviceId, name)) { case (?e) return #err e; case null {} };
+
+    // M9 / F-14: platforms the gateway can verify through the vendor account
+    // must be linked that way (registerVerifiedDevice) once a gateway is
+    // registered, so nobody can claim a device ID they merely know. Without a
+    // gateway (local dev) the old self-asserted path still works.
+    if (requiresVerification(source) and authorizedGateways.size() > 0 and not isAdmin(msg.caller)) {
+      return #err(#InvalidInput("Connect your " # debug_show(source) # " account to add this device"));
+    };
 
     // H-15: verify caller owns the property before registering a device
     if (not isAdmin(msg.caller)) {
@@ -463,6 +525,14 @@ persistent actor Sensor {
     // binding is refused while its registrant still has access to the
     // property it was registered on; a stale binding (former owner, revoked
     // manager, or deactivated device) is released and can be re-registered.
+    // A #Manual device never receives gateway events, so its (self-chosen) ID
+    // must not block a vendor device with the same ID: drop its index entry.
+    if (source != #Manual) {
+      switch (activeAt(externalIdIdx, externalDeviceId)) {
+        case (?m) { if (m.source == #Manual) Map.remove(externalIdIdx, Text.compare, externalDeviceId) };
+        case null {};
+      };
+    };
     switch (Map.get(externalIdIdx, Text.compare, externalDeviceId)) {
       case null {};
       case (?existingId) {
@@ -510,6 +580,100 @@ persistent actor Sensor {
 
     Map.add(devices, Text.compare, id, device);
     Map.add(externalIdIdx, Text.compare, externalDeviceId, id);
+    Index.add(devicesByProperty, propertyId, id);
+    #ok(device)
+  };
+
+  /// M9 / F-14: bind a vendor device whose ownership the IoT gateway proved.
+  ///
+  /// Gateway (or admin) only. The gateway calls this after the homeowner, whose
+  /// HomeGentic principal it resolved from an auth-canister session token,
+  /// completed the vendor's OAuth flow; `externalDeviceId` must be one of the
+  /// devices the vendor API listed for that OAuth token. `owner`'s write access
+  /// to the property is re-checked here, live.
+  ///
+  /// Identity is scoped per (source, vendorAccountId, externalDeviceId). A
+  /// verified binding replaces any unverified (self-asserted) one with the same
+  /// external ID, and is itself only replaced once its registrant has lost
+  /// access to the property it was registered on.
+  public shared(msg) func registerVerifiedDevice(
+    owner            : Principal,
+    propertyId       : Text,
+    externalDeviceId : Text,
+    source           : DeviceSource,
+    vendorAccountId  : Text,
+    name             : Text
+  ) : async Result.Result<SensorDevice, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    if (not isGateway(msg.caller) and not isAdmin(msg.caller)) {
+      countError("registerVerifiedDevice");
+      return #err(#NotAuthorized);
+    };
+    if (Principal.isAnonymous(owner)) return #err(#NotAuthorized);
+    if (source == #Manual) return #err(#InvalidInput("Manual devices are registered with registerDevice"));
+    switch (validateRegistration(propertyId, externalDeviceId, name)) { case (?e) return #err e; case null {} };
+    if (Text.size(vendorAccountId) > 200) return #err(#InvalidInput("vendorAccountId exceeds 200 characters"));
+
+    // The homeowner must hold write access to the property right now.
+    if (Text.size(propCanisterId) > 0) {
+      let ok = switch (await authCheck(propertyId, owner, true)) { case (?b) b; case null false };
+      if (not ok) return #err(#NotAuthorized);
+    };
+
+    let key = verifiedKey(source, vendorAccountId, externalDeviceId);
+
+    // Re-linking the same device to the same property is a no-op.
+    switch (activeAt(verifiedIdx, key)) {
+      case (?d) { if (d.homeowner == owner and d.propertyId == propertyId) return #ok(d) };
+      case null {};
+    };
+
+    // Resolve the (at most two) existing bindings: the verified one for this
+    // exact key and whatever holds the global external-ID slot.
+    for ((useVerified, k) in [(true, key), (false, externalDeviceId)].vals()) {
+      let ix = if useVerified verifiedIdx else externalIdIdx;
+      switch (activeAt(ix, k)) {
+        case null {};
+        case (?d) {
+          if (not isVerifiedDevice(d.id)) {
+            // Verified beats unverified (self-asserted or #Manual).
+            retireDevice(d);
+          } else {
+            let held = await authorizedOn(d.propertyId, d.homeowner, true);
+            // Re-read after the await (TOCTOU).
+            switch (Map.get(devices, Text.compare, d.id)) {
+              case (?cur) {
+                if (cur.isActive) {
+                  if (held) return #err(#AlreadyExists);
+                  retireDevice(cur);
+                };
+              };
+              case null {};
+            };
+          };
+        };
+      };
+    };
+    // Something may have been bound while we awaited.
+    if (Option.isSome(activeAt(verifiedIdx, key)) or Option.isSome(activeAt(externalIdIdx, externalDeviceId))) {
+      return #err(#AlreadyExists);
+    };
+
+    let id = nextDeviceId();
+    let device : SensorDevice = {
+      id;
+      propertyId;
+      homeowner        = owner;
+      externalDeviceId;
+      source;
+      name;
+      registeredAt     = Time.now();
+      isActive         = true;
+    };
+    Map.add(devices, Text.compare, id, device);
+    Map.add(externalIdIdx, Text.compare, externalDeviceId, id);
+    Map.add(verifiedIdx, Text.compare, key, id);
+    Map.add(deviceVendorAccount, Text.compare, id, vendorAccountId);
     Index.add(devicesByProperty, propertyId, id);
     #ok(device)
   };
@@ -590,28 +754,89 @@ persistent actor Sensor {
       return #err(#InvalidInput("rawPayload exceeds 4096-byte limit"));
     };
 
-    let deviceId = switch (Map.get(externalIdIdx, Text.compare, externalDeviceId)) {
-      case null     {
-        Debug.print("sensor.recordEvent: device not found: " # externalDeviceId);
-        countError("recordEvent");
-        return #err(#NotFound);
-      };
-      case (?id)    { id };
-    };
-    let device = switch (Map.get(devices, Text.compare, deviceId)) {
+    let device = switch (activeAt(externalIdIdx, externalDeviceId)) {
       case null  {
-        Debug.print("sensor.recordEvent: internal device missing: " # deviceId);
+        // M9: unknown or deactivated devices record nothing and create no jobs.
+        Debug.print("sensor.recordEvent: device not found: " # externalDeviceId);
         countError("recordEvent");
         return #err(#NotFound);
       };
       case (?d)  { d };
     };
-    // M9: a deactivated device records nothing and creates no jobs.
-    if (not device.isActive) {
+    // F-14: a #Manual device's ID is self-chosen, so gateway traffic never
+    // lands on one (it could otherwise squat a vendor device's ID).
+    if (device.source == #Manual and not isAdmin(msg.caller)) {
       countError("recordEvent");
       return #err(#NotFound);
     };
+    await* ingest(device, eventType, value, unit, rawPayload)
+  };
 
+  /// M9 / F-14: platform- and vendor-account-scoped event ingestion for the
+  /// gateway. With a non-empty `vendorAccountId` the event only lands on the
+  /// device verified under that vendor account (or on a legacy unverified
+  /// device of that platform); with an empty one (the gateway received the
+  /// event on a channel that doesn't name the account, e.g. a webhook carrying
+  /// only a device ID) it lands on the platform's active binding for the ID.
+  /// Never lands on a device registered for a different platform.
+  public shared(msg) func recordEventFor(
+    source           : DeviceSource,
+    vendorAccountId  : Text,
+    externalDeviceId : Text,
+    eventType        : SensorEventType,
+    value            : Float,
+    unit             : Text,
+    rawPayload       : Text
+  ) : async Result.Result<SensorEvent, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    if (not isGateway(msg.caller) and not isAdmin(msg.caller)) {
+      countError("recordEventFor");
+      return #err(#NotAuthorized);
+    };
+    if (Text.size(rawPayload) > MAX_PAYLOAD_BYTES) {
+      countError("recordEventFor");
+      return #err(#InvalidInput("rawPayload exceeds 4096-byte limit"));
+    };
+    if (source == #Manual) return #err(#InvalidInput("Manual devices receive no gateway events"));
+
+    let exact = if (Text.size(vendorAccountId) > 0) {
+      activeAt(verifiedIdx, verifiedKey(source, vendorAccountId, externalDeviceId))
+    } else { null };
+    let device = switch (exact) {
+      case (?d) { d };
+      case null {
+        switch (activeAt(externalIdIdx, externalDeviceId)) {
+          case null { countError("recordEventFor"); return #err(#NotFound) };
+          case (?d) {
+            if (d.source != source) { countError("recordEventFor"); return #err(#NotFound) };
+            // A device verified under another vendor account doesn't take
+            // events the gateway received under this one.
+            switch (Map.get(deviceVendorAccount, Text.compare, d.id)) {
+              case (?acct) {
+                if (Text.size(vendorAccountId) > 0 and Text.size(acct) > 0 and acct != vendorAccountId) {
+                  countError("recordEventFor");
+                  return #err(#NotFound);
+                };
+              };
+              case null {};
+            };
+            d
+          };
+        }
+      };
+    };
+    await* ingest(device, eventType, value, unit, rawPayload)
+  };
+
+  /// Classify, maybe open a job, and store an event for an active device.
+  private func ingest(
+    device     : SensorDevice,
+    eventType  : SensorEventType,
+    value      : Float,
+    unit       : Text,
+    rawPayload : Text
+  ) : async* Result.Result<SensorEvent, Error> {
+    let deviceId = device.id;
     let severity = severityOf(eventType);
     let eventId  = nextEventId();
     let now      = Time.now();
@@ -759,6 +984,19 @@ persistent actor Sensor {
     authorizedGateways := Array.filter<Principal>(authorizedGateways, func(g) { g != gw });
     #ok(())
   };
+
+  /// F-14: which sources must be linked through the gateway's vendor-account
+  /// flow once a gateway is registered. Admin only.
+  public shared(msg) func setVerifiedOnlySources(sources : [DeviceSource]) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (Option.isSome(Array.find<DeviceSource>(sources, func(v) { v == #Manual }))) {
+      return #err(#InvalidInput("Manual devices cannot require vendor verification"));
+    };
+    verifiedOnlySources := sources;
+    #ok(())
+  };
+
+  public query func getVerifiedOnlySources() : async [DeviceSource] { verifiedOnlySources };
 
   /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {

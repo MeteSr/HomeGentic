@@ -6,10 +6,6 @@ export { idlFactory };
 
 const PAYMENT_CANISTER_ID = (process.env as any).PAYMENT_CANISTER_ID || "";
 const VOICE_AGENT_URL     = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
-// Local dfx replica doesn't forward custom HTTP headers in outcalls correctly,
-// so Stripe checkout is routed through the Express voice server on non-IC networks.
-const DFX_NETWORK         = (process.env as any).DFX_NETWORK || "local";
-const USE_EXPRESS_CHECKOUT = DFX_NETWORK !== "ic";
 
 // ─── TypeScript types & static plan data (re-exported from planConstants) ─────
 //
@@ -245,39 +241,19 @@ export const paymentService = {
     billing: BillingCycle,
     gift?:   GiftMeta,
   ): Promise<void> {
-    if (USE_EXPRESS_CHECKOUT) {
-      // Dev: local dfx replica doesn't forward custom HTTP headers in outcalls.
-      // Route through the Express voice server which uses the Stripe Node SDK.
-      // The Worker takes the principal from the x-agent-session token, not the body.
-      const successUrl = `${window.location.origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
-      const cancelUrl  = `${window.location.origin}/payment-failure`;
-      const body: Record<string, unknown> = { tier, billing, successUrl, cancelUrl };
-      if (gift) body.gift = gift;
-      const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/create-checkout`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error ?? "Checkout failed");
-      window.location.href = data.url;
-      return;
-    }
-
-    // Prod: canister makes the Stripe HTTP outcall directly.
-    const a = await getActor();
-    const giftArg = gift
-      ? [{ recipientEmail: gift.recipientEmail, recipientName: gift.recipientName,
-           senderName: gift.senderName, giftMessage: gift.giftMessage,
-           deliveryDate: gift.deliveryDate }]
-      : [];
-    const result = await a.createStripeCheckoutSession(
-      { [tier]: null }, { [billing]: null }, giftArg,
-    );
-    if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const detail = (result.err as any)[key];
-      throw new Error(typeof detail === "string" ? detail : key);
-    }
-    window.location.href = result.ok.url;
+    // M-6: Stripe runs only in the voice Worker (its secret key never lives
+    // in canister memory). The Worker takes the principal from the
+    // x-agent-session token, not the body.
+    const successUrl = `${window.location.origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl  = `${window.location.origin}/payment-failure`;
+    const body: Record<string, unknown> = { tier, billing, successUrl, cancelUrl };
+    if (gift) body.gift = gift;
+    const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/create-checkout`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error ?? "Checkout failed");
+    window.location.href = data.url;
   },
 
   /**
@@ -288,26 +264,15 @@ export const paymentService = {
   async verifyStripeSession(
     sessionId: string,
   ): Promise<{ type: "subscription"; tier?: string; billing?: string } | { type: "gift"; giftToken: string }> {
-    if (USE_EXPRESS_CHECKOUT) {
-      const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/verify-session`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error ?? "Verification failed");
-      return data as { type: "subscription"; tier?: string; billing?: string } | { type: "gift"; giftToken: string };
-    }
-
-    const a = await getActor();
-    const result = await a.verifyStripeSession(sessionId);
-
-    if ("ok" in result) return { type: "subscription" };
-
-    const key = Object.keys(result.err)[0];
-    if (key === "NotFound") return { type: "gift", giftToken: sessionId };
-
-    const detail = (result.err as any)[key];
-    throw new Error(typeof detail === "string" ? detail : key);
+    // M-6: verified by the voice Worker, which activates the subscription (or
+    // registers the gift) in the payment canister through its relay role.
+    const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/verify-session`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error ?? "Verification failed");
+    return data as { type: "subscription"; tier?: string; billing?: string } | { type: "gift"; giftToken: string };
   },
 
   /** Redeem a pending gift using the token emailed to the recipient. */

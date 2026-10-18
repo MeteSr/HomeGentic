@@ -9,7 +9,9 @@
  *
  * This canister handles:
  *   Pure computation : getPriceBenchmark, instantForecast
- *   IC HTTP outcalls : importPermits (ArcGIS / OpenPermit), sendEmail (Resend)
+ *   Retired          : importPermits, lookupPropertyDetails and the email
+ *                      methods moved to the voice Worker (agents/voice), which
+ *                      holds the ATTOM / OpenPermit / Resend keys off-chain.
  *   Stubs            : checkReport, lookupYearBuilt, requestReport
  *   Standard ops     : health, pause, metrics, rate limiting, admin
  */
@@ -20,12 +22,10 @@ import Char      "mo:core/Char";
 import Nat8      "mo:core/Nat8";
 import Nat32     "mo:core/Nat32";
 import List      "mo:core/List";
-import Debug     "mo:core/Debug";
 import Int       "mo:core/Int";
 import Iter      "mo:core/Iter";
 import Map       "mo:core/Map";
 import Nat       "mo:core/Nat";
-import Nat64     "mo:core/Nat64";
 import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
@@ -62,22 +62,6 @@ persistent actor AiProxy {
     errorsByMethod : [(Text, Nat)];
   };
 
-  // ── IC Management Canister (HTTP outcalls) ─────────────────────────────────
-
-  transient let ic : actor {
-    http_request : shared ({
-      url               : Text;
-      max_response_bytes : ?Nat64;
-      headers           : [HttpHeader];
-      body              : ?Blob;
-      method            : HttpMethod;
-      transform         : ?{
-        function : shared query (TransformArgs) -> async HttpResponse;
-        context  : Blob;
-      };
-    }) -> async HttpResponse;
-  } = actor "aaaaa-aa";
-
   // ── Stable state ───────────────────────────────────────────────────────────
 
   private var adminListEntries       : [Principal] = [];
@@ -89,19 +73,31 @@ persistent actor AiProxy {
   private var isPaused               : Bool        = false;
   private var pauseExpiryNs          : ?Int        = null;
 
-  // API keys (set by admin post-deploy; never exposed via query)
+  // M-6: retired. Third-party API keys now live only in the voice Worker
+  // (wrangler secrets). Kept (always "") so the stable signature is unchanged.
   private var resendApiKey           : Text = "";
   private var openPermitApiKey       : Text = "";
   private var attomApiKey            : Text = "";
+
+  private transient let MOVED_MSG : Text =
+    "moved off-chain: call the voice Worker";
+  private transient let KEYS_MOVED_MSG : Text =
+    "API keys are no longer stored on-chain; set them as voice Worker secrets";
+
+  /// Wipe any key a previous version stored. Idempotent; runs after every
+  /// upgrade and on every call that used to read a key.
+  private func clearApiKeys() {
+    resendApiKey     := "";
+    openPermitApiKey := "";
+    attomApiKey      := "";
+  };
+
+  system func postupgrade() { clearApiKeys() };
   private var resendFromAddress      : Text = "HomeGentic <noreply@homegentic.app>";
 
   // Email usage counters
   private let errsByMethod : Map.Map<Text, Nat> = Map.empty();
 
-  private func countError(method : Text) {
-    let prev = Option.get(Map.get(errsByMethod, Text.compare, method), 0);
-    Map.add(errsByMethod, Text.compare, method, prev + 1);
-  };
 
   private var emailSentDaily         : Nat = 0;
   private var emailSentMonthly       : Nat = 0;
@@ -121,8 +117,6 @@ persistent actor AiProxy {
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   private var maxUpdatesPerMin : Nat = 30;
   private transient let ONE_MINUTE_NS    : Int = 60_000_000_000;
-  private transient let ONE_DAY_NS       : Int = 86_400_000_000_000;
-  private transient let ONE_MONTH_NS     : Int = 2_592_000_000_000_000; // 30 days
 
 
   // ── Ingress inspection ────────────────────────────────────────────────────
@@ -166,44 +160,6 @@ persistent actor AiProxy {
     };
     if (not tryConsumeUpdateSlot(caller)) return #err(#RateLimited);
     #ok(())
-  };
-
-  // ── M11: per-caller daily quotas, global budgets, ATTOM cache ──────────────
-
-  /// Per caller and per day, for user-triggered outcalls.
-  private transient let ATTOM_PER_CALLER_DAY  : Nat = 10;
-  private transient let PERMIT_PER_CALLER_DAY : Nat = 20;
-  /// "<method>|<principal>" → (count, windowStart). Transient: a DoS guard.
-  private transient let dailyCallerCounts = Map.empty<Text, (Nat, Int)>();
-  /// Normalised address → (fetchedAt, raw ATTOM JSON). Transient, bounded.
-  private transient let attomCache = Map.empty<Text, (Int, Text)>();
-  private transient let ATTOM_CACHE_MAX : Nat = 1_000;
-  private transient let ATTOM_CACHE_TTL_NS : Int = 7 * 86_400_000_000_000;
-  private transient let MAX_ADDR_FIELD : Nat = 200;
-
-  private func resetOutcallBudgetIfNeeded() {
-    let now = Time.now();
-    if (now - outcallDayWindowStart >= ONE_DAY_NS) {
-      outcallDayWindowStart := now;
-      attomCallsToday  := 0;
-      permitCallsToday := 0;
-      Map.clear(dailyCallerCounts);
-    };
-  };
-
-  /// Consume one per-caller daily slot. Admins and trusted canisters are exempt.
-  private func tryConsumeDaily(method : Text, caller : Principal, limit : Nat) : Bool {
-    if (isAdmin(caller) or isTrustedCanister(caller)) return true;
-    let key = method # "|" # Principal.toText(caller);
-    let (count, start) = Option.get(Map.get(dailyCallerCounts, Text.compare, key), (0, Time.now()));
-    if (count >= limit) return false;
-    Map.add(dailyCallerCounts, Text.compare, key, (count + 1, start));
-    true
-  };
-
-  private func addrFieldsOk(a : Text, b : Text, c : Text, d : Text) : Bool {
-    Text.size(a) <= MAX_ADDR_FIELD and Text.size(b) <= MAX_ADDR_FIELD
-      and Text.size(c) <= MAX_ADDR_FIELD and Text.size(d) <= MAX_ADDR_FIELD
   };
 
   // ── HTTP outcall transform (strips non-deterministic headers) ──────────────
@@ -326,90 +282,11 @@ persistent actor AiProxy {
     else 3
   };
 
-  // ── Volusia County supported cities ───────────────────────────────────────
-
-  private transient let VOLUSIA_CITIES : [Text] = [
-    "daytona beach", "deltona", "ormond beach", "port orange", "holly hill",
-    "south daytona", "new smyrna beach", "edgewater", "deland", "debary",
-    "orange city", "ponce inlet", "oak hill", "lake helen", "pierson",
-    "osteen", "enterprise", "volusia county",
-  ];
-
-  private func isVolusiaCounty(city: Text, state: Text) : Bool {
-    let _cityLower = Text.map(city, func(c: Char) : Char {
-      if (c >= 'A' and c <= 'Z') {
-        // We rely on the caller passing lowercased or do best-effort comparison
-        c
-      } else { c }
-    });
-    // Normalise by lowercasing via trim + compare (approximate — callers use lowercase)
-    let _stateNorm = Text.map(state, func(c: Char) : Char { c });
-    (state == "fl" or state == "FL") and
-    Option.isSome(Array.find<Text>(VOLUSIA_CITIES, func(v) {
-      v == city or Text.map(city, func(c: Char) : Char { c }) == v
-    }))
-  };
-
-  // Supported cities for OpenPermit (beyond Volusia)
-  private transient let OPENPERMIT_CITIES : [Text] = [
-    "los angeles", "houston", "phoenix", "philadelphia", "san antonio",
-    "san diego", "dallas", "san jose", "austin", "jacksonville",
-    "new york", "chicago", "fort worth", "columbus", "charlotte",
-    "denver", "seattle", "portland", "las vegas", "nashville",
-    "miami", "atlanta", "minneapolis", "tampa",
-  ];
-
-  private func isSupportedCity(city: Text, _state: Text) : Bool {
-    Option.isSome(Array.find<Text>(OPENPERMIT_CITIES, func(c) { c == city }))
-  };
-
-
-  // M-08 / L4: make a caller-supplied string safe inside an ArcGIS SQL LIKE
-  // literal: drop the LIKE wildcards / class brackets (% _ [ ]) and control
-  // characters, and double single quotes. URL-encode the result separately.
-  private func escapeArcGISLike(s: Text) : Text {
-    let cleaned = Text.fromIter(Iter.filter<Char>(s.chars(), func(c) {
-      c != '%' and c != '_' and c != '[' and c != ']' and Char.toNat32(c) >= 0x20 and Char.toNat32(c) != 0x7F
-    }));
-    Text.replace(cleaned, #char '\'', "''")
-  };
-
   private func hexDigit(n : Nat8) : Text {
     let digits = "0123456789ABCDEF";
     var i : Nat8 = 0;
     for (c in digits.chars()) { if (i == n) return Text.fromChar(c); i += 1 };
     "0"
-  };
-
-  /// L4: RFC 3986 percent-encoding of a query value: everything except the
-  /// unreserved set (A-Z a-z 0-9 - . _ ~) is encoded from its UTF-8 bytes.
-  private func pctEncode(s : Text) : Text {
-    var out = "";
-    for (b in Text.encodeUtf8(s).vals()) {
-      let unreserved =
-        (b >= 0x41 and b <= 0x5A) or (b >= 0x61 and b <= 0x7A) or (b >= 0x30 and b <= 0x39)
-        or b == 0x2D or b == 0x2E or b == 0x5F or b == 0x7E;
-      if (unreserved) {
-        out #= Text.fromChar(Char.fromNat32(Nat32.fromNat(Nat8.toNat(b))));
-      } else {
-        out #= "%" # hexDigit(b / 16) # hexDigit(b % 16);
-      };
-    };
-    out
-  };
-
-  // ── Email usage reset helpers ──────────────────────────────────────────────
-
-  private func resetEmailCountersIfNeeded() {
-    let now = Time.now();
-    if (now - emailDayWindowStart >= ONE_DAY_NS) {
-      emailSentDaily      := 0;
-      emailDayWindowStart := now;
-    };
-    if (now - emailMonthWindowStart >= ONE_MONTH_NS) {
-      emailSentMonthly      := 0;
-      emailMonthWindowStart := now;
-    };
   };
 
   // ── JSON building helpers ──────────────────────────────────────────────────
@@ -431,36 +308,6 @@ persistent actor AiProxy {
       else { out #= Text.fromChar(c) };
     };
     out
-  };
-
-  /// L3: HTML escaping for values interpolated into email bodies.
-  private func htmlEscape(v : Text) : Text {
-    var out = "";
-    for (c in v.chars()) {
-      if (c == '&') { out #= "&amp;" }
-      else if (c == '<') { out #= "&lt;" }
-      else if (c == '>') { out #= "&gt;" }
-      else if (c == '\"') { out #= "&quot;" }
-      else if (c == '\'') { out #= "&#39;" }
-      else { out #= Text.fromChar(c) };
-    };
-    out
-  };
-
-  /// L3: strip CR/LF so a value can't add lines to a subject or plain-text body header.
-  private func oneLine(v : Text) : Text {
-    Text.fromIter(Iter.filter<Char>(v.chars(), func(c) { c != '\r' and c != '\n' }))
-  };
-
-  /// L3: only https links to HomeGentic / IC-hosted frontends go into emails.
-  private func isAllowedLink(url : Text) : Bool {
-    let rest = switch (Text.stripStart(url, #text "https://")) { case (?r) r; case null { return false } };
-    let host = switch (Text.split(rest, #predicate(func(c : Char) : Bool { c == '/' or c == '?' or c == '#' })).next()) {
-      case (?h) h; case null "";
-    };
-    if (Text.contains(host, #char '@') or Text.contains(host, #char ':')) return false;
-    host == "homegentic.app" or Text.endsWith(host, #text ".homegentic.app")
-      or Text.endsWith(host, #text ".icp0.io") or Text.endsWith(host, #text ".ic0.app")
   };
 
   private func jsonStr(k: Text, v: Text) : Text    { "\"" # k # "\":\"" # jsonEscape(v) # "\"" };
@@ -599,75 +446,18 @@ persistent actor AiProxy {
     "{" # jsonStr("address", address) # "," # jsonNull("yearBuilt") # "}"
   };
 
-  /**
-   * Fetch property details from ATTOM Data API.
-   * Returns raw ATTOM JSON on success; frontend parses yearBuilt, grossSqFt, beds,
-   * baths, lotSizeAcres, and proptype.
-   *
-   * Requires attomApiKey set via setAttomApiKey().
-   * Endpoint: GET https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/basicprofile
-   */
+  /// M11 / M-6: ATTOM lookups moved to the voice Worker (POST
+  /// /api/property/details), which holds the API key off-chain and enforces
+  /// per-user and global daily quotas. Kept for Candid compatibility.
   public shared(msg) func lookupPropertyDetails(
-    address : Text,
-    city    : Text,
-    state   : Text,
-    zip     : Text,
+    _address : Text,
+    _city    : Text,
+    _state   : Text,
+    _zip     : Text,
   ) : async Result.Result<Text, Error> {
-    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (Text.size(attomApiKey) == 0) return #err(#KeyNotConfigured);
-    if (not addrFieldsOk(address, city, state, zip)) return #err(#InvalidInput("address field too long"));
-    if (Text.size(address) == 0) return #err(#InvalidInput("address required"));
-
-    // M11: serve repeat lookups from cache (no outcall, no ATTOM quota).
-    let cacheKey = Text.toLower(Text.trim(address, #char ' ') # "|" # Text.trim(city, #char ' ') # "|" #
-                                Text.trim(state, #char ' ') # "|" # Text.trim(zip, #char ' '));
-    switch (Map.get(attomCache, Text.compare, cacheKey)) {
-      case (?(at, json)) { if (Time.now() - at < ATTOM_CACHE_TTL_NS) return #ok(json) };
-      case null {};
-    };
-    // M11: per-caller daily quota and a global daily budget.
-    resetOutcallBudgetIfNeeded();
-    if (not isAdmin(msg.caller) and attomCallsToday >= attomDailyBudget) return #err(#RateLimited);
-    if (not tryConsumeDaily("attom", msg.caller, ATTOM_PER_CALLER_DAY)) return #err(#RateLimited);
-    attomCallsToday += 1;
-
-    // L4: percent-encode every query value.
-    let address2 = pctEncode(oneLine(city) # ", " # oneLine(state) # " " # oneLine(zip));
-    let url = "https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/basicprofile" #
-              "?address1=" # pctEncode(oneLine(address)) #
-              "&address2=" # address2;
-
-    try {
-      let response = await (with cycles = 3_000_000_000) ic.http_request({
-        url               = url;
-        max_response_bytes = ?Nat64.fromNat(65536);
-        headers           = [
-          { name = "Accept";  value = "application/json" },
-          { name = "apikey";  value = attomApiKey },
-        ];
-        body              = null;
-        method            = #get;
-        transform         = ?{ function = transformResponse; context = Blob.fromArray([]) };
-      });
-
-      switch (Text.decodeUtf8(response.body)) {
-        case null {
-          countError("lookupPropertyDetails");
-          #err(#HttpError("Failed to decode ATTOM response"))
-        };
-        case (?rawJson) {
-          attomLookupCount += 1;
-          if (response.status >= 200 and response.status < 300) {
-            if (Map.size(attomCache) >= ATTOM_CACHE_MAX) Map.clear(attomCache);
-            Map.add(attomCache, Text.compare, cacheKey, (Time.now(), rawJson));
-          };
-          #ok(rawJson)
-        };
-      }
-    } catch (_e) {
-      countError("lookupPropertyDetails");
-      #err(#HttpError("ATTOM request failed"))
-    }
+    ignore msg;
+    clearApiKeys();
+    #err(#HttpError(MOVED_MSG # " (POST /api/property/details)"))
   };
 
   public shared(msg) func requestReport(
@@ -698,347 +488,58 @@ persistent actor AiProxy {
 
   // ── Public: import permits (IC HTTP outcall) ───────────────────────────────
 
-  /**
-   * Fetch permits from ArcGIS (Volusia County) or OpenPermit.org.
-   * Returns { source, data } where data is the raw API response JSON —
-   * the frontend maps it to OpenPermitRecord[] format.
-   *
-   * source: "arcgis" | "openpermit" | "unsupported"
-   */
+  /// M11 / M-6: permit imports (ArcGIS / OpenPermit) moved to the voice
+  /// Worker (POST /api/permits/import). Kept for Candid compatibility.
   public shared(msg) func importPermits(
-    address : Text,
-    city    : Text,
-    state   : Text,
-    zip     : Text,
+    _address : Text,
+    _city    : Text,
+    _state   : Text,
+    _zip     : Text,
   ) : async Result.Result<Text, Error> {
-    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (not addrFieldsOk(address, city, state, zip)) return #err(#InvalidInput("address field too long"));
-
-    let cityLower  = Text.map(city,  func(c: Char) : Char { c });
-    let stateLower = Text.map(state, func(c: Char) : Char { c });
-
-    // Unsupported city — return immediately
-    if (not isVolusiaCounty(cityLower, stateLower) and not isSupportedCity(cityLower, stateLower)) {
-      return #ok("{\"source\":\"unsupported\",\"data\":\"[]\"}");
-    };
-
-    // M11: per-caller daily quota and a global daily budget before any outcall.
-    resetOutcallBudgetIfNeeded();
-    if (not isAdmin(msg.caller) and permitCallsToday >= permitDailyBudget) return #err(#RateLimited);
-    if (not tryConsumeDaily("permits", msg.caller, PERMIT_PER_CALLER_DAY)) return #err(#RateLimited);
-    permitCallsToday += 1;
-
-    // Volusia County — ArcGIS (no key needed)
-    if (isVolusiaCounty(cityLower, stateLower)) {
-      let street     = switch (Text.split(address, #char ',').next()) {
-        case null  { address };
-        case (?s)  { s };
-      };
-      let safeStreet  = escapeArcGISLike(street);
-      let whereClause = "FOLDERDESCRIPTION LIKE '%" # safeStreet # "%'";
-      let params      =
-        "where="             # pctEncode(whereClause) #   // L4: full RFC 3986 encoding
-        "&outFields=FOLDERNAME,FOLDERTYPE,STATUSDESC,INDATE,FOLDERDESCRIPTION,FOLDERLINK" #
-        "&resultRecordCount=50" #
-        "&f=json";
-      let url = "https://maps5.vcgov.org/arcgis/rest/services/CurrentProjects/MapServer/1/query?" # params;
-
-      try {
-        let response = await (with cycles = 3_000_000_000) ic.http_request({
-          url               = url;
-          max_response_bytes = ?Nat64.fromNat(65536);
-          headers           = [];
-          body              = null;
-          method            = #get;
-          transform         = ?{ function = transformResponse; context = Blob.fromArray([]) };
-        });
-
-        switch (Text.decodeUtf8(response.body)) {
-          case null      {
-            Debug.print("ai_proxy.importPermits: failed to decode ArcGIS response");
-            countError("importPermits");
-            #err(#HttpError("Failed to decode ArcGIS response"))
-          };
-          case (?rawJson) {
-            permitsFetched += 1;
-            #ok("{\"source\":\"arcgis\",\"data\":" # rawJson # "," # jsonStr("address", address) # "}")
-          };
-        }
-      } catch (e) {
-        Debug.print("ai_proxy.importPermits: ArcGIS request failed: " # address);
-        countError("importPermits");
-        #err(#HttpError("ArcGIS request failed"))
-      }
-    } else {
-      // OpenPermit.org
-      if (Text.size(openPermitApiKey) == 0) {
-        Debug.print("ai_proxy.importPermits: OpenPermit key not configured");
-        countError("importPermits");
-        return #err(#KeyNotConfigured);
-      };
-      let params =
-        "address=" # pctEncode(oneLine(address)) #   // L4: full RFC 3986 encoding
-        "&city="   # pctEncode(oneLine(city)) #
-        "&state="  # pctEncode(oneLine(state)) #
-        "&zip="    # pctEncode(oneLine(zip)) #
-        "&limit=20";
-      let url = "https://api.openpermit.org/v1/permits?" # params;
-
-      try {
-        let response = await (with cycles = 3_000_000_000) ic.http_request({
-          url               = url;
-          max_response_bytes = ?Nat64.fromNat(65536);
-          headers           = [{ name = "Authorization"; value = "Bearer " # openPermitApiKey }];
-          body              = null;
-          method            = #get;
-          transform         = ?{ function = transformResponse; context = Blob.fromArray([]) };
-        });
-
-        switch (Text.decodeUtf8(response.body)) {
-          case null      {
-            Debug.print("ai_proxy.importPermits: failed to decode OpenPermit response");
-            countError("importPermits");
-            #err(#HttpError("Failed to decode OpenPermit response"))
-          };
-          case (?rawJson) {
-            permitsFetched += 1;
-            #ok("{\"source\":\"openpermit\",\"data\":" # rawJson # "," # jsonStr("address", address) # "}")
-          };
-        }
-      } catch (_e) {
-        Debug.print("ai_proxy.importPermits: OpenPermit request failed: " # address);
-        countError("importPermits");
-        #err(#HttpError("OpenPermit request failed"))
-      }
-    }
+    ignore msg;
+    clearApiKeys();
+    #err(#HttpError(MOVED_MSG # " (POST /api/permits/import)"))
   };
 
-  // ── Public: send email (IC HTTP outcall to Resend) ─────────────────────────
+  // ── Email (moved off-chain) ────────────────────────────────────────────────
+  // Transactional email is sent by the voice Worker, which holds the Resend
+  // key; no canister calls these. Kept for Candid compatibility.
 
   public shared(msg) func sendEmail(
-    to      : Text,
-    subject : Text,
-    html    : Text,
-    text    : ?Text,
-    replyTo : ?Text,
-    from    : ?Text,
+    _to      : Text,
+    _subject : Text,
+    _html    : Text,
+    _text    : ?Text,
+    _replyTo : ?Text,
+    _from    : ?Text,
   ) : async Result.Result<Text, Error> {
-    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (not isTrustedCanister(msg.caller) and not isAdmin(msg.caller))
-      return #err(#NotAuthorized);
-    await* deliverEmail(msg.caller, to, subject, html, text, replyTo, from)
+    ignore msg;
+    clearApiKeys();
+    #err(#HttpError(MOVED_MSG # " (/api/email/*)"))
   };
-
-  /// L3: the Resend call itself. Private and `async*` (no self-call), so the
-  /// email helpers below keep their trusted caller instead of being rejected
-  /// as ai_proxy calling itself. Every JSON value goes through jsonEscape.
-  private func deliverEmail(
-    caller  : Principal,
-    to      : Text,
-    subject : Text,
-    html    : Text,
-    text    : ?Text,
-    replyTo : ?Text,
-    from    : ?Text,
-  ) : async* Result.Result<Text, Error> {
-    if (Text.size(resendApiKey) == 0) return #err(#KeyNotConfigured);
-    if (Text.size(to) == 0 or Text.size(to) > 254 or not Text.contains(to, #char '@'))
-      return #err(#InvalidInput("invalid recipient"));
-
-    resetEmailCountersIfNeeded();
-
-    let fromAddr = Option.get(from, resendFromAddress);
-    var body = "{" #
-      jsonStr("from", fromAddr) # "," #
-      jsonStr("to", to) # "," #
-      jsonStr("subject", oneLine(subject)) # "," #
-      jsonStr("html", html);
-
-    switch (text) {
-      case (?t) { body #= "," # jsonStr("text", t) };
-      case null {};
-    };
-    switch (replyTo) {
-      case (?r) { body #= "," # jsonStr("reply_to", r) };
-      case null {};
-    };
-    body #= "}";
-
-    // Idempotency key: stable within a single canister message (Time.now() is
-    // the message timestamp, identical across all subnet nodes retrying this
-    // http_request). Prevents Resend from sending duplicate emails on retry.
-    let idempotencyKey = Int.toText(Time.now()) # "-" # Principal.toText(caller) # "-" # oneLine(to);
-
-    try {
-      let response = await (with cycles = 2_000_000_000) ic.http_request({
-        url               = "https://api.resend.com/emails";
-        max_response_bytes = ?Nat64.fromNat(4096);
-        headers           = [
-          { name = "Content-Type";    value = "application/json" },
-          { name = "Authorization";   value = "Bearer " # resendApiKey },
-          { name = "Idempotency-Key"; value = idempotencyKey },
-        ];
-        body              = ?Text.encodeUtf8(body);
-        method            = #post;
-        transform         = ?{ function = transformResponse; context = Blob.fromArray([]) };
-      });
-
-      if (response.status == 200 or response.status == 201) {
-        emailSentDaily   += 1;
-        emailSentMonthly += 1;
-        emailSentTotal   += 1;
-        switch (Text.decodeUtf8(response.body)) {
-          case (?json) { #ok(json) };
-          case null    { #ok("{\"id\":\"sent\"}") };
-        }
-      } else {
-        countError("sendEmail");
-        switch (Text.decodeUtf8(response.body)) {
-          case (?errBody) {
-            Debug.print("ai_proxy.sendEmail: Resend error " # Nat.toText(response.status) # ": " # errBody);
-            #err(#HttpError("Resend error " # Nat.toText(response.status) # ": " # errBody))
-          };
-          case null {
-            Debug.print("ai_proxy.sendEmail: Resend error " # Nat.toText(response.status));
-            #err(#HttpError("Resend error " # Nat.toText(response.status)))
-          };
-        }
-      }
-    } catch (_e) {
-      Debug.print("ai_proxy.sendEmail: email request failed to=" # to);
-      countError("sendEmail");
-      #err(#HttpError("Email request failed"))
-    }
-  };
-
-  // ── Public: send invite email ──────────────────────────────────────────────
 
   public shared(msg) func sendInviteEmail(
-    to              : Text,
-    contractorName  : ?Text,
-    propertyAddress : Text,
-    serviceType     : Text,
-    amount          : ?Nat,
-    verifyUrl       : Text,
+    _to              : Text,
+    _contractorName  : ?Text,
+    _propertyAddress : Text,
+    _serviceType     : Text,
+    _amount          : ?Nat,
+    _verifyUrl       : Text,
   ) : async Result.Result<Text, Error> {
-    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (not isTrustedCanister(msg.caller) and not isAdmin(msg.caller))
-      return #err(#NotAuthorized);
-    if (Text.size(resendApiKey) == 0) return #err(#KeyNotConfigured);
-    // L3: allow-listed https link only; plain-text values stripped of newlines.
-    if (not isAllowedLink(verifyUrl)) return #err(#InvalidInput("verifyUrl host not allowed"));
-    let rawName    = contractorName;
-    let rawAddress = oneLine(propertyAddress);
-    let rawService = oneLine(serviceType);
-    // HTML-escaped copies for the HTML body.
-    let addrH       = htmlEscape(rawAddress);
-    let svcH        = htmlEscape(rawService);
-    let verifyHref  = htmlEscape(verifyUrl);
-
-    let greeting    = switch (rawName) {
-      case (?name) { "Hi " # htmlEscape(name) # "," };
-      case null    { "Hi," };
-    };
-    let amountStr   = switch (amount) {
-      case null    { "" };
-      case (?a)    { "$" # Nat.toText(a / 100) };
-    };
-    let amountRow   = if (Text.size(amountStr) > 0)
-      "<tr><td style=\"padding:0.375rem 0;color:#7A7268;\">Amount</td><td><strong>" # amountStr # "</strong></td></tr>"
-      else "";
-
-    let html =
-      "<!DOCTYPE html><html><body style=\"font-family:'IBM Plex Sans',Arial,sans-serif;background:#F4F1EB;margin:0;padding:2rem;\">" #
-      "<div style=\"max-width:480px;margin:0 auto;background:#fff;border:1px solid #C8C3B8;padding:2rem;\">" #
-      "<p style=\"font-family:Georgia,serif;font-size:1.5rem;font-weight:900;margin:0 0 1.5rem;color:#2E2540;\">Home<span style=\"color:#5A7A5A;\">Gentic</span></p>" #
-      "<p style=\"color:#2E2540;margin-bottom:1rem;\">" # greeting # "</p>" #
-      "<p style=\"color:#2E2540;line-height:1.6;margin-bottom:1.5rem;\">A homeowner at <strong>" # addrH # "</strong> has asked you to confirm and co-sign the following job record on the HomeGentic verified home history platform:</p>" #
-      "<div style=\"background:#F0F4F0;border:1px solid #C8C3B8;padding:1rem;margin-bottom:1.5rem;\">" #
-      "<table style=\"width:100%;border-collapse:collapse;font-size:0.875rem;color:#2E2540;\">" #
-      "<tr><td style=\"padding:0.375rem 0;color:#7A7268;width:40%;\">Service</td><td><strong>" # svcH # "</strong></td></tr>" #
-      amountRow #
-      "<tr><td style=\"padding:0.375rem 0;color:#7A7268;\">Property</td><td>" # addrH # "</td></tr>" #
-      "</table></div>" #
-      "<p style=\"color:#2E2540;line-height:1.6;margin-bottom:1.5rem;\">Tap the button below to review the job details and add your digital signature. No account required - it takes less than 30 seconds.</p>" #
-      "<a href=\"" # verifyHref # "\" style=\"display:inline-block;background:#2E2540;color:#fff;text-decoration:none;padding:0.875rem 2rem;font-family:'IBM Plex Mono',monospace;font-size:0.8rem;letter-spacing:0.08em;text-transform:uppercase;\">Confirm &amp; Sign</a>" #
-      "<p style=\"color:#7A7268;font-size:0.75rem;margin-top:1.5rem;line-height:1.6;\">This link expires in 48 hours and can only be used once.</p>" #
-      "<hr style=\"border:none;border-top:1px solid #C8C3B8;margin:1.5rem 0;\"/>" #
-      "<p style=\"color:#7A7268;font-size:0.7rem;\">HomeGentic - Verified Home History - Internet Computer blockchain</p>" #
-      "</div></body></html>";
-
-    let textGreeting = switch (rawName) { case (?n) { "Hi " # oneLine(n) # "," }; case null { "Hi," } };
-    let textBody =
-      textGreeting # "\n\n" #
-      "A homeowner at " # rawAddress # " has asked you to confirm and co-sign a job record on HomeGentic.\n\n" #
-      "Service: " # rawService # "\n" #
-      (if (Text.size(amountStr) > 0) "Amount: " # amountStr # "\n" else "") #
-      "Property: " # rawAddress # "\n\n" #
-      "Confirm and sign here (expires in 48 hours):\n" # verifyUrl # "\n\n" #
-      "HomeGentic - Verified Home History";
-
-    await* deliverEmail(
-      msg.caller,
-      to,
-      "Please confirm your work at " # rawAddress,
-      html,
-      ?textBody,
-      null,
-      null,
-    )
+    ignore msg;
+    clearApiKeys();
+    #err(#HttpError(MOVED_MSG # " (POST /api/email/contractor-invite)"))
   };
 
-  /// Notify a contractor that a new job matching their specialties and zip code is available.
-  /// Called by the job canister (cross-canister) after a new job is created.
-  ///
-  /// Args: contractorEmail, jobId, serviceType, zipCode
   public shared(msg) func sendJobMatchEmail(
-    contractorEmail : Text,
-    jobId           : Text,
-    serviceType     : Text,
-    zipCode         : Text,
+    _contractorEmail : Text,
+    _jobId           : Text,
+    _serviceType     : Text,
+    _zipCode         : Text,
   ) : async Result.Result<Text, Error> {
-    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (not isTrustedCanister(msg.caller) and not isAdmin(msg.caller))
-      return #err(#NotAuthorized);
-    if (Text.size(resendApiKey) == 0) return #err(#KeyNotConfigured);
-    // L3: escape interpolated values.
-    let rawService = oneLine(serviceType);
-    let rawZip     = oneLine(zipCode);
-    let rawJobId   = oneLine(jobId);
-    let svcH   = htmlEscape(rawService);
-    let zipH   = htmlEscape(rawZip);
-    let jobIdH = htmlEscape(rawJobId);
-
-    let html =
-      "<!DOCTYPE html><html><body style=\"font-family:'IBM Plex Sans',Arial,sans-serif;background:#F4F1EB;margin:0;padding:2rem;\">" #
-      "<div style=\"max-width:480px;margin:0 auto;background:#fff;border:1px solid #C8C3B8;padding:2rem;\">" #
-      "<p style=\"font-family:Georgia,serif;font-size:1.5rem;font-weight:900;margin:0 0 1.5rem;color:#2E2540;\">Home<span style=\"color:#5A7A5A;\">Gentic</span></p>" #
-      "<p style=\"color:#2E2540;margin-bottom:1rem;\">A new job matching your trade is available near you.</p>" #
-      "<div style=\"background:#F0F4F0;border:1px solid #C8C3B8;padding:1rem;margin-bottom:1.5rem;\">" #
-      "<table style=\"width:100%;border-collapse:collapse;font-size:0.875rem;color:#2E2540;\">" #
-      "<tr><td style=\"padding:0.375rem 0;color:#7A7268;width:40%;\">Service</td><td><strong>" # svcH # "</strong></td></tr>" #
-      "<tr><td style=\"padding:0.375rem 0;color:#7A7268;\">Zip Code</td><td><strong>" # zipH # "</strong></td></tr>" #
-      "<tr><td style=\"padding:0.375rem 0;color:#7A7268;\">Job ID</td><td>" # jobIdH # "</td></tr>" #
-      "</table></div>" #
-      "<p style=\"color:#7A7268;font-size:0.75rem;margin-top:1.5rem;line-height:1.6;\">Log in to HomeGentic to view details and submit a quote.</p>" #
-      "<hr style=\"border:none;border-top:1px solid #C8C3B8;margin:1.5rem 0;\"/>" #
-      "<p style=\"color:#7A7268;font-size:0.7rem;\">HomeGentic - Verified Home History - Internet Computer blockchain</p>" #
-      "</div></body></html>";
-
-    let textBody =
-      "A new " # rawService # " job is available in " # rawZip # ".\n\n" #
-      "Job ID: " # rawJobId # "\n\n" #
-      "Log in to HomeGentic to view details and submit a quote.";
-
-    await* deliverEmail(
-      msg.caller,
-      contractorEmail,
-      "New " # rawService # " job available in " # rawZip,
-      html,
-      ?textBody,
-      null,
-      null,
-    )
+    ignore msg;
+    clearApiKeys();
+    #err(#HttpError(MOVED_MSG))
   };
 
   // ── Admin functions ────────────────────────────────────────────────────────
@@ -1076,22 +577,25 @@ persistent actor AiProxy {
     #ok(())
   };
 
-  public shared(msg) func setResendApiKey(key: Text) : async Result.Result<(), Error> {
+  /// M-6: third-party API keys are no longer stored on-chain (node operators
+  /// can read canister memory). These setters refuse and wipe any stored key;
+  /// set the keys as voice Worker secrets instead.
+  public shared(msg) func setResendApiKey(_key: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    resendApiKey := key;
-    #ok(())
+    clearApiKeys();
+    #err(#InvalidInput(KEYS_MOVED_MSG))
   };
 
-  public shared(msg) func setOpenPermitApiKey(key: Text) : async Result.Result<(), Error> {
+  public shared(msg) func setOpenPermitApiKey(_key: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    openPermitApiKey := key;
-    #ok(())
+    clearApiKeys();
+    #err(#InvalidInput(KEYS_MOVED_MSG))
   };
 
-  public shared(msg) func setAttomApiKey(key: Text) : async Result.Result<(), Error> {
+  public shared(msg) func setAttomApiKey(_key: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    attomApiKey := key;
-    #ok(())
+    clearApiKeys();
+    #err(#InvalidInput(KEYS_MOVED_MSG))
   };
 
   public shared(msg) func setResendFromAddress(addr: Text) : async Result.Result<(), Error> {

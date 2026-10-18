@@ -313,6 +313,17 @@ exports[`auth IDL factory > full signature snapshot 1`] = `
       "bool",
     ],
   },
+  "isAdminPrincipal": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "bool",
+    ],
+  },
   "issueAgentSession": {
     "args": [],
     "mode": [],
@@ -931,6 +942,17 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}",
+    ],
+  },
+  "getUnattestedJobIds": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec text",
     ],
   },
   "linkContractor": {
@@ -1642,6 +1664,18 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "variant {ok:nat; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
+  "stripeRecordGift": {
+    "args": [
+      "text",
+      "variant {Pro; Free; ContractorPro; ContractorFree}",
+      "variant {Monthly; Yearly}",
+      "record {giftMessage:text; deliveryDate:text; senderName:text; recipientName:text; recipientEmail:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
+  },
   "subscribe": {
     "args": [
       "variant {Pro; Free; ContractorPro; ContractorFree}",
@@ -1829,6 +1863,15 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok:vec record {id:nat; status:variant {Approved; Declined; Pending}; createdAt:int; description:text; propertyId:text; amountCents:nat; requesterName:text; requestedBy:principal}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
+  "getJobPropertyAddresses": {
+    "args": [
+      "vec text",
+    ],
+    "mode": [],
+    "rets": [
+      "vec record {jobId:text; propertyId:text; address:text}",
+    ],
+  },
   "getManagerInviteByToken": {
     "args": [
       "text",
@@ -1931,6 +1974,28 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; contestedWithId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
+  "getPropertyByManagerInviteToken": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; contestedWithId:opt text}",
+    ],
+  },
+  "getPropertyByTransferToken": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; contestedWithId:opt text}",
     ],
   },
   "getPropertyLimitForTier": {
@@ -2533,8 +2598,32 @@ exports[`sensor IDL factory > full signature snapshot 1`] = `
       "vec record {id:text; value:float64; unit:text; jobId:opt text; propertyId:text; deviceId:text; timestamp:int; severity:variant {Info; Critical; Warning}; homeowner:principal; rawPayload:text; eventType:variant {FloodRisk; GridOutage; LowProduction; WaterLeak; ApplianceFault; BatteryLow; HvacFilterDue; HighTemperature; LowTemperature; HvacAlert; ApplianceMaintenance; LeakDetected; HighHumidity; SolarFault}}",
     ],
   },
+  "getVerifiedOnlySources": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec variant {Sense; GESmartHQ; Nest; HomeAssistant; MoenFlo; SolarEdge; LGThinQ; TeslaPowerwall; HoneywellHome; SmartThings; EnphaseEnvoy; RheemEcoNet; RingAlarm; Ecobee; Rachio; Manual; EmporiaVue}",
+    ],
+  },
   "recordEvent": {
     "args": [
+      "text",
+      "variant {FloodRisk; GridOutage; LowProduction; WaterLeak; ApplianceFault; BatteryLow; HvacFilterDue; HighTemperature; LowTemperature; HvacAlert; ApplianceMaintenance; LeakDetected; HighHumidity; SolarFault}",
+      "float64",
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; value:float64; unit:text; jobId:opt text; propertyId:text; deviceId:text; timestamp:int; severity:variant {Info; Critical; Warning}; homeowner:principal; rawPayload:text; eventType:variant {FloodRisk; GridOutage; LowProduction; WaterLeak; ApplianceFault; BatteryLow; HvacFilterDue; HighTemperature; LowTemperature; HvacAlert; ApplianceMaintenance; LeakDetected; HighHumidity; SolarFault}}; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyExists}}",
+    ],
+  },
+  "recordEventFor": {
+    "args": [
+      "variant {Sense; GESmartHQ; Nest; HomeAssistant; MoenFlo; SolarEdge; LGThinQ; TeslaPowerwall; HoneywellHome; SmartThings; EnphaseEnvoy; RheemEcoNet; RingAlarm; Ecobee; Rachio; Manual; EmporiaVue}",
+      "text",
       "text",
       "variant {FloodRisk; GridOutage; LowProduction; WaterLeak; ApplianceFault; BatteryLow; HvacFilterDue; HighTemperature; LowTemperature; HvacAlert; ApplianceMaintenance; LeakDetected; HighHumidity; SolarFault}",
       "float64",
@@ -2556,6 +2645,29 @@ exports[`sensor IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; externalDeviceId:text; source:variant {Sense; GESmartHQ; Nest; HomeAssistant; MoenFlo; SolarEdge; LGThinQ; TeslaPowerwall; HoneywellHome; SmartThings; EnphaseEnvoy; RheemEcoNet; RingAlarm; Ecobee; Rachio; Manual; EmporiaVue}; name:text; propertyId:text; isActive:bool; homeowner:principal; registeredAt:int}; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyExists}}",
+    ],
+  },
+  "registerVerifiedDevice": {
+    "args": [
+      "principal",
+      "text",
+      "text",
+      "variant {Sense; GESmartHQ; Nest; HomeAssistant; MoenFlo; SolarEdge; LGThinQ; TeslaPowerwall; HoneywellHome; SmartThings; EnphaseEnvoy; RheemEcoNet; RingAlarm; Ecobee; Rachio; Manual; EmporiaVue}",
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; externalDeviceId:text; source:variant {Sense; GESmartHQ; Nest; HomeAssistant; MoenFlo; SolarEdge; LGThinQ; TeslaPowerwall; HoneywellHome; SmartThings; EnphaseEnvoy; RheemEcoNet; RingAlarm; Ecobee; Rachio; Manual; EmporiaVue}; name:text; propertyId:text; isActive:bool; homeowner:principal; registeredAt:int}; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyExists}}",
+    ],
+  },
+  "setVerifiedOnlySources": {
+    "args": [
+      "vec variant {Sense; GESmartHQ; Nest; HomeAssistant; MoenFlo; SolarEdge; LGThinQ; TeslaPowerwall; HoneywellHome; SmartThings; EnphaseEnvoy; RheemEcoNet; RingAlarm; Ecobee; Rachio; Manual; EmporiaVue}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyExists}}",
     ],
   },
 }

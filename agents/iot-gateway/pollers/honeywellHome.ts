@@ -260,7 +260,7 @@ async function processDevice(device: HoneywellDevice): Promise<void> {
     deviceName: device.userDefinedDeviceName,
   });
 
-  const result = await recordSensorEvent(reading);
+  const result = await recordSensorEvent(reading, "HoneywellHome");
   if (result.success) {
     logger.info("honeywell-poller", "recorded", {
       eventId: result.eventId,

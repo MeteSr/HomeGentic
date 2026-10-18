@@ -23,6 +23,7 @@ import {
   activateSubscriptionUntil,
   consumeAgentCredit,
   grantAgentCreditsOnce,
+  recordGift,
   AlreadyConsumedError,
   PAID_TIERS,
 } from "../paymentCanister";
@@ -36,11 +37,14 @@ import { lookupPermits, generateKit, geocodeAddress } from "../buyersTruthKit";
 import type { BuyerTruthKitRequest } from "../buyersTruthKit";
 import type { ChatRequest } from "../types";
 import { logger } from "../logger";
-import { checkGlobalRateLimit, checkAgentRateLimit, checkChatRateLimit, checkAuxAiRateLimit, getAgentUsage } from "./rateLimiter";
+import { checkGlobalRateLimit, checkAgentRateLimit, checkChatRateLimit, checkAuxAiRateLimit, getAgentUsage, beginOnce, finishOnce, abortOnce } from "./rateLimiter";
 import { resolveSessionPrincipal, SESSION_HEADER } from "./session";
 import { resolveTier } from "./tier";
 import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
+import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead } from "./offchainOutcalls";
+import { getInvitePreview } from "./jobCanister";
+export { RateLimiterDO } from "./rateLimiterDO";
 import {
   HttpError,
   readJsonBody,
@@ -88,6 +92,16 @@ export interface Env {
   CANISTER_ID_PAYMENT?:  string;
   CANISTER_ID_AUTH?:     string;   // resolves x-agent-session tokens
   CANISTER_ID_MONITORING?: string;
+  CANISTER_ID_JOB?:      string;   // invite-token previews for contractor-invite emails
+
+  // M-6: keys that used to sit in the ai_proxy canister (now Worker secrets only)
+  ATTOM_API_KEY?:        string;
+  OPENPERMIT_API_KEY?:   string;
+  RESEND_API_KEY?:       string;
+  RESEND_FROM?:          string;   // e.g. "HomeGentic <noreply@homegentic.app>"
+  LOCAL_BROKER_EMAIL?:   string;   // fixed inbox for /api/email/broker-lead
+  ATTOM_DAILY_BUDGET?:   string;   // global ATTOM lookups/day (default 300)
+  PERMIT_DAILY_BUDGET?:  string;   // global permit imports/day (default 1000)
   // Property lookups
   RENTCAST_API_KEY?: string;
   // BidtoList
@@ -105,6 +119,8 @@ export interface Env {
   HOMEGENTIC_ICP_HOST?:                string;
   // KV
   RATE_LIMIT: KVNamespace;
+  /** RateLimiterDO namespace (atomic counters); KV is the fallback when unbound. */
+  RATE_LIMITER?: DurableObjectNamespace;
 }
 
 // ── Credit pack config (mirrors server.ts CREDIT_PACKS) ──────────────────────
@@ -325,6 +341,7 @@ export default {
     (process.env as any).CANISTER_ID_PAYMENT     = env.CANISTER_ID_PAYMENT ?? "";
     (process.env as any).CANISTER_ID_AUTH        = env.CANISTER_ID_AUTH ?? "";
     (process.env as any).CANISTER_ID_MONITORING  = env.CANISTER_ID_MONITORING ?? "";
+    (process.env as any).CANISTER_ID_JOB         = env.CANISTER_ID_JOB ?? "";
     (process.env as any).AI_MODEL                = env.AI_MODEL ?? "";
 
     // CORS preflight
@@ -348,9 +365,11 @@ export default {
     // authentication is the x-agent-session check inside route(). F-6: fail
     // closed in production when it (or the auth canister) isn't configured,
     // and compare in constant time.
+    // Bid to List is a separate app with no copy of this key; its routes are
+    // bound to on-chain state and rate-limited per IP in bidtolist.ts.
     if (path.startsWith("/api/") &&
         !path.startsWith("/api/stripe/webhook") &&
-        !path.startsWith("/api/bidtolist/stripe/webhook")) {
+        !path.startsWith("/api/bidtolist/")) {
       const key = env.VOICE_AGENT_API_KEY;
       if (env.NODE_ENV === "production" && (!key || !env.CANISTER_ID_AUTH)) {
         logRequest(request, 500, startMs, reqId, traceId);
@@ -417,7 +436,7 @@ async function route(
   // Stripe needs a verified caller. The x-api-key is public, so it doesn't
   // count; the canister-issued x-agent-session token does.
   let sessionPrincipal: string | null = null;
-  if (method === "POST" && (AUX_AI_ROUTES.has(path) || STRIPE_SESSION_ROUTES.has(path))) {
+  if (method === "POST" && (AUX_AI_ROUTES.has(path) || STRIPE_SESSION_ROUTES.has(path) || OFFCHAIN_OUTCALL_ROUTES.has(path))) {
     sessionPrincipal = await callerPrincipal(request, env);
     if (!sessionPrincipal || sessionPrincipal === "anon") {
       return json({ error: "session_required" }, 401, cors);
@@ -1060,6 +1079,20 @@ Rules:
     return new Response(null, { status: 204, headers: cors });
   }
 
+  // ── Off-chain replacements for the ai_proxy canister's outcalls (M-6/M11) ─
+  // Session required (above); quotas and recipients are enforced in
+  // src/offchainOutcalls.ts.
+  if (OFFCHAIN_OUTCALL_ROUTES.has(path) && method === "POST") {
+    const body = await readJsonBody(request, MAX_JSON_BYTES);
+    const p    = sessionPrincipal!;
+    const r =
+      path === "/api/property/details"        ? await lookupPropertyDetails(body, p, env) :
+      path === "/api/permits/import"          ? await importPermits(body, p, env) :
+      path === "/api/email/contractor-invite" ? await sendContractorInvite(body, p, env, getInvitePreview) :
+                                                await sendBrokerLead(body, p, env);
+    return json(r.body as object, r.status, cors);
+  }
+
   // ── POST /api/stripe/create-checkout ─────────────────────────────────────
   // Stripe-hosted checkout (dev / non-IC frontends). The principal is the
   // session's, never the body's (F-3), and redirect URLs must be on the
@@ -1168,9 +1201,13 @@ Rules:
       const isGift  = session.metadata?.is_gift === "true";
       const tier    = session.metadata?.tier    ?? "Pro";
       const billing = session.metadata?.billing ?? "Monthly";
-      // Gifts are registered and redeemed by the payment canister
-      // (verifyStripeSession / redeemGift); nothing is granted here.
-      if (isGift) return json({ type: "gift", giftToken: sessionId }, 200, cors);
+      // Gifts: register the paid gift in the payment canister (relay-only,
+      // idempotent); the recipient redeems it on-chain with redeemGift.
+      // Nothing is granted to the purchaser.
+      if (isGift) {
+        await registerGift(session);
+        return json({ type: "gift", giftToken: sessionId }, 200, cors);
+      }
       const subId = typeof session.subscription === "string" ? session.subscription : (session.subscription as any)?.id;
       if (!subId) return json({ error: "Session has no subscription" }, 400, cors);
       const sub = await stripe.subscriptions.retrieve(subId);
@@ -1326,7 +1363,9 @@ Rules:
     // Skip redeliveries of an event we've already processed (activations are
     // idempotent in the canister anyway; this just saves the calls).
     const seenKey = `whevt:${event.id}`;
-    if (await env.RATE_LIMIT.get(seenKey)) return json({ received: true, duplicate: true }, 200, cors);
+    const once = await beginOnce(env, seenKey);
+    if (once === "done") return json({ received: true, duplicate: true }, 200, cors);
+    if (once === "busy") return json({ error: "Event is being processed" }, 409, cors);   // Stripe retries
 
     try {
       switch (event.type) {
@@ -1377,6 +1416,8 @@ Rules:
             const p    = (session.metadata?.principal ?? "") as string;
             const size = Number(session.metadata?.pack_size ?? 0);
             if (p && CREDIT_PACKS[size]) await grantCreditPack(session.id, p, size);
+          } else if (session.metadata?.is_gift === "true" && session.payment_status === "paid" && session.status === "complete") {
+            await registerGift(session);
           }
           break;
         }
@@ -1385,9 +1426,10 @@ Rules:
       }
     } catch (err) {
       logger.error("stripe-webhook", "handler error", { type: event.type, error: (err as Error).message });
+      await abortOnce(env, seenKey);
       return json({ error: "Internal webhook handler error" }, 500, cors);   // Stripe retries
     }
-    await env.RATE_LIMIT.put(seenKey, "1", { expirationTtl: 7 * 86_400 });
+    await finishOnce(env, seenKey, 7 * 86_400);
     return json({ received: true }, 200, cors);
   }
 
@@ -1434,6 +1476,12 @@ const AUX_AI_ROUTES = new Set([
   "/api/maintenance/chat", "/api/classify", "/api/extract-bill", "/api/extract-document",
   "/api/efficiency-alert", "/api/rebate-finder", "/api/telecom-negotiate", "/api/pulse",
   "/api/negotiate", "/api/insurer-discount", "/api/buyers-truth-kit", "/api/rentcast/properties",
+]);
+
+/** Former ai_proxy outcalls, now served here with the keys off-chain. */
+const OFFCHAIN_OUTCALL_ROUTES = new Set([
+  "/api/property/details", "/api/permits/import",
+  "/api/email/contractor-invite", "/api/email/broker-lead",
 ]);
 
 /** Stripe routes that act for a user: the user is the session principal. */
@@ -1485,6 +1533,25 @@ async function activateFromSubscription(sub: any, principal: string): Promise<vo
   const end = periodEndSeconds(sub);
   if (!end) throw new HttpError(502, "Subscription has no billing period");
   await activateSubscriptionUntil(principal, tier, end, `sub:${sub.id}:${end}`);
+}
+
+/**
+ * Register a paid, complete gift checkout session in the payment canister.
+ * The gift token is the checkout session id; metadata comes from Stripe (set
+ * by create-checkout), not from the caller.
+ */
+async function registerGift(session: any): Promise<void> {
+  if (typeof session?.id !== "string" || !CHECKOUT_SESSION_RE.test(session.id)) {
+    throw new HttpError(400, "Invalid gift session");
+  }
+  const m    = session.metadata ?? {};
+  const tier = (m.tier ?? "") as string;
+  if (!PAID_TIERS.has(tier)) throw new HttpError(400, "Gift has no valid tier");
+  const str = (v: unknown) => (typeof v === "string" ? v.slice(0, 450) : "");
+  await recordGift(session.id, tier, str(m.billing), {
+    recipientEmail: str(m.recipient_email), recipientName: str(m.recipient_name),
+    senderName: str(m.sender_name), giftMessage: str(m.gift_message), deliveryDate: str(m.delivery_date),
+  });
 }
 
 /** Grant a credit pack once per checkout session. Returns false on a replay. */

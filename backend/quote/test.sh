@@ -37,32 +37,63 @@ fi
 # Far-future validUntil timestamp (nanoseconds) — year 2030
 VALID_UNTIL="1893456000000000000"
 
+# ─── Real properties for the calling identities ──────────────────────────────
+# createQuoteRequest requires the caller to own or manage the property
+# (property.isAuthorized, M1), so every request below is made against a
+# property the calling identity registered itself. Addresses carry a per-run
+# tag so re-runs and parallel suites never hit #AddressConflict; an identity
+# that already owns a property (a re-run on the same replica — Free allows
+# only one) reuses it.
+PROP_CANISTER_ID=$(dfx canister id property 2>/dev/null || echo "")
+RUN_TAG=$(date +%s%N | tail -c 9)
+prop_for() {   # $1 identity ("" = current), $2 address label → prints a property id ("" on failure)
+  local -a who=()
+  [ -n "$1" ] && who=(--identity "$1")
+  local out id
+  out=$(dfx canister call property getMyProperties ${who[@]+"${who[@]}"} 2>/dev/null || true)
+  id=$(echo "$out" | grep -oP '\bid = "\K[^"]+' | head -1 || true)
+  if [ -z "$id" ]; then
+    out=$(dfx canister call property registerProperty "(record {
+      address      = \"$RUN_TAG $2 Test Ln\";
+      city         = \"Austin\";
+      state        = \"TX\";
+      zipCode      = \"78701\";
+      propertyType = variant { SingleFamily };
+      yearBuilt    = 2000;
+      squareFeet   = 1500;
+      tier         = variant { Free };
+    })" ${who[@]+"${who[@]}"} 2>&1 || true)
+    id=$(echo "$out" | grep -oP '\bid = "\K[^"]+' | head -1 || true)
+  fi
+  echo "$id"
+}
+
 # ─── Metrics (initial) ────────────────────────────────────────────────────────
 echo ""
 echo "── [1] Get metrics (initial state) ─────────────────────────────────────"
 dfx canister call $CANISTER getMetrics
 
 # ─── Register a real property for auth-aware steps ───────────────────────────
-# acceptQuote / closeQuoteRequest / cancelQuoteRequest call checkPropertyAuth,
-# which defers to property.isAuthorized() when propCanisterId is wired by
-# deploy.sh.  Fake IDs like "PROP_1" return false (not found) → Unauthorized.
+# createQuoteRequest / acceptQuote / closeQuoteRequest / cancelQuoteRequest all
+# defer to property.isAuthorized() once deploy.sh wires the property canister;
+# a made-up ID returns false (not found) → NotAuthorized.
 echo ""
 echo "── [0] Register test property (for auth-aware steps) ────────────────────"
-PROP_CANISTER_ID=$(dfx canister id property 2>/dev/null || echo "")
 if [ -n "$PROP_CANISTER_ID" ]; then
   MY_PRINCIPAL=$(dfx identity get-principal)
   dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })" 2>/dev/null || true
-  PROP_REG_OUT=$(dfx canister call property registerProperty '(record {
-    address      = "1 Quote Test Ave";
-    city         = "Austin";
-    state        = "TX";
-    zipCode      = "78701";
+  # The deployer is shared with other suites, so always register a fresh one.
+  PROP_REG_OUT=$(dfx canister call property registerProperty "(record {
+    address      = \"$RUN_TAG Quote Test Ave\";
+    city         = \"Austin\";
+    state        = \"TX\";
+    zipCode      = \"78701\";
     propertyType = variant { SingleFamily };
     yearBuilt    = 2000;
     squareFeet   = 1500;
     tier         = variant { Pro };
-  })')
-  TEST_PROP_ID=$(echo "$PROP_REG_OUT" | grep -oP 'id = "\K[^"]+' | head -1 || true)
+  })")
+  TEST_PROP_ID=$(echo "$PROP_REG_OUT" | grep -oP '\bid = "\K[^"]+' | head -1 || true)
   if [ -z "$TEST_PROP_ID" ]; then
     echo "  ↳ ⚠️  Could not extract property ID; using dummy"
     TEST_PROP_ID="PROP_1"
@@ -228,22 +259,22 @@ dfx canister call $CANISTER cancelQuoteRequest "(\"$REQ_ID\")" \
 
 # ─── Tier open-request limit — Free limit = 3 ────────────────────────────────
 echo ""
-echo "── [15] Free tier: createQuoteRequest → expect full rejection ───────────"
-# Free tier has no access at all to quote requests.
-# Use a dedicated identity so the deployer's Pro tier is not affected.
+echo "── [15] createQuoteRequest on someone else's property → expect NotAuthorized ─"
+# M1: a caller with no role on the property can't open a request against it
+# (here: a fresh identity targeting the deployer's test property).
 if ! dfx identity list 2>/dev/null | grep -q "^quote-free-test$"; then
   dfx identity new quote-free-test --disable-encryption 2>/dev/null || true
 fi
-RESULT=$(dfx canister call $CANISTER createQuoteRequest '(
-  "PROP_LIMIT",
+RESULT=$(dfx canister call $CANISTER createQuoteRequest "(
+  \"$TEST_PROP_ID\",
   variant { Roofing },
-  "Free tier should be rejected entirely.",
+  \"Request against a property the caller does not own.\",
   variant { Low },
   null, null, null, null, null
-)' --identity quote-free-test 2>&1)
-echo "$RESULT" | grep -qi "subscription\|InvalidInput" \
-  && echo "  ↳ Free tier correctly blocked from creating quote requests — ✓" \
-  || echo "  ↳ ❌ Expected rejection for Free tier"
+)" --identity quote-free-test 2>&1 || true)
+echo "$RESULT" | grep -qi "NotAuthorized" \
+  && echo "  ↳ Request on another owner's property correctly rejected — ✓" \
+  || echo "  ↳ ❌ Expected NotAuthorized for a property the caller does not own"
 
 echo ""
 echo "── [15b] Free tier: fill 3 open slots then expect LimitReached ──────────"
@@ -253,10 +284,13 @@ if ! dfx identity list 2>/dev/null | grep -q "^quote-basic-test$"; then
 fi
 BASIC_PRINCIPAL=$(dfx identity get-principal --identity quote-basic-test)
 dfx canister call payment grantSubscription "(principal \"$BASIC_PRINCIPAL\", variant { Free })"
+BASIC_PROP_ID=$(prop_for quote-basic-test "Quote Basic")
+[ -n "$BASIC_PROP_ID" ] || BASIC_PROP_ID="PROP_LIMIT"
+echo "  → quote-basic-test property: $BASIC_PROP_ID"
 LIMIT_REQ_IDS=()
 for i in 1 2 3; do
   OUT=$(dfx canister call $CANISTER createQuoteRequest "(
-    \"PROP_LIMIT\",
+    \"$BASIC_PROP_ID\",
     variant { Roofing },
     \"Free tier limit test request $i.\",
     variant { Low },
@@ -269,13 +303,13 @@ done
 
 echo ""
 echo "── [16] 4th request on Free tier → expect LimitReached (max 3 open) ─────"
-dfx canister call $CANISTER createQuoteRequest '(
-  "PROP_LIMIT",
+dfx canister call $CANISTER createQuoteRequest "(
+  \"$BASIC_PROP_ID\",
   variant { Roofing },
-  "This 4th request should fail on Free tier limit.",
+  \"This 4th request should fail on Free tier limit.\",
   variant { Low },
   null, null, null, null, null
-)' --identity quote-basic-test \
+)" --identity quote-basic-test \
   && echo "  ↳ ❌ Expected LimitReached for Free tier" \
   || echo "  ↳ Free tier open-request limit correctly enforced (max 3) — ✓"
 
@@ -296,13 +330,13 @@ dfx canister call $CANISTER getQuoteRequest '"REQ_NONEXISTENT"' \
 # ─── submitQuote with zero amount → error ─────────────────────────────────────
 echo ""
 echo "── [18] submitQuote amount=0 → expect InvalidInput ─────────────────────"
-dfx canister call $CANISTER createQuoteRequest '(
-  "PROP_1",
+dfx canister call $CANISTER createQuoteRequest "(
+  \"$TEST_PROP_ID\",
   variant { Painting },
-  "Test request for invalid bid.",
+  \"Test request for invalid bid.\",
   variant { Low },
   null, null, null, null, null
-)' > /tmp/qr_tmp.txt
+)" > /tmp/qr_tmp.txt
 TMP_REQ=$(cat /tmp/qr_tmp.txt | grep -oP '"REQ_[^"]+"' | head -1 | tr -d '"')
 dfx canister call $CANISTER submitQuote "(
   \"$TMP_REQ\",
@@ -355,48 +389,52 @@ else
   echo "── [EXP-2] Free tier: 4th open request → expect LimitReached ────────────"
   # Create 3 open requests as the tier-test user first, then try a 4th.
   dfx canister call payment grantSubscription "(principal \"$QUOTE_TIER_PRINCIPAL\", variant { Free })"
+  # One property is enough: the open-request limit counts requests per caller.
+  TIER_PROP_ID=$(prop_for quote-tier-test "Quote Tier")
+  [ -n "$TIER_PROP_ID" ] || TIER_PROP_ID="PROP_PAYMENT_WIRED"
+  echo "  → quote-tier-test property: $TIER_PROP_ID"
   for i in 1 2 3; do
     dfx canister call $CANISTER createQuoteRequest "(
-      \"PROP_TIER_WIRED_$i\",
+      \"$TIER_PROP_ID\",
       variant { Roofing },
       \"open request $i for tier test\",
       variant { Low },
       null, null, null, null, null
     )" --identity quote-tier-test 2>/dev/null || true
   done
-  dfx canister call $CANISTER createQuoteRequest '(
-    "PROP_PAYMENT_WIRED",
+  dfx canister call $CANISTER createQuoteRequest "(
+    \"$TIER_PROP_ID\",
     variant { Roofing },
-    "4th open request — should fail on Free tier via payment canister",
+    \"4th open request — should fail on Free tier via payment canister\",
     variant { Low },
     null, null, null, null, null
-  )' --identity quote-tier-test \
+  )" --identity quote-tier-test \
     && echo "  ↳ ❌ Expected LimitReached for Free tier via payment canister" \
     || echo "  ↳ Free tier open-request limit enforced via payment canister — ✓"
 
   echo ""
   echo "── [EXP-3] Grant Pro → 4th open request succeeds (limit = 10) ───────────"
   dfx canister call payment grantSubscription "(principal \"$QUOTE_TIER_PRINCIPAL\", variant { Pro })"
-  dfx canister call $CANISTER createQuoteRequest '(
-    "PROP_PAYMENT_WIRED",
+  dfx canister call $CANISTER createQuoteRequest "(
+    \"$TIER_PROP_ID\",
     variant { Roofing },
-    "4th open request — Pro tier allows 10",
+    \"4th open request — Pro tier allows 10\",
     variant { Low },
     null, null, null, null, null
-  )' --identity quote-tier-test \
+  )" --identity quote-tier-test \
     && echo "  ↳ Pro tier allows 4th open request via payment canister — ✓" \
     || echo "  ↳ ❌ Pro tier should allow 4th open request"
 
   echo ""
   echo "── [EXP-4] Downgrade to Free → next new request rejected ────────────────"
   dfx canister call payment grantSubscription "(principal \"$QUOTE_TIER_PRINCIPAL\", variant { Free })"
-  dfx canister call $CANISTER createQuoteRequest '(
-    "PROP_PAYMENT_WIRED",
+  dfx canister call $CANISTER createQuoteRequest "(
+    \"$TIER_PROP_ID\",
     variant { Plumbing },
-    "Should fail — back to Free tier limit",
+    \"Should fail — back to Free tier limit\",
     variant { Low },
     null, null, null, null, null
-  )' --identity quote-tier-test \
+  )" --identity quote-tier-test \
     && echo "  ↳ ❌ Expected LimitReached after downgrade to Free" \
     || echo "  ↳ Downgraded to Free — open-request limit re-enforced via payment canister — ✓"
 
@@ -492,13 +530,14 @@ else
   # Manager (Free tier) creates quote for property they do NOT manage → SHOULD FAIL
   echo ""
   echo "── [MGR-4] Manager creates quote for unrelated property → expect LimitReached ─"
-  UNAUTH_QUOTE=$(dfx canister call $CANISTER createQuoteRequest '(
-    "PROP_UNRELATED",
+  # An unrelated real property (the deployer's), which manager-test has no role on.
+  UNAUTH_QUOTE=$(dfx canister call $CANISTER createQuoteRequest "(
+    \"$TEST_PROP_ID\",
     variant { Electrical },
-    "Quote request on unrelated property — should be blocked.",
+    \"Quote request on unrelated property — should be blocked.\",
     variant { Low },
     null, null, null, null, null
-  )' --identity manager-test)
+  )" --identity manager-test)
   echo "$UNAUTH_QUOTE"
   if echo "$UNAUTH_QUOTE" | grep -qiE "LimitReached|err"; then
     echo "  ✓ Free-tier manager blocked on unrelated property"
@@ -529,10 +568,12 @@ req_id_of() { if [[ "$1" =~ id\ =\ \"([^\"]+)\" ]]; then echo "${BASH_REMATCH[1]
 new_id quote-usage-owner; new_id quote-usage-pro; new_id quote-usage-stranger
 OWNER_P=$(dfx identity get-principal --identity quote-usage-owner)
 dfx canister call payment grantSubscription "(principal \"$OWNER_P\", variant { Pro })" >/dev/null 2>&1 || true
+USAGE_PROP_ID=$(prop_for quote-usage-owner "Quote Usage")
+[ -n "$USAGE_PROP_ID" ] || { echo "  ↳ ❌ could not register a property for quote-usage-owner"; exit 1; }
 
 new_request() {   # $1 service variant
   dfx canister call $CANISTER createQuoteRequest "(
-    \"PROP_USAGE_$1\", variant { $1 }, \"Usage sharing test request.\", variant { Low },
+    \"$USAGE_PROP_ID\", variant { $1 }, \"Usage sharing test request.\", variant { Low },
     null, null, null, null, null
   )" --identity quote-usage-owner
 }
@@ -593,10 +634,10 @@ if dfx canister id contractor >/dev/null 2>&1; then
   OUT=$(dfx canister call $CANISTER getUsageSummary "(\"$HVAC_REQ\")" --identity quote-usage-pro)
   expect "registered contractor reads an open request's usage" "$OUT" "category = variant { Electric }"
   # Same contractor, but the request demands a trust score it doesn't have.
-  PICKY=$(dfx canister call $CANISTER createQuoteRequest '(
-    "PROP_USAGE_PICKY", variant { Electrical }, "Picky usage request.", variant { Low },
+  PICKY=$(dfx canister call $CANISTER createQuoteRequest "(
+    \"$USAGE_PROP_ID\", variant { Electrical }, \"Picky usage request.\", variant { Low },
     null, opt 101, null, null, null
-  )' --identity quote-usage-owner)
+  )" --identity quote-usage-owner)
   PICKY_REQ=$(req_id_of "$PICKY")
   ELECTRIC_ONLY='record { category = variant { Electric }; unit = null; months = vec { record { month = "2026-08"; amountCents = 9000; usage = null } } }'
   OUT=$(dfx canister call $CANISTER attachUsageSummary "(\"$PICKY_REQ\", $(summary "$ELECTRIC_ONLY"))" --identity quote-usage-owner)

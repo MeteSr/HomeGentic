@@ -47,11 +47,11 @@ Local visual baselines don't match CI (different fonts/Chromium build), so don't
 
 `.claude/skills/` holds DFINITY's ICP skills (https://skills.internetcomputer.org). A `SessionStart` hook (`.claude/settings.json` → `.claude/sync-ic-skills.sh`) refreshes them each session, and the weekly `Sync ICP skills` workflow opens a PR when they change. Before Motoko, canister, upgrade or icp-cli work, read the matching skill (`writing-motoko`, `reviewing-motoko`, `migrating-motoko-actors`, `stable-memory`, `mops-cli`, `icp-cli`, …) and follow it. Where this repo's setup can't follow a skill yet, say so rather than silently diverging.
 
-**Known divergence: no migration chain.** The canisters stay plain `persistent actor`s with inline initializers, not the mops `--enhanced-migration` chain the skills assume (decided 2026-10-17). Converting an existing canister needs a first migration that starts from its current state, and that wasm traps on a fresh install, so every fresh install would have to deploy the old build first and then upgrade. Until that changes, ignore skill advice that presumes a `migrations/` directory; add new record fields as `?T` (see below), and keep any one-time data move in `postupgrade` idempotent.
+**Known divergence: no migration chain.** The canisters stay plain `persistent actor`s with inline initializers, not the mops `--enhanced-migration` chain the skills assume (decided 2026-10-17). Converting an existing canister needs a first migration that starts from its current state, and that wasm traps on a fresh install, so every fresh install would have to deploy the old build first and then upgrade. Until that changes, ignore skill advice that presumes a `migrations/` directory; put new data in new stable vars (see below), and keep any one-time data move in `postupgrade` idempotent.
 
 ### Stable-memory compatibility (IMPORTANT)
 
-Canisters use enhanced orthogonal persistence: an upgrade whose stable types aren't compatible with the running version (e.g. a new non-optional field on a record stored in a `Map`) is rejected with `Memory-incompatible program upgrade`, and the only way out is a reinstall that wipes data. The `stable-compat-check` CI job (`scripts/ci/check-stable-compat.sh`) compares every canister's stable types against the PR's base and fails on a break. Add new record fields as `?T`. An intentional break needs the `allow-stable-break` label, and on testnet `scripts/deploy.sh` only reinstalls canisters listed in its `TESTNET_REINSTALL_OK` allow-list (empty by default); mainnet never reinstalls.
+Canisters use enhanced orthogonal persistence: an upgrade whose stable types aren't compatible with the running version (e.g. any new field, even an optional one, on a record held in a stable var or a `Map`) is rejected with `Memory-incompatible program upgrade`, and the only way out is a reinstall that wipes data. The `stable-compat-check` CI job (`scripts/ci/check-stable-compat.sh`) compares every canister's stable types against the PR's base and fails on a break. Don't change the fields of a stored record type: keep new data in a new stable var with an inline initializer (e.g. a side `Map` keyed by the record's id). An intentional break needs the `allow-stable-break` label, and on testnet `scripts/deploy.sh` only reinstalls canisters listed in its `TESTNET_REINSTALL_OK` allow-list (empty by default); mainnet never reinstalls.
 
 ### E2E test maintenance (IMPORTANT)
 
@@ -143,7 +143,7 @@ Two homeowner tiers — **Free** and **Pro ($59/year, annual only)** — plus tw
 | Free | 1 | 5 | 3 | $0 |
 | Pro | 20 | 30 | unlimited | $59/yr |
 | ContractorFree | 0 | 5 | unlimited | $0 + 3% referral fee per winning bid, $20 min |
-| ContractorPro | 0 | 50 | unlimited | $40/mo (or yearly) |
+| ContractorPro | unlimited | 50 | unlimited | $40/mo (or yearly) |
 
 Realtors have no subscription tier: the winning agent in a Bid to List auction pays a one-time platform fee (`listing.getPlatformFee()`, $399 default), tracked in the `fee` canister.
 
@@ -186,7 +186,7 @@ Auth flow: `AuthContext.tsx` wraps the app and exposes `login()` / `devLogin()` 
 
 ### Voice Agent
 
-Production runs the Cloudflare Worker `agents/voice/src/index.ts` (deployed by CI with `wrangler deploy`; rate-limit counters in Workers KV). `agents/voice/server.ts` is the older Express equivalent (port 3001, `npm start`) with the same routes. Main endpoints:
+Production runs the Cloudflare Worker `agents/voice/src/index.ts` (deployed by CI with `wrangler deploy`; rate-limit counters in the `RateLimiterDO` Durable Object, `src/rateLimiterDO.ts`). `agents/voice/server.ts` is the older Express equivalent (port 3001, `npm start`) with the same routes. Main endpoints:
 - `POST /api/chat` — SSE streaming chat (max 200 tokens, 2-3 sentence voice responses)
 - `POST /api/agent` — Agentic tool-use loop returning tool_calls or final answer
 - Plus document/bill extraction, Stripe checkout + webhook, Bid to List routes, and `/health` — see `docs/SYSTEMS.md` §17.

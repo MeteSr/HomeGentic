@@ -35,6 +35,7 @@ getMetrics(0) -> (1) [query]
 getProfile(0) -> (1) [query]
 getUserStats(0) -> (1) [query]
 hasRole(1) -> (1) [query]
+isAdminPrincipal(1) -> (1) [query]
 issueAgentSession(0) -> (1)
 recordLogin(0) -> (0)
 register(1) -> (1)
@@ -88,6 +89,7 @@ getMetrics(0) -> (1) [query]
 getMyReferralJobs(0) -> (1) [query]
 getPendingProposals(0) -> (1) [query]
 getReferralJobs(0) -> (1) [query]
+getUnattestedJobIds(1) -> (1) [query]
 linkContractor(2) -> (1)
 redeemInviteToken(5) -> (1)
 rejectJobProposal(1) -> (1)
@@ -176,6 +178,7 @@ removeStripeRelay(1) -> (1)
 setBootstrapNonce(1) -> (0)
 stripeActivateSubscription(4) -> (1)
 stripeGrantAgentCredits(3) -> (1)
+stripeRecordGift(4) -> (1)
 subscribe(1) -> (1)
 verifyStripeSession(1) -> (1)"
 `;
@@ -200,6 +203,7 @@ claimTransfer(1) -> (1)
 dismissNotifications(1) -> (1)
 getAccessRole(2) -> (1) [query]
 getApprovals(1) -> (1) [query]
+getJobPropertyAddresses(1) -> (1)
 getManagerInviteByToken(1) -> (1) [query]
 getMyManagedProperties(0) -> (1) [query]
 getMyProperties(0) -> (1) [query]
@@ -210,6 +214,8 @@ getPendingTransfer(1) -> (1) [query]
 getPendingTransferByToken(1) -> (1) [query]
 getPendingVerifications(0) -> (1) [query]
 getProperty(1) -> (1) [query]
+getPropertyByManagerInviteToken(1) -> (1) [query]
+getPropertyByTransferToken(1) -> (1) [query]
 getPropertyLimitForTier(1) -> (1) [query]
 getPropertyManagers(1) -> (1) [query]
 getPropertyOwner(1) -> (1) [query]
@@ -285,6 +291,10 @@ exports[`Candid contract snapshots — method arity > sensor 1`] = `
 getDevicesForProperty(1) -> (1) [composite_query]
 getEventsForProperty(2) -> (1)
 getPendingAlerts(1) -> (1)
+getVerifiedOnlySources(0) -> (1) [query]
 recordEvent(5) -> (1)
-registerDevice(4) -> (1)"
+recordEventFor(7) -> (1)
+registerDevice(4) -> (1)
+registerVerifiedDevice(6) -> (1)
+setVerifiedOnlySources(1) -> (1)"
 `;

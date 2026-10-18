@@ -15,10 +15,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import LocalBrokerModal, { isLocalBrokerArea, isLocalBrokerDismissed } from "@/components/LocalBrokerModal";
 
-const { mockSendEmail } = vi.hoisted(() => ({ mockSendEmail: vi.fn() }));
+const { mockSendBrokerLead } = vi.hoisted(() => ({ mockSendBrokerLead: vi.fn() }));
 vi.mock("@/services/aiProxy", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/aiProxy")>();
-  return { ...actual, aiProxyService: { sendEmail: mockSendEmail } };
+  return { ...actual, aiProxyService: { sendBrokerLead: mockSendBrokerLead } };
 });
 
 const { mockToastError } = vi.hoisted(() => ({ mockToastError: vi.fn() }));
@@ -64,13 +64,13 @@ describe("LocalBrokerModal — validation", () => {
     // to reach the component's own guard clause.
     fireEvent.submit(container.querySelector("form")!);
     expect(mockToastError).toHaveBeenCalledWith("Name and email are required");
-    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockSendBrokerLead).not.toHaveBeenCalled();
   });
 });
 
 describe("LocalBrokerModal — submission", () => {
   it("sends the consultation email, sets the dismiss flag, and shows confirmation", async () => {
-    mockSendEmail.mockResolvedValue(undefined);
+    mockSendBrokerLead.mockResolvedValue({ sent: true });
     const { nameInput, emailInput } = renderModal();
 
     fireEvent.change(nameInput, { target: { value: "Jamie Rivera" } });
@@ -78,16 +78,27 @@ describe("LocalBrokerModal — submission", () => {
     fireEvent.click(screen.getByText("Yes, contact me"));
 
     await waitFor(() => expect(screen.getByText("Request sent!")).toBeInTheDocument());
-    expect(mockSendEmail).toHaveBeenCalledWith(
-      "",
-      "HomeGentic: Local Broker Consultation Request",
-      expect.stringContaining("Jamie Rivera"),
-    );
+    expect(mockSendBrokerLead).toHaveBeenCalledWith({
+      name: "Jamie Rivera", email: "jamie@example.com", phone: undefined,
+      propertyAddress: "123 Main St, Daytona Beach",
+    });
     expect(localStorage.getItem("hg_local_broker_dismissed")).toBe("1");
   });
 
+  it("shows an error toast when the Worker refuses the lead", async () => {
+    mockSendBrokerLead.mockResolvedValue({ error: "Too many requests" });
+    const { nameInput, emailInput } = renderModal();
+
+    fireEvent.change(nameInput, { target: { value: "Jamie Rivera" } });
+    fireEvent.change(emailInput, { target: { value: "jamie@example.com" } });
+    fireEvent.click(screen.getByText("Yes, contact me"));
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("Could not send request. Please try again."));
+    expect(screen.queryByText("Request sent!")).not.toBeInTheDocument();
+  });
+
   it("shows an error toast and stays on the form when sending fails", async () => {
-    mockSendEmail.mockRejectedValue(new Error("network down"));
+    mockSendBrokerLead.mockRejectedValue(new Error("network down"));
     const { nameInput, emailInput } = renderModal();
 
     fireEvent.change(nameInput, { target: { value: "Jamie Rivera" } });

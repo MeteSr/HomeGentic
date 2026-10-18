@@ -150,10 +150,8 @@ echo ""
 echo "✅ Payment trusted canister tests complete!"
 
 # ─── §STRIPE Admin + Stripe config tests ─────────────────────────────────────
-# Tests for initAdmins, configureStripe, isStripeConfigured.
-# HTTP outcall tests (createStripeCheckoutSession, verifyStripeSession) require
-# a live Stripe sandbox key and cannot run against a local replica without
-# a cycle-funded canister — skip those here.
+# Stripe itself runs in the voice Worker (M-6); the canister only refuses to
+# store keys and answers its retired outcall methods with an error.
 
 echo ""
 echo "=== Payment — Stripe Admin & Config Tests ==="
@@ -191,32 +189,42 @@ echo "$RESULT" | grep -q "false" \
   || echo "  ↳ ❌ Expected false"
 
 echo ""
-echo "── [S5] configureStripe — set sandbox config ────────────────────────────"
-dfx canister call payment configureStripe '(record {
+echo "── [S5] configureStripe — refuses to store a key (M-6) ──────────────────"
+RESULT=$(dfx canister call payment configureStripe '(record {
   secretKey  = "sk_test_placeholder";
   successUrl = "http://localhost:5173/payment-success";
   cancelUrl  = "http://localhost:5173/payment-failure";
   priceIds   = record {
-    basicMonthly         = "price_basic_monthly_test";
-    basicYearly          = "price_basic_yearly_test";
-    proMonthly           = "price_pro_monthly_test";
-    proYearly            = "price_pro_yearly_test";
-    premiumMonthly       = "price_premium_monthly_test";
-    premiumYearly        = "price_premium_yearly_test";
-    contractorProMonthly = "price_cpro_monthly_test";
-    contractorProYearly  = "price_cpro_yearly_test";
-    realtorProMonthly    = "price_rpro_monthly_test";
-    realtorProYearly     = "price_rpro_yearly_test";
+    proMonthly = "x"; proYearly = "x"; contractorProMonthly = "x"; contractorProYearly = "x";
   }
-})'
-echo "  ↳ configureStripe succeeded — ✓"
+})' 2>&1)
+echo "$RESULT" | grep -q "err" \
+  && echo "  ↳ configureStripe refused — ✓" \
+  || echo "  ↳ ❌ Expected configureStripe to refuse"
 
 echo ""
-echo "── [S6] isStripeConfigured — expect true after configureStripe ──────────"
+echo "── [S6] isStripeConfigured — still false; Stripe runs in the voice Worker ─"
 RESULT=$(dfx canister call payment isStripeConfigured)
-echo "$RESULT" | grep -q "true" \
-  && echo "  ↳ isStripeConfigured = true — ✓" \
-  || echo "  ↳ ❌ Expected true after configureStripe"
+echo "$RESULT" | grep -q "false" \
+  && echo "  ↳ isStripeConfigured = false — ✓" \
+  || echo "  ↳ ❌ Expected false"
+
+echo ""
+echo "── [S6b] createStripeCheckoutSession — moved off-chain ──────────────────"
+RESULT=$(dfx canister call payment createStripeCheckoutSession '(variant { Pro }, variant { Yearly }, null)' 2>&1)
+echo "$RESULT" | grep -q "moved off-chain" \
+  && echo "  ↳ points to the voice Worker — ✓" \
+  || echo "  ↳ ❌ Expected the moved-off-chain error"
+
+echo ""
+echo "── [S6c] stripeRecordGift — non-relay rejected ──────────────────────────"
+if ! dfx identity list 2>/dev/null | grep -q "^stripe-nonadmin-test$"; then
+  dfx identity new stripe-nonadmin-test --disable-encryption 2>/dev/null || true
+fi
+RESULT=$(dfx canister call payment stripeRecordGift '("cs_test_abc123", variant { Pro }, variant { Yearly }, record { recipientEmail = ""; recipientName = ""; senderName = ""; giftMessage = ""; deliveryDate = "" })' --identity stripe-nonadmin-test 2>&1)
+echo "$RESULT" | grep -q "NotAuthorized" \
+  && echo "  ↳ Non-relay correctly rejected — ✓" \
+  || echo "  ↳ ❌ Expected NotAuthorized"
 
 echo ""
 echo "── [S7] configureStripe — non-admin is rejected ─────────────────────────"
@@ -228,10 +236,7 @@ RESULT=$(dfx canister call payment configureStripe '(record {
   successUrl = "http://localhost:5173/payment-success";
   cancelUrl  = "http://localhost:5173/payment-failure";
   priceIds   = record {
-    basicMonthly = "x"; basicYearly = "x";
-    proMonthly = "x"; proYearly = "x"; premiumMonthly = "x";
-    premiumYearly = "x"; contractorProMonthly = "x"; contractorProYearly = "x";
-    realtorProMonthly = "x"; realtorProYearly = "x";
+    proMonthly = "x"; proYearly = "x"; contractorProMonthly = "x"; contractorProYearly = "x";
   }
 })' --identity stripe-nonadmin-test 2>&1)
 echo "$RESULT" | grep -q "NotAuthorized" \

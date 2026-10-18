@@ -16,6 +16,8 @@ import {
   HttpError, readJsonBody, readBodyBytes, escapeHtml, subjectText,
   PRINCIPAL_RE, EMAIL_RE, MAX_WEBHOOK_BYTES,
 } from "./security";
+import { hitCounter, beginOnce, finishOnce, abortOnce } from "./rateLimiter";
+import type { CounterNamespace } from "./rateLimiterDO";
 
 export interface BidtolistEnv {
   BIDTOLIST_RESEND_API_KEY?: string;
@@ -31,8 +33,10 @@ export interface BidtolistEnv {
   BIDTOLIST_ICP_HOST?: string;
   HOMEGENTIC_CANISTER_ID?: string;
   HOMEGENTIC_ICP_HOST?: string;
-  /** Used to dedupe notification emails (X-2). Optional so tests can omit it. */
+  /** Fallback store for email dedupe / per-IP limits when RATE_LIMITER is unbound. */
   RATE_LIMIT?: KVNamespace;
+  /** RateLimiterDO namespace: atomic email dedupe and per-IP limits. */
+  RATE_LIMITER?: DurableObjectNamespace | CounterNamespace;
 }
 
 // ── IDL factories ─────────────────────────────────────────────────────────────
@@ -56,10 +60,19 @@ const listingIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     notes: I.Text, bidDeadline: I.Int, status: BidRequestStatus,
     createdAt: I.Int, proposalCount: I.Nat,
   });
+  const ProposalStatus = I.Variant({
+    Pending: I.Null, Accepted: I.Null, Rejected: I.Null, Withdrawn: I.Null, Standby: I.Null,
+  });
+  const ListingProposal = I.Record({
+    id: I.Text, requestId: I.Text, agentId: I.Principal, agentName: I.Text, agentEmail: I.Text,
+    agentBrokerage: I.Text, commissionBps: I.Nat, cmaSummary: I.Text, marketingPlan: I.Text,
+    estimatedDaysOnMarket: I.Nat, estimatedSalePrice: I.Nat, includedServices: I.Vec(I.Text),
+    validUntil: I.Int, coverLetter: I.Text, status: ProposalStatus, createdAt: I.Int,
+  });
   return I.Service({
     getBidRequest:           I.Func([I.Text], [I.Variant({ ok: ListingBidRequest, err: Error })], ["query"]),
+    getProposalsForRequest:  I.Func([I.Text], [I.Vec(ListingProposal)], ["query"]),
     getListingsNearDeadline: I.Func([I.Int], [I.Vec(BidRequestSummary)], ["query"]),
-    markRevealNotified:      I.Func([I.Text], [I.Bool], []),
     tickCascade:             I.Func([], [], []),
   });
 };
@@ -87,6 +100,7 @@ const feeIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
   });
   const Error = I.Variant({ NotFound: I.Null, NotAuthorized: I.Null, InvalidInput: I.Text });
   return I.Service({
+    getAllFees:  I.Func([], [I.Variant({ ok: I.Vec(FeeRecord), err: Error })], ["query"]),
     markFeePaid: I.Func([I.Text], [I.Variant({ ok: FeeRecord, err: Error })], []),
   });
 };
@@ -104,8 +118,9 @@ const homegenticIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
 // ── ICP actor factories ───────────────────────────────────────────────────────
 
 function makeIdentity(seed: string): Ed25519KeyIdentity {
-  const buf = Buffer.from(seed, "hex");
-  return Ed25519KeyIdentity.fromSecretKey(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer);
+  // @icp-sdk/core 5 wants a Uint8Array (an ArrayBuffer throws "private key
+  // must be hex string or Uint8Array", which silently disabled every canister call).
+  return Ed25519KeyIdentity.fromSecretKey(new Uint8Array(Buffer.from(seed, "hex")));
 }
 
 async function createListingActor(env: BidtolistEnv) {
@@ -144,22 +159,61 @@ function createHomegenticActor(env: BidtolistEnv) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function fetchListing(requestId: string, env: BidtolistEnv) {
+interface ListingInfo {
+  homeownerEmail: string;
+  city:           string;
+  deadlineDate:   string;
+  bidDeadlineMs:  number;
+  homeowner:      string;
+  status:         string;
+}
+
+/**
+ * Read a Bid to List request with the Worker's identity (an admin of the
+ * listing canister, so homeownerEmail is not redacted). null when the listing
+ * canister isn't wired; HttpError(404) when the request doesn't exist.
+ */
+async function fetchListing(requestId: string, env: BidtolistEnv): Promise<ListingInfo | null> {
   const actor = await createListingActor(env);
   if (!actor) return null;
   const result = await (actor as any).getBidRequest(requestId) as any;
-  if ("err" in result) throw new Error(`getBidRequest error: ${JSON.stringify(result.err)}`);
+  if ("err" in result) {
+    if ("NotFound" in (result.err ?? {})) throw new HttpError(404, "Listing not found");
+    throw new Error(`getBidRequest error: ${Object.keys(result.err ?? {})[0] ?? "unknown"}`);
+  }
   const { homeownerEmail, city, bidDeadline, homeowner, status } = result.ok;
-  const deadlineDate = new Date(Number(bidDeadline) / 1_000_000).toLocaleDateString("en-US", {
+  const bidDeadlineMs = Number(bidDeadline) / 1_000_000;
+  const deadlineDate = new Date(bidDeadlineMs).toLocaleDateString("en-US", {
     month: "long", day: "numeric", year: "numeric",
   });
   return {
-    homeownerEmail: homeownerEmail as string,
-    city: city as string,
+    homeownerEmail: String(homeownerEmail ?? ""),
+    city: String(city ?? ""),
     deadlineDate,
+    bidDeadlineMs,
     homeowner: (homeowner as Principal)?.toText?.() ?? String(homeowner),
-    status: Object.keys(status ?? {})[0] ?? "",
+    status: variantName(status),
   };
+}
+
+interface ProposalInfo { id: string; agentId: string; status: string }
+
+/** All proposals on a request (the Worker identity is an admin, so none are hidden). */
+async function fetchProposals(requestId: string, env: BidtolistEnv): Promise<ProposalInfo[] | null> {
+  const actor = await createListingActor(env);
+  if (!actor) return null;
+  const list = await (actor as any).getProposalsForRequest(requestId) as any[];
+  return (list ?? [])
+    .filter((p: any) => p && p.requestId === requestId)
+    .map((p: any) => ({
+      id: String(p.id),
+      agentId: (p.agentId as Principal)?.toText?.() ?? String(p.agentId),
+      status: variantName(p.status),
+    }));
+}
+
+function variantName(v: unknown): string {
+  return Object.keys((v as object) ?? {})[0] ?? "";
 }
 
 /**
@@ -185,21 +239,26 @@ function generateDiscountCode(): string {
   return "BIDTOLIST-" + Array.from(bytes).map((b) => chars[b & 31]).join("");
 }
 
-/**
- * True the first time `key` is seen within `ttlSeconds` (per KV); used to stop
- * the email routes from being replayed to bomb a recipient. Without KV
- * (tests / local) everything is allowed.
- */
-async function firstSend(env: BidtolistEnv, key: string, ttlSeconds: number): Promise<boolean> {
-  if (!env.RATE_LIMIT) return true;
-  const k = `btlmail:${key}`;
-  if (await env.RATE_LIMIT.get(k)) return false;
-  await env.RATE_LIMIT.put(k, "1", { expirationTtl: ttlSeconds });
-  return true;
-}
+const REQUEST_ID_RE  = /^[A-Za-z0-9_-]{1,64}$/;
+const DAY            = 86_400;
+/** Dedupe window for one-shot lifecycle emails ("at most once" in practice). */
+const ONCE_TTL       = 365 * DAY;
 
-const REQUEST_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
-const DAY = 86_400;
+/**
+ * Resend's SDK reports API failures (bad key, 4xx/5xx, rate limit) in the
+ * resolved `{ error }` rather than by throwing; turn them into throws so
+ * callers' retry and dedupe-release paths run.
+ */
+async function sendOrThrow(
+  resend: Resend,
+  msg: { from: string; to: string; subject: string; html: string },
+  idempotencyKey?: string,
+): Promise<void> {
+  const res = await resend.emails.send(msg, idempotencyKey ? { idempotencyKey } : undefined);
+  if (res?.error) throw new Error(res.error.message ?? "Resend error");
+}
+/** Per-IP budget for the Bid to List email + checkout routes. */
+const IP_HOURLY_LIMIT = 30;
 
 async function createHomegenticCode(code: string, env: BidtolistEnv): Promise<void> {
   const actor = createHomegenticActor(env);
@@ -220,7 +279,7 @@ async function sendHomeownerCodeEmail(requestId: string, code: string, env: Bidt
   const from        = env.BIDTOLIST_RESEND_FROM ?? "noreply@bidtolist.com";
   const resend      = new Resend(env.BIDTOLIST_RESEND_API_KEY ?? "");
   const checkoutUrl = `https://homegentic.com/checkout?bidtolist_code=${encodeURIComponent(code)}`;
-  await resend.emails.send({
+  await sendOrThrow(resend, {
     from,
     to: homeownerEmail,
     subject: "Your HomeGentic discount — compliments of BidtoList",
@@ -255,22 +314,29 @@ function jsonResp(data: unknown, status = 200): Response {
 /**
  * Handle /api/bidtolist/* requests.
  * `subpath` is the part after "/api/bidtolist" (e.g. "/email/new-proposal").
- * `getPrincipal` resolves the caller's verified principal from the
- * x-agent-session token (null when there is no valid session).
  *
- * X-2 / F-5: every route except the Stripe webhook needs a session; email
- * recipients are resolved from canister records (never from the body); the
- * caller must be the listing's homeowner for listing-scoped notifications;
- * every interpolated value is HTML-escaped; repeats are deduped in KV.
+ * Bid to List is a separate app with its own Internet Identity principals, so
+ * its users can't present a HomeGentic x-agent-session; the 4th parameter is
+ * accepted for call-site compatibility and ignored. Instead every route is
+ * bound to on-chain state (X-2):
+ *   - the body carries identifiers only (requestId / proposalId / agentPrincipal);
+ *   - the Worker reads the Bid to List canisters with its own identity and
+ *     sends an email only when that state warrants it (proposal exists,
+ *     request Awarded / Cancelled, deadline passed, agent verified, …);
+ *   - recipients and template values come from canister data, HTML-escaped;
+ *   - each (event, entity) pair is claimed once in RateLimiterDO (KV fallback);
+ *   - every route is rate-limited per IP.
+ * So nobody can make the Worker send an email the on-chain state doesn't
+ * justify, whoever calls it.
  */
 export async function handleBidtolist(
   request: Request,
   subpath: string,
   env: BidtolistEnv,
-  getPrincipal: () => Promise<string | null> = async () => null,
+  _getPrincipal?: () => Promise<string | null>,
 ): Promise<Response> {
   try {
-    return await routeBidtolist(request, subpath, env, getPrincipal);
+    return await routeBidtolist(request, subpath, env);
   } catch (err) {
     if (err instanceof HttpError) return jsonResp({ error: err.message }, err.status);
     console.error("[bidtolist] unhandled error:", (err as Error)?.message);
@@ -282,12 +348,11 @@ async function routeBidtolist(
   request: Request,
   subpath: string,
   env: BidtolistEnv,
-  getPrincipal: () => Promise<string | null>,
 ): Promise<Response> {
   const from   = env.BIDTOLIST_RESEND_FROM ?? "noreply@bidtolist.com";
   const resend = new Resend(env.BIDTOLIST_RESEND_API_KEY ?? "");
 
-  // POST /api/bidtolist/stripe/webhook — raw body for Stripe HMAC (no session)
+  // POST /api/bidtolist/stripe/webhook — raw body for Stripe HMAC
   if (subpath === "/stripe/webhook" && request.method === "POST") {
     const stripeKey     = env.BIDTOLIST_STRIPE_SECRET_KEY;
     const webhookSecret = env.BIDTOLIST_STRIPE_WEBHOOK_SECRET;
@@ -308,10 +373,17 @@ async function routeBidtolist(
       return jsonResp({ error: "Webhook signature verification failed" }, 400);
     }
 
-    if (event.type === "checkout.session.completed") {
+    // async_payment_succeeded covers delayed methods, whose "completed" event
+    // arrives before the money does (payment_status "unpaid").
+    if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
       const session = event.data.object as Stripe.Checkout.Session;
+      // metadata.feeId was set by create-checkout-session from the fee
+      // canister's own record, never from a request body.
       const feeId   = session.metadata?.feeId;
-      if (feeId && await firstSend(env, `feepaid:${event.id}`, 7 * DAY)) {
+      const onceKey = `btl:feepaid:${event.id}`;
+      const once    = feeId && session.payment_status === "paid" ? await beginOnce(env, onceKey) : "done";
+      if (once === "busy") return jsonResp({ error: "Event is being processed" }, 409);   // Stripe retries
+      if (once === "new") {
         try {
           const feeActor = createFeeActor(env);
           if (!feeActor) {
@@ -334,7 +406,11 @@ async function routeBidtolist(
           }
         } catch (err: any) {
           console.error(`[bidtolist] markFeePaid failed for ${feeId}:`, err?.message);
+          // Let Stripe's retry try again.
+          await abortOnce(env, onceKey);
+          return jsonResp({ error: "fee update failed" }, 500);
         }
+        await finishOnce(env, onceKey, 7 * DAY);
       }
     }
 
@@ -343,33 +419,45 @@ async function routeBidtolist(
 
   if (request.method !== "POST") return jsonResp({ error: "Not found" }, 404);
 
-  const caller = await getPrincipal();
-  if (!caller || caller === "anon") return jsonResp({ error: "session_required" }, 401);
+  // Per-IP budget for every non-webhook route (each one costs canister
+  // queries and possibly Resend / Stripe calls).
+  const ip   = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  const hour = Math.floor(Date.now() / 3_600_000);
+  if (!(await hitCounter(env, `btl-ip:${ip}:${hour}`, IP_HOURLY_LIMIT, 2 * 3600)).allowed) {
+    return jsonResp({ error: "Too many requests" }, 429);
+  }
 
   const body = await readJsonBody<Record<string, unknown>>(request);
-  const requestIdOf = (): string => {
-    const id = body.requestId;
-    if (typeof id !== "string" || !REQUEST_ID_RE.test(id)) throw new HttpError(400, "valid requestId required");
+  const idOf = (field: string): string => {
+    const id = body[field];
+    if (typeof id !== "string" || !REQUEST_ID_RE.test(id)) throw new HttpError(400, `valid ${field} required`);
     return id;
   };
   const agentPrincipalOf = (): string => {
     const p = body.agentPrincipal;
-    if (typeof p !== "string" || !PRINCIPAL_RE.test(p)) throw new HttpError(400, "valid agentPrincipal required");
-    return p;
+    let ok = typeof p === "string" && PRINCIPAL_RE.test(p);
+    if (ok) { try { Principal.fromText(p as string); } catch { ok = false; } }
+    if (!ok) throw new HttpError(400, "valid agentPrincipal required");
+    return p as string;
   };
-  /** The listing, which the caller must own. */
-  const ownedListing = async (requestId: string) => {
-    let listing: Awaited<ReturnType<typeof fetchListing>>;
+  const listingOf = async (requestId: string): Promise<ListingInfo | null> => {
     try {
-      listing = await fetchListing(requestId, env);
+      return await fetchListing(requestId, env);
     } catch (err) {
+      if (err instanceof HttpError) throw err;
       console.error("[bidtolist] fetchListing failed:", (err as Error)?.message);
       throw new HttpError(502, "canister call failed");
     }
-    if (listing && listing.homeowner !== caller) throw new HttpError(403, "Not your listing");
-    return listing;
   };
-  /** The agent's server-side profile with a usable email. */
+  const proposalsOf = async (requestId: string): Promise<ProposalInfo[]> => {
+    try {
+      return (await fetchProposals(requestId, env)) ?? [];
+    } catch (err) {
+      console.error("[bidtolist] getProposalsForRequest failed:", (err as Error)?.message);
+      throw new HttpError(502, "canister call failed");
+    }
+  };
+  /** The agent's server-side profile with a usable email (null if none). */
   const agentProfile = async (agentPrincipal: string) => {
     let profile: Awaited<ReturnType<typeof fetchAgentProfile>>;
     try {
@@ -379,101 +467,142 @@ async function routeBidtolist(
       throw new HttpError(502, "agent canister call failed");
     }
     if (!profile) return null;
-    if (profile.email.length > 320 || !EMAIL_RE.test(profile.email)) throw new HttpError(422, "agent email invalid on record");
+    if (profile.email.length > 320 || !EMAIL_RE.test(profile.email)) return null;
     return profile;
   };
-  const send = async (to: string, subject: string, html: string, label: string): Promise<Response> => {
+  /**
+   * Send once per dedupe key. A failed send (or a Worker that dies mid-send)
+   * leaves no "done" marker, so a later request can retry; Resend's
+   * idempotency key stops a retry from duplicating a send that did land.
+   */
+  const sendOnce = async (key: string, to: string, subject: string, html: string): Promise<"sent" | "deduped" | "failed"> => {
+    const onceKey = `btlmail:${key}`;
+    if ((await beginOnce(env, onceKey)) !== "new") return "deduped";
     try {
-      await resend.emails.send({ from, to, subject, html });
-      return jsonResp({ ok: true });
+      await sendOrThrow(resend, { from, to, subject, html }, onceKey);
     } catch (err) {
-      console.error(`[bidtolist] Resend error (${label}):`, (err as Error)?.message);
-      return jsonResp({ error: "email send failed" }, 500);
+      console.error(`[bidtolist] Resend error (${key.split(":")[0]}):`, (err as Error)?.message);
+      await abortOnce(env, onceKey);
+      return "failed";
     }
+    await finishOnce(env, onceKey, ONCE_TTL);
+    return "sent";
+  };
+  const single = (r: "sent" | "deduped" | "failed"): Response =>
+    r === "failed" ? jsonResp({ error: "email send failed" }, 500)
+      : r === "deduped" ? jsonResp({ ok: true, deduped: true })
+      : jsonResp({ ok: true });
+  /** Fan out to the agents who proposed on a request (Withdrawn excluded). */
+  const toProposers = async (
+    proposals: ProposalInfo[],
+    keyFor: (p: ProposalInfo) => string,
+    render: (p: ProposalInfo, agentName: string) => { subject: string; html: string },
+  ): Promise<Response> => {
+    const seen = new Set<string>();
+    let sent = 0, failed = 0;
+    for (const p of proposals) {
+      if (p.status === "Withdrawn" || seen.has(p.agentId)) continue;
+      seen.add(p.agentId);
+      const agent = await agentProfile(p.agentId);
+      if (!agent) continue;
+      const { subject, html } = render(p, agent.name);
+      const r = await sendOnce(keyFor(p), agent.email, subject, html);
+      if (r === "sent") sent++; else if (r === "failed") failed++;
+    }
+    if (failed > 0) console.warn(`[bidtolist] ${failed} proposer email(s) failed`);
+    return jsonResp({ ok: true, sent });
   };
 
-  // POST /api/bidtolist/email/new-proposal — notify the homeowner. Anyone with
-  // a session may trigger it (agents submit proposals), but the recipient is
-  // the listing's own email and repeats are limited to one per 10 minutes.
+  // POST /api/bidtolist/email/new-proposal — Body: { requestId, proposalId }.
+  // Sent to the listing's homeowner once per proposal, only if that proposal
+  // exists on that open request.
   if (subpath === "/email/new-proposal") {
-    const requestId = requestIdOf();
-    let listing: Awaited<ReturnType<typeof fetchListing>>;
-    try {
-      listing = await fetchListing(requestId, env);
-    } catch (err) {
-      console.error("[bidtolist] fetchListing failed (new-proposal):", (err as Error)?.message);
-      return jsonResp({ error: "canister call failed" }, 502);
-    }
+    const requestId  = idOf("requestId");
+    const proposalId = idOf("proposalId");
+    const listing = await listingOf(requestId);
     if (!listing) return jsonResp({ ok: true, skipped: true });
-    if (!listing.homeownerEmail) return jsonResp({ error: "homeownerEmail empty on record" }, 422);
-    if (!await firstSend(env, `new-proposal:${requestId}`, 600)) return jsonResp({ ok: true, deduped: true });
+    if (listing.status !== "Open") return jsonResp({ error: "Listing is not open" }, 409);
+    const proposal = (await proposalsOf(requestId)).find((p) => p.id === proposalId);
+    if (!proposal || proposal.status === "Withdrawn") return jsonResp({ error: "Proposal not found" }, 404);
+    if (!listing.homeownerEmail || !EMAIL_RE.test(listing.homeownerEmail)) {
+      return jsonResp({ error: "homeownerEmail empty on record" }, 422);
+    }
     const city = escapeHtml(listing.city, 100);
-    return send(listing.homeownerEmail, `New proposal on your ${subjectText(listing.city)} listing — BidtoList`, `
+    return single(await sendOnce(`new-proposal:${proposalId}`, listing.homeownerEmail,
+      `New proposal on your ${subjectText(listing.city)} listing — BidtoList`, `
           <p>Good news — a licensed agent has submitted a proposal for your <strong>${city}</strong> listing.</p>
           <p>Proposals are sealed until <strong>${escapeHtml(listing.deadlineDate, 60)}</strong>. You'll be able to review and compare all offers once the deadline passes.</p>
           <p><a href="https://bidtolist.com/my-bids">View your listing →</a></p>
           <p style="color:#6B7280;font-size:0.85em">You're receiving this because you posted a listing on BidtoList.</p>
-        `, "new-proposal");
+        `));
   }
 
-  // POST /api/bidtolist/email/proposal-result — homeowner tells an agent
-  // whether they won. Body: { requestId, agentPrincipal, won }.
+  // POST /api/bidtolist/email/proposal-result — Body: { requestId }.
+  // Only once the request is Awarded; each agent who proposed hears once
+  // whether they won (the Accepted proposal) or not.
   if (subpath === "/email/proposal-result") {
-    const requestId      = requestIdOf();
-    const agentPrincipal = agentPrincipalOf();
-    const won            = body.won === true;
-    const listing = await ownedListing(requestId);
+    const requestId = idOf("requestId");
+    const listing = await listingOf(requestId);
     if (!listing) return jsonResp({ ok: true, skipped: true });
-    const agent = await agentProfile(agentPrincipal);
-    if (!agent) return jsonResp({ error: "Agent not found" }, 404);
-    if (!await firstSend(env, `proposal-result:${requestId}:${agentPrincipal}`, 30 * DAY)) {
-      return jsonResp({ ok: true, deduped: true });
-    }
-    const name = escapeHtml(agent.name, 200);
+    if (listing.status !== "Awarded") return jsonResp({ error: "Listing has not been awarded" }, 409);
+    const proposals = await proposalsOf(requestId);
+    const winner = proposals.find((p) => p.status === "Accepted");
+    if (!winner) return jsonResp({ error: "No accepted proposal" }, 409);
     const city = escapeHtml(listing.city, 100);
-    const subject = won
-      ? `Congratulations — you won the listing in ${subjectText(listing.city)} — BidtoList`
-      : `Listing result for ${subjectText(listing.city)} — BidtoList`;
-    const html = won
-      ? `<p>Hi ${name},</p>
+    return toProposers(
+      proposals,
+      (p) => `proposal-result:${requestId}:${winner.id}:${p.agentId}`,
+      (p, agentName) => {
+        const name = escapeHtml(agentName, 200);
+        return p.id === winner.id
+          ? {
+              subject: `Congratulations — you won the listing in ${subjectText(listing.city)} — BidtoList`,
+              html: `<p>Hi ${name},</p>
          <p>Congratulations! The homeowner has selected you as their agent for the <strong>${city}</strong> listing.</p>
          <p>A platform fee is due. You'll receive an invoice shortly.</p>
-         <p><a href="https://bidtolist.com/agents/dashboard">View your dashboard →</a></p>`
-      : `<p>Hi ${name},</p>
+         <p><a href="https://bidtolist.com/agents/dashboard">View your dashboard →</a></p>`,
+            }
+          : {
+              subject: `Listing result for ${subjectText(listing.city)} — BidtoList`,
+              html: `<p>Hi ${name},</p>
          <p>The homeowner for the <strong>${city}</strong> listing has selected another agent.</p>
          <p>Keep an eye on new listings — there are always more opportunities.</p>
-         <p><a href="https://bidtolist.com/agents/browse">Browse open listings →</a></p>`;
-    return send(agent.email, subject, html, "proposal-result");
+         <p><a href="https://bidtolist.com/agents/browse">Browse open listings →</a></p>`,
+            };
+      },
+    );
   }
 
   // POST /api/bidtolist/email/agent-verified — Body: { agentPrincipal }.
-  // Only sent when the agent canister says the profile is verified, at most
-  // once per 30 days.
+  // Only when the agent canister says the profile is verified; once.
   if (subpath === "/email/agent-verified") {
     const agentPrincipal = agentPrincipalOf();
     const agent = await agentProfile(agentPrincipal);
     if (!agent) return jsonResp({ error: "Agent not found" }, 404);
     if (!agent.isVerified) return jsonResp({ error: "Agent is not verified" }, 409);
-    if (!await firstSend(env, `agent-verified:${agentPrincipal}`, 30 * DAY)) return jsonResp({ ok: true, deduped: true });
-    return send(agent.email, "Your BidtoList account is verified", `
+    return single(await sendOnce(`agent-verified:${agentPrincipal}`, agent.email,
+      "Your BidtoList account is verified", `
           <p>Hi ${escapeHtml(agent.name, 200)},</p>
           <p>Your BidtoList agent account has been verified. You can now browse open listing requests and submit sealed proposals.</p>
           <p><a href="https://bidtolist.com/agents/browse">Browse listings →</a></p>
-        `, "agent-verified");
+        `));
   }
 
-  // POST /api/bidtolist/email/new-listing — the homeowner announces their own
-  // listing to up to 10 agents in its city, once.
+  // POST /api/bidtolist/email/new-listing — Body: { requestId }. Announces an
+  // open listing (deadline still ahead) to up to 10 verified agents in its
+  // city, once per listing.
   if (subpath === "/email/new-listing") {
-    const requestId = requestIdOf();
-    const listing = await ownedListing(requestId);
+    const requestId = idOf("requestId");
+    const listing = await listingOf(requestId);
     if (!listing) return jsonResp({ ok: true, skipped: true });
+    if (listing.status !== "Open" || listing.bidDeadlineMs <= Date.now()) {
+      return jsonResp({ error: "Listing is not open" }, 409);
+    }
     const agentActor = await createAgentActor(env);
     if (!agentActor) {
       console.warn("[bidtolist] Agent canister not wired — skipping broadcast");
       return jsonResp({ ok: true, skipped: true });
     }
-    if (!await firstSend(env, `new-listing:${requestId}`, 30 * DAY)) return jsonResp({ ok: true, deduped: true });
     let agents: any[];
     try {
       agents = await (agentActor as any).getAgentsForCity(listing.city, 10) as any[];
@@ -481,48 +610,63 @@ async function routeBidtolist(
       console.error("[bidtolist] getAgentsForCity failed:", (err as Error)?.message);
       return jsonResp({ error: "agent canister call failed" }, 502);
     }
-    if (agents.length === 0) return jsonResp({ ok: true, sent: 0 });
     const city = escapeHtml(listing.city, 100);
     const deadline = escapeHtml(listing.deadlineDate, 60);
-    const results = await Promise.allSettled(
-      agents
-        .filter((agent: any) => typeof agent.email === "string" && EMAIL_RE.test(agent.email))
-        .map((agent: any) =>
-          resend.emails.send({
-            from,
-            to: agent.email,
-            subject: `New listing in ${subjectText(listing.city)} — BidtoList`,
-            html: `
+    let sent = 0;
+    for (const agent of agents) {
+      if (!agent?.isVerified || typeof agent.email !== "string" || !EMAIL_RE.test(agent.email)) continue;
+      const agentId = (agent.id as Principal)?.toText?.() ?? String(agent.id);
+      const r = await sendOnce(`new-listing:${requestId}:${agentId}`, agent.email,
+        `New listing in ${subjectText(listing.city)} — BidtoList`, `
             <p>Hi ${escapeHtml(agent.name, 200)},</p>
             <p>A homeowner in <strong>${city}</strong> has posted a new listing on BidtoList.</p>
             <p>Proposals are accepted until <strong>${deadline}</strong>. As a verified agent serving ${city}, you have been selected to submit a sealed bid.</p>
             <p><a href="https://bidtolist.com/agents/browse">View and submit your proposal →</a></p>
             <p style="color:#6B7280;font-size:0.85em">You're receiving this because ${city} is in your service area on BidtoList.</p>
-          `,
-          })
-        )
-    );
-    const sent   = results.filter(r => r.status === "fulfilled").length;
-    const failed = results.length - sent;
-    if (failed > 0) console.warn(`[bidtolist] new-listing broadcast: ${failed}/${results.length} emails failed`);
+          `);
+      if (r === "sent") sent++;
+    }
     return jsonResp({ ok: true, sent });
   }
 
-  // POST /api/bidtolist/stripe/create-checkout-session
+  // POST /api/bidtolist/stripe/create-checkout-session — Body: { proposalId, feeId? }.
+  // Bound to fee-canister state: the fee must exist for that proposal, still
+  // be Owed/Invoiced, and the proposal must be the request's Accepted one.
+  // Stripe metadata comes from the fee record, never from the body.
   if (subpath === "/stripe/create-checkout-session") {
     const stripeKey = env.BIDTOLIST_STRIPE_SECRET_KEY;
     const priceId   = env.BIDTOLIST_STRIPE_PRICE_PLATFORM_FEE;
     const origin    = env.BIDTOLIST_FRONTEND_ORIGIN ?? "http://localhost:3000";
     if (!stripeKey || !priceId) return jsonResp({ url: null, mock: true });
-    const feeId      = typeof body.feeId === "string" ? body.feeId.slice(0, 64) : "";
-    const proposalId = typeof body.proposalId === "string" ? body.proposalId.slice(0, 64) : "";
-    if (!feeId) return jsonResp({ error: "feeId required" }, 400);
+    const proposalId = idOf("proposalId");
+    const feeIdIn    = body.feeId === undefined || body.feeId === null ? null : idOf("feeId");
+    const feeActor   = createFeeActor(env);
+    if (!feeActor) return jsonResp({ error: "fee canister not configured" }, 503);
+    let fees: any[];
+    try {
+      const r = await (feeActor as any).getAllFees() as { ok?: any[]; err?: unknown };
+      if (!r.ok) throw new Error(`getAllFees: ${Object.keys(r.err ?? {})[0] ?? "error"}`);
+      fees = r.ok;
+    } catch (err) {
+      console.error("[bidtolist] fee lookup failed:", (err as Error)?.message);
+      return jsonResp({ error: "fee canister call failed" }, 502);
+    }
+    const fee = fees.find((f: any) => f.proposalId === proposalId && (feeIdIn === null || f.id === feeIdIn));
+    if (!fee) return jsonResp({ error: "Fee not found" }, 404);
+    const feeStatus = variantName(fee.status);
+    if (feeStatus !== "Owed" && feeStatus !== "Invoiced") return jsonResp({ error: "Fee is not payable" }, 409);
+    const requestId = String(fee.requestId);
+    const winner = (await proposalsOf(requestId)).find((p) => p.id === proposalId);
+    if (!winner || winner.status !== "Accepted") return jsonResp({ error: "Proposal is not the accepted one" }, 409);
     const stripe = new Stripe(stripeKey, { apiVersion: "2024-11-20.acacia" as any });
     try {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: [{ price: priceId, quantity: 1 }],
-        metadata: { feeId, proposalId, payer: caller },
+        metadata: {
+          feeId: String(fee.id), proposalId, requestId,
+          agentId: (fee.agentId as Principal)?.toText?.() ?? String(fee.agentId),
+        },
         success_url: `${origin}/agents/dashboard?fee_paid=1`,
         cancel_url:  `${origin}/agents/dashboard?fee_cancelled=1`,
       });
@@ -533,52 +677,52 @@ async function routeBidtolist(
     }
   }
 
-  // POST /api/bidtolist/email/reveal-opened — one-shot per listing
-  // (markRevealNotified), sent to the listing's own email.
+  // POST /api/bidtolist/email/reveal-opened — Body: { requestId }. Sent to the
+  // homeowner once, only after the bid deadline has passed on an open request
+  // that has at least one live proposal.
   if (subpath === "/email/reveal-opened") {
-    const requestId = requestIdOf();
-    const actor = await createListingActor(env);
-    if (!actor) return jsonResp({ ok: true, skipped: true });
-    const first = await (actor as any).markRevealNotified(requestId) as boolean;
-    if (!first) return jsonResp({ ok: true, skipped: true });
-    let listing: Awaited<ReturnType<typeof fetchListing>>;
-    try {
-      listing = await fetchListing(requestId, env);
-    } catch (err) {
-      console.error("[bidtolist] fetchListing failed (reveal-opened):", (err as Error)?.message);
-      return jsonResp({ error: "canister call failed" }, 502);
-    }
+    const requestId = idOf("requestId");
+    const listing = await listingOf(requestId);
     if (!listing) return jsonResp({ ok: true, skipped: true });
-    if (!listing.homeownerEmail) return jsonResp({ error: "homeownerEmail empty on record" }, 422);
+    if (listing.status !== "Open" || Date.now() < listing.bidDeadlineMs) {
+      return jsonResp({ error: "Bidding window has not closed" }, 409);
+    }
+    const live = (await proposalsOf(requestId)).filter((p) => p.status !== "Withdrawn");
+    if (live.length === 0) return jsonResp({ ok: true, skipped: true });
+    if (!listing.homeownerEmail || !EMAIL_RE.test(listing.homeownerEmail)) {
+      return jsonResp({ error: "homeownerEmail empty on record" }, 422);
+    }
     const city = escapeHtml(listing.city, 100);
-    return send(listing.homeownerEmail, `Your ${subjectText(listing.city)} bids are ready to review — BidtoList`, `
+    return single(await sendOnce(`reveal-opened:${requestId}`, listing.homeownerEmail,
+      `Your ${subjectText(listing.city)} bids are ready to review — BidtoList`, `
           <p>The bidding window for your <strong>${city}</strong> listing has closed.</p>
           <p>All sealed proposals are now visible. Log in to compare commission rates, marketing plans, and CMA summaries — then select your agent.</p>
           <p><a href="https://bidtolist.com/my-bids">Review proposals now →</a></p>
           <p style="color:#6B7280;font-size:0.85em">You're receiving this because you posted a listing on BidtoList.</p>
-        `, "reveal-opened");
+        `));
   }
 
-  // POST /api/bidtolist/email/listing-cancelled — homeowner tells an agent
-  // their (cancelled) listing is gone. Body: { requestId, agentPrincipal }.
+  // POST /api/bidtolist/email/listing-cancelled — Body: { requestId }. Only
+  // when the request is Cancelled; each agent who proposed hears once.
   if (subpath === "/email/listing-cancelled") {
-    const requestId      = requestIdOf();
-    const agentPrincipal = agentPrincipalOf();
-    const listing = await ownedListing(requestId);
+    const requestId = idOf("requestId");
+    const listing = await listingOf(requestId);
     if (!listing) return jsonResp({ ok: true, skipped: true });
     if (listing.status !== "Cancelled") return jsonResp({ error: "Listing is not cancelled" }, 409);
-    const agent = await agentProfile(agentPrincipal);
-    if (!agent) return jsonResp({ error: "Agent not found" }, 404);
-    if (!await firstSend(env, `listing-cancelled:${requestId}:${agentPrincipal}`, 30 * DAY)) {
-      return jsonResp({ ok: true, deduped: true });
-    }
     const city = escapeHtml(listing.city, 100);
-    return send(agent.email, `Listing cancelled — ${subjectText(listing.city)} — BidtoList`, `
-          <p>Hi ${escapeHtml(agent.name, 200)},</p>
+    return toProposers(
+      await proposalsOf(requestId),
+      (p) => `listing-cancelled:${requestId}:${p.agentId}`,
+      (_p, agentName) => ({
+        subject: `Listing cancelled — ${subjectText(listing.city)} — BidtoList`,
+        html: `
+          <p>Hi ${escapeHtml(agentName, 200)},</p>
           <p>The homeowner has cancelled their <strong>${city}</strong> listing on BidtoList. Any proposals you submitted have been withdrawn.</p>
           <p>Keep an eye on new listings — there are always more opportunities.</p>
           <p><a href="https://bidtolist.com/agents/browse">Browse open listings →</a></p>
-        `, "listing-cancelled");
+        `,
+      }),
+    );
   }
 
   return jsonResp({ error: "Not found" }, 404);
@@ -630,7 +774,7 @@ export async function scheduledBidtolist(env: BidtolistEnv): Promise<void> {
     const unsubmitted = agents.filter((a: any) => Number(listing.proposalCount) < Number(listing.proposalCount) || true);
     const results = await Promise.allSettled(
       unsubmitted.map((agent: any) =>
-        resend.emails.send({
+        sendOrThrow(resend, {
           from,
           to: agent.email,
           subject: `Deadline reminder: ${subjectText(city)} listing closes soon — BidtoList`,

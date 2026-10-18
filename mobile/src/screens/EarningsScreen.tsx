@@ -29,7 +29,7 @@ export default function EarningsScreen() {
   const app = useAppData();
   const data = useLoad(async () => {
     const jobs = await getMyReferralJobs();
-    const streets = await getStreetAddresses(jobs.map((j) => j.propertyId)).catch(() => ({} as Record<string, string>));
+    const streets = await getStreetAddresses(jobs.map((j) => j.id)).catch(() => ({} as Record<string, string>));
     return { jobs, streets };
   }, "earnings");
 

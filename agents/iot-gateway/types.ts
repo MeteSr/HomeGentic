@@ -22,6 +22,14 @@ export type SensorEventType =
   | { ApplianceFault: null }
   | { ApplianceMaintenance: null };
 
+// ── Canister DeviceSource variant names ──────────────────────────────────────
+export type DeviceSourceName =
+  | "Nest" | "Ecobee" | "MoenFlo" | "Manual"
+  | "RingAlarm" | "HoneywellHome" | "RheemEcoNet" | "Sense"
+  | "EmporiaVue" | "Rachio" | "SmartThings" | "HomeAssistant"
+  | "EnphaseEnvoy" | "TeslaPowerwall" | "LGThinQ" | "GESmartHQ"
+  | "SolarEdge";
+
 // ── Normalized internal representation ───────────────────────────────────────
 export interface SensorReading {
   /** External device ID as assigned by the cloud platform */

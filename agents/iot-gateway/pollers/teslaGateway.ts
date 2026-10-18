@@ -194,7 +194,7 @@ export async function pollOnce(session: TeslaSession): Promise<TeslaSession> {
     gridStatus:    grid.grid_status,
   });
 
-  const result = await recordSensorEvent(reading);
+  const result = await recordSensorEvent(reading, "TeslaPowerwall");
   if (result.success) {
     logger.info("tesla-poller", "recorded", {
       eventId: result.eventId,

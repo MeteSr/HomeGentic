@@ -146,6 +146,11 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Vec(PendingGift), err: Error })],
       ["query"]
     ),
+    stripeRecordGift: IDL.Func(
+      [IDL.Text, Tier, BillingPeriod, GiftMeta],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
     initAdmins: IDL.Func(
       [IDL.Vec(IDL.Principal), IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
