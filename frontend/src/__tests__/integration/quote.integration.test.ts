@@ -19,6 +19,7 @@ import { quoteService } from "@/services/quote";
 import type { QuoteRequest, Quote } from "@/services/quote";
 import { propertyService } from "@/services/property";
 import { TEST_PRINCIPAL } from "./setup";
+import { asIdentity, freshIdentity, registerContractor } from "./helpers";
 
 const CANISTER_ID = (process.env as any).QUOTE_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
@@ -38,8 +39,19 @@ const BASE_REQUEST = {
   urgency:     "medium" as const,
 };
 
+// Bids come from a registered contractor, never from the request's homeowner
+// (M2), and one contractor holds one live quote per request. A fresh identity
+// per run keeps the contractor's daily submission limit from carrying over.
+const contractor = freshIdentity();
+const CONTRACTOR_PRINCIPAL = contractor.getPrincipal().toText();
+
+function bid(requestId: string, amount: number, timeline: number, validUntil: number): Promise<Quote> {
+  return asIdentity(contractor, [quoteService], () => quoteService.submitQuote(requestId, amount, timeline, validUntil));
+}
+
 beforeAll(async () => {
   if (!deployed) return;
+  await registerContractor(contractor, "Quote Integration Contractor");
   const prop = await propertyService.registerProperty({
     address:      `${RUN_ID} Quote Test Ave, Austin TX 78701`,
     city:         "Austin",
@@ -122,46 +134,44 @@ describe.skipIf(!deployed)("getRequests — caller scoping", () => {
 // ─── submitQuote — BigInt field round-trips ───────────────────────────────────
 
 describe.skipIf(!deployed)("submitQuote — amount/timeline/validUntil round-trips", () => {
-  let request: QuoteRequest;
-
-  beforeAll(async () => {
-    request = await quoteService.createRequest({ ...BASE_REQUEST, propertyId: realPropId });
-  });
+  // One live quote per contractor per request, so each case bids on its own request.
+  const freshRequest = () => quoteService.createRequest({ ...BASE_REQUEST, propertyId: realPropId });
+  const weekAhead = () => Date.now() + 7 * 24 * 60 * 60 * 1000;
 
   it("returns a Quote with a non-empty id", async () => {
-    const validUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    const quote = await quoteService.submitQuote(request.id, 150_000, 5, validUntil);
+    const quote = await bid((await freshRequest()).id, 150_000, 5, weekAhead());
     expect(quote.id).toBeTruthy();
   });
 
   it("amount (Nat) survives BigInt round-trip without truncation", async () => {
-    const validUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    const quote = await quoteService.submitQuote(request.id, 275_500, 3, validUntil);
+    const quote = await bid((await freshRequest()).id, 275_500, 3, weekAhead());
     expect(quote.amount).toBe(275_500);
   });
 
   it("timeline days (Nat) survives BigInt round-trip", async () => {
-    const validUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    const quote = await quoteService.submitQuote(request.id, 100_000, 14, validUntil);
+    const quote = await bid((await freshRequest()).id, 100_000, 14, weekAhead());
     expect(quote.timeline).toBe(14);
   });
 
-  it("contractor principal matches the test identity", async () => {
-    const validUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    const quote = await quoteService.submitQuote(request.id, 50_000, 2, validUntil);
-    expect(quote.contractor).toBe(TEST_PRINCIPAL);
+  it("contractor principal matches the bidding identity", async () => {
+    const quote = await bid((await freshRequest()).id, 50_000, 2, weekAhead());
+    expect(quote.contractor).toBe(CONTRACTOR_PRINCIPAL);
+  });
+
+  it("the homeowner can't bid on their own request", async () => {
+    const req = await freshRequest();
+    await expect(quoteService.submitQuote(req.id, 50_000, 2, weekAhead())).rejects.toThrow();
   });
 
   it("quote starts with status 'pending'", async () => {
-    const validUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    const quote = await quoteService.submitQuote(request.id, 80_000, 7, validUntil);
+    const quote = await bid((await freshRequest()).id, 80_000, 7, weekAhead());
     expect(quote.status).toBe("pending");
   });
 
   it("createdAt is a recent ms timestamp", async () => {
+    const req = await freshRequest();
     const before = Date.now() - 5_000;
-    const validUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    const quote = await quoteService.submitQuote(request.id, 60_000, 4, validUntil);
+    const quote = await bid(req.id, 60_000, 4, weekAhead());
     const after = Date.now() + 5_000;
     expect(quote.createdAt).toBeGreaterThan(before);
     expect(quote.createdAt).toBeLessThan(after);
@@ -177,7 +187,7 @@ describe.skipIf(!deployed)("getQuotesForRequest — retrieval", () => {
   beforeAll(async () => {
     request = await quoteService.createRequest({ ...BASE_REQUEST, propertyId: realPropId });
     const validUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    submitted = await quoteService.submitQuote(request.id, 200_000, 5, validUntil);
+    submitted = await bid(request.id, 200_000, 5, validUntil);
   });
 
   it("getQuotesForRequest returns the submitted quote", async () => {
@@ -207,7 +217,7 @@ describe.skipIf(!deployed)("accept — QuoteStatus Pending → Accepted", () => 
   beforeAll(async () => {
     request = await quoteService.createRequest({ ...BASE_REQUEST, propertyId: realPropId });
     const validUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    quote = await quoteService.submitQuote(request.id, 300_000, 7, validUntil);
+    quote = await bid(request.id, 300_000, 7, validUntil);
   });
 
   it("accept() resolves without error", async () => {

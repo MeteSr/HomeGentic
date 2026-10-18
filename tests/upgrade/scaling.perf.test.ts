@@ -13,11 +13,11 @@
  * Only this branch's numbers are asserted.
  */
 
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect, afterAll, afterEach } from "vitest";
 import { PocketIc, createIdentity } from "@dfinity/pic";
 import type { Identity } from "@icp-sdk/core/agent";
 import type { Principal } from "@icp-sdk/core/principal";
-import { createPic, wasmPath, baseWasmPath } from "./__helpers__/setup";
+import { createPic, wasmPath, baseWasmPath, CONTROLLER, tearDownLeftovers } from "./__helpers__/setup";
 
 /** Records written by other users between the two measurements. */
 const NOISE = 2_000;
@@ -63,12 +63,15 @@ const ADMIN_IDL = (I: any) => ({
   addAdmin: I.Func([I.Principal, I.Text], [I.Variant({ ok: I.Null, err: I.Reserved })], []),
 });
 
-async function bootstrapAdmin(a: any, admin: Identity) {
-  await a.setBootstrapNonce("n");
-  await a.addAdmin(admin.getPrincipal(), "n");
+/** Only a controller may open the bootstrap, so CONTROLLER (the installer) sets the nonce. */
+async function bootstrapAdmin(t: { as: (id: Identity) => any }, admin: Identity) {
+  await t.as(CONTROLLER).setBootstrapNonce("n");
+  await t.as(admin).addAdmin(admin.getPrincipal(), "n");
 }
 
 describe("scaling: per-user calls stay flat as the canister grows", () => {
+  afterEach(tearDownLeftovers);
+
   for (const b of builds) {
     it(`job: jobs for one property (${b})`, async () => {
       const idl = ({ IDL: I }: any) => I.Service({
@@ -80,7 +83,7 @@ describe("scaling: per-user calls stay flat as the canister grows", () => {
       const t = await install("job", b, idl);
       const ADM = createIdentity("ADM");
       const a = t.as(ADM);
-      await bootstrapAdmin(a, ADM);
+      await bootstrapAdmin(t, ADM);
       const create = (prop: string, i: number) => a.createJob(prop, `t${i}`, { HVAC: null }, "d", [], 0n, 0n, [], [], true, []);
       for (let i = 0; i < 3; i++) expect("ok" in await create("P_TARGET", i)).toBe(true);
 
@@ -104,7 +107,7 @@ describe("scaling: per-user calls stay flat as the canister grows", () => {
       const t = await install("photo", b, idl);
       const ADM = createIdentity("ADM");
       const a = t.as(ADM);
-      await bootstrapAdmin(a, ADM);
+      await bootstrapAdmin(t, ADM);
       const hash = (n: number) => n.toString(16).padStart(64, "0");
       // Uploads are limited to 10 a minute, admins included.
       let slots = 10;
@@ -141,7 +144,7 @@ describe("scaling: per-user calls stay flat as the canister grows", () => {
       const t = await install("sensor", b, idl);
       const ADM = createIdentity("ADM");
       const a = t.as(ADM);
-      await bootstrapAdmin(a, ADM);
+      await bootstrapAdmin(t, ADM);
       await a.registerDevice("PROP_T", "ext-t", { Nest: null }, "T");
       for (let i = 0; i < 20; i++) await a.registerDevice(`PROP_${i}`, `ext-${i}`, { Nest: null }, `D${i}`);
       for (let i = 0; i < 3; i++) expect("ok" in await a.recordEvent("ext-t", { HighHumidity: null }, 70, "%", "")).toBe(true);

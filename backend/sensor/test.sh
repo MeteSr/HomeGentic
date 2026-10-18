@@ -46,7 +46,23 @@ if [ -n "$JOB_ID" ]; then
   dfx canister call job setPropertyCanisterId '("")' \
     && echo "  ↳ Property canister cleared for test isolation — ✓" \
     || echo "  ↳ Could not clear propCanisterId — jobId assertions may fail"
+
+  # Sensor itself re-checks the device registrant's access before opening a
+  # job for a Critical event (M9). With property wired, PROP_1 isn't a real
+  # property, so that check says no; unwired, sensor falls back to its own
+  # device registry. Restored in [16] (and on any early exit).
+  dfx canister call sensor setPropertyCanisterId '("")' \
+    && echo "  ↳ Sensor's property canister cleared for test isolation — ✓" \
+    || echo "  ↳ Could not clear sensor propCanisterId — jobId assertions may fail"
 fi
+
+restore_property_wiring() {
+  if [ -n "${JOB_ID:-}" ] && [ -n "${PROP_CANISTER_ID:-}" ]; then
+    dfx canister call job    setPropertyCanisterId "(\"$PROP_CANISTER_ID\")" >/dev/null 2>&1 || true
+    dfx canister call sensor setPropertyCanisterId "(\"$PROP_CANISTER_ID\")" >/dev/null 2>&1 || true
+  fi
+}
+trap restore_property_wiring EXIT
 
 # ─── Initial state ────────────────────────────────────────────────────────────
 echo ""
@@ -220,10 +236,13 @@ fi
 # ─── Restore property canister in job ────────────────────────────────────────
 if [ -n "$JOB_ID" ] && [ -n "${PROP_CANISTER_ID:-}" ]; then
   echo ""
-  echo "── [16] Restore property canister in job ────────────────────────────────"
+  echo "── [16] Restore property canister in job and sensor ─────────────────────"
   dfx canister call job setPropertyCanisterId "(\"$PROP_CANISTER_ID\")" \
-    && echo "  ↳ Restored — ✓" \
+    && echo "  ↳ Restored in job — ✓" \
     || echo "  ↳ Restore failed — run: dfx canister call job setPropertyCanisterId"
+  dfx canister call sensor setPropertyCanisterId "(\"$PROP_CANISTER_ID\")" \
+    && echo "  ↳ Restored in sensor — ✓" \
+    || echo "  ↳ Restore failed — run: dfx canister call sensor setPropertyCanisterId"
 fi
 
 echo ""

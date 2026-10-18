@@ -20,16 +20,20 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { reportService } from "@/services/report";
 import type { ShareLink } from "@/services/report";
+import { propertyService } from "@/services/property";
+import { jobService } from "@/services/job";
+import { ADMIN_SEED, asIdentity, seededIdentity } from "./helpers";
 
 const CANISTER_ID = (process.env as any).REPORT_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
 
 const RUN_ID  = Date.now();
-// Synthetic property ID — works because the test identity is granted admin access to
-// the report canister in CI (ci.yml), which bypasses the ownership check. The
-// verification check is then skipped because the property doesn't exist in the property
-// canister (getVerificationLevel returns null → `case null {}` → proceed).
-const PROP_ID = `integ-report-prop-${RUN_ID}`;
+// Reports are built from on-chain data (J-2/H-3): the property record and
+// verification level come from the property canister and the job list from
+// the job canister; the property/jobs arguments are ignored. So beforeAll
+// registers a real property, has the test admin verify it to Basic, and
+// records the one HVAC job the snapshot assertions expect.
+let PROP_ID = "";
 
 const BASE_PROPERTY = {
   address:           `${RUN_ID} Report Ave`,
@@ -54,6 +58,32 @@ const BASE_JOB = {
   isVerified:     true,
   status:         "verified",
 };
+
+beforeAll(async () => {
+  if (!deployed) return;
+  const prop = await propertyService.registerProperty({
+    address:      BASE_PROPERTY.address,
+    city:         BASE_PROPERTY.city,
+    state:        BASE_PROPERTY.state,
+    zipCode:      BASE_PROPERTY.zipCode,
+    propertyType: "SingleFamily",
+    yearBuilt:    BASE_PROPERTY.yearBuilt,
+    squareFeet:   BASE_PROPERTY.squareFeet,
+    tier:         "Free",
+  });
+  PROP_ID = prop.id;
+  await asIdentity(seededIdentity(ADMIN_SEED), [propertyService], () =>
+    propertyService.verifyProperty(PROP_ID, "Basic"));
+  await jobService.create({
+    propertyId:     PROP_ID,
+    serviceType:    "HVAC",
+    description:    BASE_JOB.description,
+    contractorName: BASE_JOB.contractorName,
+    amount:         BASE_JOB.amountCents,
+    date:           BASE_JOB.date,
+    isDiy:          false,
+  });
+});
 
 // ─── generateReport ───────────────────────────────────────────────────────────
 

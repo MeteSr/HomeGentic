@@ -250,12 +250,15 @@ jobs:
           # Pro caps at 20 properties and integration tests register more than 20 across all suites.
           dfx canister call payment grantSubscription "(principal \"$INTEG_PRINCIPAL\", variant { ContractorPro })"
 
-          # Grant integration test identity admin on report canister so generateReport
-          # tests bypass the ownership check (property.isAuthorized) and use synthetic
-          # property IDs that don't exist in the property canister. The verification check
-          # is then skipped by the `case null {}` branch (non-existent property → proceed).
-          # report already bootstrapped above; nonce param is required by Candid but ignored.
-          dfx canister call report addAdmin "(principal \"$INTEG_PRINCIPAL\", \"\")"
+          # TEST_ADMIN (seed[0]=160, ADMIN_SEED in integration/helpers.ts): admin on
+          # property and contractor, for the steps a real admin performs in the suites
+          # (verifying a property before generateReport, verifying a contractor profile).
+          # The integration identity itself stays a plain user on report, so report tests
+          # go through the real ownership and verification checks on a registered property.
+          # Bootstrap already done above; the nonce param is required by Candid but ignored.
+          TEST_ADMIN="keu4p-zyiaa-twkb3-mrrjg-6gesj-ytfss-zymq6-nzdz4-g3yvp-vejcp-nqe"
+          dfx canister call property   addAdmin "(principal \"$TEST_ADMIN\", \"\")"
+          dfx canister call contractor addAdmin "(principal \"$TEST_ADMIN\", \"\")"
 
           # Grant integration test identity admin on agent so listing.integration.test.ts
           # can self-verify a test agent profile (submitProposal requires isVerified=true —

@@ -93,7 +93,8 @@ done
 
 # ── 3. Grant test identities subscriptions ───────────────────────────────────
 # Fixed Ed25519 principals derived from seeded keys (computed offline):
-#   HOMEOWNER     seed[0]=42  qxmov-...  Pro     — exercises full paid features
+#   HOMEOWNER     seed[0]=42  qxmov-...  ContractorPro — unlimited properties (the
+#                 suites register more than Pro's 20), same as ci.yml grants
 #   WORKFLOW_USER seed[0]=55  zcku7-...  Pro     — Flows 1 & 2 (isolated from homeowner)
 #   TIER_USER     seed[0]=77  lodek-...  Free    — exercises 1-property limit
 #   QUOTA_USER    seed[0]=88  fz27l-...  Free    — exercises 3-open-quote limit
@@ -106,10 +107,10 @@ echo ""
 echo "▶ Granting test identity subscriptions…"
 if command -v dfx >/dev/null 2>&1 && [ -n "${CANISTER_ID_PAYMENT:-}" ]; then
   dfx canister call payment grantSubscription \
-    "(principal \"qxmov-duod5-ahrw6-wydp4-lppe4-ljtvj-7zvu3-qke5i-umwsv-vcb7g-mqe\", variant { Pro })" \
+    "(principal \"qxmov-duod5-ahrw6-wydp4-lppe4-ljtvj-7zvu3-qke5i-umwsv-vcb7g-mqe\", variant { ContractorPro })" \
     2>/dev/null \
-    && echo "  ✓ Pro     → HOMEOWNER     (seed=42)" \
-    || echo "  ⚠  Could not grant Pro to HOMEOWNER"
+    && echo "  ✓ ContractorPro → HOMEOWNER (seed=42)" \
+    || echo "  ⚠  Could not grant ContractorPro to HOMEOWNER"
 
   dfx canister call payment grantSubscription \
     "(principal \"zcku7-cgbhv-44pdq-d2as6-7hidi-qiuwm-nk4tt-uoqqw-lguim-hwozi-tqe\", variant { Pro })" \
@@ -136,7 +137,7 @@ if command -v dfx >/dev/null 2>&1 && [ -n "${CANISTER_ID_PAYMENT:-}" ]; then
   echo "▶ Computing workflow identity principals…"
   _WF_PRINCIPALS=$(cd "$FRONTEND_DIR" && node --input-type=module 2>/dev/null <<'__JSEOF__'
 import { Ed25519KeyIdentity } from '@icp-sdk/core/identity';
-for (const s of [201, 202, 203, 204]) {
+for (const s of [160, 201, 202, 203, 204]) {
   const b = new Uint8Array(32);
   b[0] = s;
   process.stdout.write('SEED_' + s + '=' + Ed25519KeyIdentity.generate(b).getPrincipal().toText() + '\n');
@@ -148,10 +149,21 @@ __JSEOF__
     echo "  ⚠  Could not compute workflow principals — skipping seeds 201-204 grants"
   else
     eval "$_WF_PRINCIPALS"
+    echo "  seed=160 → ${SEED_160:-<empty>}"
     echo "  seed=201 → ${SEED_201:-<empty>}"
     echo "  seed=202 → ${SEED_202:-<empty>}"
     echo "  seed=203 → ${SEED_203:-<empty>}"
     echo "  seed=204 → ${SEED_204:-<empty>}"
+
+    # TEST_ADMIN (seed=160, helpers.ts ADMIN_SEED): admin on property and
+    # contractor, for the admin steps the suites need (verifying a property
+    # before a report, verifying a contractor profile before it signs).
+    if [ -n "${SEED_160:-}" ]; then
+      dfx canister call property   addAdmin "(principal \"$SEED_160\", \"\")" >/dev/null 2>&1 \
+        && dfx canister call contractor addAdmin "(principal \"$SEED_160\", \"\")" >/dev/null 2>&1 \
+        && echo "  ✓ property + contractor admin → TEST_ADMIN (seed=160)" \
+        || echo "  ⚠  Could not make TEST_ADMIN an admin"
+    fi
 
     [ -n "${SEED_201:-}" ] && \
       dfx canister call payment grantSubscription "(principal \"$SEED_201\", variant { Pro })" 2>/dev/null \

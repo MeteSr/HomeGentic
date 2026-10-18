@@ -85,8 +85,23 @@ export async function createPic(): Promise<PocketIc> {
     ...opts,
   });
   const tearDown = pic.tearDown.bind(pic);
-  pic.tearDown = async () => { await tearDown(); await server.stop(); };
+  pic.tearDown = async () => { live.delete(pic); await tearDown(); await server.stop(); };
+  live.add(pic);
   return pic;
+}
+
+/** PocketIC instances not yet torn down (see tearDownLeftovers). */
+const live = new Set<PocketIc>();
+
+/**
+ * Tears down instances a failed test left running. Every server this process
+ * starts shares one port file (keyed by the parent PID), so a leftover server
+ * is reused by the next test and its stale instances slow or stall the rest
+ * of the run. Use as `afterEach(tearDownLeftovers)` in suites that create an
+ * instance per test.
+ */
+export async function tearDownLeftovers(): Promise<void> {
+  for (const pic of [...live]) await pic.tearDown().catch(() => {});
 }
 
 export const CONTROLLER = createIdentity("upgrade-test-controller");

@@ -28,6 +28,20 @@ if ! dfx identity list 2>/dev/null | grep -q "^property-buyer-test$"; then
   dfx identity new property-buyer-test --disable-encryption 2>/dev/null || true
 fi
 BUYER_PRINCIPAL=$(dfx identity get-principal --identity property-buyer-test)
+
+# Other suites run in parallel as the same deployer identity, and property
+# refuses a second registration while one of the caller's is in flight. Retry
+# registerProperty briefly when that happens instead of failing the suite.
+reg_call() {   # reg_call <args…>: dfx canister call "$CANISTER" registerProperty <args…>
+  local out rc
+  for _ in $(seq 1 20); do
+    rc=0; out=$(dfx canister call "$CANISTER" registerProperty "$@" 2>&1) || rc=$?
+    [[ "$out" == *"already in progress"* ]] || break
+    sleep 1
+  done
+  echo "$out"
+  return $rc
+}
 echo "Buyer test principal: $BUYER_PRINCIPAL"
 
 # ─── Metrics (initial) ────────────────────────────────────────────────────────
@@ -46,7 +60,7 @@ dfx canister call $CANISTER getPropertyLimitForTier '(variant { ContractorPro })
 # ─── §147 input validation tests ────────────────────────────────────────────
 echo ""
 echo "── [V1] invalid zip (letters) → expect error ───────────────────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "1 Test St";
   city         = "Austin";
   state        = "TX";
@@ -59,7 +73,7 @@ dfx canister call $CANISTER registerProperty '(record {
 
 echo ""
 echo "── [V2] invalid state (lowercase) → expect error ───────────────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "1 Test St";
   city         = "Austin";
   state        = "tx";
@@ -72,7 +86,7 @@ dfx canister call $CANISTER registerProperty '(record {
 
 echo ""
 echo "── [V3] yearBuilt too old (< 1600) → expect error ──────────────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "1 Test St";
   city         = "Austin";
   state        = "TX";
@@ -85,7 +99,7 @@ dfx canister call $CANISTER registerProperty '(record {
 
 echo ""
 echo "── [V4] squareFeet = 0 → expect error ─────────────────────────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "1 Test St";
   city         = "Austin";
   state        = "TX";
@@ -98,7 +112,7 @@ dfx canister call $CANISTER registerProperty '(record {
 
 echo ""
 echo "── [V5] ZIP+4 format accepted → expect ok ──────────────────────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "99 Zip Plus Four Lane";
   city         = "Austin";
   state        = "TX";
@@ -112,7 +126,7 @@ dfx canister call $CANISTER registerProperty '(record {
 # ─── Register a property ──────────────────────────────────────────────────────
 echo ""
 echo "── [3] Register a property (Free tier) ─────────────────────────────────"
-REG_OUT=$(dfx canister call $CANISTER registerProperty '(record {
+REG_OUT=$(reg_call '(record {
   address      = "123 Main Street";
   city         = "Austin";
   state        = "TX";
@@ -145,7 +159,7 @@ dfx canister call $CANISTER getVerificationLevel "(\"$PROP_ID\")"
 # ─── Tier limit enforcement ───────────────────────────────────────────────────
 echo ""
 echo "── [7] Second property on Free tier → expect LimitReached ───────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "456 Oak Avenue";
   city         = "Dallas";
   state        = "TX";
@@ -365,7 +379,7 @@ else
   echo ""
   echo "── [EXP-2] On Free tier: register property → expect LimitReached ────────"
   dfx canister call payment grantSubscription "(principal \"$PROP_TIER_PRINCIPAL\", variant { Free })"
-  dfx canister call $CANISTER registerProperty '(record {
+  reg_call '(record {
     address      = "999 Payment-Wired Street";
     city         = "Austin";
     state        = "TX";
@@ -381,7 +395,7 @@ else
   echo ""
   echo "── [EXP-3] Grant Pro via payment canister → property registration succeeds ─"
   dfx canister call payment grantSubscription "(principal \"$PROP_TIER_PRINCIPAL\", variant { Pro })"
-  dfx canister call $CANISTER registerProperty '(record {
+  reg_call '(record {
     address      = "999 Payment-Wired Street";
     city         = "Austin";
     state        = "TX";
@@ -397,7 +411,7 @@ else
   echo ""
   echo "── [EXP-4] Downgrade back to Free → further registrations rejected ──────"
   dfx canister call payment grantSubscription "(principal \"$PROP_TIER_PRINCIPAL\", variant { Free })"
-  dfx canister call $CANISTER registerProperty '(record {
+  reg_call '(record {
     address      = "888 Downgraded Lane";
     city         = "Austin";
     state        = "TX";

@@ -21,12 +21,19 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { Actor } from "@icp-sdk/core/agent";
 import { idlFactory } from "@/services/maintenance";
 import { getAgent } from "@/services/actor";
+import { registerTestProperty } from "./helpers";
 
 const CANISTER_ID = (process.env as any).MAINTENANCE_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
 
 const RUN_ID      = Date.now();
-const PROPERTY_ID = `integ-maint-prop-${RUN_ID}`;
+// Schedule entries need write access to the property, so they go on one the
+// test identity registers (beforeAll below).
+let PROPERTY_ID = "";
+
+beforeAll(async () => {
+  if (deployed) PROPERTY_ID = await registerTestProperty("Maintenance");
+});
 
 interface ScheduleEntry {
   id:                 string;

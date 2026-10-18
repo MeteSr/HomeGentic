@@ -106,9 +106,17 @@ dfx canister call fee         setListingCanisterId    "(\"$LISTING_ID\")"
 dfx canister call market      setPropertyCanisterId   "(\"$PROPERTY_ID\")"
 dfx canister call market      setJobCanisterId        "(\"$JOB_ID\")"
 dfx canister call market      setListingCanisterId    "(\"$LISTING_ID\")"
-dfx canister call market      setReportCanisterId     "(\"$REPORT_ID\")"
-dfx canister call report      setMarketCanisterId     "(\"$MARKET_ID\")"
-dfx canister call property    setJobCanisterId        "(principal \"$JOB_ID\")"
+# Introduced after the base branch: the perf benchmark's base leg deploys the
+# base canisters with this script, so skip wiring they don't have yet.
+if has_method market setReportCanisterId; then
+  dfx canister call market    setReportCanisterId     "(\"$REPORT_ID\")"
+fi
+if has_method report setMarketCanisterId; then
+  dfx canister call report    setMarketCanisterId     "(\"$MARKET_ID\")"
+fi
+if has_method property setJobCanisterId; then
+  dfx canister call property  setJobCanisterId        "(principal \"$JOB_ID\")"
+fi
 dfx canister call recurring   setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
 
 # ── Trusted canister lists ───────────────────────────────────────────

@@ -23,6 +23,8 @@ import {
   computePropertyScore,
 } from "@/services/market";
 import type { StoredScore, ZipStats } from "@/services/market";
+import { Actor } from "@icp-sdk/core/agent";
+import { agentFor, freshIdentity } from "./helpers";
 
 const CANISTER_ID = (process.env as any).MARKET_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
@@ -66,8 +68,22 @@ describe.skipIf(!deployed)("getZipStats — returns aggregated stats after submi
   let stats: ZipStats | null;
 
   beforeAll(async () => {
-    // Submit a score first to ensure the zip exists
+    // getZipStats only answers once MIN_ZIP_SAMPLE (5) homeowners in the zip
+    // have a score (M12 k-anonymity), so four neighbours submit alongside the
+    // test identity.
     await submitScore(SAMPLE_JOBS, 2005, ZIP);
+    const idl = ({ IDL }: any) => IDL.Service({
+      submitScore: IDL.Func(
+        [IDL.Vec(IDL.Record({
+          serviceType: IDL.Text, completedYear: IDL.Nat, amountCents: IDL.Nat, isDiy: IDL.Bool, isVerified: IDL.Bool,
+        })), IDL.Nat, IDL.Text],
+        [IDL.Variant({ ok: IDL.Reserved, err: IDL.Reserved })], []),
+    });
+    for (let i = 0; i < 4; i++) {
+      const neighbour = Actor.createActor(idl, { agent: await agentFor(freshIdentity()), canisterId: CANISTER_ID }) as any;
+      const r = await neighbour.submitScore(SAMPLE_JOBS, BigInt(1990 + i), ZIP);
+      if (!("ok" in r)) throw new Error(`neighbour submitScore failed: ${JSON.stringify(r)}`);
+    }
     stats = await getZipStats(ZIP);
   });
 

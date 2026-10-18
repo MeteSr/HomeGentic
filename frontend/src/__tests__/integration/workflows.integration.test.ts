@@ -35,6 +35,7 @@ import { idlFactory as photoIdl }            from "@/services/photo";
 import { idlFactory as reportIdl }           from "@/services/report";
 import { idlFactory as quoteIdl }            from "@/services/quote";
 import { idlFactory as paymentIdl }          from "@/services/payment";
+import { registerContractor, seededIdentity } from "./helpers";
 
 // ─── Canister IDs ─────────────────────────────────────────────────────────────
 
@@ -261,6 +262,14 @@ describe.skipIf(!integrationReady)("WF.B — Quote request → bid → accept", 
     hoPropertyActor   = Actor.createActor(propertyIdl as any, { agent: hoAgent, canisterId: PROPERTY_CANISTER_ID });
     hoQuoteActor      = Actor.createActor(quoteIdl as any,    { agent: hoAgent, canisterId: QUOTE_CANISTER_ID });
     contractorQuoteActor = Actor.createActor(quoteIdl as any, { agent: contractorAgent, canisterId: QUOTE_CANISTER_ID });
+
+    // Only a registered contractor may bid (M2). Seed 203 is fixed, so on a
+    // replica reused across runs the profile may already exist.
+    try {
+      await registerContractor(seededIdentity(203), "WF.B Contractor");
+    } catch (e: any) {
+      if (!String(e?.message ?? e).includes("AlreadyExists")) throw e;
+    }
 
     // Register a property for the homeowner to quote against
     const propResult = await hoPropertyActor.registerProperty({

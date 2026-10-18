@@ -843,7 +843,12 @@ persistent actor Property {
       let payActor = actor(payCanisterId) : actor {
         getTierForPrincipal : (Principal) -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
       };
-      await payActor.getTierForPrincipal(caller)
+      // A rejected call must not leave the in-flight lock set, or the
+      // caller could never register again.
+      try { await payActor.getTierForPrincipal(caller) } catch (e) {
+        Map.remove(inFlightRegistrations, Text.compare, callerKey);
+        throw e;
+      }
     } else {
       #Free  // payment canister not wired: no tier source, fail closed
     };
@@ -872,7 +877,10 @@ persistent actor Property {
       ));
     };
 
-    let id  = await nextPropertyId();
+    let id  = try { await nextPropertyId() } catch (e) {
+      Map.remove(inFlightRegistrations, Text.compare, callerKey);
+      throw e;
+    };
     let now = Time.now();
 
     // M-8: re-check after the awaits — another registration of this address

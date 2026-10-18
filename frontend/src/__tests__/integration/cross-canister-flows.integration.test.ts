@@ -39,6 +39,8 @@ import { Ed25519KeyIdentity }                          from "@icp-sdk/core/ident
 import { idlFactory as jobIdl }      from "@/services/job";
 import { idlFactory as propertyIdl } from "@/services/property";
 import { idlFactory as quoteIdl }    from "@/services/quote";
+import { contractorService }         from "@/services/contractor";
+import { ADMIN_SEED, asIdentity, registerContractor, seededIdentity } from "./helpers";
 
 // ─── Canister IDs ─────────────────────────────────────────────────────────────
 
@@ -207,6 +209,19 @@ describe.skipIf(!integrationReady)("Flow 2: Contractor dual-signature workflow",
   beforeAll(async () => {
     const workflowAgent    = await makeAgent(55);  // zcku7-... Pro
     const contractorAgent  = await makeAgent(99);  // ContractorFree
+
+    // R2: a contractor signature counts toward certification only when it
+    // comes from an admin-verified contractor profile, so the contractor
+    // registers (the profile survives on a reused replica) and the test admin
+    // verifies it before signing.
+    const contractorIdentity = seededIdentity(99);
+    try {
+      await registerContractor(contractorIdentity, "Flow 2 Contractor");
+    } catch (e: any) {
+      if (!String(e?.message ?? e).includes("AlreadyExists")) throw e;
+    }
+    await asIdentity(seededIdentity(ADMIN_SEED), [contractorService], () =>
+      contractorService.verifyContractor(contractorIdentity.getPrincipal().toText()));
 
     workflowJobActor = Actor.createActor(jobIdl as any, {
       agent: workflowAgent, canisterId: JOB_CANISTER_ID,

@@ -20,6 +20,7 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { recurringService } from "@/services/recurringService";
+import { registerTestProperty } from "./helpers";
 import type {
   RecurringService, RecurringServiceType, Frequency,
 } from "@/services/recurringService";
@@ -28,15 +29,23 @@ const CANISTER_ID = (process.env as any).RECURRING_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
 
 const RUN_ID      = Date.now();
-const PROPERTY_ID = `integ-recur-prop-${RUN_ID}`;
+// Recurring services need write access to the property, so they go on one the
+// test identity registers (beforeAll below).
+let PROPERTY_ID = "";
 
 const BASE = {
-  propertyId:   PROPERTY_ID,
+  propertyId:   "",   // set to PROPERTY_ID in beforeAll
   serviceType:  "PestControl" as RecurringServiceType,
   providerName: `Pest Pro ${RUN_ID}`,
   frequency:    "Quarterly" as Frequency,
   startDate:    "2025-01-01",
 };
+
+beforeAll(async () => {
+  if (!deployed) return;
+  PROPERTY_ID = await registerTestProperty("Recurring");
+  BASE.propertyId = PROPERTY_ID;
+});
 
 // ─── createRecurringService — Candid serialization ───────────────────────────
 
