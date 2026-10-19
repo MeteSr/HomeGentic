@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 
 const CANISTER_ID: string = (process.env as any).REFERRALS_CANISTER_ID || "";
 
@@ -47,15 +46,8 @@ export interface NeighborReferral {
 
 // ─── Actor ────────────────────────────────────────────────────────────────────
 
-let _actor: any = null;
 
-async function getActor() {
-  if (!_actor) {
-    const ag = await getAgent();
-    _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: CANISTER_ID });
-  }
-  return _actor;
-}
+const getActor = lazyActor(idlFactory, CANISTER_ID);
 
 // ─── Mock data (used when canister is not deployed) ───────────────────────────
 

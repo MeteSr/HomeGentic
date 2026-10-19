@@ -6,6 +6,7 @@ import { recurringService, RecurringService, VisitLog, ServiceStatus, SERVICE_TY
 import { photoService } from "@/services/photo";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { formatIsoDate } from "@/utils/format";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -23,13 +24,6 @@ const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
   Paused:    { color: V2_COLORS.muted,  bg: V2_COLORS.attentionBg },
   Cancelled: { color: UI.inkLight,      bg: UI.paper              },
 };
-
-function fmtDate(iso: string): string {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-");
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `${months[parseInt(m) - 1]} ${d}, ${y}`;
-}
 
 export default function RecurringServiceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -184,12 +178,12 @@ export default function RecurringServiceDetailPage() {
                 )}
                 <div>
                   <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>Started</p>
-                  <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink }}>{fmtDate(svc.startDate)}</p>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink }}>{formatIsoDate(svc.startDate)}</p>
                 </div>
                 {svc.contractEndDate && (
                   <div>
                     <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>Contract ends</p>
-                    <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink }}>{fmtDate(svc.contractEndDate)}</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink }}>{formatIsoDate(svc.contractEndDate)}</p>
                   </div>
                 )}
               </div>
@@ -326,7 +320,7 @@ export default function RecurringServiceDetailPage() {
                     <div key={v.id} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.625rem 0", borderBottom: i < visits.length - 1 ? `1px solid ${UI.rule}` : "none" }}>
                       <CheckCircle size={12} color={UI.sage} style={{ flexShrink: 0 }} />
                       <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.ink, flexShrink: 0 }}>
-                        {fmtDate(v.visitDate)}
+                        {formatIsoDate(v.visitDate)}
                       </span>
                       {v.note && (
                         <span style={{ fontSize: "0.8rem", fontWeight: 300, color: UI.inkLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

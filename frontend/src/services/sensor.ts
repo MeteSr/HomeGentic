@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/sensor";
 export { idlFactory };
 
@@ -76,18 +75,11 @@ function fromEvent(raw: any): SensorEvent {
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createSensorService() {
-  let _actor: any = null;
   const devices: SensorDevice[] = [];
   const mockEvents: SensorEvent[] = [];
   let criticalHandler: ((e: SensorEvent) => void) | null = null;
 
-  async function getActor() {
-    if (!_actor) {
-      const ag = await getAgent();
-      _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: SENSOR_CANISTER_ID });
-    }
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, SENSOR_CANISTER_ID);
 
   return {
   async registerDevice(
@@ -235,7 +227,7 @@ function createSensorService() {
   },
 
   reset() {
-    _actor = null;
+    getActor.reset();
     devices.length = 0;
     mockEvents.length = 0;
     criticalHandler = null;

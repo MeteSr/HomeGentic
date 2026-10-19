@@ -17,6 +17,7 @@ import type { PersonAccess } from "@/services/people";
 import { SERIES_LABELS, type Insight } from "@/services/billsForecast";
 import { nextVisit } from "./panelData";
 import type { FlowKey, PanelKey } from "./types";
+import { formatCents } from "@/utils/format";
 
 export type BriefTone = "urgent" | "action" | "money" | "info";
 
@@ -61,10 +62,6 @@ const UTILITY_RISE_PCT  = 15;
 export function greetingFor(now: Date): string {
   const h = now.getHours();
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-}
-
-function money(cents: number): string {
-  return `$${Math.round(cents / 100).toLocaleString()}`;
 }
 
 function monthName(ym: string): string {
@@ -120,7 +117,7 @@ export function buildHomeBrief(input: BriefInput): HomeBrief {
 
   const upcoming = input.billInsights.find((i): i is Extract<Insight, { type: "upcoming" }> => i.type === "upcoming");
   if (upcoming) {
-    items.push({ id: "payment", tone: "money", text: `${SERIES_LABELS[upcoming.key]} of ${money(upcoming.amountCents)} is due in ${monthName(upcoming.month)}.`, go: "spend" });
+    items.push({ id: "payment", tone: "money", text: `${SERIES_LABELS[upcoming.key]} of ${formatCents(upcoming.amountCents)} is due in ${monthName(upcoming.month)}.`, go: "spend" });
   }
 
   const risk = input.atRiskWarnings[0];

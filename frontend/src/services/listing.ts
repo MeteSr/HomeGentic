@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/listing";
 export { idlFactory };
 
@@ -296,17 +295,11 @@ function fromRawMessage(raw: any): ThreadMessage {
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createListingService() {
-  let _actor: any = null;
 
-  async function getActor() {
-    if (_actor) return _actor;
-    const agent = await getAgent();
-    _actor = Actor.createActor(idlFactory, { agent, canisterId: LISTING_CANISTER_ID });
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, LISTING_CANISTER_ID);
 
   return {
-  reset() { _actor = null; },
+  reset() { getActor.reset(); },
 
   // ── Homeowner: bid request lifecycle ────────────────────────────────────────
 

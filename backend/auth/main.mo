@@ -17,6 +17,7 @@ import Random "mo:core/Random";
 import Result "mo:core/Result";
 import Text "mo:core/Text";
 import Time "mo:core/Time";
+import RateLimit "../shared/RateLimit";
 
 persistent actor class Auth(initDeployer : Principal) {
 
@@ -150,31 +151,12 @@ persistent actor class Auth(initDeployer : Principal) {
   /// Admin-adjustable rate limit — default 30/min. Lower for tighter protection,
   /// raise for bulk-operation accounts, set to 0 to disable enforcement.
   private var maxUpdatesPerMin : Nat = 30;
-  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
 
   /// Returns true and bumps the counter if the caller is under the 120/min limit.
   /// Admins are always exempt. Window resets after 60 s.
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    let key = Principal.toText(caller);
-    let now = Time.now();
-    switch (Map.get(updateCallLimits, Text.compare, key)) {
-      case null {
-        Map.add(updateCallLimits, Text.compare, key, (1, now));
-        true
-      };
-      case (?(count, windowStart)) {
-        if (now - windowStart >= ONE_MINUTE_NS) {
-          Map.add(updateCallLimits, Text.compare, key, (1, now));
-          true
-        } else if (maxUpdatesPerMin > 0 and count >= maxUpdatesPerMin) {
-          false
-        } else {
-          Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart));
-          true
-        }
-      };
-    }
+    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {

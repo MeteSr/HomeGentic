@@ -24,6 +24,7 @@ import ServiceTypes "../shared/ServiceType";
 import Notify       "../shared/Notify";
 import Index        "../shared/Index";
 import Uuid         "../shared/Uuid";
+import RateLimit "../shared/RateLimit";
 
 persistent actor Job {
 
@@ -209,7 +210,6 @@ persistent actor Job {
 
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct
@@ -221,25 +221,7 @@ persistent actor Job {
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller) or isTrustedCanister(caller)) return true;
-    let key = Principal.toText(caller);
-    let now = Time.now();
-    switch (Map.get(updateCallLimits, Text.compare, key)) {
-      case null {
-        Map.add(updateCallLimits, Text.compare, key, (1, now));
-        true
-      };
-      case (?(count, windowStart)) {
-        if (now - windowStart >= ONE_MINUTE_NS) {
-          Map.add(updateCallLimits, Text.compare, key, (1, now));
-          true
-        } else if (maxUpdatesPerMin > 0 and count >= maxUpdatesPerMin) {
-          false
-        } else {
-          Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart));
-          true
-        }
-      };
-    }
+    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(caller: Principal) : Bool {

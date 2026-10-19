@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { RecurringService, VisitLog, SERVICE_TYPE_LABELS, FREQUENCY_LABELS } from "@/services/recurringService";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
+import { formatIsoDate } from "@/utils/format";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -38,12 +39,6 @@ export function RecurringServiceCard({ service, visitLogs }: Props) {
   const icon        = SERVICE_ICONS[service.serviceType] ?? "🔧";
   const label       = SERVICE_TYPE_LABELS[service.serviceType] ?? service.serviceType;
   const freq        = FREQUENCY_LABELS[service.frequency] ?? service.frequency;
-
-  function fmtDate(iso: string): string {
-    const [y, m, d] = iso.split("-");
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    return `${months[parseInt(m) - 1]} ${d}, ${y}`;
-  }
 
   return (
     <div
@@ -82,7 +77,7 @@ export function RecurringServiceCard({ service, visitLogs }: Props) {
             {freq}
           </span>
           <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, letterSpacing: "0.04em" }}>
-            {lastVisit ? `Last: ${fmtDate(lastVisit.visitDate)}` : "No visits logged"}
+            {lastVisit ? `Last: ${formatIsoDate(lastVisit.visitDate)}` : "No visits logged"}
           </span>
         </div>
       </div>

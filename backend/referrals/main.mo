@@ -20,6 +20,7 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import RateLimit "../shared/RateLimit";
 
 persistent actor Referrals {
 
@@ -74,20 +75,10 @@ persistent actor Referrals {
   // L6: per-principal rate limit (transient — a DoS guard, resets on upgrade).
   private transient let callLimits = Map.empty<Text, (Nat, Int)>();
   private transient let MAX_CALLS_PER_MIN : Nat = 10;
-  private transient let ONE_MINUTE_NS : Int = 60_000_000_000;
 
   private func tryConsumeSlot(caller : Principal) : Bool {
     if (isAdmin(caller)) return true;
-    let key = Principal.toText(caller);
-    let now = Time.now();
-    switch (Map.get(callLimits, Text.compare, key)) {
-      case null { Map.add(callLimits, Text.compare, key, (1, now)); true };
-      case (?(count, start)) {
-        if (now - start >= ONE_MINUTE_NS) { Map.add(callLimits, Text.compare, key, (1, now)); true }
-        else if (count >= MAX_CALLS_PER_MIN) { false }
-        else { Map.add(callLimits, Text.compare, key, (count + 1, start)); true }
-      };
-    }
+    RateLimit.tryConsume(callLimits, Principal.toText(caller), Time.now(), MAX_CALLS_PER_MIN)
   };
 
   /// Cycle-saving ingress filter only (the real checks are in each method).

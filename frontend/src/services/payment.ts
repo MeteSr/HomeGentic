@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 import { idlFactory } from "@/declarations/payment";
 export { idlFactory };
@@ -25,15 +24,8 @@ import { PLANS } from "./planConstants";
 
 // ─── Actor ────────────────────────────────────────────────────────────────────
 
-let _actor: any = null;
 
-async function getActor() {
-  if (!_actor) {
-    const ag = await getAgent();
-    _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: PAYMENT_CANISTER_ID });
-  }
-  return _actor;
-}
+const getActor = lazyActor(idlFactory, PAYMENT_CANISTER_ID);
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -226,7 +218,7 @@ export const paymentService = {
   },
 
   reset() {
-    _actor = null;
+    getActor.reset();
   },
 
   // ── Stripe ────────────────────────────────────────────────────────────────────

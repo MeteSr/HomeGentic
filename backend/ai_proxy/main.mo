@@ -31,6 +31,7 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import RateLimit "../shared/RateLimit";
 
 persistent actor AiProxy {
 
@@ -116,7 +117,6 @@ persistent actor AiProxy {
   // Rate limiting
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   private var maxUpdatesPerMin : Nat = 30;
-  private transient let ONE_MINUTE_NS    : Int = 60_000_000_000;
 
 
   // ── Ingress inspection ────────────────────────────────────────────────────
@@ -138,16 +138,7 @@ persistent actor AiProxy {
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller) or isTrustedCanister(caller)) return true;
-    let key = Principal.toText(caller);
-    let now = Time.now();
-    switch (Map.get(updateCallLimits, Text.compare, key)) {
-      case null { Map.add(updateCallLimits, Text.compare, key, (1, now)); true };
-      case (?(count, windowStart)) {
-        if (now - windowStart >= ONE_MINUTE_NS) { Map.add(updateCallLimits, Text.compare, key, (1, now)); true }
-        else if (maxUpdatesPerMin > 0 and count >= maxUpdatesPerMin) { false }
-        else { Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart)); true }
-      };
-    }
+    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {

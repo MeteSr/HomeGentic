@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/fee";
 export { idlFactory };
 
@@ -34,17 +33,11 @@ function fromRawFee(raw: any): FeeRecord {
 }
 
 function createFeeService() {
-  let _actor: any = null;
 
-  async function getActor() {
-    if (_actor) return _actor;
-    const agent = await getAgent();
-    _actor = Actor.createActor(idlFactory, { agent, canisterId: FEE_CANISTER_ID });
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, FEE_CANISTER_ID);
 
   return {
-    reset() { _actor = null; },
+    reset() { getActor.reset(); },
 
     /** Agent-side: their own fee history (won bids, what's owed/paid). */
     async getMyFees(): Promise<FeeRecord[]> {

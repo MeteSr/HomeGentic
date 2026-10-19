@@ -1,19 +1,11 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/icp_ledger";
 export { idlFactory };
 
 const ICP_LEDGER_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
 
-let _actor: any = null;
 
-async function getActor() {
-  if (!_actor) {
-    const ag = await getAgent();
-    _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: ICP_LEDGER_ID });
-  }
-  return _actor;
-}
+const getActor = lazyActor(idlFactory, ICP_LEDGER_ID);
 
 export const icpLedgerService = {
   /**
@@ -52,5 +44,5 @@ export const icpLedgerService = {
     return a.icrc1_balance_of({ owner: Principal.fromText(principalText), subaccount: [] });
   },
 
-  reset() { _actor = null; },
+  reset() { getActor.reset(); },
 };

@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/auth";
 export { idlFactory };
 
@@ -25,15 +24,8 @@ export interface RegisterArgs {
   phone: string;
 }
 
-let _actor: any = null;
 
-async function getActor() {
-  if (!_actor) {
-    const ag = await getAgent();
-    _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: getCanisterId() });
-  }
-  return _actor;
-}
+const getActor = lazyActor(idlFactory, getCanisterId);
 
 const VALID_ROLES = new Set<string>(["Homeowner", "Contractor", "Realtor", "Builder"]);
 
@@ -135,6 +127,6 @@ export const authService = {
   },
 
   reset() {
-    _actor = null;
+    getActor.reset();
   },
 };

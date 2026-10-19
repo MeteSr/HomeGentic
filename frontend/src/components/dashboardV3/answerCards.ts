@@ -13,6 +13,7 @@
 import type { SystemEstimate } from "@/services/systemAgeEstimator";
 import type { PriceBenchmarkResult } from "@/services/priceBenchmark";
 import { SERIES_LABELS, type Insight, type SeriesKey } from "@/services/billsForecast";
+import { formatCents, formatDollars } from "@/utils/format";
 
 export type FactTone = "good" | "warn" | "bad" | "neutral";
 
@@ -87,12 +88,6 @@ const URGENCY_TONE: Record<SystemEstimate["urgency"], FactTone> = {
   Critical: "bad", Soon: "warn", Watch: "neutral", Good: "good",
 };
 
-function dollars(n: number): string {
-  return `$${Math.round(n).toLocaleString()}`;
-}
-function cents(n: number): string {
-  return dollars(n / 100);
-}
 function years(n: number): string {
   return `${n} ${n === 1 ? "year" : "years"}`;
 }
@@ -126,7 +121,7 @@ export function buildSystemAnswer(input: AnswerInput): SystemAnswer {
 
   facts.push({
     label: "Replacement",
-    value: `${dollars(s.replacementCostLow)}–${dollars(s.replacementCostHigh)}`,
+    value: `${formatDollars(s.replacementCostLow)}–${formatDollars(s.replacementCostHigh)}`,
     detail: "Typical full-replacement range",
     tone: "neutral",
   });
@@ -135,8 +130,8 @@ export function buildSystemAnswer(input: AnswerInput): SystemAnswer {
   if (b && b.sampleSize >= 5) {
     facts.push({
       label: "Local prices",
-      value: `${cents(b.low)}–${cents(b.high)}`,
-      detail: `${b.sampleSize} closed ${serviceType} bids near ${input.zipCode}, median ${cents(b.median)}`,
+      value: `${formatCents(b.low)}–${formatCents(b.high)}`,
+      detail: `${b.sampleSize} closed ${serviceType} bids near ${input.zipCode}, median ${formatCents(b.median)}`,
       tone: "neutral",
     });
     sources.push("Local prices");
