@@ -27,6 +27,18 @@ import { quoteService } from "@/services/quote";
 import { propertyService } from "@/services/property";
 import { getAgent } from "@/services/actor";
 import { TEST_PRINCIPAL } from "./setup";
+import { agentFor, freshIdentity, registerContractor } from "./helpers";
+
+/**
+ * A new identity with a contractor profile: quotes, job proposals and linked
+ * contractor signatures all require one (M2 / M-9 / R2). Fresh per run so
+ * per-contractor daily limits don't carry over.
+ */
+async function contractorAgent(name: string): Promise<HttpAgent> {
+  const id = freshIdentity();
+  await registerContractor(id, name);
+  return agentFor(id);
+}
 
 const JOB_ID   = process.env.JOB_CANISTER_ID || "";
 const QUOTE_ID = (process.env as any).QUOTE_CANISTER_ID || "";
@@ -170,8 +182,8 @@ describe.skipIf(!deployed)("quote outbox", () => {
       urgency:     "medium",
     });
     const validUntilNs = BigInt(Date.now() + 7 * 86_400_000) * 1_000_000n;
-    const winnerAgent = await makeAgent(151);
-    const loserAgent  = await makeAgent(152);
+    const winnerAgent = await contractorAgent("Notify Winner");
+    const loserAgent  = await contractorAgent("Notify Loser");
     const winner = Actor.createActor(quoteIdl, { agent: winnerAgent, canisterId: QUOTE_ID }) as any;
     const loser  = Actor.createActor(quoteIdl, { agent: loserAgent,  canisterId: QUOTE_ID }) as any;
     const won  = await winner.submitQuote(req.id, 250_000n, 5n, validUntilNs);
@@ -195,8 +207,8 @@ describe.skipIf(!deployed)("quote outbox", () => {
 
 describe.skipIf(!deployed)("job outbox", () => {
   it("createJobProposal records job_awaiting_signature for the homeowner", async () => {
-    const contractorAgent = await makeAgent(153);
-    const job = Actor.createActor(jobIdl, { agent: contractorAgent, canisterId: JOB_ID }) as any;
+    const proposer = await contractorAgent("Notify Proposer");
+    const job = Actor.createActor(jobIdl, { agent: proposer, canisterId: JOB_ID }) as any;
     const title = `Proposal ${RUN_ID}`;
     const res = await job.createJobProposal(
       realPropId, title, { HVAC: null }, "Replaced the blower motor",
@@ -208,14 +220,15 @@ describe.skipIf(!deployed)("job outbox", () => {
     const pending = events.find((e) => e.kind === "job_awaiting_signature" && e.refId === res.ok.id);
     expect(pending).toBeDefined();
     expect(recipientOf(pending!)).toBe(TEST_PRINCIPAL);
-    expect(pending!.summary).toBe(title);
+    // M-9: the push text is fixed, not the contractor-supplied title.
+    expect(pending!.summary).toBe("New HVAC job proposal awaiting your review");
   });
 });
 
 describe.skipIf(!deployed)("job outbox — contractor signature", () => {
   it("homeowner signing a job with a linked contractor records job_awaiting_contractor_signature", async () => {
-    const contractorAgent = await makeAgent(155);
-    const contractor = (await contractorAgent.getPrincipal()).toText();
+    const signer = await contractorAgent("Notify Signer");
+    const contractor = (await signer.getPrincipal()).toText();
     const job = Actor.createActor(jobIdl, { agent: ownerAgent, canisterId: JOB_ID }) as any;
     const title = `Contractor sign ${RUN_ID}`;
 
@@ -237,7 +250,7 @@ describe.skipIf(!deployed)("job outbox — contractor signature", () => {
     expect(pending[0].summary).toBe(title);
 
     // The contractor's signature completes the job → the homeowner hears it's verified.
-    const asContractor = Actor.createActor(jobIdl, { agent: contractorAgent, canisterId: JOB_ID }) as any;
+    const asContractor = Actor.createActor(jobIdl, { agent: signer, canisterId: JOB_ID }) as any;
     const done = await asContractor.verifyJob(jobId);
     expect("ok" in done && done.ok.verified).toBe(true);
     const verified = (await readOutbox(JOB_ID, ownerAgent)).filter((e) => e.kind === "job_verified" && e.refId === jobId);

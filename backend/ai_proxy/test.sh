@@ -40,16 +40,18 @@ dfx canister call $CANISTER addAdmin "(principal \"$MY_PRINCIPAL\", \"$TEST_BOOT
 echo "  ↳ addAdmin succeeded — ✓"
 
 echo ""
-echo "── [3] setResendApiKey — admin can set key ──────────────────────────────"
-dfx canister call $CANISTER setResendApiKey "(\"test-resend-key-for-testing\")"
-echo "  ↳ setResendApiKey succeeded — ✓"
+echo "── [3] setResendApiKey — refuses to store keys on-chain (M-6) ──────────"
+SETK=$(dfx canister call $CANISTER setResendApiKey "(\"test-resend-key-for-testing\")")
+echo "$SETK" | grep -q "err" \
+  && echo "  ↳ setResendApiKey refused — ✓" \
+  || (echo "  ↳ ❌ setResendApiKey should refuse: $SETK"; exit 1)
 
 echo ""
-echo "── [4] getKeyStatus — resendKeySet should be true ───────────────────────"
+echo "── [4] getKeyStatus — no key is stored ──────────────────────────────────"
 STATUS=$(dfx canister call $CANISTER getKeyStatus)
-echo "$STATUS" | grep -q "resendKeySet = true\|resendKeySet=true\|true" \
-  && echo "  ↳ resendKeySet = true — ✓" \
-  || (echo "  ↳ ❌ getKeyStatus did not show resendKeySet=true"; exit 1)
+echo "$STATUS" | grep -q "true" \
+  && (echo "  ↳ ❌ getKeyStatus shows a stored key: $STATUS"; exit 1) \
+  || echo "  ↳ no keys stored — ✓"
 
 echo ""
 echo "── [5] setResendApiKey — non-admin is rejected ──────────────────────────"
@@ -62,9 +64,10 @@ dfx canister call $CANISTER setResendApiKey "(\"should-fail\")" \
   || echo "  ↳ Non-admin correctly rejected — ✓"
 
 echo ""
-echo "── [6] setOpenPermitApiKey — admin can set ──────────────────────────────"
-dfx canister call $CANISTER setOpenPermitApiKey "(\"test-openpermit-key\")"
-echo "  ↳ setOpenPermitApiKey succeeded — ✓"
+echo "── [6] lookupPropertyDetails / importPermits — moved to the Worker ──────"
+dfx canister call $CANISTER importPermits '("1 Main St", "austin", "TX", "78701")' | grep -q "moved off-chain" \
+  && echo "  ↳ importPermits points to the voice Worker — ✓" \
+  || (echo "  ↳ ❌ importPermits should return the moved-off-chain error"; exit 1)
 
 echo ""
 echo "── [7] setResendFromAddress — admin can set ─────────────────────────────"

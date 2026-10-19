@@ -33,7 +33,7 @@ vi.mock("@/services/property", async (importOriginal) => {
     ...actual,
     propertyService: {
       getManagerInviteByToken: mockGetInvite,
-      getProperty: mockGetProperty,
+      getPropertyByManagerInviteToken: mockGetProperty,
       claimManagerRole: mockClaimRole,
     },
   };
@@ -97,6 +97,8 @@ describe("PropertyManagerClaimPage — invite resolution", () => {
     renderPage();
     await waitFor(() => expect(screen.getByText("You've been invited as a Manager")).toBeInTheDocument());
     expect(screen.getByText("123 Main St")).toBeInTheDocument();
+    // The address comes from the token-gated lookup, not the public getProperty.
+    expect(mockGetProperty).toHaveBeenCalledWith(expect.any(String));
   });
 
   it("degrades gracefully to the property-id fallback when the property lookup fails", async () => {

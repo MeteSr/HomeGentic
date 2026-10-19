@@ -207,6 +207,8 @@ persistent actor MarketIntelligence {
   private var jobCanisterId  : Text = "";
   /// M12: the listing canister may compute any property's score (FSBO index).
   private var listingCanisterId : Text = "";
+  /// R2: the report canister computes the score it stores on certificates.
+  private var reportCanisterId : Text = "";
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private let snapshots  = Map.empty<Text, MarketSnapshot>();
@@ -607,11 +609,18 @@ persistent actor MarketIntelligence {
   /// Listing canister calls this during activateFsboListing so the FSBO buyer index
   /// always shows an authoritative on-chain score rather than a caller-supplied value.
   ///
-  /// M12: restricted to admins, the wired listing canister, and principals
-  /// authorised on the property (owner/manager/viewer). Anyone else gets null.
+  /// M12: restricted to admins, the wired listing canister, the wired report
+  /// canister (R2: score certificates), and principals authorised on the
+  /// property (owner/manager/viewer). Anyone else gets null.
+  /// The inputs are read on-chain (property yearBuilt, job snapshots from the
+  /// job canister, whose isVerified excludes unverified-contractor signatures);
+  /// nothing is taken from the caller.
   public shared(msg) func computePropertyScore(propertyId: Text) : async ?Nat {
     if (propCanisterId == "" or jobCanisterId == "") return null;
-    let trusted = isAdmin(msg.caller) or (listingCanisterId != "" and Principal.toText(msg.caller) == listingCanisterId);
+    let callerText = Principal.toText(msg.caller);
+    let trusted = isAdmin(msg.caller)
+      or (listingCanisterId != "" and callerText == listingCanisterId)
+      or (reportCanisterId  != "" and callerText == reportCanisterId);
     if (not trusted) {
       switch (requireActive(msg.caller)) { case (#err(_)) return null; case _ {} };
       let authActor = actor(propCanisterId) : actor {
@@ -841,6 +850,13 @@ persistent actor MarketIntelligence {
   public shared(msg) func setListingCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     listingCanisterId := id;
+    #ok(())
+  };
+
+  /// R2: wire the report canister so issueCert can compute the on-chain score.
+  public shared(msg) func setReportCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    reportCanisterId := id;
     #ok(())
   };
 

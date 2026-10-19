@@ -19,6 +19,17 @@ binding     = "RATE_LIMIT"
 id          = "PLACEHOLDER_KV_NAMESPACE_ID"
 preview_id  = "PLACEHOLDER_KV_PREVIEW_NAMESPACE_ID"
 
+# Durable Object for atomic rate-limit counters and email dedupe (F-10):
+# one RateLimiterDO instance per limiter key (src/rateLimiterDO.ts). KV above
+# stays bound for the Stripe-webhook dedupe and as the limiter's fallback.
+[[durable_objects.bindings]]
+name       = "RATE_LIMITER"
+class_name = "RateLimiterDO"
+
+[[migrations]]
+tag               = "v1-rate-limiter-do"
+new_sqlite_classes = ["RateLimiterDO"]
+
 [triggers]
 crons = ["0 * * * *"]   # every hour — fires scheduledBidtolist (deadline reminders)
 
@@ -81,3 +92,12 @@ HOMEGENTIC_ICP_HOST = "https://ic0.app"
 
 [[env.testnet.kv_namespaces]]
 binding = "RATE_LIMIT"
+
+# Durable Objects are not inherited by environments either.
+[[env.testnet.durable_objects.bindings]]
+name       = "RATE_LIMITER"
+class_name = "RateLimiterDO"
+
+[[env.testnet.migrations]]
+tag               = "v1-rate-limiter-do"
+new_sqlite_classes = ["RateLimiterDO"]

@@ -278,8 +278,6 @@ persistent actor Payment {
   private let updateCallLimits        : Map.Map<Text, (Nat, Int)> = Map.empty();
   // CallerGuard: prevents concurrent subscribe() calls from the same principal
   private transient let activeSubscribers       : Map.Map<Text, Bool>       = Map.empty();
-  /// In-flight guard for verifyStripeSession: sessionId → true while an HTTP outcall is live.
-  private transient let inFlightVerifications   : Map.Map<Text, Bool>       = Map.empty();
   private var maxUpdatesPerMin        : Nat = 30;
   private transient let ONE_MINUTE_NS           : Int = 60_000_000_000;
   private var trustedCanisterEntries  : [Principal] = [];
@@ -484,51 +482,20 @@ persistent actor Payment {
     };
   };
 
-  // ─── Stripe helpers ──────────────────────────────────────────────────────────
+  // ─── Stripe (moved off-chain) ────────────────────────────────────────────────
+  //
+  // M-6: canister memory is readable by node operators, so the Stripe secret
+  // key no longer lives here. The voice Worker (agents/voice) holds it, makes
+  // every Stripe API call, and reports results through the Stripe-relay-only
+  // methods stripeActivateSubscription / stripeGrantAgentCredits /
+  // stripeRecordGift. The old outcall methods keep their Candid signatures but
+  // only return an error.
 
-  /// Extract a quoted string value for `key` from a flat JSON object.
-  /// Works for simple string fields; does not handle nested objects or escaped quotes.
-  private func jsonExtract(json: Text, key: Text) : ?Text {
-    let needle = "\"" # key # "\":\"";
-    let parts  = Text.split(json, #text needle);
-    ignore parts.next();
-    switch (parts.next()) {
-      case null    { null };
-      case (?rest) { Text.split(rest, #text "\"").next() };
-    }
-  };
-
-  /// Escape backslashes then double-quotes for embedding in a JSON string value.
-  private func _jsonEsc(s: Text) : Text {
-    let s1 = Text.replace(s, #text "\\", "\\\\");
-    Text.replace(s1, #text "\"", "\\\"")
-  };
-
-  /// Percent-encode a string for use as a value in application/x-www-form-urlencoded.
-  private func urlEncode(s: Text) : Text {
-    var result = "";
-    for (c in s.chars()) {
-      result #= switch (c) {
-        case ' '  { "+" };
-        case ':'  { "%3A" };
-        case '/'  { "%2F" };
-        case '?'  { "%3F" };
-        case '='  { "%3D" };
-        case '&'  { "%26" };
-        case '{'  { "%7B" };
-        case '}'  { "%7D" };
-        case '@'  { "%40" };
-        case '+'  { "%2B" };
-        case '#'  { "%23" };
-        case _    { Text.fromChar(c) };
-      };
-    };
-    result
-  };
+  private transient let STRIPE_MOVED_MSG : Text =
+    "Stripe moved off-chain: use the voice Worker's /api/stripe/* routes";
 
   /// M-7: a Stripe Checkout Session id is `cs_test_` / `cs_live_` followed by
-  /// letters and digits. Anything else (`/`, `?`, `..`) could steer the
-  /// authenticated GET to another Stripe endpoint.
+  /// letters and digits.
   private func isValidCheckoutSessionId(s: Text) : Bool {
     if (s.size() < 9 or s.size() > 255) return false;
     if (not (Text.startsWith(s, #text "cs_test_") or Text.startsWith(s, #text "cs_live_"))) return false;
@@ -543,69 +510,6 @@ persistent actor Payment {
     true
   };
 
-  /// M-6: replicated GET — every replica fetches the URL and the subnet must
-  /// agree on the (header-stripped) response, so a single malicious replica
-  /// can't forge a "paid" session. The caffeineai library only does
-  /// non-replicated outcalls, hence this local helper.
-  private func stripeGetReplicated(url: Text, secretKey: Text) : async Text {
-    let req : IC.http_request_args = {
-      url;
-      max_response_bytes = ?(200_000 : Nat64);
-      headers = [
-        { name = "authorization"; value = "Bearer " # secretKey },
-        { name = "User-Agent";    value = "homegentic-payment" },
-      ];
-      body = null;
-      method = #get;
-      transform = ?{ function = transform; context = Blob.fromArray([]) };
-      is_replicated = ?true;
-    };
-    let resp = await (with cycles = 231_000_000_000) IC.http_request(req);
-    if (resp.status != 200) throw Error.reject("Stripe returned HTTP " # Nat.toText(resp.status));
-    switch (Text.decodeUtf8(resp.body)) {
-      case null  { throw Error.reject("Stripe response was not UTF-8") };
-      case (?t)  { t };
-    }
-  };
-
-  // #Pro is the single homeowner plan, annual-only ($59/year via proYearly;
-  // proMonthly is intentionally unmapped so a monthly Pro checkout can't be
-  // created at the old $20/mo rate).
-  private func priceIdFor(cfg: StripeConfig, tier: Tier, billing: BillingPeriod) : ?Text {
-    switch (tier, billing) {
-      case (#Pro,           #Monthly) { null };
-      case (#Pro,           #Yearly)  { ?cfg.priceIds.proYearly };
-      case (#ContractorPro, #Monthly) { ?cfg.priceIds.contractorProMonthly };
-      case (#ContractorPro, #Yearly)  { ?cfg.priceIds.contractorProYearly };
-      case _                          { null };
-    }
-  };
-
-  private func tierFromText(t: Text) : ?Tier {
-    switch t {
-      case "Pro"           { ?#Pro };
-      case "ContractorPro" { ?#ContractorPro };
-      case _               { null };
-    }
-  };
-
-  private func tierToText(t: Tier) : Text {
-    switch t {
-      case (#Free)           { "Free" };
-      case (#Pro)            { "Pro" };
-      case (#ContractorFree) { "ContractorFree" };
-      case (#ContractorPro)  { "ContractorPro" };
-    }
-  };
-
-  private func billingToText(b: BillingPeriod) : Text {
-    switch b { case (#Monthly) { "Monthly" }; case (#Yearly) { "Yearly" } }
-  };
-
-  private func billingFromText(b: Text) : BillingPeriod {
-    if (b == "Yearly") { #Yearly } else { #Monthly }
-  };
-
   private func durationNsFor(billing: BillingPeriod) : Int {
     switch billing {
       case (#Monthly) {  30 * 24 * 60 * 60 * 1_000_000_000 };
@@ -613,212 +517,81 @@ persistent actor Payment {
     }
   };
 
-  // ─── Stripe config (admin-only) ───────────────────────────────────────────────
+  /// Drop any Stripe key a previous version stored. Idempotent; runs after
+  /// every upgrade and on every call that used to touch the config.
+  private func clearStripeConfig() { stripeConfig := null };
 
-  public shared(msg) func configureStripe(config: StripeConfig) : async Result.Result<(), Error> {
+  system func postupgrade() { clearStripeConfig() };
+
+  // ─── Stripe config (retired) ─────────────────────────────────────────────────
+
+  /// Refuses to store a key (and clears any stored one).
+  public shared(msg) func configureStripe(_config: StripeConfig) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    stripeConfig := ?config;
-    #ok(())
+    clearStripeConfig();
+    #err(#InvalidInput("Stripe keys are no longer stored on-chain; set them as voice Worker secrets"))
   };
 
-  public query(msg) func isStripeConfigured() : async Bool {
-    if (not isAdmin(msg.caller)) return false;
-    Option.isSome(stripeConfig)
+  /// The canister never makes Stripe calls itself any more, so this is always
+  /// false; payments are configured when the voice Worker has its secrets.
+  public query func isStripeConfigured() : async Bool {
+    false
   };
 
-  // ─── Stripe checkout ─────────────────────────────────────────────────────────
+  // ─── Stripe checkout (retired) ───────────────────────────────────────────────
 
-  /// Create a Stripe Checkout Session for a subscription upgrade.
-  /// Pass `gift` when the payer (e.g. a realtor) is buying for someone else.
-  /// The session URL is returned — redirect the user there immediately.
   public shared(msg) func createStripeCheckoutSession(
-    tier    : Tier,
-    billing : BillingPeriod,
-    gift    : ?GiftMeta,
+    _tier    : Tier,
+    _billing : BillingPeriod,
+    _gift    : ?GiftMeta,
   ) : async Result.Result<CheckoutSession, Error> {
-    switch (_requireActive(msg.caller)) { case (#err(e)) return #err(e); case (#ok(())) {} };
-
-    let cfg = switch (stripeConfig) {
-      case null  { return #err(#PaymentFailed("Stripe is not configured")) };
-      case (?c)  { c };
-    };
-
-    let priceId = switch (priceIdFor(cfg, tier, billing)) {
-      case null    { return #err(#InvalidInput("No Stripe price configured for " # tierToText(tier) # " " # billingToText(billing))) };
-      case (?pid)  { pid };
-    };
-
-    let callerText = Principal.toText(msg.caller);
-    let isGift     = Option.isSome(gift);
-
-    let successUrl = cfg.successUrl #
-      (if (Text.contains(cfg.successUrl, #char '?')) "&" else "?") #
-      "session_id={CHECKOUT_SESSION_ID}";
-
-    var body =
-      "mode=subscription" #
-      "&line_items[0][price]="    # priceId #
-      "&line_items[0][quantity]=1" #
-      "&success_url="             # urlEncode(successUrl) #
-      "&cancel_url="              # urlEncode(cfg.cancelUrl) #
-      "&metadata[principal]="     # urlEncode(callerText) #
-      "&metadata[tier]="          # urlEncode(tierToText(tier)) #
-      "&metadata[billing]="       # urlEncode(billingToText(billing)) #
-      "&metadata[is_gift]="       # (if isGift "true" else "false");
-
-    switch (gift) {
-      case (?g) {
-        body #=
-          "&metadata[recipient_email]=" # urlEncode(g.recipientEmail) #
-          "&metadata[recipient_name]="  # urlEncode(g.recipientName)  #
-          "&metadata[sender_name]="     # urlEncode(g.senderName)     #
-          "&metadata[delivery_date]="   # urlEncode(g.deliveryDate)   #
-          "&metadata[gift_message]="    # urlEncode(g.giftMessage);
-      };
-      case null {};
-    };
-
-    try {
-      let json = await OutCall.httpPostRequest(
-        "https://api.stripe.com/v1/checkout/sessions",
-        [
-          { name = "content-type";  value = "application/x-www-form-urlencoded" },
-          { name = "authorization"; value = "Bearer " # cfg.secretKey },
-        ],
-        body,
-        transform,
-      );
-      // M-7: never echo the raw Stripe response to the caller.
-      let id  = switch (jsonExtract(json, "id"))  { case (?v) v; case null return #err(#PaymentFailed("Stripe did not return a checkout session")) };
-      let url = switch (jsonExtract(json, "url")) { case (?v) v; case null return #err(#PaymentFailed("Stripe did not return a checkout URL")) };
-      // M-6: this POST is a non-replicated outcall (one replica answers), so
-      // refuse anything that isn't a Stripe-hosted checkout page for a
-      // well-formed session id rather than redirecting the user to it.
-      if (not isValidCheckoutSessionId(id) or not Text.startsWith(url, #text "https://checkout.stripe.com/")) {
-        return #err(#PaymentFailed("Unexpected Stripe checkout response"));
-      };
-      #ok({ id; url })
-    } catch (_e) {
-      #err(#PaymentFailed("Stripe checkout request failed"))
-    }
+    ignore msg;
+    clearStripeConfig();
+    #err(#PaymentFailed(STRIPE_MOVED_MSG))
   };
 
-  /// Verify a completed Stripe Checkout Session and activate the subscription.
-  /// For self-subscriptions: grants the sub to msg.caller.
-  /// For gift sessions: creates a PendingGift redeemable via redeemGift(giftToken).
-  /// Returns the new subscription for self-subscriptions, or #err(#NotFound) with
-  /// the gift token embedded in the message for gift sessions.
-  public shared(msg) func verifyStripeSession(sessionId: Text) : async Result.Result<Subscription, Error> {
-    switch (_requireActive(msg.caller)) { case (#err(e)) return #err(e); case (#ok(())) {} };
-    if (not isValidCheckoutSessionId(sessionId)) return #err(#InvalidInput("Invalid session id"));
+  public shared(msg) func verifyStripeSession(_sessionId: Text) : async Result.Result<Subscription, Error> {
+    ignore msg;
+    clearStripeConfig();
+    #err(#PaymentFailed(STRIPE_MOVED_MSG))
+  };
 
-    let cfg = switch (stripeConfig) {
-      case null  { return #err(#PaymentFailed("Stripe is not configured")) };
-      case (?c)  { c };
+  /// Register a paid gift checkout so the recipient can redeem it with
+  /// redeemGift(giftToken). Stripe relay (the voice Worker) or admin only:
+  /// the Worker has verified with Stripe that `giftToken` (the checkout
+  /// session id) is paid and complete. Idempotent: an existing gift is never
+  /// overwritten, so a replay can't reset `redeemedBy` (H-1).
+  public shared(msg) func stripeRecordGift(
+    giftToken : Text,
+    tier      : Tier,
+    billing   : BillingPeriod,
+    meta      : GiftMeta,
+  ) : async Result.Result<(), Error> {
+    if (not isAdminOrRelay(msg.caller)) return #err(#NotAuthorized);
+    if (not isValidCheckoutSessionId(giftToken)) return #err(#InvalidInput("invalid gift token"));
+    switch (tier) {
+      case (#Pro or #ContractorPro) {};
+      case _ { return #err(#InvalidInput("paid tier required")) };
     };
-
-    // H-1: a session already turned into a grant is never processed again.
-    let consumedKey = "cs:" # sessionId;
-    switch (alreadyConsumed(consumedKey, msg.caller)) {
-      case (?r) { return r };
-      case null {};
+    let tooLong = func(t: Text) : Bool { t.size() > 500 };
+    if (tooLong(meta.recipientEmail) or tooLong(meta.recipientName) or tooLong(meta.senderName)
+        or tooLong(meta.giftMessage) or tooLong(meta.deliveryDate)) {
+      return #err(#InvalidInput("gift field too long"));
     };
-
-    // In-flight guard: set before the HTTP outcall so a second concurrent call with
-    // the same sessionId returns early rather than issuing a duplicate subscription.
-    switch (Map.get(inFlightVerifications, Text.compare, sessionId)) {
-      case (?_) { return #err(#InvalidInput("Session verification already in progress")) };
-      case null {};
-    };
-    Map.add(inFlightVerifications, Text.compare, sessionId, true);
-
-    // Labeled expression ensures Map.remove runs on every exit path.
-    let result = label exit : Result.Result<Subscription, Error> {
-      try {
-        let json = await stripeGetReplicated(
-          "https://api.stripe.com/v1/checkout/sessions/" # sessionId,
-          cfg.secretKey,
-        );
-
-        // M-7: never echo Stripe's response body to the caller.
-        if (json.contains(#text "\"error\"")) {
-          break exit (#err(#PaymentFailed("Stripe could not verify this session")));
-        };
-
-        let payStatus = switch (jsonExtract(json, "payment_status")) {
-          case (?s) s;
-          case null break exit (#err(#PaymentFailed("Missing payment_status in session")));
-        };
-        let sessStatus = switch (jsonExtract(json, "status")) {
-          case (?s) s;
-          case null break exit (#err(#PaymentFailed("Missing status in session")));
-        };
-
-        if (payStatus != "paid" or sessStatus != "complete") {
-          break exit (#err(#PaymentFailed("Payment not complete")));
-        };
-
-        let tierText_ = switch (jsonExtract(json, "tier")) {
-          case (?t) t;
-          case null break exit (#err(#PaymentFailed("Missing tier in session metadata")));
-        };
-        let tier = switch (tierFromText(tierText_)) {
-          case (?t) t;
-          case null break exit (#err(#PaymentFailed("Unknown tier in session metadata")));
-        };
-        let billing  = billingFromText(Option.get(jsonExtract(json, "billing"), "Monthly"));
-        let isGift   = Option.get(jsonExtract(json, "is_gift"), "false") == "true";
-        let now = Time.now();
-
-        // TOCTOU: re-check after the await — another call may have consumed it.
-        switch (alreadyConsumed(consumedKey, msg.caller)) {
-          case (?r) { break exit r };
-          case null {};
-        };
-
-        if (isGift) {
-          // H-1: never overwrite an existing gift (that would reset redeemedBy).
-          if (Option.isNull(Map.get(pendingGifts, Text.compare, sessionId))) {
-            let gift : PendingGift = {
-              giftToken      = sessionId;
-              tier;
-              billing;
-              recipientEmail = Option.get(jsonExtract(json, "recipient_email"), "");
-              recipientName  = Option.get(jsonExtract(json, "recipient_name"),  "");
-              senderName     = Option.get(jsonExtract(json, "sender_name"),     "");
-              giftMessage    = Option.get(jsonExtract(json, "gift_message"),    "");
-              deliveryDate   = Option.get(jsonExtract(json, "delivery_date"),   "");
-              createdAt      = now;
-              redeemedBy     = null;
-            };
-            Map.add(pendingGifts, Text.compare, sessionId, gift);
-          };
-          #err(#NotFound) // frontend detects this + sessionId to show gift-sent screen
-        } else {
-          let sessionPrincipal = Option.get(jsonExtract(json, "principal"), "");
-          if (sessionPrincipal != Principal.toText(msg.caller)) {
-            break exit (#err(#NotAuthorized));
-          };
-          let sub : Subscription = {
-            owner       = msg.caller;
-            tier;
-            expiresAt   = now + durationNsFor(billing);
-            createdAt   = now;
-            cancelledAt = null;
-          };
-          // Consume and grant in the same message, before the next await.
-          Map.add(consumedStripeRefs, Text.compare, consumedKey, msg.caller);
-          Map.add(subscriptions, Principal.compare, msg.caller, sub);
-          Map.remove(inFlightVerifications, Text.compare, sessionId);
-          await notifyReferralConverted(msg.caller);
-          #ok(sub)
-        }
-      } catch (_e) {
-        #err(#PaymentFailed("Stripe verification request failed"))
-      }
-    };
-    Map.remove(inFlightVerifications, Text.compare, sessionId);
-    result
+    if (Option.isSome(Map.get(pendingGifts, Text.compare, giftToken))) return #ok(());
+    Map.add(pendingGifts, Text.compare, giftToken, {
+      giftToken;
+      tier;
+      billing;
+      recipientEmail = meta.recipientEmail;
+      recipientName  = meta.recipientName;
+      senderName     = meta.senderName;
+      giftMessage    = meta.giftMessage;
+      deliveryDate   = meta.deliveryDate;
+      createdAt      = Time.now();
+      redeemedBy     = null;
+    });
+    #ok(())
   };
 
   /// For an already-consumed Stripe reference: `?#ok(current subscription)`

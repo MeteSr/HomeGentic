@@ -496,8 +496,20 @@ persistent actor class Auth(initDeployer : Principal) {
     }
   };
 
+  /// Whether `p` is on this canister's admin list. Lets the admin dashboard
+  /// show a "not an admin" state instead of zeroed metrics (same shape as
+  /// payment/property isAdminPrincipal).
+  public query func isAdminPrincipal(p: Principal) : async Bool {
+    isAdmin(p)
+  };
+
   /// Time-based user stats — new signups and engagement for the admin dashboard.
-  public query func getUserStats() : async UserStats {
+  /// Appendix D #9: admin-only; any other caller gets all-zero stats.
+  public query(msg) func getUserStats() : async UserStats {
+    if (not isAdmin(msg.caller)) {
+      return { total = 0; newToday = 0; newThisWeek = 0; activeThisWeek = 0;
+               homeowners = 0; contractors = 0; realtors = 0; builders = 0 };
+    };
     let now     = Time.now();
     let dayNs   : Int = 24 * 60 * 60 * 1_000_000_000;
     let weekNs  : Int = 7 * dayNs;

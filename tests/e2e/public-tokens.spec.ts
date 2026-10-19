@@ -52,7 +52,7 @@ test.describe("PT.2 — BadgePage (/badge/:token)", () => {
 
 test.describe("PT.3 — ScoreCertPage (/cert/:token)", () => {
   test("shows 'Invalid certificate' for a malformed token", async ({ page }) => {
-    // parseCertToken('NOTBASE64JSON') will throw → payload = null → error state
+    // certIdFromToken('NOTBASE64JSON') finds no certId → error state
     await page.goto("/cert/NOTBASE64JSON");
     await expect(page.getByRole("heading", { name: /invalid certificate/i })).toBeVisible();
   });

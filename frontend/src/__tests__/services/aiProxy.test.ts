@@ -35,6 +35,14 @@ vi.mock("@icp-sdk/core/agent", () => ({
   HttpAgent: vi.fn(),
 }));
 
+// ── keyed third-party calls go to the voice Worker (M-6) ───────────────────────
+const mockWorkerFetch = vi.fn();
+vi.mock("@/services/voiceAgentHeaders", () => ({
+  voiceAgentFetch: (...args: unknown[]) => mockWorkerFetch(...args),
+}));
+const workerResp = (status: number, body: unknown) =>
+  ({ ok: status >= 200 && status < 300, status, json: async () => body }) as unknown as Response;
+
 import { aiProxyService } from "@/services/aiProxy";
 
 // Reset internal _actor reference between tests by resetting module-level state.
@@ -74,24 +82,61 @@ describe("aiProxyService.getPriceBenchmark", () => {
 
 // ── importPermits ─────────────────────────────────────────────────────────────
 
-describe("aiProxyService.importPermits", () => {
-  it("returns empty string when result has err", async () => {
-    mockActor.importPermits.mockResolvedValueOnce({ err: "UnsupportedCity" });
+describe("aiProxyService.importPermits (voice Worker)", () => {
+  it("returns empty string when the Worker answers with an error", async () => {
+    mockWorkerFetch.mockResolvedValueOnce(workerResp(429, { error: "daily_permit_limit_reached" }));
     const result = await aiProxyService.importPermits("123 Main", "Nashville", "TN", "37201");
     expect(result).toBe("");
   });
 
-  it("returns ok payload when successful", async () => {
-    const payload = '{"source":"openpermit","data":[]}';
-    mockActor.importPermits.mockResolvedValueOnce({ ok: payload });
+  it("posts the address to /api/permits/import and returns the payload as JSON text", async () => {
+    mockWorkerFetch.mockResolvedValueOnce(workerResp(200, { source: "openpermit", data: [] }));
     const result = await aiProxyService.importPermits("123 Main", "Nashville", "TN", "37201");
-    expect(result).toBe(payload);
+    expect(JSON.parse(result)).toEqual({ source: "openpermit", data: [] });
+    const [url, init] = mockWorkerFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/api\/permits\/import$/);
+    expect(JSON.parse(init.body as string)).toEqual({ address: "123 Main", city: "Nashville", state: "TN", zip: "37201" });
+    expect(mockActor.importPermits).not.toHaveBeenCalled();
   });
 
-  it("returns empty string when actor throws", async () => {
-    mockActor.importPermits.mockRejectedValueOnce(new Error("timeout"));
+  it("returns empty string when the request throws", async () => {
+    mockWorkerFetch.mockRejectedValueOnce(new Error("timeout"));
     const result = await aiProxyService.importPermits("123 Main", "Nashville", "TN", "37201");
     expect(result).toBe("");
+  });
+});
+
+describe("aiProxyService.lookupPropertyDetails (voice Worker)", () => {
+  it("parses ATTOM fields from the Worker response", async () => {
+    mockWorkerFetch.mockResolvedValueOnce(workerResp(200, {
+      property: [{ building: { summary: { yearbuilt: 1999 }, rooms: { beds: 3 } }, summary: { proptype: "SFR" } }],
+    }));
+    const r = await aiProxyService.lookupPropertyDetails("1 Main", "Austin", "TX", "78701");
+    expect(r.yearBuilt).toBe(1999);
+    expect(r.bedrooms).toBe(3);
+    expect(r.propertyType).toBe("SingleFamily");
+    expect((mockWorkerFetch.mock.calls[0] as [string])[0]).toMatch(/\/api\/property\/details$/);
+  });
+
+  it("returns all-null fields on a Worker error", async () => {
+    mockWorkerFetch.mockResolvedValueOnce(workerResp(503, { error: "not configured" }));
+    const r = await aiProxyService.lookupPropertyDetails("1 Main", "Austin", "TX", "78701");
+    expect(r.yearBuilt).toBeNull();
+  });
+});
+
+describe("aiProxyService.sendInviteEmail (voice Worker)", () => {
+  it("sends only the invite token and recipient; the Worker builds the message", async () => {
+    mockWorkerFetch.mockResolvedValueOnce(workerResp(200, { sent: true }));
+    const r = await aiProxyService.sendInviteEmail({
+      to: "pro@example.com", propertyAddress: "<b>evil</b>", serviceType: "HVAC",
+      verifyUrl: "https://app.homegentic.app/verify/INV_" + "a".repeat(64),
+    });
+    expect(r).toEqual({ sent: true });
+    const [url, init] = mockWorkerFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/api\/email\/contractor-invite$/);
+    expect(JSON.parse(init.body as string)).toEqual({ token: "INV_" + "a".repeat(64), to: "pro@example.com" });
+    expect(mockActor.sendInviteEmail).not.toHaveBeenCalled();
   });
 });
 

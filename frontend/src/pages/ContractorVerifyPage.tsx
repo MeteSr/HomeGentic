@@ -308,6 +308,12 @@ export default function ContractorVerifyPage() {
               Internet Computer blockchain. The homeowner can share a verified
               report with buyers, insurers, and inspectors.
             </p>
+            <p style={{ fontSize: "0.75rem", color: UI.muted, marginBottom: "1.75rem", marginTop: "-1rem", lineHeight: 1.6 }}>
+              Until HomeGentic verifies your contractor profile, this signature is
+              on record but doesn&apos;t count toward the home&apos;s verified-job
+              score or certificate. It starts counting automatically once your
+              profile is verified.
+            </p>
 
             {/* Upsell — soft, no pressure */}
             <div style={{

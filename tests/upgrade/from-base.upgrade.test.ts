@@ -15,11 +15,11 @@
  * index-backed lists) still run; only the change of version is skipped.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { PocketIc, createIdentity } from "@dfinity/pic";
 import type { Identity } from "@icp-sdk/core/agent";
 import { readFileSync } from "fs";
-import { createPic, wasmPath, baseWasmPath } from "./__helpers__/setup";
+import { createPic, wasmPath, baseWasmPath, tearDownLeftovers } from "./__helpers__/setup";
 import { idlFactory as jobIdl } from "../../frontend/src/declarations/job";
 import { idlFactory as propIdl } from "../../frontend/src/declarations/property";
 import { idlFactory as quoteIdl } from "../../frontend/src/declarations/quote";
@@ -35,7 +35,12 @@ async function fromBase(name: string, idl: any) {
   const f = await pic.setupCanister({ idlFactory: idl, wasm: baseWasmPath(name) ?? wasmPath(name), sender: ctl.getPrincipal() });
   const as = (id: Identity) => { const a = pic.createActor<any>(idl, f.canisterId); a.setIdentity(id); return a; };
   const upgrade = () => pic.upgradeCanister({ canisterId: f.canisterId, wasm: readFileSync(wasmPath(name)) });
-  return { pic, as, upgrade, done: () => pic.tearDown() };
+  /** Makes `admin` an admin: only a controller may open the bootstrap (setBootstrapNonce). */
+  const bootstrapAdmin = async (admin: Identity) => {
+    await as(ctl).setBootstrapNonce("n");
+    await as(admin).addAdmin(admin.getPrincipal(), "n");
+  };
+  return { pic, as, upgrade, bootstrapAdmin, done: () => pic.tearDown() };
 }
 
 /** Adds methods the frontend declarations leave out, reusing their record types. */
@@ -51,6 +56,8 @@ const norm = (x: unknown) => JSON.stringify(x, (_k, v) =>
 const TIMEOUT = 180_000;
 
 describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this branch to itself)", () => {
+  afterEach(tearDownLeftovers);
+
   // ── photo: [Nat8] bytes → Blob, per-job / per-property indexes ────────────
   it("photo: bytes, counts and lists survive; reads are batched", async () => {
     const idl = ({ IDL: I }: any) => {
@@ -76,8 +83,7 @@ describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this b
     const t = await fromBase("photo", idl);
     const ADM = createIdentity("ADM");
     const a = t.as(ADM);
-    await a.setBootstrapNonce("n");
-    await a.addAdmin(ADM.getPrincipal(), "n");
+    await t.bootstrapAdmin(ADM);
     const hash = (n: number) => n.toString(16).padStart(64, "0");
     const up = (job: string, prop: string, n: number, size = 3) =>
       a.uploadPhoto(job, prop, { Framing: null }, "d", hash(n), Array.from({ length: size }, (_, i) => (n + i) % 256));
@@ -137,8 +143,7 @@ describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this b
     const t = await fromBase("sensor", idl);
     const ADM = createIdentity("ADM");
     const a = t.as(ADM);
-    await a.setBootstrapNonce("n");
-    await a.addAdmin(ADM.getPrincipal(), "n");
+    await t.bootstrapAdmin(ADM);
     await a.registerDevice("PROP_A", "ext-a", { Nest: null }, "A");
     await a.registerDevice("PROP_B", "ext-b", { Nest: null }, "B");
     const record = (ext: string) => a.recordEvent(ext, { HighHumidity: null }, 1, "", "");
@@ -230,8 +235,7 @@ describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this b
     const t = await fromBase("property", propIdlX);
     const ADM = createIdentity("ADM"), A = createIdentity("A"), C = createIdentity("C");
     const adm = t.as(ADM), a = t.as(A), c = t.as(C);
-    await adm.setBootstrapNonce("n");
-    await adm.addAdmin(ADM.getPrincipal(), "n");
+    await t.bootstrapAdmin(ADM);
     expect("ok" in await a.registerProperty(row("9 Pine St"))).toBe(true);
     await t.upgrade();
 
@@ -297,8 +301,7 @@ describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this b
     const t = await fromBase("audit", idl);
     const ADM = createIdentity("ADM");
     const a = t.as(ADM);
-    await a.setBootstrapNonce("n");
-    await a.addAdmin(ADM.getPrincipal(), "n");
+    await t.bootstrapAdmin(ADM);
     for (let i = 0; i < 25; i++) await a.log("c", i % 2 ? "Odd" : "Even", [], `d${i}`);
 
     const snapshot = async () => norm({

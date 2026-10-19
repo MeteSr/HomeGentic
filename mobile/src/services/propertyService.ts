@@ -237,12 +237,17 @@ export function initials(name: string): string {
   return parts.slice(0, 2).map((p) => p.replace(/[^A-Za-z]/g, "")[0].toUpperCase()).join("") || "?";
 }
 
-/** Street addresses for property ids (contractor views show jobs on other people's homes). */
-export async function getStreetAddresses(ids: string[], agent?: HttpAgent): Promise<Record<string, string>> {
-  const unique = [...new Set(ids)];
-  const a = actor(agent);
-  const results = await Promise.all(unique.map((id) => a.getProperty(id).catch(() => null)));
+/**
+ * Street addresses, keyed by property id, for the caller's own jobs (contractor
+ * views show jobs on other people's homes). getProperty no longer returns the
+ * address to non-owners, so this asks the property canister by job id; it
+ * answers only for jobs the caller is a party to. Pass job ids, not property ids.
+ */
+export async function getStreetAddresses(jobIds: string[], agent?: HttpAgent): Promise<Record<string, string>> {
+  const unique = [...new Set(jobIds)].slice(0, 50);
   const out: Record<string, string> = {};
-  results.forEach((r: any, i) => { if (r && "ok" in r) out[unique[i]] = r.ok.address; });
+  if (unique.length === 0) return out;
+  const rows: any[] = await actor(agent).getJobPropertyAddresses(unique);
+  rows.forEach((r) => { if (r.address) out[r.propertyId] = r.address; });
   return out;
 }

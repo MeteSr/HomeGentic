@@ -24,7 +24,7 @@ export default function PendingSignaturesScreen() {
   const navigation = useNavigation<Nav>();
   const data = useLoad(async () => {
     const jobs = sortPendingJobs(await getPendingSignatureJobs());
-    const streets = await getStreetAddresses(jobs.map((j) => j.propertyAddress)).catch(() => ({} as Record<string, string>));
+    const streets = await getStreetAddresses(jobs.map((j) => j.id)).catch(() => ({} as Record<string, string>));
     return jobs.map((j) => ({ ...j, street: streets[j.propertyAddress] ?? "Client property" }));
   }, "sigs");
 

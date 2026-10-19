@@ -188,6 +188,9 @@ export const idlFactory = ({ IDL }: any) => {
       }))],
       ["query"]
     ),
+    // R2: dual-signed jobs whose contractor signature came from an unverified
+    // contractor profile (excluded from scores / certificates / reports).
+    getUnattestedJobIds: IDL.Func([IDL.Text], [IDL.Vec(IDL.Text)], ["query"]),
     setPropertyCanisterId: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],

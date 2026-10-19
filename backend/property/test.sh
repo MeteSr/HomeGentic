@@ -28,6 +28,20 @@ if ! dfx identity list 2>/dev/null | grep -q "^property-buyer-test$"; then
   dfx identity new property-buyer-test --disable-encryption 2>/dev/null || true
 fi
 BUYER_PRINCIPAL=$(dfx identity get-principal --identity property-buyer-test)
+
+# Other suites run in parallel as the same deployer identity, and property
+# refuses a second registration while one of the caller's is in flight. Retry
+# registerProperty briefly when that happens instead of failing the suite.
+reg_call() {   # reg_call <args…>: dfx canister call "$CANISTER" registerProperty <args…>
+  local out rc
+  for _ in $(seq 1 20); do
+    rc=0; out=$(dfx canister call "$CANISTER" registerProperty "$@" 2>&1) || rc=$?
+    [[ "$out" == *"already in progress"* ]] || break
+    sleep 1
+  done
+  echo "$out"
+  return $rc
+}
 echo "Buyer test principal: $BUYER_PRINCIPAL"
 
 # ─── Metrics (initial) ────────────────────────────────────────────────────────
@@ -46,7 +60,7 @@ dfx canister call $CANISTER getPropertyLimitForTier '(variant { ContractorPro })
 # ─── §147 input validation tests ────────────────────────────────────────────
 echo ""
 echo "── [V1] invalid zip (letters) → expect error ───────────────────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "1 Test St";
   city         = "Austin";
   state        = "TX";
@@ -59,7 +73,7 @@ dfx canister call $CANISTER registerProperty '(record {
 
 echo ""
 echo "── [V2] invalid state (lowercase) → expect error ───────────────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "1 Test St";
   city         = "Austin";
   state        = "tx";
@@ -72,7 +86,7 @@ dfx canister call $CANISTER registerProperty '(record {
 
 echo ""
 echo "── [V3] yearBuilt too old (< 1600) → expect error ──────────────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "1 Test St";
   city         = "Austin";
   state        = "TX";
@@ -85,7 +99,7 @@ dfx canister call $CANISTER registerProperty '(record {
 
 echo ""
 echo "── [V4] squareFeet = 0 → expect error ─────────────────────────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "1 Test St";
   city         = "Austin";
   state        = "TX";
@@ -98,7 +112,7 @@ dfx canister call $CANISTER registerProperty '(record {
 
 echo ""
 echo "── [V5] ZIP+4 format accepted → expect ok ──────────────────────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "99 Zip Plus Four Lane";
   city         = "Austin";
   state        = "TX";
@@ -112,7 +126,7 @@ dfx canister call $CANISTER registerProperty '(record {
 # ─── Register a property ──────────────────────────────────────────────────────
 echo ""
 echo "── [3] Register a property (Free tier) ─────────────────────────────────"
-REG_OUT=$(dfx canister call $CANISTER registerProperty '(record {
+REG_OUT=$(reg_call '(record {
   address      = "123 Main Street";
   city         = "Austin";
   state        = "TX";
@@ -145,7 +159,7 @@ dfx canister call $CANISTER getVerificationLevel "(\"$PROP_ID\")"
 # ─── Tier limit enforcement ───────────────────────────────────────────────────
 echo ""
 echo "── [7] Second property on Free tier → expect LimitReached ───────────────"
-dfx canister call $CANISTER registerProperty '(record {
+reg_call '(record {
   address      = "456 Oak Avenue";
   city         = "Dallas";
   state        = "TX";
@@ -203,10 +217,44 @@ echo ""
 echo "── [16] getProperty — final state ───────────────────────────────────────"
 dfx canister call $CANISTER getProperty "(\"$PROP_ID\")"
 
+# ─── Street address is private (D-1) ──────────────────────────────────────────
+echo ""
+echo "── [16b] getProperty as a stranger → address blanked, city kept ─────────"
+if ! dfx identity list 2>/dev/null | grep -q "^property-stranger-test$"; then
+  dfx identity new property-stranger-test --disable-encryption 2>/dev/null || true
+fi
+STRANGER_VIEW=$(dfx canister call $CANISTER getProperty "(\"$PROP_ID\")" --identity property-stranger-test)
+OWNER_VIEW=$(dfx canister call $CANISTER getProperty "(\"$PROP_ID\")")
+if [[ "$STRANGER_VIEW" == *'address = ""'* && "$STRANGER_VIEW" == *'city = "Austin"'* ]]; then
+  echo "  ↳ Stranger sees no street address — ✓"
+else
+  echo "  ↳ ❌ Stranger view should blank the address: $STRANGER_VIEW"; exit 1
+fi
+[[ "$OWNER_VIEW" == *'address = "123 Main Street"'* ]] \
+  && echo "  ↳ Owner still sees the address — ✓" \
+  || { echo "  ↳ ❌ Owner view lost the address: $OWNER_VIEW"; exit 1; }
+
 # ─── Ownership transfer — 7-day conflict window (12.4.2) ──────────────────────
 echo ""
 echo "── [17] initiateTransfer ────────────────────────────────────────────────"
-dfx canister call $CANISTER initiateTransfer "(\"$PROP_ID\")"
+XFER_OUT=$(dfx canister call $CANISTER initiateTransfer "(\"$PROP_ID\")")
+echo "$XFER_OUT"
+XFER_TOKEN=$(echo "$XFER_OUT" | grep -oP 'token = "\K[^"]+' | head -1 || true)
+
+echo ""
+echo "── [17b] getPropertyByTransferToken → the link holder sees the address ──"
+if [ -n "$XFER_TOKEN" ]; then
+  TOKEN_VIEW=$(dfx canister call $CANISTER getPropertyByTransferToken "(\"$XFER_TOKEN\")" --identity property-stranger-test)
+  [[ "$TOKEN_VIEW" == *'address = "123 Main Street"'* ]] \
+    && echo "  ↳ Token holder sees the address — ✓" \
+    || { echo "  ↳ ❌ Expected the address via the transfer token: $TOKEN_VIEW"; exit 1; }
+  BAD_VIEW=$(dfx canister call $CANISTER getPropertyByTransferToken '("not-a-token")' --identity property-stranger-test)
+  [[ "$BAD_VIEW" == *"(null)"* ]] \
+    && echo "  ↳ Unknown token → null — ✓" \
+    || { echo "  ↳ ❌ Expected null for an unknown token: $BAD_VIEW"; exit 1; }
+else
+  echo "  ↳ ❌ Could not parse the transfer token"; exit 1
+fi
 
 echo ""
 echo "── [18] getPendingTransfer ──────────────────────────────────────────────"
@@ -219,6 +267,10 @@ dfx canister call $CANISTER cancelTransfer "(\"$PROP_ID\")"
 echo ""
 echo "── [20] getPendingTransfer after cancel — expect empty ──────────────────"
 dfx canister call $CANISTER getPendingTransfer "(\"$PROP_ID\")"
+CANCELLED_VIEW=$(dfx canister call $CANISTER getPropertyByTransferToken "(\"$XFER_TOKEN\")" --identity property-stranger-test)
+[[ "$CANCELLED_VIEW" == *"(null)"* ]] \
+  && echo "  ↳ Cancelled transfer token no longer reveals the property — ✓" \
+  || { echo "  ↳ ❌ Expected null after cancelTransfer: $CANCELLED_VIEW"; exit 1; }
 
 # ─── getOwnershipHistory ──────────────────────────────────────────────────────
 echo ""
@@ -327,7 +379,7 @@ else
   echo ""
   echo "── [EXP-2] On Free tier: register property → expect LimitReached ────────"
   dfx canister call payment grantSubscription "(principal \"$PROP_TIER_PRINCIPAL\", variant { Free })"
-  dfx canister call $CANISTER registerProperty '(record {
+  reg_call '(record {
     address      = "999 Payment-Wired Street";
     city         = "Austin";
     state        = "TX";
@@ -343,7 +395,7 @@ else
   echo ""
   echo "── [EXP-3] Grant Pro via payment canister → property registration succeeds ─"
   dfx canister call payment grantSubscription "(principal \"$PROP_TIER_PRINCIPAL\", variant { Pro })"
-  dfx canister call $CANISTER registerProperty '(record {
+  reg_call '(record {
     address      = "999 Payment-Wired Street";
     city         = "Austin";
     state        = "TX";
@@ -359,7 +411,7 @@ else
   echo ""
   echo "── [EXP-4] Downgrade back to Free → further registrations rejected ──────"
   dfx canister call payment grantSubscription "(principal \"$PROP_TIER_PRINCIPAL\", variant { Free })"
-  dfx canister call $CANISTER registerProperty '(record {
+  reg_call '(record {
     address      = "888 Downgraded Lane";
     city         = "Austin";
     state        = "TX";

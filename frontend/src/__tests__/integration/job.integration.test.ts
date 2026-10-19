@@ -18,6 +18,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { jobService } from "@/services/job";
 import { propertyService } from "@/services/property";
 import { TEST_PRINCIPAL } from "./setup";
+import { asIdentity, freshIdentity, registerTestProperty } from "./helpers";
 
 const CANISTER_ID = process.env.JOB_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
@@ -47,19 +48,24 @@ const PROP_BASE = {
 // ─── create — Candid serialization ───────────────────────────────────────────
 
 describe.skipIf(!deployed)("create — Candid serialization", () => {
+  // createJob checks the caller has write access to the property (M-1), so
+  // the jobs go on a property the test identity really owns.
+  let propId = "";
+  beforeAll(async () => { propId = await registerTestProperty("JobCreate"); });
+
   it("returns a job with a non-empty id", async () => {
-    const job = await jobService.create({ ...BASE, propertyId: pid("id") });
+    const job = await jobService.create({ ...BASE, propertyId: propId });
     expect(job.id).toBeTruthy();
     expect(typeof job.id).toBe("string");
   });
 
   it("amount survives BigInt round-trip without truncation", async () => {
-    const job = await jobService.create({ ...BASE, propertyId: pid("amount"), amount: 99_999 });
+    const job = await jobService.create({ ...BASE, propertyId: propId, amount: 99_999 });
     expect(job.amount).toBe(99_999);
   });
 
   it("completedDate (ns Int) is converted to a YYYY-MM-DD string", async () => {
-    const job = await jobService.create({ ...BASE, propertyId: pid("date"), date: "2024-03-20" });
+    const job = await jobService.create({ ...BASE, propertyId: propId, date: "2024-03-20" });
     expect(job.date).toBe("2024-03-20");
   });
 
@@ -68,7 +74,7 @@ describe.skipIf(!deployed)("create — Candid serialization", () => {
     for (const serviceType of types) {
       const job = await jobService.create({
         ...BASE,
-        propertyId: pid(`variant-${serviceType}`),
+        propertyId: propId,
         serviceType,
       });
       expect(job.serviceType).toBe(serviceType);
@@ -76,50 +82,50 @@ describe.skipIf(!deployed)("create — Candid serialization", () => {
   });
 
   it("permitNumber Opt is preserved when provided", async () => {
-    const job = await jobService.create({ ...BASE, propertyId: pid("permit"), permitNumber: "PERMIT-2024-001" });
+    const job = await jobService.create({ ...BASE, propertyId: propId, permitNumber: "PERMIT-2024-001" });
     expect(job.permitNumber).toBe("PERMIT-2024-001");
   });
 
   it("permitNumber is undefined when not provided", async () => {
-    const job = await jobService.create({ ...BASE, propertyId: pid("no-permit") });
+    const job = await jobService.create({ ...BASE, propertyId: propId });
     expect(job.permitNumber).toBeUndefined();
   });
 
   it("warrantyMonths Opt (Nat) survives round-trip", async () => {
-    const job = await jobService.create({ ...BASE, propertyId: pid("warranty"), warrantyMonths: 24 });
+    const job = await jobService.create({ ...BASE, propertyId: propId, warrantyMonths: 24 });
     expect(job.warrantyMonths).toBe(24);
   });
 
   it("warrantyMonths is undefined when not provided", async () => {
-    const job = await jobService.create({ ...BASE, propertyId: pid("no-warranty") });
+    const job = await jobService.create({ ...BASE, propertyId: propId });
     expect(job.warrantyMonths).toBeUndefined();
   });
 
   it("contractorName Opt is preserved when provided", async () => {
-    const job = await jobService.create({ ...BASE, propertyId: pid("contractor-name"), contractorName: "Cool Air LLC" });
+    const job = await jobService.create({ ...BASE, propertyId: propId, contractorName: "Cool Air LLC" });
     expect(job.contractorName).toBe("Cool Air LLC");
   });
 
   it("contractorName is undefined when not provided (DIY)", async () => {
-    const job = await jobService.create({ ...BASE, propertyId: pid("no-contractor"), isDiy: true, contractorName: undefined });
+    const job = await jobService.create({ ...BASE, propertyId: propId, isDiy: true, contractorName: undefined });
     expect(job.contractorName).toBeUndefined();
   });
 
   it("homeowner principal matches the test identity", async () => {
-    const job = await jobService.create({ ...BASE, propertyId: pid("principal") });
+    const job = await jobService.create({ ...BASE, propertyId: propId });
     expect(job.homeowner).toBe(TEST_PRINCIPAL);
   });
 
   it("createdAt is a recent ms timestamp (ns→ms conversion applied)", async () => {
     const before = Date.now() - 5_000;
-    const job = await jobService.create({ ...BASE, propertyId: pid("timestamp") });
+    const job = await jobService.create({ ...BASE, propertyId: propId });
     const after = Date.now() + 5_000;
     expect(job.createdAt).toBeGreaterThan(before);
     expect(job.createdAt).toBeLessThan(after);
   });
 
   it("new job starts with status pending, verified false, homeownerSigned false", async () => {
-    const job = await jobService.create({ ...BASE, propertyId: pid("initial-state") });
+    const job = await jobService.create({ ...BASE, propertyId: propId });
     expect(job.status).toBe("pending");
     expect(job.verified).toBe(false);
     expect(job.homeownerSigned).toBe(false);
@@ -309,11 +315,14 @@ describe.skipIf(!deployed)("createInviteToken / getJobByInviteToken — token li
   });
 
   it("redeemInviteToken signs the job and returns it", async () => {
-    const signed = await jobService.redeemInviteToken(token, {
-      contractorName: "Pipe Masters Inc",
-      phone: "+15125551234",
-      email: "contact@pipemasters.example",
-    });
+    // The contractor signs, not the homeowner who issued the invite (M-2), so
+    // redeem as a separate identity with no role on the property.
+    const signed = await asIdentity(freshIdentity(), [jobService], () =>
+      jobService.redeemInviteToken(token, {
+        contractorName: "Pipe Masters Inc",
+        phone: "+15125551234",
+        email: "contact@pipemasters.example",
+      }));
     expect(signed.id).toBe(jobId);
     expect(signed.contractorSigned).toBe(true);
   });
@@ -322,9 +331,10 @@ describe.skipIf(!deployed)("createInviteToken / getJobByInviteToken — token li
 // ─── getJobSnapshotsForProperty ───────────────────────────────────────────────
 
 describe.skipIf(!deployed)("getJobSnapshotsForProperty — cross-canister snapshot IDL", () => {
-  const propId = pid("snapshots");
+  let propId = "";
 
   beforeAll(async () => {
+    propId = await registerTestProperty("JobSnapshots");
     await jobService.create({
       ...BASE,
       propertyId:    propId,

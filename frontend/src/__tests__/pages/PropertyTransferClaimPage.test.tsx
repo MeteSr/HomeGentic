@@ -28,7 +28,7 @@ vi.mock("@/services/property", async (importOriginal) => {
     ...actual,
     propertyService: {
       getPendingTransferByToken: mockGetPendingTransfer,
-      getProperty: mockGetProperty,
+      getPropertyByTransferToken: mockGetProperty,
       claimTransfer: mockClaimTransfer,
     },
   };

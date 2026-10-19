@@ -18,6 +18,10 @@ const UI = {
 
 // ─── Tier classification ──────────────────────────────────────────────────────
 
+// Tier B devices are linked through the IoT gateway's vendor-account flow
+// (security audit M9 / F-14): the gateway lists the devices the vendor account
+// owns and binds the chosen one, so a raw device ID can't be claimed. Keep in
+// sync with the sensor canister's verifiedOnlySources.
 const TIER_B: DeviceSource[] = ["Ecobee", "HoneywellHome", "LGThinQ", "GESmartHQ"];
 const TIER_C: DeviceSource[] = ["EnphaseEnvoy", "TeslaPowerwall"];
 
@@ -142,9 +146,9 @@ export function RegisterDeviceModal({ isOpen, onClose, onSuccess, propertyId }: 
     }
     setLoading(true);
     try {
-      const device = await sensorService.registerDevice(
-        propertyId, deviceId, form.source, form.name.trim(),
-      );
+      const device = isTierB && pickedDevice
+        ? await oAuth.register(pickedDevice.id, form.name.trim())
+        : await sensorService.registerDevice(propertyId, deviceId, form.source, form.name.trim());
       toast.success("Device registered");
       onSuccess(device);
       setForm({ ...BLANK });
@@ -225,7 +229,10 @@ export function RegisterDeviceModal({ isOpen, onClose, onSuccess, propertyId }: 
                 <>
                   <button
                     type="button"
-                    onClick={() => oAuth.start(TIER_B_PLATFORM[source])}
+                    onClick={() => {
+                      if (!propertyId) { toast.error("No property selected"); return; }
+                      void oAuth.start(TIER_B_PLATFORM[source], propertyId);
+                    }}
                     disabled={oAuth.loading}
                     style={{
                       display: "flex", alignItems: "center", gap: "0.5rem",
@@ -243,7 +250,7 @@ export function RegisterDeviceModal({ isOpen, onClose, onSuccess, propertyId }: 
                     </p>
                   )}
                   <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginTop: "0.4rem" }}>
-                    A popup will open to authorize HomeGentic to read your device list. No data is stored.
+                    A popup will open to authorize HomeGentic to read your device list. Only devices in your account can be linked.
                   </p>
                 </>
               )}

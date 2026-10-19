@@ -83,6 +83,7 @@ describe("auth IDL factory", () => {
       "getProfile",
       "getUserStats",
       "hasRole",
+      "isAdminPrincipal",
       "issueAgentSession",
       "recordLogin",
       "register",
@@ -98,7 +99,7 @@ describe("auth IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getMetrics", "getProfile", "getUserStats", "hasRole", "resolveAgentSession"]);
+    expect(queries).toEqual(["getMetrics", "getProfile", "getUserStats", "hasRole", "isAdminPrincipal", "resolveAgentSession"]);
   });
 
   it("UserRole variant includes Builder", () => {
@@ -152,6 +153,7 @@ describe("payment IDL factory", () => {
       "setBootstrapNonce",
       "stripeActivateSubscription",
       "stripeGrantAgentCredits",
+      "stripeRecordGift",
       "subscribe",
       "verifyStripeSession",
     ]);
@@ -199,6 +201,7 @@ describe("job IDL factory", () => {
       "getMyReferralJobs",
       "getPendingProposals",
       "getReferralJobs",
+      "getUnattestedJobIds",
       "linkContractor",
       "redeemInviteToken",
       "rejectJobProposal",
@@ -225,6 +228,7 @@ describe("job IDL factory", () => {
       "getMyReferralJobs",
       "getPendingProposals",
       "getReferralJobs",
+      "getUnattestedJobIds",
     ]);
   });
 
@@ -246,6 +250,7 @@ describe("property IDL factory", () => {
       "dismissNotifications",
       "getAccessRole",
       "getApprovals",
+      "getJobPropertyAddresses",
       "getManagerInviteByToken",
       "getMyManagedProperties",
       "getMyProperties",
@@ -256,6 +261,8 @@ describe("property IDL factory", () => {
       "getPendingTransferByToken",
       "getPendingVerifications",
       "getProperty",
+      "getPropertyByManagerInviteToken",
+      "getPropertyByTransferToken",
       "getPropertyLimitForTier",
       "getPropertyManagers",
       "getPropertyOwner",
@@ -298,6 +305,8 @@ describe("property IDL factory", () => {
       "getPendingTransferByToken",
       "getPendingVerifications",
       "getProperty",
+      "getPropertyByManagerInviteToken",
+      "getPropertyByTransferToken",
       "getPropertyLimitForTier",
       "getPropertyManagers",
       "getPropertyOwner",
@@ -630,8 +639,12 @@ describe("sensor IDL factory", () => {
       "getDevicesForProperty",
       "getEventsForProperty",
       "getPendingAlerts",
+      "getVerifiedOnlySources",
       "recordEvent",
+      "recordEventFor",
       "registerDevice",
+      "registerVerifiedDevice",
+      "setVerifiedOnlySources",
     ]);
   });
 
@@ -644,7 +657,7 @@ describe("sensor IDL factory", () => {
     // getEventsForProperty and getPendingAlerts use msg.caller (M-07 ownership check)
     // so they are update calls, not queries. getDevicesForProperty is a
     // composite query (M9: live property-role check against the property canister).
-    expect(queries).toEqual([]);
+    expect(queries).toEqual(["getVerifiedOnlySources"]);
     expect(svc.getDevicesForProperty.mode).toEqual(["composite_query"]);
   });
 

@@ -38,6 +38,10 @@ export interface Job {
   photos: string[];
   createdAt: number;         // ms
   sourceQuoteId?: string;    // set when job was sourced via a HomeGentic quote request
+  /** R2: dual-signed, but the contractor's profile was not verified when they
+   *  signed. On-chain scores, certificates and reports don't count it as a
+   *  verified job; the frontend score excludes it too. */
+  contractorUnverified?: boolean;
 }
 
 export interface InvitePreview {
@@ -118,6 +122,20 @@ function createJobService() {
     return _actor;
   }
 
+  /** R2: flag jobs whose contractor signature came from an unverified
+   *  contractor profile (job.getUnattestedJobIds). Best effort: on failure
+   *  the jobs are returned unflagged. */
+  async function markUnattested(a: any, propertyId: string, jobs: Job[]): Promise<Job[]> {
+    if (!jobs.some((j) => j.verified && !j.isDiy)) return jobs;
+    try {
+      const ids = new Set<string>((await a.getUnattestedJobIds(propertyId)) as string[]);
+      if (ids.size === 0) return jobs;
+      return jobs.map((j) => (ids.has(j.id) ? { ...j, contractorUnverified: true } : j));
+    } catch {
+      return jobs;
+    }
+  }
+
   return {
   async getByProperty(propertyId: string): Promise<Job[]> {
     if (typeof window !== "undefined" && (window as any).__e2e_jobs) {
@@ -126,7 +144,7 @@ function createJobService() {
     }
     const a = await getActor();
     const result = await a.getJobsForProperty(propertyId);
-    if ("ok" in result) return (result.ok as any[]).map(fromJob);
+    if ("ok" in result) return markUnattested(a, propertyId, (result.ok as any[]).map(fromJob));
     throw new Error(Object.keys(result.err)[0]);
   },
 
@@ -168,7 +186,7 @@ function createJobService() {
         properties.map(async (p) => {
           const a = await getActor();
           const result = await a.getJobsForProperty(String(p.id));
-          if ("ok" in result) return (result.ok as any[]).map(fromJob);
+          if ("ok" in result) return markUnattested(a, String(p.id), (result.ok as any[]).map(fromJob));
           return [] as Job[];
         })
       );

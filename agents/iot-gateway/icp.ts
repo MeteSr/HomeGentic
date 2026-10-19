@@ -12,7 +12,8 @@
 import { HttpAgent, Actor, ActorSubclass } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { IDL } from "@icp-sdk/core/candid";
-import type { SensorEventType, SensorReading } from "./types";
+import { Principal } from "@icp-sdk/core/principal";
+import type { DeviceSourceName, SensorEventType, SensorReading } from "./types";
 import { logger } from "./logger";
 
 // ── IDL for the sensor canister ──────────────────────────────────────────────
@@ -34,30 +35,32 @@ const SensorEventTypeIDL = IDL.Variant({
   ApplianceMaintenance: IDL.Null,
 });
 
+const DeviceSourceIDL = IDL.Variant({
+  Nest: IDL.Null,
+  Ecobee: IDL.Null,
+  MoenFlo: IDL.Null,
+  Manual: IDL.Null,
+  RingAlarm: IDL.Null,
+  HoneywellHome: IDL.Null,
+  RheemEcoNet: IDL.Null,
+  Sense: IDL.Null,
+  EmporiaVue: IDL.Null,
+  Rachio: IDL.Null,
+  SmartThings: IDL.Null,
+  HomeAssistant: IDL.Null,
+  EnphaseEnvoy: IDL.Null,
+  TeslaPowerwall: IDL.Null,
+  LGThinQ: IDL.Null,
+  GESmartHQ: IDL.Null,
+  SolarEdge: IDL.Null,
+});
+
 const SensorDeviceIDL = IDL.Record({
   id: IDL.Text,
   propertyId: IDL.Text,
   homeowner: IDL.Principal,
   externalDeviceId: IDL.Text,
-  source: IDL.Variant({
-    Nest: IDL.Null,
-    Ecobee: IDL.Null,
-    MoenFlo: IDL.Null,
-    Manual: IDL.Null,
-    RingAlarm: IDL.Null,
-    HoneywellHome: IDL.Null,
-    RheemEcoNet: IDL.Null,
-    Sense: IDL.Null,
-    EmporiaVue: IDL.Null,
-    Rachio: IDL.Null,
-    SmartThings: IDL.Null,
-    HomeAssistant: IDL.Null,
-    EnphaseEnvoy: IDL.Null,
-    TeslaPowerwall: IDL.Null,
-    LGThinQ: IDL.Null,
-    GESmartHQ: IDL.Null,
-    SolarEdge: IDL.Null,
-  }),
+  source: DeviceSourceIDL,
   name: IDL.Text,
   registeredAt: IDL.Int,
   isActive: IDL.Bool,
@@ -85,7 +88,7 @@ const SensorEventIDL = IDL.Record({
 
 const ErrorIDL = IDL.Variant({
   NotFound: IDL.Null,
-  Unauthorized: IDL.Null,
+  NotAuthorized: IDL.Null,   // the canister's tag (was mis-spelled Unauthorized)
   InvalidInput: IDL.Text,
   AlreadyExists: IDL.Null,
 });
@@ -95,7 +98,32 @@ const ResultEventIDL = IDL.Variant({
   err: ErrorIDL,
 });
 
+const ResultDeviceIDL = IDL.Variant({
+  ok: SensorDeviceIDL,
+  err: ErrorIDL,
+});
+
 const sensorIdlFactory: IDL.InterfaceFactory = (_idl) => IDL.Service({
+  // M9 / F-14: platform- and vendor-account-scoped ingestion.
+  recordEventFor: IDL.Func(
+    [
+      DeviceSourceIDL,    // source
+      IDL.Text,           // vendorAccountId ("" = not named by the channel)
+      IDL.Text,           // externalDeviceId
+      SensorEventTypeIDL, // eventType
+      IDL.Float64,        // value
+      IDL.Text,           // unit
+      IDL.Text,           // rawPayload
+    ],
+    [ResultEventIDL],
+    []
+  ),
+  // M9 / F-14: bind a device the gateway verified through the vendor account.
+  registerVerifiedDevice: IDL.Func(
+    [IDL.Principal, IDL.Text, IDL.Text, DeviceSourceIDL, IDL.Text, IDL.Text],
+    [ResultDeviceIDL],
+    []
+  ),
   recordEvent: IDL.Func(
     [
       IDL.Text,           // externalDeviceId
@@ -112,6 +140,23 @@ const sensorIdlFactory: IDL.InterfaceFactory = (_idl) => IDL.Service({
 // ── Actor interface ───────────────────────────────────────────────────────────
 
 interface SensorActor {
+  recordEventFor(
+    source: Record<string, null>,
+    vendorAccountId: string,
+    externalDeviceId: string,
+    eventType: SensorEventType,
+    value: number,
+    unit: string,
+    rawPayload: string
+  ): Promise<{ ok: unknown } | { err: unknown }>;
+  registerVerifiedDevice(
+    owner: Principal,
+    propertyId: string,
+    externalDeviceId: string,
+    source: Record<string, null>,
+    vendorAccountId: string,
+    name: string
+  ): Promise<{ ok: unknown } | { err: unknown }>;
   recordEvent(
     externalDeviceId: string,
     eventType: SensorEventType,
@@ -177,12 +222,29 @@ export type RecordResult =
   | { success: true; eventId: string; jobId?: string }
   | { success: false; error: string };
 
+function errText(err: unknown): string {
+  const errVariant = err as Record<string, unknown>;
+  const errKey = Object.keys(errVariant)[0] ?? "Unknown";
+  const errVal = errVariant[errKey];
+  return errKey === "InvalidInput" ? `InvalidInput: ${errVal}` : errKey;
+}
+
+/**
+ * Record a reading for the device registered for `source` (M9 / F-14: a
+ * platform's events never land on another platform's or a #Manual device).
+ * `vendorAccountId` is the vendor account the event was received under, or
+ * "" when the receiving channel doesn't name one.
+ */
 export async function recordSensorEvent(
-  reading: SensorReading
+  reading: SensorReading,
+  source: DeviceSourceName,
+  vendorAccountId = "",
 ): Promise<RecordResult> {
   try {
     const actor = await getSensorActor();
-    const result = await actor.recordEvent(
+    const result = await actor.recordEventFor(
+      { [source]: null },
+      vendorAccountId,
       reading.externalDeviceId,
       reading.eventType,
       reading.value,
@@ -201,15 +263,80 @@ export async function recordSensorEvent(
         jobId: ev.jobId.length > 0 ? ev.jobId[0] : undefined,
       };
     } else {
-      const errVariant = result.err as Record<string, unknown>;
-      const errKey = Object.keys(errVariant)[0] ?? "Unknown";
-      const errVal = errVariant[errKey];
-      const errMsg =
-        errKey === "InvalidInput" ? `InvalidInput: ${errVal}` : errKey;
-      return { success: false, error: errMsg };
+      return { success: false, error: errText(result.err) };
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return { success: false, error: msg };
   }
+}
+
+// ── Verified device registration (M9 / F-14) ─────────────────────────────────
+
+export type RegisterResult =
+  | { success: true; device: { id: string; propertyId: string; homeowner: string; externalDeviceId: string; source: string; name: string; registeredAt: string; isActive: boolean } }
+  | { success: false; error: string };
+
+/**
+ * Bind a device the gateway proved belongs to the homeowner's vendor account
+ * (it was in the vendor API's device list for their OAuth token). The sensor
+ * canister re-checks `owner`'s write access to the property.
+ */
+export async function registerVerifiedDevice(
+  owner: string,
+  propertyId: string,
+  externalDeviceId: string,
+  source: DeviceSourceName,
+  vendorAccountId: string,
+  name: string,
+): Promise<RegisterResult> {
+  try {
+    const actor = await getSensorActor();
+    const result = await actor.registerVerifiedDevice(
+      Principal.fromText(owner), propertyId, externalDeviceId, { [source]: null }, vendorAccountId, name,
+    );
+    if ("ok" in result) {
+      const d = result.ok as {
+        id: string; propertyId: string; homeowner: Principal; externalDeviceId: string;
+        source: Record<string, null>; name: string; registeredAt: bigint; isActive: boolean;
+      };
+      return {
+        success: true,
+        device: {
+          id: d.id, propertyId: d.propertyId, homeowner: d.homeowner.toText(), externalDeviceId: d.externalDeviceId,
+          source: Object.keys(d.source)[0] ?? source, name: d.name,
+          registeredAt: String(d.registeredAt), isActive: d.isActive,
+        },
+      };
+    }
+    return { success: false, error: errText(result.err) };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// ── Auth canister: agent-session resolution ──────────────────────────────────
+
+const authIdlFactory: IDL.InterfaceFactory = (_idl) => IDL.Service({
+  resolveAgentSession: IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
+});
+
+let _authActor: ActorSubclass<{ resolveAgentSession(t: string): Promise<[] | [Principal]> }> | null = null;
+
+/**
+ * Resolve an `x-agent-session` token (issued by auth.issueAgentSession() to the
+ * signed-in caller) to its HomeGentic principal, or null. Needs CANISTER_ID_AUTH.
+ */
+export async function resolveAgentSession(token: string): Promise<string | null> {
+  if (!_authActor) {
+    const canisterId = process.env.CANISTER_ID_AUTH;
+    if (!canisterId) throw new Error("CANISTER_ID_AUTH environment variable is not set");
+    const agent = await HttpAgent.create({
+      host: process.env.ICP_HOST ?? "http://localhost:4943",
+      shouldFetchRootKey: process.env.NODE_ENV !== "production",
+    });
+    _authActor = Actor.createActor(authIdlFactory, { agent, canisterId });
+  }
+  const res = await _authActor.resolveAgentSession(token);
+  return res[0] ? res[0].toText() : null;
 }

@@ -15,7 +15,7 @@
  *         allowlist redirect URLs (F-3)
  * WSEC.9  webhook uses constructEventAsync; cancel_at_period_end doesn't
  *         downgrade; credits granted from checkout.session.completed (F-7)
- * WSEC.10 bidtolist email routes need a session and ignore body recipients (X-2)
+ * WSEC.10 bidtolist email routes ignore body recipients (X-2)
  * WSEC.11 Stripe error text isn't echoed to the client (F-11)
  * WSEC.12 /admin/cycle-status needs ADMIN_API_KEY (X-1)
  */
@@ -282,17 +282,20 @@ describe("WSEC.9 — webhook", () => {
 });
 
 describe("WSEC.10 — bidtolist email routes", () => {
-  it("401 without a session", async () => {
+  // Bid to List users have no HomeGentic session; the routes are bound to
+  // on-chain state instead (see bidtolistWorker.test.ts).
+  it("no HomeGentic session is required, but body recipients are never used", async () => {
     const res = await worker.fetch(req("/api/bidtolist/email/proposal-result",
       { agentEmail: "victim@corp.test", agentName: "<a href=x>", city: "Austin", won: true }), makeEnv(), ctx);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(400);   // requestId is required
     expect(mockResendSend).not.toHaveBeenCalled();
   });
 
-  it("a body-supplied agentEmail is never used as a recipient", async () => {
+  it("with only identifiers and no canisters wired, nothing is sent", async () => {
     const res = await worker.fetch(req("/api/bidtolist/email/proposal-result",
-      { agentEmail: "victim@corp.test", agentName: "x", city: "Austin", won: true }, SESSION), makeEnv(), ctx);
-    expect(res.status).toBe(400);   // requestId + agentPrincipal are required
+      { requestId: "REQ_1", agentEmail: "victim@corp.test" }), makeEnv(), ctx);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, skipped: true });
     expect(mockResendSend).not.toHaveBeenCalled();
   });
 });

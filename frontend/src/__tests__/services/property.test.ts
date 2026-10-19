@@ -16,6 +16,8 @@ const mockActor = {
   cancelTransfer:            vi.fn(),
   getPendingTransfer:        vi.fn(),
   getPendingTransferByToken: vi.fn(),
+  getPropertyByTransferToken: vi.fn(),
+  getPropertyByManagerInviteToken: vi.fn(),
   getOwnershipHistory:       vi.fn(),
   getPropertyOwner:          vi.fn(),
   searchByAddress:           vi.fn(),
@@ -370,6 +372,27 @@ describe("propertyService", () => {
       expect(result!.token).toBe("1735689600000000000-1");
       expect(result!.from).toBe("from-principal");
       expect(result!.expiresAt).toBeGreaterThan(result!.initiatedAt);
+    });
+  });
+
+  // ── token-gated property lookups (claim pages) ──────────────────────────────
+  describe("getPropertyByTransferToken / getPropertyByManagerInviteToken", () => {
+    it("returns null for an unknown or expired token", async () => {
+      mockActor.getPropertyByTransferToken.mockResolvedValue([]);
+      mockActor.getPropertyByManagerInviteToken.mockResolvedValue([]);
+      expect(await propertyService.getPropertyByTransferToken("bad")).toBeNull();
+      expect(await propertyService.getPropertyByManagerInviteToken("bad")).toBeNull();
+    });
+
+    it("maps the property, address included, and passes the token through", async () => {
+      mockActor.getPropertyByTransferToken.mockResolvedValue([makeRawProperty()]);
+      mockActor.getPropertyByManagerInviteToken.mockResolvedValue([makeRawProperty()]);
+      const t = await propertyService.getPropertyByTransferToken("tok-1");
+      const m = await propertyService.getPropertyByManagerInviteToken("tok-2");
+      expect(mockActor.getPropertyByTransferToken).toHaveBeenCalledWith("tok-1");
+      expect(mockActor.getPropertyByManagerInviteToken).toHaveBeenCalledWith("tok-2");
+      expect(t!.address).toBe(makeRawProperty().address);
+      expect(m!.address).toBe(makeRawProperty().address);
     });
   });
 

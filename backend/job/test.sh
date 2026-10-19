@@ -34,6 +34,9 @@ echo "Contractor test principal: $CONTRACTOR_PRINCIPAL"
 # affected by stale wiring from a previous run.
 dfx canister call $CANISTER setPropertyCanisterId '("")' > /dev/null 2>&1 || true
 dfx canister call $CANISTER setPaymentCanisterId  '("")' > /dev/null 2>&1 || true
+# R2: linkContractor requires a contractor profile when the contractor canister
+# is wired; clear it so steps before [518-setup] use the unwired fallback.
+dfx canister call $CANISTER setContractorCanisterId '("")' > /dev/null 2>&1 || true
 
 # ── Register a test property so cross-canister auth checks have a real target ─
 # When the job canister has propCanisterId wired (e.g. after deploy.sh), calls

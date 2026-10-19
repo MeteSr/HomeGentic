@@ -374,13 +374,24 @@ persistent actor Report {
 
   /// Fetch every job for the property from the job canister (report must be a
   /// trusted canister there). null = not wired or call failed.
+  ///
+  /// R2: jobs whose contractor signature came from an unverified contractor
+  /// profile (job.getUnattestedJobIds) come back with verified = false, so
+  /// they don't count as verified in snapshots or risk profiles.
   private func fetchJobs(propertyId : Text) : async ?[JobRec] {
     if (Text.size(riskJobCanisterId) == 0) return null;
     let jobActor = actor(riskJobCanisterId) : actor {
-      getJobsForProperty : (Text) -> async { #ok : [JobRec]; #err : Any };
+      getJobsForProperty  : (Text) -> async { #ok : [JobRec]; #err : Any };
+      getUnattestedJobIds : query (Text) -> async [Text];
     };
     try {
-      switch (await jobActor.getJobsForProperty(propertyId)) { case (#ok(js)) ?js; case (#err(_)) null }
+      let js = switch (await jobActor.getJobsForProperty(propertyId)) { case (#ok(js)) js; case (#err(_)) return null };
+      let unattested = await jobActor.getUnattestedJobIds(propertyId);
+      if (unattested.size() == 0) return ?js;
+      ?Array.map<JobRec, JobRec>(js, func(j) {
+        if (not j.verified or Option.isNull(Array.find<Text>(unattested, func(id) { id == j.id }))) j
+        else { { j with verified = false } }
+      })
     } catch (_) { null }
   };
 
@@ -1034,6 +1045,10 @@ persistent actor Report {
 
   private var sensorCanisterId : Text = "";
   private var riskJobCanisterId : Text = "";
+  /// R2: market canister — issueCert reads the on-chain score from
+  /// market.computePropertyScore (report must be wired there with
+  /// market.setReportCanisterId).
+  private var marketCanisterId : Text = "";
 
   private let riskProfiles = Map.empty<Text, RiskProfile>();
 
@@ -1302,6 +1317,13 @@ persistent actor Report {
     #ok(())
   };
 
+  /// R2: wire the market canister (on-chain certificate score). Admin only.
+  public shared(msg) func setMarketCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    marketCanisterId := id;
+    #ok(())
+  };
+
   /// Wire the report canister to the job canister for risk profile queries. Admin only.
   public shared(msg) func setRiskJobCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
@@ -1313,17 +1335,20 @@ persistent actor Report {
 
   /// Issue an on-chain score certificate.
   ///
-  /// H-4/J-2: owner (or admin) only. The stored payload is built here, not
-  /// taken from the caller: property facts and the verification level come
-  /// from the property canister, verified-job facts from the job canister's
-  /// getCertificationData. The caller's `payload` (the client-computed score)
-  /// is stored only as an escaped string under "selfReported", so it can't
-  /// add or override any on-chain field. Cert IDs are random UUIDs.
+  /// H-4/J-2/R2: owner (or admin) only. Everything stored is read on-chain:
+  /// property facts and the verification level from the property canister,
+  /// verified-job facts from job.getCertificationData, and the score from
+  /// market.computePropertyScore (which reads the job canister itself). The
+  /// caller's `payload` is ignored apart from the size check — it stays in the
+  /// signature for Candid compatibility. Jobs whose contractor signature came
+  /// from an unverified contractor profile are excluded by the job canister.
   ///
-  /// Stored JSON (v2):
-  ///   {"v":2,"propertyId","address","city","state","zipCode",
+  /// Stored JSON (v3):
+  ///   {"v":3,"propertyId","address","city","state","zipCode",
   ///    "verificationLevel","verifiedJobCount","verifiedKeySystems",
-  ///    "meetsStructural","issuedAt"(ms),"selfReported":"<caller JSON>"}
+  ///    "meetsStructural","score":<nat>|null,"certified"(score>=88 and
+  ///    meetsStructural),"issuedAt"(ms)}
+  /// v2 certificates (score only under "selfReported") stay readable as-is.
   public shared(msg) func issueCert(propertyId: Text, payload: Text) : async Result.Result<Text, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(propertyId) == 0 or Text.size(propertyId) > 100) return #err(#InvalidInput("invalid propertyId"));
@@ -1336,6 +1361,7 @@ persistent actor Report {
     if (prop.owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
 
     if (Text.size(riskJobCanisterId) == 0) return #err(#InvalidInput("Job canister not configured"));
+    if (Text.size(marketCanisterId) == 0) return #err(#InvalidInput("Score service not configured"));
     let jobActor = actor(riskJobCanisterId) : actor {
       getCertificationData : query (Text) -> async {
         verifiedJobCount : Nat; verifiedKeySystems : [Text]; meetsStructural : Bool;
@@ -1343,6 +1369,12 @@ persistent actor Report {
     };
     let cert = try { await jobActor.getCertificationData(propertyId) } catch (_) {
       return #err(#InvalidInput("Could not load job history; try again later"))
+    };
+    let marketActor = actor(marketCanisterId) : actor {
+      computePropertyScore : (Text) -> async ?Nat;
+    };
+    let score : ?Nat = try { await marketActor.computePropertyScore(propertyId) } catch (_) {
+      return #err(#InvalidInput("Could not compute the score; try again later"))
     };
 
     let certId = Uuid.fromBlob(await Random.blob());
@@ -1353,10 +1385,11 @@ persistent actor Report {
       return #err(#InvalidInput("Certificate limit reached for this property; try again tomorrow"));
 
     var systems = "";
-    for (k in cert.verifiedKeySystems.vals()) {
+    for (k in cert.verifiedKeySystems.values()) {
       systems #= (if (systems == "") "" else ",") # jsonStr(k);
     };
-    let json = "{\"v\":2"
+    let certified = switch (score) { case (?n) { n >= 88 and cert.meetsStructural }; case null { false } };
+    let json = "{\"v\":3"
       # ",\"propertyId\":"        # jsonStr(propertyId)
       # ",\"address\":"           # jsonStr(prop.address)
       # ",\"city\":"              # jsonStr(prop.city)
@@ -1366,8 +1399,9 @@ persistent actor Report {
       # ",\"verifiedJobCount\":"  # Nat.toText(cert.verifiedJobCount)
       # ",\"verifiedKeySystems\":[" # systems # "]"
       # ",\"meetsStructural\":"   # (if (cert.meetsStructural) "true" else "false")
+      # ",\"score\":"             # (switch (score) { case (?n) Nat.toText(n); case null "null" })
+      # ",\"certified\":"         # (if (certified) "true" else "false")
       # ",\"issuedAt\":"          # Int.toText(now / 1_000_000)
-      # ",\"selfReported\":"      # jsonStr(payload)
       # "}";
 
     let record : CertRecord = {
@@ -1380,7 +1414,8 @@ persistent actor Report {
     #ok(certId)
   };
 
-  /// Verify a cert by id. Returns the stored payload (JSON) or null.
+  /// Verify a cert by id. Returns the stored payload (JSON) or null. For v3
+  /// certificates every field, including the score, was computed on-chain.
   /// Public query — no authentication required; safe for lenders to call.
   public query func verifyCert(certId: Text) : async ?Text {
     switch (Map.get(certs, Text.compare, certId)) {

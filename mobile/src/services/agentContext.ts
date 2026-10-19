@@ -97,7 +97,7 @@ export async function loadContractorContext(tier: PlanTier, limits: PlanLimits):
     getPendingSignatureJobs().catch(() => []),
     getMyReferralJobs().catch(() => [] as Job[]),
   ]);
-  const addresses = await getStreetAddresses([...pending.map((p) => p.propertyAddress), ...referral.map((j) => j.propertyId)]).catch(() => ({} as Record<string, string>));
+  const addresses = await getStreetAddresses([...pending.map((p) => p.id), ...referral.map((j) => j.id)]).catch(() => ({} as Record<string, string>));
   const ledger = buildLedger(referral, tier, addresses);
   return {
     role: "Contractor",

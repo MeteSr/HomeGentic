@@ -166,7 +166,7 @@ export async function pollOnce(state: TokenState): Promise<void> {
     const eventName = Object.keys(reading.eventType)[0];
     logger.info("ecobee-poller", eventName, { deviceId: therm.identifier, deviceName: therm.name });
 
-    const result = await recordSensorEvent(reading);
+    const result = await recordSensorEvent(reading, "Ecobee");
     if (result.success) {
       logger.info("ecobee-poller", "recorded", {
         eventId: result.eventId,

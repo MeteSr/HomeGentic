@@ -96,7 +96,7 @@ export async function pollOnce(config: SolarEdgeConfig): Promise<void> {
   const eventName = Object.keys(reading.eventType)[0];
   logger.info("solaredge-poller", eventName, { siteId: config.siteId, powerW: currentPowerW });
 
-  const result = await recordSensorEvent(reading);
+  const result = await recordSensorEvent(reading, "SolarEdge");
   if (result.success) {
     logger.info("solaredge-poller", "recorded", {
       eventId: result.eventId,

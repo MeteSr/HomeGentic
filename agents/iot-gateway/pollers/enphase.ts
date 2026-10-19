@@ -124,7 +124,7 @@ export async function pollOnce(config: EnphaseConfig): Promise<void> {
     faultedInverters,
   });
 
-  const result = await recordSensorEvent(reading);
+  const result = await recordSensorEvent(reading, "EnphaseEnvoy");
   if (result.success) {
     logger.info("enphase-poller", "recorded", {
       eventId: result.eventId,

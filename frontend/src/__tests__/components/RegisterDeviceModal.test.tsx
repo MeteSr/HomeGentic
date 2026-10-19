@@ -26,6 +26,7 @@ vi.mock("@/services/sensor", async (importOriginal) => {
 const { mockOAuth } = vi.hoisted(() => ({
   mockOAuth: {
     start: vi.fn(),
+    register: vi.fn(),
     devices: [] as any[],
     loading: false,
     error: null as string | null,
@@ -140,7 +141,21 @@ describe("RegisterDeviceModal — Tier B (OAuth sources)", () => {
     expect(screen.getByRole("button", { name: "Register Device" })).toBeDisabled();
 
     fireEvent.click(screen.getByText("Connect Ecobee Account"));
-    expect(mockOAuth.start).toHaveBeenCalledWith("ecobee");
+    expect(mockOAuth.start).toHaveBeenCalledWith("ecobee", "prop-1");
+  });
+
+  it("links the picked device through the gateway, never with a raw registerDevice call (M9 / F-14)", async () => {
+    mockOAuth.devices = [{ id: "ecobee-1", name: "Ecobee Downstairs", type: "thermostat" }];
+    const device = makeDevice({ id: "DEV_9", externalDeviceId: "ecobee-1", source: "Ecobee" as any });
+    mockOAuth.register.mockResolvedValue(device);
+    const { onSuccess } = renderModal();
+    fireEvent.change(screen.getByLabelText("Device Type"), { target: { value: "Ecobee" } });
+    fireEvent.click(screen.getByText("Ecobee Downstairs"));
+    fireEvent.click(screen.getByRole("button", { name: "Register Device" }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(device));
+    expect(mockOAuth.register).toHaveBeenCalledWith("ecobee-1", "Ecobee Downstairs");
+    expect(mockRegisterDevice).not.toHaveBeenCalled();
   });
 
   it("populates name/id when a device is picked from the OAuth list", () => {

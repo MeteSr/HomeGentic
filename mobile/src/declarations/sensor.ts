@@ -63,6 +63,26 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: SensorDevice, err: Error })],
       []
     ),
+    // M9 / F-14: gateway-only — binds a device whose ownership the IoT gateway
+    // verified through the vendor account (owner, propertyId, externalDeviceId,
+    // source, vendorAccountId, name).
+    registerVerifiedDevice: IDL.Func(
+      [IDL.Principal, IDL.Text, IDL.Text, DeviceSource, IDL.Text, IDL.Text],
+      [IDL.Variant({ ok: SensorDevice, err: Error })],
+      []
+    ),
+    // Gateway-only: (source, vendorAccountId, externalDeviceId, eventType, value, unit, rawPayload)
+    recordEventFor: IDL.Func(
+      [DeviceSource, IDL.Text, IDL.Text, SensorEventType, IDL.Float64, IDL.Text, IDL.Text],
+      [IDL.Variant({ ok: SensorEvent, err: Error })],
+      []
+    ),
+    setVerifiedOnlySources: IDL.Func(
+      [IDL.Vec(DeviceSource)],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    getVerifiedOnlySources: IDL.Func([], [IDL.Vec(DeviceSource)], ["query"]),
     deactivateDevice: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],

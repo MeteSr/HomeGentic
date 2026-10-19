@@ -1,10 +1,10 @@
 /**
- * AI Proxy Canister Service
+ * AI Proxy Service
  *
- * Replaces relay fetch calls for deterministic endpoints that moved on-chain:
- *   getPriceBenchmark, instantForecast, importPermits,
- *   sendEmail, sendInviteEmail, emailUsage,
- *   checkReport, lookupYearBuilt, requestReport, health
+ * Canister (pure computation / stubs): getPriceBenchmark, instantForecast,
+ *   checkReport, lookupYearBuilt, requestReport.
+ * Voice Worker (keyed third-party APIs, moved off-chain): importPermits,
+ *   lookupPropertyDetails (ATTOM), sendInviteEmail, sendBrokerLead (Resend).
  *
  * The 6 non-deterministic Claude AI endpoints remain in the Node.js relay.
  */
@@ -12,7 +12,24 @@
 import { Actor } from "@icp-sdk/core/agent";
 import { getAgent } from "./actor";
 import { idlFactory } from "@/declarations/ai_proxy";
+import { voiceAgentFetch } from "./voiceAgentHeaders";
 export { idlFactory };
+
+// M-6: the ATTOM / OpenPermit / Resend keys live only in the voice Worker
+// (never in canister memory), so those calls go to the Worker with the
+// caller's x-agent-session; the Worker enforces per-user quotas.
+const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
+
+async function workerPost(path: string, body: unknown): Promise<{ ok: boolean; data: any }> {
+  const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  let data: any = null;
+  try { data = await resp.json(); } catch { /* non-JSON error page */ }
+  return { ok: resp.ok, data };
+}
 
 const AI_PROXY_CANISTER_ID = (process.env as any).AI_PROXY_CANISTER_ID || "";
 
@@ -69,46 +86,51 @@ export const aiProxyService = {
     }
   },
 
-  /** Returns { source, data } JSON or empty string on error/missing canister. */
+  /** Returns { source, data } JSON or empty string on error. */
   async importPermits(
     address: string,
     city:    string,
     state:   string,
     zip:     string,
   ): Promise<string> {
-    const actor = await getActor();
-    if (!actor) return "";
     try {
-      const result = await actor.importPermits(address, city, state, zip);
-      if ("ok" in result) return result.ok as string;
-      return "";
+      const { ok, data } = await workerPost("/api/permits/import", { address, city, state, zip });
+      return ok && data ? JSON.stringify(data) : "";
     } catch {
       return "";
     }
   },
 
+  /**
+   * @deprecated Arbitrary-recipient email is no longer available: the
+   * ai_proxy canister no longer sends email and the Worker only sends
+   * templated mail to server-derived recipients. Use sendBrokerLead /
+   * sendInviteEmail.
+   */
   async sendEmail(
-    to: string, subject: string, html: string,
-    text?: string, replyTo?: string, from?: string,
+    _to: string, _subject: string, _html: string,
+    _text?: string, _replyTo?: string, _from?: string,
   ): Promise<{ id?: string; error?: string }> {
-    const actor = await getActor();
-    if (!actor) return { error: "ai_proxy canister not configured" };
+    return { error: "sendEmail is no longer supported; use a templated email route" };
+  },
+
+  /** Local-broker consultation request, sent by the Worker to its fixed broker inbox. */
+  async sendBrokerLead(params: {
+    name: string; email: string; phone?: string; propertyAddress?: string;
+  }): Promise<{ sent?: boolean; error?: string }> {
     try {
-      const result = await actor.sendEmail(
-        to, subject, html,
-        text     ? [text]    : [],
-        replyTo  ? [replyTo] : [],
-        from     ? [from]    : [],
-      );
-      if ("ok" in result) {
-        try { return JSON.parse(result.ok); } catch { return { id: "sent" }; }
-      }
-      return { error: String(result.err) };
+      const { ok, data } = await workerPost("/api/email/broker-lead", params);
+      return ok ? { sent: true } : { error: data?.error ?? "Email failed" };
     } catch (e: any) {
       return { error: e?.message ?? "Unknown error" };
     }
   },
 
+  /**
+   * Email the co-sign link to a contractor. Only the invite token (taken from
+   * verifyUrl) and recipient are sent; the Worker builds the message from the
+   * job canister's invite record, so the other params are ignored.
+   */
   async sendInviteEmail(params: {
     to: string;
     contractorName?: string;
@@ -117,19 +139,11 @@ export const aiProxyService = {
     amount?: number;
     verifyUrl: string;
   }): Promise<{ sent?: boolean; error?: string }> {
-    const actor = await getActor();
-    if (!actor) return { error: "ai_proxy canister not configured" };
+    const token = params.verifyUrl.split("/verify/")[1]?.split(/[?#/]/)[0] ?? "";
+    if (!token) return { error: "invalid verify link" };
     try {
-      const result = await actor.sendInviteEmail(
-        params.to,
-        params.contractorName ? [params.contractorName] : [],
-        params.propertyAddress,
-        params.serviceType,
-        params.amount != null ? [BigInt(Math.round(params.amount))] : [],
-        params.verifyUrl,
-      );
-      if ("ok" in result) return { sent: true };
-      return { error: String(result.err) };
+      const { ok, data } = await workerPost("/api/email/contractor-invite", { token, to: params.to });
+      return ok ? { sent: true } : { error: data?.error ?? "Email failed" };
     } catch (e: any) {
       return { error: e?.message ?? "Unknown error" };
     }
@@ -158,9 +172,9 @@ export const aiProxyService = {
   },
 
   /**
-   * Fetch property details from ATTOM Data API (via ai_proxy canister HTTP outcall).
-   * Returns null fields when the canister key is not configured or the address is
-   * not found — callers should treat all fields as optional and allow user override.
+   * Fetch property details from ATTOM Data API (via the voice Worker, which
+   * holds the key). Returns null fields when the lookup isn't configured, the
+   * quota is used up, or the address is not found — callers should treat all fields as optional and allow user override.
    */
   async lookupPropertyDetails(
     address: string,
@@ -176,12 +190,9 @@ export const aiProxyService = {
     propertyType: string | null;
   }> {
     const empty = { yearBuilt: null, grossSqFt: null, bedrooms: null, bathrooms: null, lotSizeAcres: null, propertyType: null };
-    const actor = await getActor();
-    if (!actor) return empty;
     try {
-      const result = await actor.lookupPropertyDetails(address, city, state, zip);
-      if (!("ok" in result)) return empty;
-      const data = JSON.parse(result.ok as string);
+      const { ok, data } = await workerPost("/api/property/details", { address, city, state, zip });
+      if (!ok || !data) return empty;
       const prop = data?.property?.[0];
       if (!prop) return empty;
 

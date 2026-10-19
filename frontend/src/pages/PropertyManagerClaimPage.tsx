@@ -63,7 +63,7 @@ export default function PropertyManagerClaimPage() {
 
         let property: Property | null = null;
         try {
-          property = await propertyService.getProperty(invite.propertyId);
+          property = await propertyService.getPropertyByManagerInviteToken(token);
         } catch { /* property details unavailable — degrade gracefully */ }
 
         if (!cancelled) setPage({ status: "ready", invite, property });

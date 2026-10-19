@@ -27,6 +27,7 @@ import type { ListingBidRequest, ListingProposal } from "@/services/listing";
 import { agentService } from "@/services/agent";
 import { setAgentForTesting } from "@/services/actor";
 import { TEST_PRINCIPAL, testIdentity } from "./setup";
+import { registerTestProperty } from "./helpers";
 
 const CANISTER_ID = process.env.LISTING_CANISTER_ID || "";
 const AGENT_CANISTER_ID = process.env.AGENT_CANISTER_ID || "";
@@ -97,14 +98,15 @@ async function setUpCoBidder(seed: number, label: string): Promise<string> {
   return principal;
 }
 
-const RUN_ID = Date.now();
-function pid(label: string) { return `integ-listing-${label}-${RUN_ID}`; }
+// Only a property's owner may put it up for Bid to List (M6), so every
+// request below is for a property TEST_PRINCIPAL registers in beforeAll.
+let propId = "";
 
 // Future timestamps (ms)
 const TARGET_LIST = Date.now() + 30 * 24 * 60 * 60 * 1000;   // 30 days from now
 
 const BASE_REQUEST = {
-  propertyId:       pid("base"),
+  propertyId:       "",   // set to propId in beforeAll
   address:          "100 Integration Way",
   city:             "Tampa",
   county:           "Hillsborough",
@@ -153,6 +155,8 @@ async function submitThreeProposals(requestId: string) {
 // submitThreeProposals uses.
 beforeAll(async () => {
   if (!deployed) return;
+  propId = await registerTestProperty("Listing");
+  BASE_REQUEST.propertyId = propId;
   try {
     await agentService.register({
       name: "Test Principal Agent", brokerage: "Integration Test Realty",
@@ -173,46 +177,45 @@ beforeAll(async () => {
 
 describe.skipIf(!deployed)("createBidRequest — Candid serialization", () => {
   it("returns a request with a non-empty id", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("id") });
+    const req = await listingService.createBidRequest(BASE_REQUEST);
     expect(req.id).toBeTruthy();
     expect(typeof req.id).toBe("string");
   });
 
   it("propertyId is preserved", async () => {
-    const propId = pid("prop-id");
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: propId });
+    const req = await listingService.createBidRequest(BASE_REQUEST);
     expect(req.propertyId).toBe(propId);
   });
 
   it("homeowner principal matches the test identity", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("principal") });
+    const req = await listingService.createBidRequest(BASE_REQUEST);
     expect(req.homeowner).toBe(TEST_PRINCIPAL);
   });
 
   it("status starts as 'Open' and feePaid starts false", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("initial-status") });
+    const req = await listingService.createBidRequest(BASE_REQUEST);
     expect(req.status).toBe("Open");
     expect(req.feePaid).toBe(false);
   });
 
   it("windowDays is preserved and the canister derives a future bidDeadline from it", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("window"), windowDays: "Three" });
+    const req = await listingService.createBidRequest({ ...BASE_REQUEST, windowDays: "Three" });
     expect(req.windowDays).toBe("Three");
     expect(req.bidDeadline).toBeGreaterThan(Date.now());
   });
 
   it("desiredSalePrice (Opt Nat) is preserved when provided", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("sale-price"), desiredSalePrice: 55_000_00 });
+    const req = await listingService.createBidRequest({ ...BASE_REQUEST, desiredSalePrice: 55_000_00 });
     expect(req.desiredSalePrice).toBe(55_000_00);
   });
 
   it("desiredSalePrice is null when not provided", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("no-sale-price"), desiredSalePrice: null });
+    const req = await listingService.createBidRequest({ ...BASE_REQUEST, desiredSalePrice: null });
     expect(req.desiredSalePrice).toBeNull();
   });
 
   it("notes are preserved", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("notes") });
+    const req = await listingService.createBidRequest(BASE_REQUEST);
     expect(req.notes).toBe("Integration test listing bid request");
   });
 });
@@ -223,7 +226,7 @@ describe.skipIf(!deployed)("getMyBidRequests — caller scoping", () => {
   let seeded: ListingBidRequest;
 
   beforeAll(async () => {
-    seeded = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("scope") });
+    seeded = await listingService.createBidRequest(BASE_REQUEST);
   });
 
   it("getMyBidRequests returns the created request", async () => {
@@ -244,7 +247,7 @@ describe.skipIf(!deployed)("getBidRequest — fetch by id", () => {
   let created: ListingBidRequest;
 
   beforeAll(async () => {
-    created = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("get-by-id") });
+    created = await listingService.createBidRequest(BASE_REQUEST);
   });
 
   it("getBidRequest returns the request matching the id", async () => {
@@ -264,12 +267,12 @@ describe.skipIf(!deployed)("getBidRequest — fetch by id", () => {
 
 describe.skipIf(!deployed)("cancelBidRequest — BidRequestStatus Open → Cancelled", () => {
   it("cancelBidRequest resolves without error", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("cancel") });
+    const req = await listingService.createBidRequest(BASE_REQUEST);
     await expect(listingService.cancelBidRequest(req.id)).resolves.toBeUndefined();
   });
 
   it("cancelled request no longer appears as Open in getOpenBidRequests", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("cancel-open") });
+    const req = await listingService.createBidRequest(BASE_REQUEST);
     await listingService.cancelBidRequest(req.id);
     const open = await listingService.getOpenBidRequests();
     const found = open.find((r) => r.id === req.id);
@@ -281,7 +284,7 @@ describe.skipIf(!deployed)("cancelBidRequest — BidRequestStatus Open → Cance
 
 describe.skipIf(!deployed)("getOpenBidRequests — masked BidRequestSummary feed", () => {
   it("returns summaries without address or homeownerEmail", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("summary") });
+    const req = await listingService.createBidRequest(BASE_REQUEST);
     const open = await listingService.getOpenBidRequests();
     const found = open.find((r) => r.id === req.id);
     expect(found).toBeDefined();
@@ -298,7 +301,7 @@ describe.skipIf(!deployed)("submitProposal — Candid serialization", () => {
   // One proposal per agent per request is enforced server-side, so each test
   // below submits to its own fresh request rather than sharing one.
   async function freshRequest(label: string): Promise<ListingBidRequest> {
-    return listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid(`submit-prop-${label}`) });
+    return listingService.createBidRequest({ ...BASE_REQUEST, notes: `submitProposal ${label}` });
   }
 
   it("returns a proposal with a non-empty id and letter", async () => {
@@ -365,7 +368,7 @@ describe.skipIf(!deployed)("submitProposal — Candid serialization", () => {
 
 describe.skipIf(!deployed)("sealed-bid gate — getBidProgress / getProposalsForRequest", () => {
   it("stays sealed with fewer than 3 bids in and the window still open", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("sealed") });
+    const req = await listingService.createBidRequest(BASE_REQUEST);
     await listingService.submitProposal(req.id, BASE_PROPOSAL);
 
     const progress = await listingService.getBidProgress(req.id);
@@ -375,7 +378,7 @@ describe.skipIf(!deployed)("sealed-bid gate — getBidProgress / getProposalsFor
   });
 
   it("unseals once the 3rd bid lands", async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("unseal") });
+    const req = await listingService.createBidRequest(BASE_REQUEST);
     await submitThreeProposals(req.id);
 
     const progress = await listingService.getBidProgress(req.id);
@@ -394,7 +397,7 @@ describe.skipIf(!deployed)("acceptProposal — selects a winner without awarding
   let winner: ListingProposal;
 
   beforeAll(async () => {
-    request = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("award") });
+    request = await listingService.createBidRequest(BASE_REQUEST);
     [winner] = await submitThreeProposals(request.id);
   });
 
@@ -417,7 +420,7 @@ describe.skipIf(!deployed)("getMyProposals — agent view", () => {
   let submitted: ListingProposal;
 
   beforeAll(async () => {
-    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("my-props") });
+    const req = await listingService.createBidRequest(BASE_REQUEST);
     submitted = await listingService.submitProposal(req.id, BASE_PROPOSAL);
   });
 

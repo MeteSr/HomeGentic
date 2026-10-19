@@ -247,10 +247,8 @@ test("PS.8 — /resale-ready shows resale ready page", async ({ page }) => {
 // ── PS.9 — /cert/:token (public score cert) ───────────────────────────────────
 
 test("PS.9 — /cert/:token shows score certificate or error state", async ({ page }) => {
-  // Generate a base64-encoded token the parser expects.
-  // parseCertToken() decodes base64 JSON into a CertPayload — field names
-  // must match that interface exactly (generatedAt, not issuedAt; certified
-  // is required) or the page renders with "Invalid Date" and other gaps.
+  // Legacy base64 JSON token: since R2 the page reads only `certId` from it and
+  // shows what report.verifyCert returns (here: no canister → "not found").
   const certPayload = { score: 87, grade: "A", certified: true, address: "123 Maple St", certId: "cert-001", generatedAt: Date.now() };
   const token = btoa(JSON.stringify(certPayload));
 

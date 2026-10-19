@@ -46,7 +46,23 @@ if [ -n "$JOB_ID" ]; then
   dfx canister call job setPropertyCanisterId '("")' \
     && echo "  ↳ Property canister cleared for test isolation — ✓" \
     || echo "  ↳ Could not clear propCanisterId — jobId assertions may fail"
+
+  # Sensor itself re-checks the device registrant's access before opening a
+  # job for a Critical event (M9). With property wired, PROP_1 isn't a real
+  # property, so that check says no; unwired, sensor falls back to its own
+  # device registry. Restored in [16] (and on any early exit).
+  dfx canister call sensor setPropertyCanisterId '("")' \
+    && echo "  ↳ Sensor's property canister cleared for test isolation — ✓" \
+    || echo "  ↳ Could not clear sensor propCanisterId — jobId assertions may fail"
 fi
+
+restore_property_wiring() {
+  if [ -n "${JOB_ID:-}" ] && [ -n "${PROP_CANISTER_ID:-}" ]; then
+    dfx canister call job    setPropertyCanisterId "(\"$PROP_CANISTER_ID\")" >/dev/null 2>&1 || true
+    dfx canister call sensor setPropertyCanisterId "(\"$PROP_CANISTER_ID\")" >/dev/null 2>&1 || true
+  fi
+}
+trap restore_property_wiring EXIT
 
 # ─── Initial state ────────────────────────────────────────────────────────────
 echo ""
@@ -176,6 +192,31 @@ echo ""
 echo "── [14] getDevicesForProperty — deactivated device should still appear ──"
 dfx canister call sensor getDevicesForProperty '("PROP_1")'
 
+# ─── Platform-scoped ingestion (M9 / F-14) ────────────────────────────────────
+echo ""
+echo "── [14b] recordEventFor — lands only on the device's own platform ───────"
+SCOPED_OK=$(dfx canister call sensor recordEventFor '(variant { Nest }, "", "nest-abc123", variant { HighHumidity }, 71.0, "%RH", "{}")')
+if [[ "$SCOPED_OK" == *"ok"* ]]; then
+  echo "  ↳ Nest event recorded on the Nest device — ✓"
+else
+  echo "  ↳ ❌ Expected ok for a Nest event on a Nest device; got: $SCOPED_OK"
+  exit 1
+fi
+SCOPED_BAD=$(dfx canister call sensor recordEventFor '(variant { Ecobee }, "", "nest-abc123", variant { HighHumidity }, 71.0, "%RH", "{}")')
+if [[ "$SCOPED_BAD" == *"NotFound"* ]]; then
+  echo "  ↳ Ecobee event refused for a Nest device — ✓"
+else
+  echo "  ↳ ❌ Expected NotFound for a cross-platform event; got: $SCOPED_BAD"
+  exit 1
+fi
+MANUAL_REG=$(dfx canister call sensor registerVerifiedDevice '(principal "aaaaa-aa", "PROP_1", "x-1", variant { Manual }, "", "Manual")')
+if [[ "$MANUAL_REG" == *"InvalidInput"* ]]; then
+  echo "  ↳ registerVerifiedDevice refuses #Manual — ✓"
+else
+  echo "  ↳ ❌ Expected InvalidInput for a #Manual verified device; got: $MANUAL_REG"
+  exit 1
+fi
+
 # ─── Final metrics ────────────────────────────────────────────────────────────
 echo ""
 echo "── [15] Get metrics (after tests) ──────────────────────────────────────"
@@ -195,10 +236,13 @@ fi
 # ─── Restore property canister in job ────────────────────────────────────────
 if [ -n "$JOB_ID" ] && [ -n "${PROP_CANISTER_ID:-}" ]; then
   echo ""
-  echo "── [16] Restore property canister in job ────────────────────────────────"
+  echo "── [16] Restore property canister in job and sensor ─────────────────────"
   dfx canister call job setPropertyCanisterId "(\"$PROP_CANISTER_ID\")" \
-    && echo "  ↳ Restored — ✓" \
+    && echo "  ↳ Restored in job — ✓" \
     || echo "  ↳ Restore failed — run: dfx canister call job setPropertyCanisterId"
+  dfx canister call sensor setPropertyCanisterId "(\"$PROP_CANISTER_ID\")" \
+    && echo "  ↳ Restored in sensor — ✓" \
+    || echo "  ↳ Restore failed — run: dfx canister call sensor setPropertyCanisterId"
 fi
 
 echo ""

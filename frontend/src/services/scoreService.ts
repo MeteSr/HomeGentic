@@ -24,10 +24,14 @@ const historyKey = (propertyId?: string | null) =>
   propertyId ? `homegentic_score_${propertyId}` : "homegentic_score_history";
 const MAX_SNAPSHOTS = 12; // keep ~3 months of weekly snapshots
 
+/** R2: a verified job counts unless its contractor signature came from an
+ *  unverified contractor profile (mirrors job.countsAsVerified on-chain). */
+const countsAsVerified = (j: Job) => j.verified && !j.contractorUnverified;
+
 export function computeScore(jobs: Job[], properties: Property[]): number {
   let score = 0;
 
-  const verifiedJobs = jobs.filter((j) => j.verified);
+  const verifiedJobs = jobs.filter(countsAsVerified);
   score += Math.min(verifiedJobs.length * 4, 40);
 
   const totalValueDollars = jobs.reduce((sum, j) => sum + j.amount, 0) / 100;
@@ -118,7 +122,7 @@ export function scoreDelta(history: ScoreSnapshot[]): number {
  */
 export function isCertified(score: number, jobs: Job[]): boolean {
   if (score < 88) return false;
-  const verified = jobs.filter((j) => j.verified || j.status === "verified");
+  const verified = jobs.filter((j) => (j.verified || j.status === "verified") && !j.contractorUnverified);
   if (verified.length < 3) return false;
   const KEY_SYSTEMS = ["HVAC", "Roofing", "Plumbing", "Electrical"];
   return KEY_SYSTEMS.filter((sys) => verified.some((j) => j.serviceType === sys)).length >= 2;
@@ -137,7 +141,7 @@ export interface ScoreBreakdown {
 }
 
 export function computeBreakdown(jobs: Job[], properties: Property[]): ScoreBreakdown {
-  const verifiedJobPts  = Math.min(jobs.filter((j) => j.verified).length * 4, 40);
+  const verifiedJobPts  = Math.min(jobs.filter(countsAsVerified).length * 4, 40);
   const totalValueDollars = jobs.reduce((sum, j) => sum + j.amount, 0) / 100;
   const valuePts        = Math.min(Math.floor(totalValueDollars / 2500), 20);
   let rawVerificationPts = 0;

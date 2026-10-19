@@ -62,10 +62,11 @@ export default function PropertyTransferClaimPage() {
           return;
         }
 
-        // Fetch property details — getProperty is an unauthenticated query
+        // Fetch property details through the token — getProperty no longer
+        // shows the street address to someone who isn't owner/manager yet.
         try {
-          const prop = await propertyService.getProperty(pt.propertyId);
-          if (!cancelled) setPage({ status: "ready", pending: pt, property: prop });
+          const prop = await propertyService.getPropertyByTransferToken(token);
+          if (!cancelled) setPage({ status: "ready", pending: pt, property: prop as any });
         } catch {
           // Property details unavailable — still show enough to proceed
           if (!cancelled) setPage({ status: "ready", pending: pt, property: null as any });

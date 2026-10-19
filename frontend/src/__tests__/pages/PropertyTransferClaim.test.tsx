@@ -18,7 +18,7 @@ vi.mock("react-router-dom", async (importOriginal) => {
 vi.mock("@/services/property", () => ({
   propertyService: {
     getPendingTransferByToken: vi.fn(),
-    getProperty:               vi.fn(),
+    getPropertyByTransferToken: vi.fn(),
     claimTransfer:             vi.fn(),
   },
 }));
@@ -38,7 +38,7 @@ const mockNavigate = vi.fn();
 
 // Typed handles for the mocked functions
 const mockGetPendingTransferByToken = vi.mocked(_ps.getPendingTransferByToken);
-const mockGetProperty               = vi.mocked(_ps.getProperty);
+const mockGetProperty               = vi.mocked(_ps.getPropertyByTransferToken);
 const mockClaimTransfer             = vi.mocked(_ps.claimTransfer);
 const mockUseAuthStore              = vi.mocked(_useAuthStore);
 
