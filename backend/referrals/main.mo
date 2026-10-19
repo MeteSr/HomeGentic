@@ -21,6 +21,8 @@ import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
+import Canisters "../shared/Canisters";
 
 persistent actor Referrals {
 
@@ -111,12 +113,7 @@ persistent actor Referrals {
 
   private func requireActive(caller : Principal) : Result.Result<(), Error> {
     if (Principal.isAnonymous(caller)) return #err(#Unauthorized);
-    if (paused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
-        case null      { return #err(#InvalidInput("Canister is paused")) };
-      };
-    };
+    if (Admin.pausedNow(paused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeSlot(caller)) return #err(#InvalidInput("Rate limit exceeded. Try again in a minute."));
     #ok(())
   };
@@ -171,9 +168,7 @@ persistent actor Referrals {
     // not on a paid plan. Otherwise an existing subscriber could attach a code
     // before a renewal (payment calls markConverted on every paid activation).
     if (Text.size(paymentCanisterId) > 0 and not isAdmin(msg.caller)) {
-      let pay = actor(paymentCanisterId) : actor {
-        getTierForPrincipal : shared query Principal -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
-      };
+      let pay = Canisters.payment(paymentCanisterId);
       let tier = try { await pay.getTierForPrincipal(msg.caller) } catch (_) {
         return #err(#InvalidInput("Could not verify subscription status; try again later"))
       };
@@ -251,22 +246,15 @@ persistent actor Referrals {
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   /// First call requires the bootstrap nonce (H-20); subsequent calls require an existing admin.
   public shared(msg) func addAdmin(p : Principal, nonce : Text) : async Result.Result<(), Text> {
-    if (adminInitialized) {
-      if (not isAdmin(msg.caller)) return #err("unauthorized");
-    } else {
-      switch (bootstrapNonce) {
-        case null { return #err("unauthorized") };
-        case (?n) { if (nonce != n) return #err("unauthorized") };
-      };
-      bootstrapNonce := null;
+    switch (Admin.authorizeAdd(adminInitialized, isAdmin(msg.caller), bootstrapNonce, nonce)) {
+      case (#denied)    { return #err("unauthorized") };
+      case (#bootstrap) { bootstrapNonce := null };  // the nonce is single use
+      case (#admin)     {};
     };
     let t = Principal.toText(p);
     if (Option.isNull(Array.find<Text>(adminList, func(a) { a == t }))) {
@@ -279,10 +267,7 @@ persistent actor Referrals {
   public shared(msg) func pause(durationSeconds : ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#Unauthorized);
     paused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null      { null };
-      case (?secs)   { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     #ok(())
   };
 

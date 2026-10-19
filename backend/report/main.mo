@@ -32,6 +32,8 @@ import ServiceTypes "../shared/ServiceType";
 import Index     "../shared/Index";
 import Uuid      "../shared/Uuid";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
+import Canisters "../shared/Canisters";
 
 persistent actor Report {
 
@@ -256,23 +258,17 @@ persistent actor Report {
   };
 
   private func isAdmin(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == p }))
+    Admin.contains(adminListEntries, p)
   };
 
   private func isTrustedCanister(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(trustedCanisterEntries, func(t) { t == p }))
+    Admin.contains(trustedCanisterEntries, p)
   };
 
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      // 14.4.4 — auto-expire timed pauses
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
-        case null { return #err(#InvalidInput("Canister is paused")) };
-      };
-    };
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
       return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
     };
@@ -895,25 +891,16 @@ persistent actor Report {
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
-    if (adminInitialized) {
-      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    } else {
-      switch (bootstrapNonce) {
-        case null { return #err(#NotAuthorized) };
-        case (?n) { if (nonce != n) return #err(#NotAuthorized) };
-      };
-      bootstrapNonce := null;
+    switch (Admin.authorizeAdd(adminInitialized, isAdmin(msg.caller), bootstrapNonce, nonce)) {
+      case (#denied)    { return #err(#NotAuthorized) };
+      case (#bootstrap) { bootstrapNonce := null };  // the nonce is single use
+      case (#admin)     {};
     };
-    if (not isAdmin(newAdmin)) {
-      adminListEntries := Array.concat(adminListEntries, [newAdmin]);
-    };
+    adminListEntries := Admin.add(adminListEntries, newAdmin);
     adminInitialized := true;
     try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
@@ -922,7 +909,7 @@ persistent actor Report {
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    adminListEntries := Array.filter<Principal>(adminListEntries, func(a) { a != target });
+    adminListEntries := Admin.remove(adminListEntries, target);
     #ok(())
   };
 
@@ -934,31 +921,21 @@ persistent actor Report {
   };
 
   private func auditLog(action : Text, subject : ?Principal, detail : Text) : async () {
-    switch (auditCanisterId) {
-      case null {};
-      case (?aid) {
-        let a : actor {
-          log : (Text, Text, ?Principal, Text) -> async { #ok : Nat; #err : { #NotAuthorized; #InvalidInput : Text } }
-        } = actor(Principal.toText(aid));
-        try { ignore await a.log("report", action, subject, detail) } catch _ { Debug.print("[report] fire-and-forget call failed") };
-      };
-    };
+    await* Canisters.auditLog(auditCanisterId, "report", action, subject, detail)
   };
 
   /// Register a canister principal as trusted for inter-canister calls.
   /// Trusted canisters bypass per-principal rate limiting. Admin only.
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isTrustedCanister(p)) {
-      trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
-    };
+    trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
     try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 
   public shared(msg) func removeTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    trustedCanisterEntries := Array.filter<Principal>(trustedCanisterEntries, func(t) { t != p });
+    trustedCanisterEntries := Admin.remove(trustedCanisterEntries, p);
     #ok(())
   };
 
@@ -971,10 +948,7 @@ persistent actor Report {
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     try { ignore await auditLog("CanisterPaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
@@ -1105,10 +1079,7 @@ persistent actor Report {
     if (Text.size(propertyId) > 100) return #err(#InvalidInput("propertyId too long"));
     if (Text.size(propCanisterId) == 0) return #err(#NotAuthorized);
 
-    let propActor = actor(propCanisterId) : actor {
-      isAuthorized         : (Text, Principal, Bool) -> async Bool;
-      getVerificationLevel : (Text) -> async ?Text;
-    };
+    let propActor = Canisters.property(propCanisterId);
     // H-14 / M-4: write access (owner / co-owner / manager) required.
     if (not isAdmin(msg.caller)) {
       let authorized = await propActor.isAuthorized(propertyId, msg.caller, true);

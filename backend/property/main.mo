@@ -47,6 +47,8 @@ import Time      "mo:core/Time";
 import Index     "../shared/Index";
 import Uuid      "../shared/Uuid";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
+import Canisters "../shared/Canisters";
 
 persistent actor Property {
 
@@ -591,21 +593,16 @@ persistent actor Property {
   };
 
   private func isAdmin(caller: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(admins, func(a) { a == caller }))
+    Admin.contains(admins, caller)
   };
 
   private func isTrustedCanister(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(trustedCanisterEntries, func(t) { t == p }))
+    Admin.contains(trustedCanisterEntries, p)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#Paused) };
-        case null { return #err(#Paused) };
-      };
-    };
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
       return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
     };
@@ -816,9 +813,7 @@ persistent actor Property {
     // When payment canister is wired, tier comes from getTierForPrincipal();
     // otherwise falls back to the local admin-grant map.
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
-      let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
-      };
+      let payActor = Canisters.payment(payCanisterId);
       // A rejected call must not leave the in-flight lock set, or the
       // caller could never register again.
       try { await payActor.getTierForPrincipal(caller) } catch (e) {
@@ -1114,7 +1109,7 @@ persistent actor Property {
 
   /// Returns true if the given principal is an admin.
   public query func isAdminPrincipal(p: Principal) : async Bool {
-    Option.isSome(Array.find<Principal>(admins, func(a) { a == p }))
+    Admin.contains(admins, p)
   };
 
   /// Returns the aggregated verification status for the v2 verify flow.
@@ -1411,9 +1406,7 @@ persistent actor Property {
     // registerProperty(). Existing managers/invites from before this gate keep
     // working; only granting a *new* invite is blocked on Free/Basic.
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
-      let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
-      };
+      let payActor = Canisters.payment(payCanisterId);
       await payActor.getTierForPrincipal(msg.caller)
     } else {
       #Free  // payment canister not wired: no tier source, fail closed
@@ -1987,25 +1980,16 @@ persistent actor Property {
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
-    if (adminInitialized) {
-      // Normal path: require an existing admin to add new admins.
-      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    } else {
-      // Bootstrap path: require the pre-shared nonce.
-      switch (bootstrapNonce) {
-        case null    { return #err(#NotAuthorized) }; // nonce not set — reject
-        case (?n)    { if (nonce != n) return #err(#NotAuthorized) };
-      };
-      bootstrapNonce := null; // consume the nonce — single use
+    switch (Admin.authorizeAdd(adminInitialized, isAdmin(msg.caller), bootstrapNonce, nonce)) {
+      case (#denied)    { return #err(#NotAuthorized) };
+      case (#bootstrap) { bootstrapNonce := null };  // the nonce is single use
+      case (#admin)     {};
     };
-    admins := Array.concat(admins, [newAdmin]);
+    admins := Admin.add(admins, newAdmin);
     adminInitialized := true;
     try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
@@ -2014,7 +1998,7 @@ persistent actor Property {
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    admins := Array.filter<Principal>(admins, func(a) { a != target });
+    admins := Admin.remove(admins, target);
     #ok(())
   };
 
@@ -2026,31 +2010,21 @@ persistent actor Property {
   };
 
   private func auditLog(action : Text, subject : ?Principal, detail : Text) : async () {
-    switch (auditCanisterId) {
-      case null {};
-      case (?aid) {
-        let a : actor {
-          log : (Text, Text, ?Principal, Text) -> async { #ok : Nat; #err : { #NotAuthorized; #InvalidInput : Text } }
-        } = actor(Principal.toText(aid));
-        try { ignore await a.log("property", action, subject, detail) } catch _ { Debug.print("[property] fire-and-forget call failed") };
-      };
-    };
+    await* Canisters.auditLog(auditCanisterId, "property", action, subject, detail)
   };
 
   /// Register a canister principal as trusted for inter-canister calls.
   /// Trusted canisters (job, report) bypass per-principal rate limiting. Admin only.
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isTrustedCanister(p)) {
-      trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
-    };
+    trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
     try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };
 
   public shared(msg) func removeTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    trustedCanisterEntries := Array.filter<Principal>(trustedCanisterEntries, func(t) { t != p });
+    trustedCanisterEntries := Admin.remove(trustedCanisterEntries, p);
     #ok(())
   };
 
@@ -2061,10 +2035,7 @@ persistent actor Property {
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     try { ignore await auditLog("CanisterPaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };

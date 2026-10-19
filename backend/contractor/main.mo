@@ -21,6 +21,7 @@ import Time      "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
 import Index        "../shared/Index";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
 
 persistent actor Contractor {
 
@@ -168,11 +169,11 @@ persistent actor Contractor {
   };
 
   private func isAdmin(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(admins, func(a) { a == p }))
+    Admin.contains(admins, p)
   };
 
   private func isTrustedCanister(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(trustedCanisterEntries, func(t) { t == p }))
+    Admin.contains(trustedCanisterEntries, p)
   };
 
   private func isJobCanister(p: Principal) : Bool {
@@ -181,12 +182,7 @@ persistent actor Contractor {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#Paused) };
-        case null { return #err(#Paused) };
-      };
-    };
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
       return #err(#RateLimitExceeded)
     };
@@ -752,25 +748,16 @@ persistent actor Contractor {
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
-    if (adminInitialized) {
-      // Normal path: require an existing admin to add new admins.
-      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    } else {
-      // Bootstrap path: require the pre-shared nonce.
-      switch (bootstrapNonce) {
-        case null    { return #err(#NotAuthorized) }; // nonce not set — reject
-        case (?n)    { if (nonce != n) return #err(#NotAuthorized) };
-      };
-      bootstrapNonce := null; // consume the nonce — single use
+    switch (Admin.authorizeAdd(adminInitialized, isAdmin(msg.caller), bootstrapNonce, nonce)) {
+      case (#denied)    { return #err(#NotAuthorized) };
+      case (#bootstrap) { bootstrapNonce := null };  // the nonce is single use
+      case (#admin)     {};
     };
-    admins := Array.concat(admins, [newAdmin]);
+    admins := Admin.add(admins, newAdmin);
     adminInitialized := true;
     #ok(())
   };
@@ -778,7 +765,7 @@ persistent actor Contractor {
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    admins := Array.filter<Principal>(admins, func(a) { a != target });
+    admins := Admin.remove(admins, target);
     #ok(())
   };
 
@@ -786,15 +773,13 @@ persistent actor Contractor {
   /// Trusted canisters (job) bypass per-principal rate limiting. Admin only.
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isTrustedCanister(p)) {
-      trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
-    };
+    trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
     #ok(())
   };
 
   public shared(msg) func removeTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    trustedCanisterEntries := Array.filter<Principal>(trustedCanisterEntries, func(t) { t != p });
+    trustedCanisterEntries := Admin.remove(trustedCanisterEntries, p);
     #ok(())
   };
 
@@ -805,10 +790,7 @@ persistent actor Contractor {
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     #ok(())
   };
 

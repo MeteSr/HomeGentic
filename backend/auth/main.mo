@@ -4,7 +4,6 @@
  * Supports Homeowner, Contractor, Realtor, and Builder roles.
  */
 
-import Array "mo:core/Array";
 import Blob "mo:core/Blob";
 import Debug "mo:core/Debug";
 import Iter "mo:core/Iter";
@@ -18,6 +17,8 @@ import Result "mo:core/Result";
 import Text "mo:core/Text";
 import Time "mo:core/Time";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
+import Canisters "../shared/Canisters";
 
 persistent actor class Auth(initDeployer : Principal) {
 
@@ -139,11 +140,11 @@ persistent actor class Auth(initDeployer : Principal) {
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
   private func isAdmin(caller: Principal) : Bool {
-    Array.find<Principal>(admins, func (a) { a == caller }) != null
+    Admin.contains(admins, caller)
   };
 
   private func isNotifier(p: Principal) : Bool {
-    Array.find<Principal>(notifierEntries, func (n) { n == p }) != null
+    Admin.contains(notifierEntries, p)
   };
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
@@ -161,12 +162,7 @@ persistent actor class Auth(initDeployer : Principal) {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#Paused) };
-        case null { return #err(#Paused) };
-      };
-    };
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
       return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
     };
@@ -185,9 +181,7 @@ persistent actor class Auth(initDeployer : Principal) {
   /// Add a new admin principal (existing admin only — bootstrap is closed at install time)
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isAdmin(newAdmin)) {
-      admins := Array.concat(admins, [newAdmin]);
-    };
+    admins := Admin.add(admins, newAdmin);
     try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     #ok(())
   };
@@ -195,7 +189,7 @@ persistent actor class Auth(initDeployer : Principal) {
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    admins := Array.filter<Principal>(admins, func(a) { a != target });
+    admins := Admin.remove(admins, target);
     try { ignore await auditLog("AdminRemoved", ?target, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     #ok(())
   };
@@ -204,10 +198,7 @@ persistent actor class Auth(initDeployer : Principal) {
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     try { ignore await auditLog("CanisterPaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     #ok(())
   };
@@ -229,15 +220,7 @@ persistent actor class Auth(initDeployer : Principal) {
   };
 
   private func auditLog(action : Text, subject : ?Principal, detail : Text) : async () {
-    switch (auditCanisterId) {
-      case null {};
-      case (?aid) {
-        let a : actor {
-          log : (Text, Text, ?Principal, Text) -> async { #ok : Nat; #err : { #NotAuthorized; #InvalidInput : Text } }
-        } = actor(Principal.toText(aid));
-        try { ignore await a.log("auth", action, subject, detail) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
-      };
-    };
+    await* Canisters.auditLog(auditCanisterId, "auth", action, subject, detail)
   };
 
   // ─── Validation Helpers ───────────────────────────────────────────────────────
@@ -444,15 +427,13 @@ persistent actor class Auth(initDeployer : Principal) {
   /// Allow a principal (the notification relay's identity) to look up emails.
   public shared(msg) func addNotifier(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isNotifier(p)) {
-      notifierEntries := Array.concat(notifierEntries, [p]);
-    };
+    notifierEntries := Admin.add(notifierEntries, p);
     #ok(())
   };
 
   public shared(msg) func removeNotifier(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    notifierEntries := Array.filter<Principal>(notifierEntries, func (n) { n != p });
+    notifierEntries := Admin.remove(notifierEntries, p);
     #ok(())
   };
 

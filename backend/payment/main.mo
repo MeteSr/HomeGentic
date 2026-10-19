@@ -16,6 +16,8 @@ import Time      "mo:core/Time";
 import OutCall   "mo:caffeineai-http-outcalls/outcall";
 import IC        "ic:aaaaa-aa";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
+import Canisters "../shared/Canisters";
 
 persistent actor Payment {
 
@@ -247,7 +249,7 @@ persistent actor Payment {
 
 
   private func isAdmin(caller: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(adminEntries, func(a) { a == caller }))
+    Admin.contains(adminEntries, caller)
   };
 
   /// F-9: the voice Worker's identity only needs to activate Stripe-paid
@@ -257,7 +259,7 @@ persistent actor Payment {
   private var stripeRelayEntries : [Principal] = [];
 
   private func isStripeRelay(caller: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(stripeRelayEntries, func(a) { a == caller }))
+    Admin.contains(stripeRelayEntries, caller)
   };
 
   private func isAdminOrRelay(caller: Principal) : Bool {
@@ -295,7 +297,7 @@ persistent actor Payment {
   };
 
   private func isTrustedCanister(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(trustedCanisterEntries, func(t) { t == p }))
+    Admin.contains(trustedCanisterEntries, p)
   };
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
@@ -314,12 +316,7 @@ persistent actor Payment {
   /// per-principal update rate limit.
   private func _requireActive(caller: Principal) : Result.Result<(), Error> {
     if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
-        case null { return #err(#InvalidInput("Canister is paused")) };
-      };
-    };
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) return #err(#RateLimited);
     #ok(())
   };
@@ -327,10 +324,7 @@ persistent actor Payment {
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     #ok(())
   };
 
@@ -343,16 +337,14 @@ persistent actor Payment {
 
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isTrustedCanister(p)) {
-      trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
-    };
+    trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
     try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
   public shared(msg) func removeTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    trustedCanisterEntries := Array.filter<Principal>(trustedCanisterEntries, func(t) { t != p });
+    trustedCanisterEntries := Admin.remove(trustedCanisterEntries, p);
     #ok(())
   };
 
@@ -365,10 +357,7 @@ persistent actor Payment {
   /// H-20: Set the one-time bootstrap nonce before calling initAdmins() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   /// One-time admin bootstrap. Requires the pre-shared bootstrap nonce (H-20) —
@@ -378,10 +367,7 @@ persistent actor Payment {
     if (adminInitialized)              return #err(#NotAuthorized);
     if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
     if (newAdmins.size() == 0)         return #err(#InvalidInput("admin list cannot be empty"));
-    switch (bootstrapNonce) {
-      case null { return #err(#NotAuthorized) };
-      case (?n) { if (nonce != n) return #err(#NotAuthorized) };
-    };
+    if (not Admin.nonceMatches(bootstrapNonce, nonce)) return #err(#NotAuthorized);
     bootstrapNonce   := null;
     adminEntries     := newAdmins;
     adminInitialized := true;
@@ -391,9 +377,7 @@ persistent actor Payment {
   /// Add a new admin principal (existing admin only).
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isAdmin(newAdmin)) {
-      adminEntries := Array.concat(adminEntries, [newAdmin]);
-    };
+    adminEntries := Admin.add(adminEntries, newAdmin);
     try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
@@ -401,7 +385,7 @@ persistent actor Payment {
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    adminEntries := Array.filter<Principal>(adminEntries, func(a) { a != target });
+    adminEntries := Admin.remove(adminEntries, target);
     try { ignore await auditLog("AdminRemoved", ?target, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
@@ -415,16 +399,14 @@ persistent actor Payment {
   public shared(msg) func addStripeRelay(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     if (Principal.isAnonymous(p)) return #err(#InvalidInput("anonymous principal"));
-    if (not isStripeRelay(p)) {
-      stripeRelayEntries := Array.concat(stripeRelayEntries, [p]);
-    };
+    stripeRelayEntries := Admin.add(stripeRelayEntries, p);
     try { ignore await auditLog("StripeRelayAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
   public shared(msg) func removeStripeRelay(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    stripeRelayEntries := Array.filter<Principal>(stripeRelayEntries, func(a) { a != p });
+    stripeRelayEntries := Admin.remove(stripeRelayEntries, p);
     try { ignore await auditLog("StripeRelayRemoved", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
@@ -442,15 +424,7 @@ persistent actor Payment {
   };
 
   private func auditLog(action : Text, subject : ?Principal, detail : Text) : async () {
-    switch (auditCanisterId) {
-      case null {};
-      case (?aid) {
-        let a : actor {
-          log : (Text, Text, ?Principal, Text) -> async { #ok : Nat; #err : { #NotAuthorized; #InvalidInput : Text } }
-        } = actor(Principal.toText(aid));
-        try { ignore await a.log("payment", action, subject, detail) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
-      };
-    };
+    await* Canisters.auditLog(auditCanisterId, "payment", action, subject, detail)
   };
 
   public shared(msg) func setReferralsCanisterId(id: Text) : async Result.Result<(), Error> {

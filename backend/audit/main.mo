@@ -1,4 +1,3 @@
-import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
 import Iter      "mo:core/Iter";
 import Map       "mo:core/Map";
@@ -7,6 +6,7 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import Admin "../shared/Admin";
 
 /// Append-only privileged-action audit log.
 ///
@@ -72,11 +72,11 @@ persistent actor Audit {
   };
 
   private func isAdmin(p : Principal) : Bool {
-    Array.find<Principal>(admins, func(a) { a == p }) != null
+    Admin.contains(admins, p)
   };
 
   private func isTrusted(p : Principal) : Bool {
-    Array.find<Principal>(trustedCanisters, func(a) { a == p }) != null
+    Admin.contains(trustedCanisters, p)
   };
 
   // L7: field caps and a per-writer hourly volume cap, so one writer can't
@@ -118,27 +118,18 @@ persistent actor Audit {
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   /// Add an admin. First call requires the bootstrap nonce; subsequent calls
   /// require an existing admin caller.
   public shared(msg) func addAdmin(newAdmin : Principal, nonce : Text) : async Result.Result<(), Error> {
-    if (adminInitialized) {
-      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    } else {
-      switch (bootstrapNonce) {
-        case null { return #err(#NotAuthorized) };
-        case (?n) { if (nonce != n) return #err(#NotAuthorized) };
-      };
-      bootstrapNonce := null;
+    switch (Admin.authorizeAdd(adminInitialized, isAdmin(msg.caller), bootstrapNonce, nonce)) {
+      case (#denied)    { return #err(#NotAuthorized) };
+      case (#bootstrap) { bootstrapNonce := null };  // the nonce is single use
+      case (#admin)     {};
     };
-    if (not isAdmin(newAdmin)) {
-      admins := Array.concat(admins, [newAdmin]);
-    };
+    admins := Admin.add(admins, newAdmin);
     adminInitialized := true;
     #ok(())
   };
@@ -146,23 +137,21 @@ persistent actor Audit {
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (adminInitialized and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    admins := Array.filter<Principal>(admins, func(a) { a != target });
+    admins := Admin.remove(admins, target);
     #ok(())
   };
 
   /// Register a canister principal allowed to call `log()`.
   public shared(msg) func addTrustedCanister(canisterId : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isTrusted(canisterId)) {
-      trustedCanisters := Array.concat(trustedCanisters, [canisterId]);
-    };
+    trustedCanisters := Admin.add(trustedCanisters, canisterId);
     #ok(())
   };
 
   /// L7: revoke a trusted writer (admin only).
   public shared(msg) func removeTrustedCanister(canisterId : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    trustedCanisters := Array.filter<Principal>(trustedCanisters, func(a) { a != canisterId });
+    trustedCanisters := Admin.remove(trustedCanisters, canisterId);
     Map.remove(trustedNames, Principal.compare, canisterId);
     #ok(())
   };

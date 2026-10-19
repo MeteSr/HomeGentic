@@ -17,6 +17,7 @@ import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Index     "../shared/Index";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
 
 persistent actor Agent {
 
@@ -135,7 +136,7 @@ persistent actor Agent {
   };
 
   private func isAdmin(caller: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(adminEntries, func(a) { a == caller }))
+    Admin.contains(adminEntries, caller)
   };
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
@@ -145,12 +146,7 @@ persistent actor Agent {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
-        case null { return #err(#InvalidInput("Canister is paused")) };
-      };
-    };
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
       return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
     };
@@ -178,7 +174,7 @@ persistent actor Agent {
 
   private func canReadContact(caller: Principal, agentId: Principal) : Bool {
     caller == agentId or isAdmin(caller) or Principal.toText(caller) == listingCanisterId
-      or Option.isSome(Array.find<Principal>(contactReaders, func(r) { r == caller }))
+      or Admin.contains(contactReaders, caller)
   };
 
   /// M5: public profile reads hide email and phone, which would let a homeowner
@@ -449,15 +445,13 @@ persistent actor Agent {
   /// agent email/phone from the profile queries. Admin only.
   public shared(msg) func addContactReader(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (Option.isNull(Array.find<Principal>(contactReaders, func(r) { r == p }))) {
-      contactReaders := Array.concat(contactReaders, [p]);
-    };
+    contactReaders := Admin.add(contactReaders, p);
     #ok(())
   };
 
   public shared(msg) func removeContactReader(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    contactReaders := Array.filter<Principal>(contactReaders, func(r) { r != p });
+    contactReaders := Admin.remove(contactReaders, p);
     #ok(())
   };
 
@@ -470,20 +464,14 @@ persistent actor Agent {
   /// H-20: Set the one-time bootstrap nonce before calling initAdmins() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   public shared(msg) func initAdmins(newAdmins: [Principal], nonce: Text) : async Result.Result<(), Error> {
     if (adminInitialized) return #err(#NotAuthorized);
     if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
     if (newAdmins.size() == 0) return #err(#InvalidInput("admin list cannot be empty"));
-    switch (bootstrapNonce) {
-      case null { return #err(#NotAuthorized) };
-      case (?n) { if (nonce != n) return #err(#NotAuthorized) };
-    };
+    if (not Admin.nonceMatches(bootstrapNonce, nonce)) return #err(#NotAuthorized);
     bootstrapNonce := null;
     adminEntries := newAdmins;
     adminInitialized := true;
@@ -492,23 +480,20 @@ persistent actor Agent {
 
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isAdmin(newAdmin)) { adminEntries := Array.concat(adminEntries, [newAdmin]) };
+    adminEntries := Admin.add(adminEntries, newAdmin);
     #ok(())
   };
 
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    adminEntries := Array.filter<Principal>(adminEntries, func(a) { a != target });
+    adminEntries := Admin.remove(adminEntries, target);
     #ok(())
   };
 
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     #ok(())
   };
 

@@ -25,6 +25,8 @@ import Notify       "../shared/Notify";
 import Index        "../shared/Index";
 import Uuid         "../shared/Uuid";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
+import Canisters "../shared/Canisters";
 
 persistent actor Job {
 
@@ -225,19 +227,19 @@ persistent actor Job {
   };
 
   private func isAdmin(caller: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == caller }))
+    Admin.contains(adminListEntries, caller)
   };
 
   private func isSensor(caller: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(authorizedSensors, func(s) { s == caller }))
+    Admin.contains(authorizedSensors, caller)
   };
 
   private func isTrustedCanister(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(trustedCanisterEntries, func(t) { t == p }))
+    Admin.contains(trustedCanisterEntries, p)
   };
 
   private func isNotifier(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(notifierEntries, func(n) { n == p }))
+    Admin.contains(notifierEntries, p)
   };
 
   /// Tell the homeowner a job is waiting for their signature.
@@ -271,12 +273,7 @@ persistent actor Job {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
-        case null { return #err(#InvalidInput("Canister is paused")) };
-      };
-    };
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
       return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
     };
@@ -287,9 +284,7 @@ persistent actor Job {
   /// Falls back to direct principal comparison when propCanisterId is unset (local dev).
   private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
     if (Text.size(propCanisterId) > 0) {
-      let propActor = actor(propCanisterId) : actor {
-        isAuthorized : (Text, Principal, Bool) -> async Bool;
-      };
+      let propActor = Canisters.property(propCanisterId);
       await propActor.isAuthorized(propertyId, caller, requireWrite)
     } else {
       caller == owner
@@ -308,9 +303,7 @@ persistent actor Job {
   /// (M-2). Returns false when the property canister is not wired (local dev).
   private func isPropertyParty(propertyId: Text, p: Principal) : async Bool {
     if (Text.size(propCanisterId) == 0) return false;
-    let propActor = actor(propCanisterId) : actor {
-      isAuthorized : (Text, Principal, Bool) -> async Bool;
-    };
+    let propActor = Canisters.property(propCanisterId);
     await propActor.isAuthorized(propertyId, p, false)
   };
 
@@ -834,9 +827,7 @@ persistent actor Job {
     // 14.2.1 — verify that the sensor device's stored homeowner actually owns
     // the property before creating a job on their behalf.
     if (Text.size(propCanisterId) > 0) {
-      let propActor = actor(propCanisterId) : actor {
-        getPropertyOwner : (Text) -> async ?Principal;
-      };
+      let propActor = Canisters.property(propCanisterId);
       switch (await propActor.getPropertyOwner(propertyId)) {
         case null     { return #err("Property not found") };
         case (?owner) {
@@ -907,7 +898,7 @@ persistent actor Job {
   /// Authorize a Sensor canister principal to call createSensorJob().
   public shared(msg) func addSensorCanister(sensor: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    authorizedSensors := Array.concat(authorizedSensors, [sensor]);
+    authorizedSensors := Admin.add(authorizedSensors, sensor);
     #ok(())
   };
 
@@ -921,27 +912,16 @@ persistent actor Job {
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
-    if (adminInitialized) {
-      // Normal path: require an existing admin to add new admins.
-      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    } else {
-      // Bootstrap path: require the pre-shared nonce.
-      switch (bootstrapNonce) {
-        case null    { return #err(#NotAuthorized) }; // nonce not set — reject
-        case (?n)    { if (nonce != n) return #err(#NotAuthorized) };
-      };
-      bootstrapNonce := null; // consume the nonce — single use
+    switch (Admin.authorizeAdd(adminInitialized, isAdmin(msg.caller), bootstrapNonce, nonce)) {
+      case (#denied)    { return #err(#NotAuthorized) };
+      case (#bootstrap) { bootstrapNonce := null };  // the nonce is single use
+      case (#admin)     {};
     };
-    if (not isAdmin(newAdmin)) {
-      adminListEntries := Array.concat(adminListEntries, [newAdmin]);
-    };
+    adminListEntries := Admin.add(adminListEntries, newAdmin);
     adminInitialized := true;
     #ok(())
   };
@@ -949,7 +929,7 @@ persistent actor Job {
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    adminListEntries := Array.filter<Principal>(adminListEntries, func(a) { a != target });
+    adminListEntries := Admin.remove(adminListEntries, target);
     #ok(())
   };
 
@@ -958,15 +938,13 @@ persistent actor Job {
   /// restricted functions (e.g. createSensorJob). Admin only.
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isTrustedCanister(p)) {
-      trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
-    };
+    trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
     #ok(())
   };
 
   public shared(msg) func removeTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    trustedCanisterEntries := Array.filter<Principal>(trustedCanisterEntries, func(t) { t != p });
+    trustedCanisterEntries := Admin.remove(trustedCanisterEntries, p);
     #ok(())
   };
 
@@ -979,15 +957,13 @@ persistent actor Job {
   /// Allow a principal (the notification relay's identity) to read the outbox.
   public shared(msg) func addNotifier(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isNotifier(p)) {
-      notifierEntries := Array.concat(notifierEntries, [p]);
-    };
+    notifierEntries := Admin.add(notifierEntries, p);
     #ok(())
   };
 
   public shared(msg) func removeNotifier(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    notifierEntries := Array.filter<Principal>(notifierEntries, func(n) { n != p });
+    notifierEntries := Admin.remove(notifierEntries, p);
     #ok(())
   };
 
@@ -1001,10 +977,7 @@ persistent actor Job {
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     #ok(())
   };
 
@@ -1113,9 +1086,7 @@ persistent actor Job {
 
     // Attribute the job to the property's current owner so they can read it.
     let homeowner : Principal = if (Text.size(propCanisterId) > 0) {
-      let propActor = actor(propCanisterId) : actor {
-        getPropertyOwner : (Text) -> async ?Principal;
-      };
+      let propActor = Canisters.property(propCanisterId);
       switch (await propActor.getPropertyOwner(propertyId)) {
         case null     { return #err(#NotFound) };
         case (?owner) { owner };
@@ -1471,9 +1442,7 @@ persistent actor Job {
     // Look up the property owner via cross-canister call (if property canister is wired).
     // Falls back to anonymous when not wired — useful in tests without a full deploy.
     let homeowner : Principal = if (Text.size(propCanisterId) > 0) {
-      let propActor = actor(propCanisterId) : actor {
-        getPropertyOwner : (Text) -> async ?Principal;
-      };
+      let propActor = Canisters.property(propCanisterId);
       switch (await propActor.getPropertyOwner(propertyId)) {
         case null     { return #err(#InvalidInput("Property not found")) };
         case (?owner) { owner };
