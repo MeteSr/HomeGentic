@@ -20,7 +20,7 @@ const F = {
   mono:    "'JetBrains Mono', monospace",
 };
 
-const EFFECTIVE_DATE = "April 5, 2026";
+const EFFECTIVE_DATE = "October 19, 2026";
 
 interface Section {
   id: string;
@@ -28,13 +28,33 @@ interface Section {
   body: React.ReactNode;
 }
 
+interface Recipient { who: string; gets: string; why: string }
+
+/** Every outside service that receives user data. Keep in step with the code. */
+const RECIPIENTS: Recipient[] = [
+  { who: "DFINITY / Internet Computer node providers", gets: "Everything stored in HomeGentic's canisters (profile, properties, jobs, photos, documents, bills, reports)", why: "Hosting. Our canisters run on independent node machines on the Internet Computer." },
+  { who: "Anthropic (Claude)", gets: "Your questions to the assistant with your property and job context; documents, bills and photos you ask us to read; addresses and claims for a Buyer's Truth Kit; insurer-discount inputs", why: "AI answers and document extraction" },
+  { who: "Stripe", gets: "Payment details (entered directly with Stripe), your email, your HomeGentic account ID, gift recipient details; for identity checks, your ID document images, a selfie and the name on your ID", why: "Card payments, subscriptions, gifts and identity verification" },
+  { who: "Cloudflare", gets: "Your IP address and request details for calls to our AI, payment, email and notification services; Turnstile bot checks on our lead form", why: "Runs those services (Workers) and blocks abuse" },
+  { who: "Resend", gets: "Email addresses and message content (invites, gift emails, notifications, lead-form messages)", why: "Sending email" },
+  { who: "Twilio", gets: "Your phone number and text message content", why: "Text alerts and phone-number verification" },
+  { who: "Apple (APNs), Google (FCM) and Expo", gets: "Push-notification tokens and notification content", why: "Push notifications" },
+  { who: "ATTOM and RentCast", gets: "Property addresses", why: "Property records, valuations and rent estimates" },
+  { who: "OpenPermit and city/county permit portals", gets: "Property addresses", why: "Building-permit lookups" },
+  { who: "OpenStreetMap (Nominatim)", gets: "Addresses you type", why: "Turning an address into map coordinates" },
+  { who: "Google Fonts", gets: "Your IP address and browser details when a page loads", why: "Web fonts" },
+  { who: "Smart-home vendors you connect (e.g. Nest, Ecobee, Moen, Honeywell, Rheem, Sense, Emporia, Rachio, SmartThings, Home Assistant)", gets: "The sign-in authorisation you grant; we receive device readings and alerts back", why: "Device monitoring you turn on" },
+  { who: "Contractors and real-estate agents on HomeGentic", gets: "Your property address and job or listing details when you request quotes, invite a contractor or list a home", why: "Quotes, job confirmation and Bid to List" },
+  { who: "People you share a report with", gets: "Whatever the report includes, at the visibility you choose", why: "Sharing your home's record" },
+];
+
 const SECTIONS: Section[] = [
   {
     id: "overview",
     title: "Overview",
     body: (
       <>
-        <p>HomeGentic ("we", "us", "our") operates homegentic.app. This Privacy Policy explains what information we collect, how we use it, and what choices you have. We built HomeGentic on the Internet Computer Protocol (ICP) — a decentralized, blockchain-based cloud platform — which means your property records are stored on-chain rather than in a traditional database we own and control.</p>
+        <p>HomeGentic ("we", "us", "our") operates homegentic.app and the HomeGentic mobile app. This Privacy Policy explains what information we collect, who we share it with, how long we keep it, and how to delete it. HomeGentic runs on the Internet Computer (ICP): your records are stored in HomeGentic's own canisters (programs with their own storage) running on independent node machines, rather than in a conventional cloud database.</p>
         <p>If you have questions or concerns, contact us at <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a>.</p>
       </>
     ),
@@ -44,12 +64,13 @@ const SECTIONS: Section[] = [
     title: "Information We Collect",
     body: (
       <>
-        <p><strong>Account information.</strong> When you sign in with Internet Identity, we receive a pseudonymous principal (a cryptographic identifier) tied to your device. We do not receive your name, email address, or password — Internet Identity issues no passwords and stores no personal identifiers on our servers.</p>
-        <p><strong>Profile data you provide.</strong> You may choose to add a display name, contact email, and role (Homeowner, Contractor, or Realtor) to your HomeGentic profile. This data is stored in the <code>auth</code> canister on ICP.</p>
-        <p><strong>Property and job records.</strong> Addresses, photos, maintenance job descriptions, contractor details, receipts, and related data you upload are stored in ICP canisters. These records are replicated across ICP subnet nodes worldwide and governed by a decentralized protocol — no single company, including HomeGentic, can unilaterally delete them.</p>
-        <p><strong>Billing information.</strong> Subscription payments are processed by our payment provider. We store only your subscription tier and expiry date. We never see or store full card numbers, bank account numbers, or other raw payment credentials.</p>
-        <p><strong>Usage data.</strong> We log server-side events (route hits, error rates, canister call latency) for reliability monitoring. These logs do not contain property record content. We do not use third-party behavioral analytics or ad-tracking pixels.</p>
-        <p><strong>Voice agent interactions.</strong> If you use the voice assistant, your message and property context are sent to Anthropic's Claude API to generate a response. These requests are not stored by HomeGentic beyond the duration of the API call. Review Anthropic's <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer" style={{ color: C.blue }}>Privacy Policy</a> for how they handle API data.</p>
+        <p><strong>Sign-in.</strong> You sign in with Internet Identity, which gives us a pseudonymous account ID (a "principal"). Internet Identity uses passkeys, so we never handle a password.</p>
+        <p><strong>Profile.</strong> Your role (Homeowner, Contractor, Realtor or Builder) and an email address are required to create an account. A phone number is optional and used only for text alerts. Contractors and agents also give us business details such as name, licence number, brokerage and service area.</p>
+        <p><strong>Property and home records.</strong> Property addresses, details about the home, maintenance jobs, photos, receipts, scanned documents, utility bills, recurring services, rooms and fixtures, smart-home device readings, quote requests and listings that you or people you invite add.</p>
+        <p><strong>Ownership and identity checks.</strong> To verify a property you upload an ownership document, and you may complete an identity check with Stripe. Stripe collects your ID images and selfie and keeps them; HomeGentic stores only the result, the Stripe session reference and the name on your ID.</p>
+        <p><strong>Billing.</strong> Card payments go directly to Stripe; we never see your full card number. We store your plan, its expiry and cancellation date, gift details (recipient name, email and message), credit balances, and records of platform and referral fees.</p>
+        <p><strong>AI assistant.</strong> When you use the assistant or ask us to read a document, the request and the context needed to answer it are sent to Anthropic. We count your requests to enforce plan limits but do not keep the conversation.</p>
+        <p><strong>Device and usage data.</strong> Our services log requests (time, route, errors, IP address) for reliability and abuse prevention. The mobile app stores a push-notification token if you turn notifications on. We do not use advertising trackers or third-party behavioural analytics.</p>
       </>
     ),
   },
@@ -58,44 +79,54 @@ const SECTIONS: Section[] = [
     title: "How We Use Your Information",
     body: (
       <ul>
-        <li>Providing and improving the HomeGentic platform and its features.</li>
-        <li>Processing subscription payments and managing tier access.</li>
-        <li>Generating your HomeGentic Score, maintenance recommendations, and shared reports.</li>
-        <li>Responding to support requests you initiate.</li>
-        <li>Monitoring service reliability, debugging errors, and preventing abuse.</li>
-        <li>Sending transactional communications (subscription receipts, cancellation confirmations) where you have provided an email address.</li>
+        <li>Running HomeGentic: storing your records, showing them to you and the people you share them with.</li>
+        <li>Charging for and managing subscriptions, gifts, credits and fees.</li>
+        <li>Verifying property ownership, contractor and agent details, and identity.</li>
+        <li>Generating your HomeGentic Score, maintenance recommendations, reports and AI answers.</li>
+        <li>Sending emails, texts and push notifications you have turned on, and transactional messages such as receipts.</li>
+        <li>Responding to support requests, keeping the service reliable, and preventing fraud and abuse.</li>
       </ul>
     ),
   },
   {
-    id: "icp-blockchain",
-    title: "Your Data on the ICP Blockchain",
+    id: "where-data-lives",
+    title: "Where Your Data Is Stored",
     body: (
       <>
-        <p>Property records, maintenance jobs, photos, and reports written to ICP canisters are replicated across multiple independent node providers globally. This design gives you strong guarantees against data loss, but it also means that on-chain records cannot be fully erased in the traditional sense — the protocol's history is immutable.</p>
-        <p>Practically, this means:</p>
-        <ul>
-          <li>Your records remain readable even if HomeGentic as a company ceases to operate.</li>
-          <li>HomeGentic cannot unilaterally delete a record once it has been finalized on-chain.</li>
-          <li>We can mark records as deleted in our application layer (making them invisible in the UI), but the underlying canister history persists.</li>
-        </ul>
-        <p>We consider this a feature, not a limitation — your maintenance history is a financial asset that should outlast any single company.</p>
+        <p>Your records are stored in HomeGentic's canisters on the Internet Computer. Each canister's data is replicated across several independent node machines, which protects against data loss. HomeGentic controls these canisters: we can update, correct and delete the records in them, and we pay to keep them running.</p>
+        <p>The Internet Computer is not a public ledger of your records: other people cannot browse them. Only you, the people you share with, and HomeGentic's own services can read them. You can export your records as a file at any time from Settings → Privacy.</p>
+        <p><strong>Public by design.</strong> A property's street address is visible to other users while it is being claimed, so that two people can't claim the same home. Reports and listings you choose to share are visible to whoever has the link or, for public listings, to anyone.</p>
       </>
     ),
   },
   {
     id: "sharing",
-    title: "Information Sharing and Disclosure",
+    title: "Who We Share Data With",
     body: (
       <>
-        <p><strong>We do not sell your personal data.</strong></p>
-        <p>We share data only in the following limited circumstances:</p>
-        <ul>
-          <li><strong>With your consent.</strong> When you generate a shareable HomeGentic Report, you choose whether it is public, link-only, or private. You control who sees it.</li>
-          <li><strong>Service providers.</strong> We use Anthropic (AI), a payment processor, and infrastructure providers. Each is bound by data processing agreements that prohibit them from using your data for their own purposes.</li>
-          <li><strong>Legal requirements.</strong> We may disclose information if required by law, subpoena, or to protect the rights, property, or safety of HomeGentic, our users, or the public.</li>
-          <li><strong>Business transfers.</strong> If HomeGentic is acquired or merges with another company, your data may be transferred. We will notify you via email or a prominent notice on the site before your data is transferred and becomes subject to a different privacy policy.</li>
-        </ul>
+        <p><strong>We do not sell your personal data</strong>, and we don't share it for advertising.</p>
+        <p>We send data to the following services only as needed to run the features you use:</p>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
+            <thead>
+              <tr>
+                {["Recipient", "What they receive", "Why"].map((h) => (
+                  <th key={h} scope="col" style={{ textAlign: "left", padding: "0.5rem", borderBottom: `1px solid ${C.border}`, color: C.ink }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {RECIPIENTS.map((r) => (
+                <tr key={r.who}>
+                  <th scope="row" style={{ textAlign: "left", verticalAlign: "top", padding: "0.5rem", borderBottom: `1px solid ${C.border}`, color: C.ink, fontWeight: 600 }}>{r.who}</th>
+                  <td style={{ verticalAlign: "top", padding: "0.5rem", borderBottom: `1px solid ${C.border}` }}>{r.gets}</td>
+                  <td style={{ verticalAlign: "top", padding: "0.5rem", borderBottom: `1px solid ${C.border}` }}>{r.why}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p>Each company handles this data under its own privacy policy. Public map and permit services receive only an address. We may also disclose information when required by law, to protect the safety of our users or the public, or as part of a merger or acquisition, in which case we will tell you before your data becomes subject to a different privacy policy.</p>
       </>
     ),
   },
@@ -104,10 +135,11 @@ const SECTIONS: Section[] = [
     title: "Subscriptions and Billing",
     body: (
       <>
-        <p>HomeGentic offers paid subscription tiers: Pro ($59/year) and ContractorPro ($40/month).</p>
-        <p><strong>Cancellation.</strong> You may cancel your subscription at any time from your account Settings page. Cancellation takes effect at the end of your current billing period — you will retain full access to your paid tier's features until that date. If you cancel five days into a monthly billing cycle, you can continue using all paid features for the remaining days of that month.</p>
-        <p><strong>No refunds.</strong> We do not offer partial-month or partial-year refunds on subscription fees. Because access continues through the end of the paid period, charges for the current period are non-refundable.</p>
-        <p><strong>Blockchain records after cancellation.</strong> Your property records and maintenance history on ICP remain accessible and downloadable regardless of subscription status. Tier-gated features (additional properties, photos, quote slots) revert to Free limits, but all data you entered remains yours.</p>
+        <p>HomeGentic offers paid plans: Pro ($59/year) and ContractorPro ($40/month or yearly). Paid plans bought by card renew automatically until you cancel.</p>
+        <p><strong>Cancellation.</strong> Cancel any time from Settings → Subscription. We stop the renewal with Stripe straight away, so you won't be charged again, and you keep your paid features until the end of the period you've paid for. Then your account moves to the Free plan.</p>
+        <p><strong>Refunds.</strong> We do not offer partial-month or partial-year refunds.</p>
+        <p><strong>Gifts.</strong> A gift is a one-time payment for one year of Pro. It does not renew. We email the recipient a link to redeem it.</p>
+        <p><strong>After cancelling.</strong> Your records stay in your account and you can still export them. Paid limits (number of properties, photos, quote requests) go back to the Free limits.</p>
       </>
     ),
   },
@@ -116,10 +148,9 @@ const SECTIONS: Section[] = [
     title: "Data Retention and Deletion",
     body: (
       <>
-        <p><strong>Account and profile data.</strong> If you delete your HomeGentic account, we remove your profile information and disassociate your principal from application-layer records within 30 days.</p>
-        <p><strong>On-chain records.</strong> As described above, records written to ICP canisters cannot be fully erased from the blockchain's history. We will mark them as deleted in our application index, making them inaccessible via the HomeGentic interface.</p>
-        <p><strong>Server logs.</strong> Infrastructure logs are retained for up to 90 days for reliability and security purposes, then deleted.</p>
-        <p>To request deletion of your account, email <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a>. We will respond within 30 days.</p>
+        <p><strong>Deleting your account.</strong> You can delete your account yourself in Settings → Privacy (on the web; the mobile app links there). This stops your subscription from renewing and removes your profile, properties, jobs, photos, documents, bills, reports and share links, quote requests, smart-home devices, listings and contractor or agent profile from our canisters straight away. You can also ask us by emailing <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a>; we will respond within 30 days.</p>
+        <p><strong>What we keep.</strong> Payment, gift, credit, platform-fee and referral records, and our log of administrative actions, which we need for tax, accounting and fraud prevention. Jobs a contractor logged on someone else's home stay on that home's record. Photos, bills and schedule entries that someone you invited added to your home are tied to their account, so they stay until that person deletes them. Confirmations you gave on other people's records (such as photo approvals) stay with them. Stripe, Anthropic and the other services listed above keep data under their own retention policies; Stripe keeps identity-check images under its policy.</p>
+        <p><strong>Logs.</strong> Service logs are kept for up to 90 days.</p>
       </>
     ),
   },
@@ -127,14 +158,14 @@ const SECTIONS: Section[] = [
     id: "security",
     title: "Security",
     body: (
-      <p>We use Internet Identity for authentication, which means no passwords are stored — your identity is secured by your device's hardware key or passkey. Data in transit is encrypted via TLS. ICP canister data is replicated and integrity-protected by the protocol. We conduct periodic security reviews and follow responsible disclosure practices. If you discover a security vulnerability, please report it to <a href="mailto:security@homegentic.app" style={{ color: C.blue }}>security@homegentic.app</a>.</p>
+      <p>Internet Identity means there is no password to steal; your account is secured by your device's passkey. Data in transit is encrypted with TLS, and canister data is replicated across independent machines. We review our security regularly. If you discover a vulnerability, please report it to <a href="mailto:security@homegentic.app" style={{ color: C.blue }}>security@homegentic.app</a>.</p>
     ),
   },
   {
     id: "cookies",
-    title: "Cookies and Tracking",
+    title: "Cookies and Local Storage",
     body: (
-      <p>HomeGentic does not use advertising cookies or third-party tracking pixels. We use a small number of first-party, session-only cookies and localStorage entries (e.g., sidebar state, draft form data). We do not use Google Analytics, Meta Pixel, or similar behavioral tracking services.</p>
+      <p>HomeGentic does not use advertising cookies or tracking pixels, and we don't use Google Analytics, Meta Pixel or similar services. Your browser keeps some HomeGentic data in local storage: your sign-in session, and conveniences such as drafts, dismissed tips and recent score history. Some of it stays until you sign out or clear your browser data. Loading our pages also fetches fonts from Google Fonts, which sees your IP address.</p>
     ),
   },
   {
@@ -149,8 +180,8 @@ const SECTIONS: Section[] = [
     title: "Your Privacy Rights",
     body: (
       <>
-        <p>Depending on your location, you may have rights to access, correct, port, or delete your personal data. To exercise any of these rights, contact us at <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a>. We will respond within 30 days. Note that on-chain records are subject to the immutability constraints described above.</p>
-        <p>If you are in the European Economic Area, you may also have the right to lodge a complaint with your local data protection authority.</p>
+        <p>Depending on where you live, you may have rights to access, correct, export or delete your personal data. You can export and delete your data yourself in Settings → Privacy, or contact us at <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a> and we will respond within 30 days.</p>
+        <p>If you are in the European Economic Area or the UK, you may also have the right to lodge a complaint with your local data protection authority.</p>
       </>
     ),
   },
@@ -175,7 +206,7 @@ export default function PrivacyPolicyPage() {
     <>
       <PageHead>
         <title>Privacy Policy — HomeGentic</title>
-        <meta name="description" content="HomeGentic's Privacy Policy: how we collect, use, and protect your data, including your rights around ICP blockchain records and subscription cancellation." />
+        <meta name="description" content="HomeGentic's Privacy Policy: what we collect, who we share it with, how long we keep it, and how to export or delete your data." />
         <link rel="canonical" href="https://homegentic.app/privacy" />
         <meta property="og:title" content="Privacy Policy — HomeGentic" />
         <meta property="og:description" content="How HomeGentic collects, uses, and protects your data." />

@@ -26,6 +26,16 @@ export const ROLE_CHIP: Record<PropertyManager["role"], string> = { Manager: "MA
 
 export interface SettingRow { label: string; value: string; color?: string; valueColor?: string; onPress: () => void }
 
+/** Privacy, terms and account deletion (deletion runs on the web, in Settings → Privacy). */
+export function accountLegalRows(): SettingRow[] {
+  const web = HOMEGENTIC_WEB_URL.replace(/\/$/, "");
+  return [
+    { label: "Privacy policy",   value: "WEB", onPress: () => WebBrowser.openBrowserAsync(`${web}/privacy`) },
+    { label: "Terms of service", value: "WEB", onPress: () => WebBrowser.openBrowserAsync(`${web}/terms`) },
+    { label: "Delete account",   value: "WEB", color: v3.red, onPress: () => WebBrowser.openBrowserAsync(`${web}/settings?tab=privacy`) },
+  ];
+}
+
 export function SettingsCard({ rows }: { rows: SettingRow[] }) {
   return (
     <Card flat style={{ marginTop: 14 }}>
@@ -93,6 +103,7 @@ export default function AccountScreen() {
         : navigation.navigate("Upgrade"),
     },
     { label: "Open a shared report", value: "LINK", onPress: () => navigation.navigate("Report") },
+    ...accountLegalRows(),
     { label: "Sign out", value: "", color: v3.red, onPress: signOut },
   ];
 

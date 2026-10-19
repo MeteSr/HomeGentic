@@ -4,12 +4,12 @@ import cors                           from "cors";
 import rateLimit                      from "express-rate-limit";
 import webpush                        from "web-push";
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
-import { getTokensForPrincipal, registerToken, removeToken } from "./store";
-import { findSubscription, getSubscriptionsForPrincipal, registerSubscription, removeSubscription } from "./vapidStore";
+import { forgetPrincipalTokens, getTokensForPrincipal, registerToken, removeToken } from "./store";
+import { findSubscription, forgetPrincipalSubscriptions, getSubscriptionsForPrincipal, registerSubscription, removeSubscription } from "./vapidStore";
 import { dispatchToUser }             from "./dispatcher";
 import { startPoller }                from "./poller";
 import { requestPrincipal }           from "./session";
-import { clearPhone, publicPrefs, setPrefs, setVerifiedPhone } from "./prefs";
+import { clearPhone, forgetPrefs, publicPrefs, setPrefs, setVerifiedPhone } from "./prefs";
 import { emailConfigured }            from "./email";
 import { E164, allowCodeRequest, allowCodeToPhone, checkVerification, smsConfigured, startVerification } from "./sms";
 import { relayIdentity }              from "./icp";
@@ -270,6 +270,21 @@ export function buildApp() {
     }
     clearPhone(principal);
     res.json({ prefs: publicPrefs(principal), channels: channels() });
+  });
+
+  // ── DELETE /api/account ─────────────────────────────────────────────────────
+  // Account deletion: forget the caller's device tokens, browser push
+  // subscriptions, notification preferences and phone number.
+  app.delete("/api/account", async (req: Request, res: Response): Promise<void> => {
+    const principal = await requestPrincipal(req);
+    if (!principal) {
+      res.status(401).json({ error: "session_required" });
+      return;
+    }
+    forgetPrincipalTokens(principal);
+    forgetPrincipalSubscriptions(principal);
+    forgetPrefs(principal);
+    res.json({ ok: true });
   });
 
   // ── GET /api/push/vapid-public-key ──────────────────────────────────────────

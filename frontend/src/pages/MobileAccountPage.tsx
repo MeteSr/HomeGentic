@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { V2_FONTS } from "@/theme";
+import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 
 const F = V2_FONTS;
 
@@ -227,6 +228,13 @@ export function MobileAccountPage() {
           isLast={true}
           onClick={() => { clearAuth(); navigate("/"); }}
         />
+      </div>
+
+      <div style={{
+        background: M.card, border: `1px solid ${M.cardBdr}`,
+        borderRadius: M.radius, padding: "18px", marginTop: 14,
+      }}>
+        <DeleteAccountSection />
       </div>
     </div>
   );

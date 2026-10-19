@@ -30,6 +30,7 @@ import { idlFactory as agentIdl }       from "@homegentic/shared/declarations/ag
 import { idlFactory as propertyIdl }    from "@homegentic/shared/declarations/property";
 import { idlFactory as authIdl }        from "@homegentic/shared/declarations/auth";
 import { neighbourhoodIdlFactory as marketIdl } from "./market";
+import { forgetNotificationAccount } from "./notificationPrefs";
 
 const env = process.env as any;
 const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
@@ -52,7 +53,7 @@ const STEPS = [
   { label: "profile",              idl: authIdl,        id: env.AUTH_CANISTER_ID },
 ].map((s) => ({ ...s, actor: lazyActor(s.idl, s.id || "") }));
 
-export type DeletionStep = (typeof STEPS)[number]["label"] | "subscription";
+export type DeletionStep = (typeof STEPS)[number]["label"] | "subscription" | "notification settings";
 
 function errText(err: any): string {
   const key = Object.keys(err ?? {})[0] ?? "error";
@@ -76,6 +77,10 @@ export const accountDeletionService = {
         throw new Error(`Couldn't stop your subscription: ${data.error ?? resp.status}`);
       }
     }
+    // The notification relay checks the session against the auth canister, so
+    // it must run before the profile goes.
+    onStep?.("notification settings");
+    await forgetNotificationAccount();
     for (const step of STEPS) {
       if (!step.id) continue;                 // canister not deployed (mock/dev)
       onStep?.(step.label);

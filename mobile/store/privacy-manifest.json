@@ -3,8 +3,56 @@
   "NSPrivacyTrackingDomains": [],
   "NSPrivacyCollectedDataTypes": [
     {
+      "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
+      "NSPrivacyCollectedDataTypeLinked": true,
+      "NSPrivacyCollectedDataTypeTracking": false,
+      "NSPrivacyCollectedDataTypePurposes": [
+        "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+      ]
+    },
+    {
+      "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhoneNumber",
+      "NSPrivacyCollectedDataTypeLinked": true,
+      "NSPrivacyCollectedDataTypeTracking": false,
+      "NSPrivacyCollectedDataTypePurposes": [
+        "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+      ]
+    },
+    {
+      "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhysicalAddress",
+      "NSPrivacyCollectedDataTypeLinked": true,
+      "NSPrivacyCollectedDataTypeTracking": false,
+      "NSPrivacyCollectedDataTypePurposes": [
+        "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+      ]
+    },
+    {
+      "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhotosorVideos",
+      "NSPrivacyCollectedDataTypeLinked": true,
+      "NSPrivacyCollectedDataTypeTracking": false,
+      "NSPrivacyCollectedDataTypePurposes": [
+        "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+      ]
+    },
+    {
+      "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+      "NSPrivacyCollectedDataTypeLinked": true,
+      "NSPrivacyCollectedDataTypeTracking": false,
+      "NSPrivacyCollectedDataTypePurposes": [
+        "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+      ]
+    },
+    {
+      "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+      "NSPrivacyCollectedDataTypeLinked": true,
+      "NSPrivacyCollectedDataTypeTracking": false,
+      "NSPrivacyCollectedDataTypePurposes": [
+        "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+      ]
+    },
+    {
       "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID",
-      "NSPrivacyCollectedDataTypeLinked": false,
+      "NSPrivacyCollectedDataTypeLinked": true,
       "NSPrivacyCollectedDataTypeTracking": false,
       "NSPrivacyCollectedDataTypePurposes": [
         "NSPrivacyCollectedDataTypePurposeAppFunctionality"
@@ -14,11 +62,19 @@
   "NSPrivacyAccessedAPITypes": [
     {
       "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-      "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+      "NSPrivacyAccessedAPITypeReasons": [
+        "CA92.1"
+      ]
     }
   ],
   "_comments": {
-    "NSPrivacyCollectedDataTypeDeviceID": "Device push token — used only to deliver push notifications to the authenticated user's device. Not linked to identity, not used for tracking.",
+    "NSPrivacyCollectedDataTypeEmailAddress": "Account email (required to create an account). Used for notifications and receipts.",
+    "NSPrivacyCollectedDataTypePhoneNumber": "Optional, for text alerts (sent via Twilio).",
+    "NSPrivacyCollectedDataTypePhysicalAddress": "Property addresses the user registers. Sent to property-record and permit services (ATTOM, RentCast, OpenPermit, city portals).",
+    "NSPrivacyCollectedDataTypePhotosorVideos": "Job and property photos the user uploads; stored in HomeGentic's canisters, and sent to Anthropic when the user asks us to read them.",
+    "NSPrivacyCollectedDataTypeOtherUserContent": "Scanned documents, bills, job records and assistant questions. Documents, bills and questions are sent to Anthropic for extraction and answers.",
+    "NSPrivacyCollectedDataTypeUserID": "Internet Identity principal (pseudonymous account ID).",
+    "NSPrivacyCollectedDataTypeDeviceID": "Push-notification token, registered against the user's account to deliver their notifications.",
     "NSPrivacyAccessedAPICategoryUserDefaults": "Used by Expo SecureStore for session delegation storage."
   }
 }

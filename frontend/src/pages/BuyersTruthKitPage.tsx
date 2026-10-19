@@ -759,7 +759,7 @@ export default function BuyersTruthKitPage() {
 
           <div style={{ background:`rgba(43,52,255,0.04)`, borderRadius:10, padding:"13px 16px", fontSize:13, color:C.muted, marginTop:8 }}>
             <Info size={14} style={{ display:"inline", marginRight:6, verticalAlign:"middle" }} />
-            Your address is used only to look up permit records. It is never stored or shared.
+            To build the report we send this address to public map and permit services (OpenStreetMap, city and county permit portals) and to our AI provider, Anthropic. We don't add it to an account.
           </div>
 
           <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:36 }}>
