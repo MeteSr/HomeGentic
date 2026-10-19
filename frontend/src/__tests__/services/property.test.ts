@@ -241,17 +241,22 @@ describe("propertyService", () => {
   // ── getPendingVerifications ──────────────────────────────────────────────────
   describe("getPendingVerifications", () => {
     it("returns an empty array when none are pending", async () => {
-      mockActor.getPendingVerifications.mockResolvedValue([]);
+      mockActor.getPendingVerifications.mockResolvedValue({ ok: [] });
       const result = await propertyService.getPendingVerifications();
       expect(result).toEqual([]);
     });
 
     it("maps pending properties correctly", async () => {
-      mockActor.getPendingVerifications.mockResolvedValue([
+      mockActor.getPendingVerifications.mockResolvedValue({ ok: [
         makeRawProperty({ verificationLevel: { PendingReview: null } }),
-      ]);
+      ] });
       const [prop] = await propertyService.getPendingVerifications();
       expect(prop.verificationLevel).toBe("PendingReview");
+    });
+
+    it("throws when the canister refuses (caller is not an admin)", async () => {
+      mockActor.getPendingVerifications.mockResolvedValue({ err: { NotAuthorized: null } });
+      await expect(propertyService.getPendingVerifications()).rejects.toThrow("NotAuthorized");
     });
   });
 

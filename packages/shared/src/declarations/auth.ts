@@ -57,6 +57,12 @@ export const idlFactory = ({ IDL }: any) => {
     hasRole:       IDL.Func([UserRole], [IDL.Bool], ["query"]),
     getUserStats:  IDL.Func([], [UserStats], ["query"]),
     isAdminPrincipal: IDL.Func([IDL.Principal], [IDL.Bool], ["query"]),
+    // Used by the notification relay to email a contact (allow-listed callers only).
+    getNotificationContact: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Opt(IDL.Record({ email: IDL.Text })), err: Error })],
+      ["query"]
+    ),
     getMetrics: IDL.Func(
       [],
       [IDL.Record({

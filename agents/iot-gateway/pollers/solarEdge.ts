@@ -11,7 +11,7 @@
 
 import { handleSolarEdgeEvent } from "../handlers";
 import { recordSensorEvent } from "../icp";
-import { logger } from "../logger";
+import { logger } from "../../../packages/shared/src/logger";
 import type { SolarEdgeEvent } from "../types";
 
 const SOLAREDGE_API = "https://monitoringapi.solaredge.com";

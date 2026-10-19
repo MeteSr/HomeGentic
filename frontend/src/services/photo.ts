@@ -1,5 +1,5 @@
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/photo";
+import { idlFactory } from "@homegentic/shared/declarations/photo";
 export { idlFactory };
 
 const PHOTO_CANISTER_ID = (process.env as any).PHOTO_CANISTER_ID || "";

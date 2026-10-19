@@ -60,7 +60,7 @@ export function useNotifications(): void {
       const deviceToken = String(tokenData.data);
       tokenRef.current  = deviceToken;
 
-      const sessionToken = await issueAgentSession(agent).catch(() => null);
+      const sessionToken = await issueAgentSession(agent).then((s) => s?.token ?? null).catch(() => null);
       sessionRef.current = sessionToken;
       if (cancelled) return;
 

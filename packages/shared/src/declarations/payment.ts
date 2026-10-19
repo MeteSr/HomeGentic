@@ -30,9 +30,7 @@ export const idlFactory = ({ IDL }: any) => {
   const SubscriptionStats = IDL.Record({
     total:           IDL.Nat,
     free:            IDL.Nat,
-    basic:           IDL.Nat,
     pro:             IDL.Nat,
-    premium:         IDL.Nat,
     contractorFree:  IDL.Nat,
     contractorPro:   IDL.Nat,
     activePaid:      IDL.Nat,
@@ -146,6 +144,11 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Vec(PendingGift), err: Error })],
       ["query"]
     ),
+    stripeRecordGift: IDL.Func(
+      [IDL.Text, Tier, BillingPeriod, GiftMeta],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
     initAdmins: IDL.Func(
       [IDL.Vec(IDL.Principal), IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
@@ -153,6 +156,18 @@ export const idlFactory = ({ IDL }: any) => {
     ),
     setBootstrapNonce: IDL.Func([IDL.Text], [], []),
     // ── Agent credit top-ups (#89) ──
+    // Used by the voice Worker (agent-credit metering, tier lookups, admin activation).
+    consumeAgentCredit: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Nat, err: Error })],
+      []
+    ),
+    getTierForPrincipal: IDL.Func([IDL.Principal], [Tier], ["query"]),
+    adminActivateStripeSubscription: IDL.Func(
+      [IDL.Principal, Tier, IDL.Nat],
+      [IDL.Variant({ ok: Subscription, err: Error })],
+      []
+    ),
     getMyAgentCredits: IDL.Func(
       [],
       [IDL.Nat],
@@ -163,5 +178,27 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Nat, err: Error })],
       []
     ),
+    // ── Stripe relay (voice Worker) — idempotent per Stripe reference ──
+    stripeGrantAgentCredits: IDL.Func(
+      [IDL.Principal, IDL.Nat, IDL.Text],
+      [IDL.Variant({ ok: IDL.Nat, err: Error })],
+      []
+    ),
+    stripeActivateSubscription: IDL.Func(
+      [IDL.Principal, Tier, IDL.Int, IDL.Text],
+      [IDL.Variant({ ok: Subscription, err: Error })],
+      []
+    ),
+    addStripeRelay: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    removeStripeRelay: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    listStripeRelays: IDL.Func([], [IDL.Vec(IDL.Principal)], ["query"]),
   });
 };

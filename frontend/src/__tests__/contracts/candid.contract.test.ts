@@ -1,14 +1,14 @@
 /**
  * Candid contract tests
  *
- * Each test calls a frontend IDL factory with the real @icp-sdk/core/candid IDL
+ * Each test calls a shared IDL factory with the real @icp-sdk/core/candid IDL
  * object and snapshots the resulting service definition.  If a canister type
- * changes and the frontend IDL factory is not updated to match, the snapshot
+ * changes and the shared IDL factory is not updated to match, the snapshot
  * diff makes the drift immediately visible in CI.
  *
  * ── Workflow ──────────────────────────────────────────────────────────────────
  * Updating a canister type:
- *   1. Edit the Motoko source and the corresponding IDL factory in services/.
+ *   1. Edit the Motoko source and the corresponding IDL factory in packages/shared/src/declarations/.
  *   2. Run: npm run test:unit -- --update-snapshots
  *   3. Review the snapshot diff to confirm the change is intentional.
  *   4. Commit both the IDL factory change and the updated snapshot.
@@ -30,19 +30,19 @@ import { IDL } from "@icp-sdk/core/candid";
 // without `importOriginal`, replacing every export including `idlFactory`),
 // so importing through them here makes this contract test hostage to
 // whatever mock last touched the same module in the same worker.
-import { idlFactory as authIdlFactory }        from "../../declarations/auth";
-import { idlFactory as paymentIdlFactory }     from "../../declarations/payment";
-import { idlFactory as jobIdlFactory }         from "../../declarations/job";
-import { idlFactory as propertyIdlFactory }    from "../../declarations/property";
-import { idlFactory as listingIdlFactory }     from "../../declarations/listing";
-import { idlFactory as quoteIdlFactory }       from "../../declarations/quote";
-import { idlFactory as contractorIdlFactory }  from "../../declarations/contractor";
-import { idlFactory as photoIdlFactory }       from "../../declarations/photo";
-import { idlFactory as reportIdlFactory }      from "../../declarations/report";
-import { idlFactory as sensorIdlFactory }      from "../../declarations/sensor";
-import { idlFactory as maintenanceIdlFactory } from "../../declarations/maintenance";
-import { idlFactory as billsIdlFactory }       from "../../declarations/bills";
-import { idlFactory as aiProxyIdlFactory }     from "../../declarations/ai_proxy";
+import { idlFactory as authIdlFactory }        from "@homegentic/shared/declarations/auth";
+import { idlFactory as paymentIdlFactory }     from "@homegentic/shared/declarations/payment";
+import { idlFactory as jobIdlFactory }         from "@homegentic/shared/declarations/job";
+import { idlFactory as propertyIdlFactory }    from "@homegentic/shared/declarations/property";
+import { idlFactory as listingIdlFactory }     from "@homegentic/shared/declarations/listing";
+import { idlFactory as quoteIdlFactory }       from "@homegentic/shared/declarations/quote";
+import { idlFactory as contractorIdlFactory }  from "@homegentic/shared/declarations/contractor";
+import { idlFactory as photoIdlFactory }       from "@homegentic/shared/declarations/photo";
+import { idlFactory as reportIdlFactory }      from "@homegentic/shared/declarations/report";
+import { idlFactory as sensorIdlFactory }      from "@homegentic/shared/declarations/sensor";
+import { idlFactory as maintenanceIdlFactory } from "@homegentic/shared/declarations/maintenance";
+import { idlFactory as billsIdlFactory }       from "@homegentic/shared/declarations/bills";
+import { idlFactory as aiProxyIdlFactory }     from "@homegentic/shared/declarations/ai_proxy";
 
 // ── Helper ─���──────────────────────────────────────────────────────────────────
 
@@ -80,6 +80,7 @@ describe("auth IDL factory", () => {
     expect(Object.keys(svc).sort()).toEqual([
       "completeOnboarding",
       "getMetrics",
+      "getNotificationContact",
       "getProfile",
       "getUserStats",
       "hasRole",
@@ -99,7 +100,7 @@ describe("auth IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getMetrics", "getProfile", "getUserStats", "hasRole", "isAdminPrincipal", "resolveAgentSession"]);
+    expect(queries).toEqual(["getMetrics", "getNotificationContact", "getProfile", "getUserStats", "hasRole", "isAdminPrincipal", "resolveAgentSession"]);
   });
 
   it("UserRole variant includes Builder", () => {
@@ -133,9 +134,11 @@ describe("payment IDL factory", () => {
     const svc = extractService(paymentIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
       "addStripeRelay",
+      "adminActivateStripeSubscription",
       "adminGrantAgentCredits",
       "cancelSubscription",
       "configureStripe",
+      "consumeAgentCredit",
       "createStripeCheckoutSession",
       "getAllPricing",
       "getMyAgentCredits",
@@ -143,6 +146,7 @@ describe("payment IDL factory", () => {
       "getPriceQuote",
       "getPricing",
       "getSubscriptionStats",
+      "getTierForPrincipal",
       "grantSubscription",
       "initAdmins",
       "isStripeConfigured",
@@ -165,7 +169,7 @@ describe("payment IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getAllPricing", "getMyAgentCredits", "getMySubscription", "getPricing", "getSubscriptionStats", "isStripeConfigured", "listPendingGifts", "listStripeRelays"]);
+    expect(queries).toEqual(["getAllPricing", "getMyAgentCredits", "getMySubscription", "getPricing", "getSubscriptionStats", "getTierForPrincipal", "isStripeConfigured", "listPendingGifts", "listStripeRelays"]);
   });
 
   it("getSubscriptionStats returns all tier breakdown fields", () => {
@@ -227,7 +231,7 @@ describe("job IDL factory", () => {
       "getMetrics",
       "getMyReferralJobs",
       "getPendingProposals",
-      "getReferralJobs",
+      // getReferralJobs is an admin-only update call returning a Result
       "getUnattestedJobIds",
     ]);
   });
@@ -267,6 +271,7 @@ describe("property IDL factory", () => {
       "getPropertyManagers",
       "getPropertyOwner",
       "getPropertyYearBuilt",
+      "getRoomsByProperty",
       "getVerificationLevel",
       "getVerifyStatus",
       "initiateTransfer",
@@ -303,7 +308,7 @@ describe("property IDL factory", () => {
       "getPendingInvitesForProperty",
       "getPendingTransfer",
       "getPendingTransferByToken",
-      "getPendingVerifications",
+      // getPendingVerifications is an admin-only update call returning a Result
       "getProperty",
       "getPropertyByManagerInviteToken",
       "getPropertyByTransferToken",
@@ -311,6 +316,7 @@ describe("property IDL factory", () => {
       "getPropertyManagers",
       "getPropertyOwner",
       "getPropertyYearBuilt",
+      "getRoomsByProperty",
       "getVerificationLevel",
       "getVerifyStatus",
       "isAdminPrincipal",

@@ -8,11 +8,7 @@
  */
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
 import type { Principal } from "@icp-sdk/core/principal";
-
-const idlFactory = ({ IDL }: { IDL: any }) =>
-  IDL.Service({
-    resolveAgentSession: IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
-  });
+import { idlFactory } from "../../packages/shared/src/declarations/auth";
 
 type AuthActor = { resolveAgentSession(token: string): Promise<[] | [Principal]> };
 

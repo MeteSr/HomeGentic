@@ -32,6 +32,7 @@ unpause(0) -> (1)"
 exports[`Candid contract snapshots — method arity > auth 1`] = `
 "completeOnboarding(0) -> (0)
 getMetrics(0) -> (1) [query]
+getNotificationContact(1) -> (1) [query]
 getProfile(0) -> (1) [query]
 getUserStats(0) -> (1) [query]
 hasRole(1) -> (1) [query]
@@ -88,7 +89,7 @@ getJobsPendingMySignature(0) -> (1) [query]
 getMetrics(0) -> (1) [query]
 getMyReferralJobs(0) -> (1) [query]
 getPendingProposals(0) -> (1) [query]
-getReferralJobs(0) -> (1) [query]
+getReferralJobs(0) -> (1)
 getUnattestedJobIds(1) -> (1) [query]
 linkContractor(2) -> (1)
 redeemInviteToken(5) -> (1)
@@ -147,20 +148,30 @@ markCompleted(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > monitoring 1`] = `
-"checkCycleLevels(0) -> (1)
+"calculateCostMetrics(1) -> (1) [query]
+calculateProfitability(3) -> (1) [query]
+checkCycleLevels(0) -> (1)
+getActiveAlerts(0) -> (1) [query]
 getAllCanisterMetrics(0) -> (1) [query]
+getCriticalCycleAlerts(0) -> (1) [query]
+getFrontendErrors(2) -> (1) [query]
+getFrontendErrorStats(0) -> (1) [query]
 getMetrics(0) -> (1) [query]
 getTrackedCanisters(0) -> (1) [query]
+recordFrontendError(1) -> (0)
 registerCanister(2) -> (1)
+resolveFrontendError(1) -> (1)
 setLowCycleThreshold(1) -> (1)
 unregisterCanister(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > payment 1`] = `
 "addStripeRelay(1) -> (1)
+adminActivateStripeSubscription(3) -> (1)
 adminGrantAgentCredits(2) -> (1)
 cancelSubscription(0) -> (1)
 configureStripe(1) -> (1)
+consumeAgentCredit(1) -> (1)
 createStripeCheckoutSession(3) -> (1)
 getAllPricing(0) -> (1) [query]
 getMyAgentCredits(0) -> (1) [query]
@@ -168,6 +179,7 @@ getMySubscription(0) -> (1) [query]
 getPriceQuote(1) -> (1)
 getPricing(1) -> (1) [query]
 getSubscriptionStats(0) -> (1) [query]
+getTierForPrincipal(1) -> (1) [query]
 grantSubscription(2) -> (1)
 initAdmins(2) -> (1)
 isStripeConfigured(0) -> (1) [query]
@@ -212,7 +224,7 @@ getOwnershipHistory(1) -> (1) [query]
 getPendingInvitesForProperty(1) -> (1) [query]
 getPendingTransfer(1) -> (1) [query]
 getPendingTransferByToken(1) -> (1) [query]
-getPendingVerifications(0) -> (1) [query]
+getPendingVerifications(0) -> (1)
 getProperty(1) -> (1) [query]
 getPropertyByManagerInviteToken(1) -> (1) [query]
 getPropertyByTransferToken(1) -> (1) [query]
@@ -220,6 +232,7 @@ getPropertyLimitForTier(1) -> (1) [query]
 getPropertyManagers(1) -> (1) [query]
 getPropertyOwner(1) -> (1) [query]
 getPropertyYearBuilt(1) -> (1) [query]
+getRoomsByProperty(1) -> (1) [query]
 getVerificationLevel(1) -> (1) [query]
 getVerifyStatus(1) -> (1) [query]
 initiateTransfer(1) -> (1)

@@ -1,5 +1,5 @@
 // Candid interface for the quote canister — keep in sync with backend/quote/main.mo
-import { serviceTypeIdl } from "../services/serviceTypes";
+import { serviceTypeIdl } from "../serviceTypes";
 export const idlFactory = ({ IDL }: any) => {
   const ServiceType = serviceTypeIdl(IDL);
   const UrgencyLevel = IDL.Variant({

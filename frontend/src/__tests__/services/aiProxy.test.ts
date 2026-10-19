@@ -12,7 +12,7 @@ vi.mock("@/services/actor", () => ({
 }));
 
 // ── mock the IDL (just needs to be a function so Actor.createActor doesn't throw)
-vi.mock("@/declarations/ai_proxy", () => ({
+vi.mock("@homegentic/shared/declarations/ai_proxy", () => ({
   idlFactory: vi.fn(),
 }));
 

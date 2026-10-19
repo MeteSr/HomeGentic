@@ -298,7 +298,7 @@ All limits are enforced server-side in the `payment`, `quote`, `photo`, `propert
 ### Service Layer
 
 Every service file under `frontend/src/services/` imports its canister's
-Candid IDL from `frontend/src/declarations/<canister>/` and follows the
+Candid IDL from `packages/shared/src/declarations/<canister>.ts` and follows the
 same fallback contract:
 
 ```typescript

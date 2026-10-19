@@ -148,7 +148,7 @@ function decodeState(s: string): { address: string; yearBuilt: number; claims: C
   try { return JSON.parse(atob(s)); } catch { return null; }
 }
 
-const VOICE_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
+const VOICE_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 async function fetchKit(address: string, yearBuilt: number, claims: Claims): Promise<KitResponse> {
   const res = await voiceAgentFetch(`${VOICE_URL}/api/buyers-truth-kit`, {

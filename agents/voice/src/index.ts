@@ -39,7 +39,7 @@ import {
 } from "../billsInsights";
 import type { BuyerTruthKitRequest } from "../buyersTruthKit";
 import type { ChatRequest } from "../types";
-import { logger } from "../logger";
+import { logger } from "../../../packages/shared/src/logger";
 import { checkGlobalRateLimit, checkAgentRateLimit, checkChatRateLimit, checkAuxAiRateLimit, getAgentUsage, beginOnce, finishOnce, abortOnce } from "./rateLimiter";
 import { resolveSessionPrincipal, SESSION_HEADER } from "./session";
 import { resolveTier } from "./tier";

@@ -1,5 +1,5 @@
 /**
- * Structured logger for the HomeGentic voice agent server.
+ * Structured logger shared by the voice Worker and the IoT gateway.
  *
  * Writes JSON-lines to stdout (info/debug) and stderr (warn/error) so logs
  * can be parsed by Datadog, CloudWatch, or any JSON-line consumer.

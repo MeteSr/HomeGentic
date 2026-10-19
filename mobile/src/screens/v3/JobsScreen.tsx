@@ -6,7 +6,7 @@ import { useLoad } from "../../hooks/useLoad";
 import { getJobs, getJobsPendingMySignature, Job } from "../../services/jobService";
 import { Bid, getBids, getMyQuoteRequests, isOpenRequest, QuoteRequest } from "../../services/quoteService";
 import { initials } from "../../services/propertyService";
-import { serviceTypeLabel } from "../../services/serviceTypes";
+import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import { Icon } from "../../components/Icon";
 import { Card, EmptyRow, IconTile, Kicker, PageHeader, Pill, Row, SectionLabel, TabScroll } from "../../components/ui";
 import { NoProperty } from "./NoProperty";

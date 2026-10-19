@@ -6,7 +6,7 @@ import type { RootStackParamList } from "../navigation/types";
 import { useLoad } from "../hooks/useLoad";
 import { filterLeadsBySpecialties, getLeads, getMyContractorProfile, Lead } from "../services/contractorService";
 import { getMyBidRequestIds } from "../services/bidService";
-import { serviceTypeLabel } from "../services/serviceTypes";
+import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import { closesLabel } from "./v3/JobsScreen";
 import { Card, EmptyRow, Kicker, Loading, PageHeader, Pill, TabScroll } from "../components/ui";
 import { family, shadow, type, v3 } from "../theme";

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildSystemAnswer, matchSystemQuestion, SYSTEM_SERVICE_TYPE, type AnswerInput } from "@/components/dashboardV3/answerCards";
-import { serviceTypeKey } from "@/services/serviceTypes";
+import { serviceTypeKey } from "@homegentic/shared/serviceTypes";
 import type { SystemEstimate } from "@/services/systemAgeEstimator";
 
 describe("matchSystemQuestion", () => {

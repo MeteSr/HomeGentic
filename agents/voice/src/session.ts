@@ -11,11 +11,11 @@
 
 import { resolveAgentSessionOwner } from "../authCanister";
 import type { KVEnv } from "./rateLimiter";
+import { isSessionToken } from "../../../packages/shared/src/agentSession";
 
-export const SESSION_HEADER = "x-agent-session";
+export { SESSION_HEADER } from "../../../packages/shared/src/agentSession";
 /** Also bounds how long a revoked token keeps working. */
 export const SESSION_CACHE_TTL_SECONDS = 120;
-const TOKEN_RE = /^hgs_[0-9a-f]{64}$/;
 
 async function sha256Hex(s: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -32,7 +32,7 @@ export async function resolveSessionPrincipal(
   env: KVEnv,
   lookup: (token: string) => Promise<string | null> = resolveAgentSessionOwner,
 ): Promise<string | null> {
-  if (!token || !TOKEN_RE.test(token)) return null;
+  if (!isSessionToken(token)) return null;
 
   const key    = `sess:${await sha256Hex(token)}`;
   const cached = await env.RATE_LIMIT.get(key);

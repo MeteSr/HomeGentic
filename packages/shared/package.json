@@ -1,0 +1,7 @@
+{
+  "name": "@homegentic/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dependency-free TypeScript shared by the web app, mobile app, admin dashboard and agents",
+  "license": "UNLICENSED"
+}

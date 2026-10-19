@@ -282,7 +282,7 @@ describe("SEC.1 — Principal.isAnonymous guard in every update-capable canister
       expect(
         src,
         `backend/${canister}/main.mo must call Principal.isAnonymous`
-      ).toMatch(/Principal\.isAnonymous/);
+      ).toMatch(/Principal\.isAnonymous\(|\.isAnonymous\(\)/);
     });
   }
 
@@ -295,7 +295,7 @@ describe("SEC.1 — Principal.isAnonymous guard in every update-capable canister
         expect(
           src,
           `backend/${dir}/main.mo: requireActive has caller param but no isAnonymous check`
-        ).toMatch(/Principal\.isAnonymous/);
+        ).toMatch(/Principal\.isAnonymous\(|\.isAnonymous\(\)/);
       }
     }
   });
@@ -338,7 +338,7 @@ describe("H-20 — every canister with an admin bootstrap requires a nonce", () 
       expect(
         src,
         `backend/${canister}/main.mo must compare the caller-supplied nonce against bootstrapNonce`
-      ).toMatch(/if\s*\(nonce\s*!=\s*n\)|nonce\s*==\s*n/);
+      ).toMatch(/if\s*\(nonce\s*!=\s*n\)|nonce\s*==\s*n|Admin\.(?:authorizeAdd|nonceMatches)\([^;]{0,80}?bootstrapNonce,\s*nonce\)/);
       expect(
         src,
         `backend/${canister}/main.mo must consume the nonce (set bootstrapNonce := null) after use`

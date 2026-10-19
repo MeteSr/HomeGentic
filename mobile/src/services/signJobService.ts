@@ -1,5 +1,5 @@
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
-import { idlFactory as jobIdlFactory } from "../declarations/job";
+import { idlFactory as jobIdlFactory } from "@homegentic/shared/declarations/job";
 import { getIcpAgent }      from "./icpAgent";
 
 export type SignRole = "homeowner" | "contractor";

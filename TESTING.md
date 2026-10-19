@@ -41,7 +41,7 @@ npm run test:unit:coverage
 
 **If you change a canister type:**
 1. Update the Motoko source in `backend/<canister>/main.mo`.
-2. Update the corresponding IDL in `frontend/src/declarations/<canister>/index.ts` (`bash scripts/generate-declarations.sh` regenerates it if `dfx` is installed).
+2. Update the corresponding IDL in `packages/shared/src/declarations/<canister>.ts` (shared by the frontend, mobile, dashboard and agents).
 3. Run with snapshot update: `cd frontend && npm run test:unit -- --update-snapshots`
 4. Review the diff in `frontend/src/__tests__/contracts/__snapshots__/candid.contract.test.ts.snap`.
 5. Commit the IDL factory change and the updated snapshot together.

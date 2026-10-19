@@ -79,7 +79,7 @@ The frontend bundle (and the CSP `connect-src` in `frontend/index.html`) is
 built with that URL baked in. Both deploy workflows pass it from the
 `VITE_VOICE_AGENT_URL` secret, and `scripts/deploy.sh` refuses to build the
 frontend for testnet or mainnet unless it is an `https://` URL — otherwise
-every voice/Stripe call would fall back to `http://localhost:3001` and be
+every voice/Stripe call would fall back to `http://localhost:8787` and be
 blocked by the CSP. The Worker only accepts requests from its
 `FRONTEND_ORIGIN`, so that must match the frontend that uses it.
 

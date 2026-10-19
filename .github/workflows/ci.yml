@@ -24,7 +24,8 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          # 22 for check-declarations.sh (Node type stripping)
+          node-version: '22'
 
       - name: Install icp-cli
         run: npm install -g @icp-sdk/icp-cli
@@ -56,6 +57,11 @@ jobs:
 
       - name: Motoko unit tests
         run: bash scripts/ci/test-motoko-units.sh
+
+      - name: Shared declarations match the canisters
+        run: |
+          npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/candid" @icp-sdk/core@5
+          CANDID_FROM="$RUNNER_TEMP/candid" bash scripts/ci/check-declarations.sh
 
       - name: Install ic-wasm
         run: |

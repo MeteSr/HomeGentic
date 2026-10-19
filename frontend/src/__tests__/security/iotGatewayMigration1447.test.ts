@@ -59,7 +59,8 @@ describe("14.4.7: iot-gateway icp.ts uses 3.x+ HttpAgent API", () => {
   it("imports are from @icp-sdk/core/* (not legacy @dfinity/* packages)", () => {
     expect(icp).toMatch(/@icp-sdk\/core\/agent/);
     expect(icp).toMatch(/@icp-sdk\/core\/identity/);
-    expect(icp).toMatch(/@icp-sdk\/core\/candid/);
+    // The sensor/auth IDLs come from packages/shared, which takes IDL as an argument.
+    expect(icp).toMatch(/packages\/shared\/src\/declarations\/sensor/);
   });
 
   it("fetchRootKey: true does not appear (must use shouldFetchRootKey option)", () => {

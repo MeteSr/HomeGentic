@@ -9,8 +9,8 @@ import { voiceAgentFetch } from "./voiceAgentHeaders";
 
 const CLASSIFY_URL =
   typeof import.meta !== "undefined"
-    ? `${import.meta.env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001"}/api/classify`
-    : "http://localhost:3001/api/classify";
+    ? `${import.meta.env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787"}/api/classify`
+    : "http://localhost:8787/api/classify";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

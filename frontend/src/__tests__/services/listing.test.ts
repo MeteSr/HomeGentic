@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // ─── Stateful mock actor for listing canister (v2 — Bid to List) ──────────────
 //
-// Mirrors the Candid interface in frontend/src/declarations/listing/index.ts.
+// Mirrors the Candid interface in packages/shared/src/declarations/listing.ts.
 // A single fixed caller ("local") plays both homeowner and agent, mirroring
 // the dev-identity pattern used elsewhere in this repo's mocks. To exercise
 // masking (isMine === false) a couple of test-only escape hatches are exposed

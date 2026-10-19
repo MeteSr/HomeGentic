@@ -182,7 +182,7 @@ export const idlFactory = ({ IDL }: any) => {
       []
     ),
     getVerificationLevel: IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ["query"]),
-    getPendingVerifications: IDL.Func([], [IDL.Vec(Property)], ["query"]),
+    getPendingVerifications: IDL.Func([], [IDL.Variant({ ok: IDL.Vec(Property), err: Error })], []),  // admin only
     isAdminPrincipal: IDL.Func([IDL.Principal], [IDL.Bool], ["query"]),
     verifyProperty: IDL.Func(
       [IDL.Text, IDL.Variant({ Unverified: IDL.Null, PendingReview: IDL.Null, Basic: IDL.Null, Premium: IDL.Null }), IDL.Opt(IDL.Text)],

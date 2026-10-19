@@ -1,5 +1,5 @@
 // Candid interface for the contractor canister — keep in sync with backend/contractor/main.mo
-import { serviceTypeIdl } from "../services/serviceTypes";
+import { serviceTypeIdl } from "../serviceTypes";
 export const idlFactory = ({ IDL }: any) => {
   const ServiceType = serviceTypeIdl(IDL);
   const ContractorOrigin = IDL.Variant({

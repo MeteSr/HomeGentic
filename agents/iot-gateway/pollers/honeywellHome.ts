@@ -22,7 +22,7 @@ import fs from "fs";
 import path from "path";
 import { handleHoneywellHomeEvent } from "../handlers";
 import { recordSensorEvent } from "../icp";
-import { logger } from "../logger";
+import { logger } from "../../../packages/shared/src/logger";
 import type { HoneywellDevice } from "../types";
 
 const HONEYWELL_API     = "https://api.honeywell.com";

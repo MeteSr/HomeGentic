@@ -1,10 +1,10 @@
 import { lazyActor } from "./lazyActor";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
-import { idlFactory } from "@/declarations/payment";
+import { idlFactory } from "@homegentic/shared/declarations/payment";
 export { idlFactory };
 
 const PAYMENT_CANISTER_ID = (process.env as any).PAYMENT_CANISTER_ID || "";
-const VOICE_AGENT_URL     = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
+const VOICE_AGENT_URL     = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 // ─── TypeScript types & static plan data (re-exported from planConstants) ─────
 //

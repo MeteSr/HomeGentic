@@ -4,7 +4,7 @@ import { Button } from "./Button";
 import { quoteService, Urgency } from "@/services/quote";
 import { shareBillsWithRequest } from "@/services/quoteUsage";
 import { ShareUsageToggle } from "./ShareUsageToggle";
-import { SERVICE_TYPE_LABELS } from "@/services/serviceTypes";
+import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
 import { type Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";

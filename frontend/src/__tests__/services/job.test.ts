@@ -136,7 +136,7 @@ const mockJobActor = {
     };
   }),
 
-  getReferralJobs: vi.fn(async () => []),
+  getReferralJobs: vi.fn(async () => ({ ok: [] })),
 
   getMyReferralJobs: vi.fn(async () => {
     return _mockJobs.filter((j) => Array.isArray(j.sourceQuoteId) && j.sourceQuoteId.length > 0);

@@ -83,7 +83,7 @@ export interface UseVoiceAgentReturn {
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 
-const PROXY_URL     = (import.meta as any).env?.VITE_VOICE_AGENT_URL  ?? "http://localhost:3001";
+const PROXY_URL     = (import.meta as any).env?.VITE_VOICE_AGENT_URL  ?? "http://localhost:8787";
 const VOICE_API_KEY = (import.meta as any).env?.VITE_VOICE_AGENT_API_KEY ?? "";
 const MAX_TURNS    = 5;
 

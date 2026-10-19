@@ -20,7 +20,7 @@
 import fs from "fs";
 import path from "path";
 import { recordSensorEvent } from "../icp";
-import { logger } from "../logger";
+import { logger } from "../../../packages/shared/src/logger";
 import type { SensorEventType, SensorReading, GEAppliance, GEApplianceAttributes } from "../types";
 
 const GE_API         = "https://api.whrcloud.com";

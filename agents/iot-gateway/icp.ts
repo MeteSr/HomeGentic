@@ -11,131 +11,11 @@
 
 import { HttpAgent, Actor, ActorSubclass } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
-import { IDL } from "@icp-sdk/core/candid";
 import { Principal } from "@icp-sdk/core/principal";
 import type { DeviceSourceName, SensorEventType, SensorReading } from "./types";
-import { logger } from "./logger";
-
-// ── IDL for the sensor canister ──────────────────────────────────────────────
-
-const SensorEventTypeIDL = IDL.Variant({
-  WaterLeak: IDL.Null,
-  LeakDetected: IDL.Null,
-  FloodRisk: IDL.Null,
-  LowTemperature: IDL.Null,
-  HvacAlert: IDL.Null,
-  HvacFilterDue: IDL.Null,
-  HighHumidity: IDL.Null,
-  HighTemperature: IDL.Null,
-  SolarFault: IDL.Null,
-  LowProduction: IDL.Null,
-  BatteryLow: IDL.Null,
-  GridOutage: IDL.Null,
-  ApplianceFault: IDL.Null,
-  ApplianceMaintenance: IDL.Null,
-});
-
-const DeviceSourceIDL = IDL.Variant({
-  Nest: IDL.Null,
-  Ecobee: IDL.Null,
-  MoenFlo: IDL.Null,
-  Manual: IDL.Null,
-  RingAlarm: IDL.Null,
-  HoneywellHome: IDL.Null,
-  RheemEcoNet: IDL.Null,
-  Sense: IDL.Null,
-  EmporiaVue: IDL.Null,
-  Rachio: IDL.Null,
-  SmartThings: IDL.Null,
-  HomeAssistant: IDL.Null,
-  EnphaseEnvoy: IDL.Null,
-  TeslaPowerwall: IDL.Null,
-  LGThinQ: IDL.Null,
-  GESmartHQ: IDL.Null,
-  SolarEdge: IDL.Null,
-});
-
-const SensorDeviceIDL = IDL.Record({
-  id: IDL.Text,
-  propertyId: IDL.Text,
-  homeowner: IDL.Principal,
-  externalDeviceId: IDL.Text,
-  source: DeviceSourceIDL,
-  name: IDL.Text,
-  registeredAt: IDL.Int,
-  isActive: IDL.Bool,
-});
-
-const SeverityIDL = IDL.Variant({
-  Info: IDL.Null,
-  Warning: IDL.Null,
-  Critical: IDL.Null,
-});
-
-const SensorEventIDL = IDL.Record({
-  id: IDL.Text,
-  deviceId: IDL.Text,
-  propertyId: IDL.Text,
-  homeowner: IDL.Principal,
-  eventType: SensorEventTypeIDL,
-  value: IDL.Float64,
-  unit: IDL.Text,
-  rawPayload: IDL.Text,
-  timestamp: IDL.Int,
-  severity: SeverityIDL,
-  jobId: IDL.Opt(IDL.Text),
-});
-
-const ErrorIDL = IDL.Variant({
-  NotFound: IDL.Null,
-  NotAuthorized: IDL.Null,   // the canister's tag (was mis-spelled Unauthorized)
-  InvalidInput: IDL.Text,
-  AlreadyExists: IDL.Null,
-});
-
-const ResultEventIDL = IDL.Variant({
-  ok: SensorEventIDL,
-  err: ErrorIDL,
-});
-
-const ResultDeviceIDL = IDL.Variant({
-  ok: SensorDeviceIDL,
-  err: ErrorIDL,
-});
-
-const sensorIdlFactory: IDL.InterfaceFactory = (_idl) => IDL.Service({
-  // M9 / F-14: platform- and vendor-account-scoped ingestion.
-  recordEventFor: IDL.Func(
-    [
-      DeviceSourceIDL,    // source
-      IDL.Text,           // vendorAccountId ("" = not named by the channel)
-      IDL.Text,           // externalDeviceId
-      SensorEventTypeIDL, // eventType
-      IDL.Float64,        // value
-      IDL.Text,           // unit
-      IDL.Text,           // rawPayload
-    ],
-    [ResultEventIDL],
-    []
-  ),
-  // M9 / F-14: bind a device the gateway verified through the vendor account.
-  registerVerifiedDevice: IDL.Func(
-    [IDL.Principal, IDL.Text, IDL.Text, DeviceSourceIDL, IDL.Text, IDL.Text],
-    [ResultDeviceIDL],
-    []
-  ),
-  recordEvent: IDL.Func(
-    [
-      IDL.Text,           // externalDeviceId
-      SensorEventTypeIDL, // eventType
-      IDL.Float64,        // value
-      IDL.Text,           // unit
-      IDL.Text,           // rawPayload
-    ],
-    [ResultEventIDL],
-    []  // update call
-  ),
-});
+import { logger } from "../../packages/shared/src/logger";
+import { idlFactory as sensorIdlFactory } from "../../packages/shared/src/declarations/sensor";
+import { idlFactory as authIdlFactory } from "../../packages/shared/src/declarations/auth";
 
 // ── Actor interface ───────────────────────────────────────────────────────────
 
@@ -316,10 +196,6 @@ export async function registerVerifiedDevice(
 }
 
 // ── Auth canister: agent-session resolution ──────────────────────────────────
-
-const authIdlFactory: IDL.InterfaceFactory = (_idl) => IDL.Service({
-  resolveAgentSession: IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
-});
 
 let _authActor: ActorSubclass<{ resolveAgentSession(t: string): Promise<[] | [Principal]> }> | null = null;
 

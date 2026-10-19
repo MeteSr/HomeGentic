@@ -6,7 +6,7 @@
 
 import { lazyActor } from "./lazyActor";
 import type { Job } from "./job";
-import { idlFactory } from "@/declarations/maintenance";
+import { idlFactory } from "@homegentic/shared/declarations/maintenance";
 export { idlFactory };
 
 const MAINTENANCE_CANISTER_ID = (process.env as any).MAINTENANCE_CANISTER_ID || "";
@@ -443,7 +443,7 @@ function createMaintenanceService() {
     context: { yearBuilt: number; propertyAddress?: string; report?: MaintenanceReport }
   ): AsyncGenerator<string> {
     const agentUrl =
-      (import.meta as any).env?.VITE_AGENT_URL ?? "http://localhost:3001";
+      (import.meta as any).env?.VITE_AGENT_URL ?? "http://localhost:8787";
 
     const { voiceAgentHeaders, voiceAgentFetch } = await import("./voiceAgentHeaders");
     const res = await voiceAgentFetch(`${agentUrl}/api/maintenance/chat`, {

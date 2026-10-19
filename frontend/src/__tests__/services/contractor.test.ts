@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest";
-import { SERVICE_TYPES } from "@/services/serviceTypes";
+import { SERVICE_TYPES } from "@homegentic/shared/serviceTypes";
 
 // ─── Mock external ICP dependencies ──────────────────────────────────────────
 

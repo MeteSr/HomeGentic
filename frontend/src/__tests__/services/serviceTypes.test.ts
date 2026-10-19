@@ -5,10 +5,10 @@ import { IDL } from "@icp-sdk/core/candid";
 import {
   SERVICE_TYPES, SERVICE_TYPE_LABELS, TRADE_LABELS,
   serviceTypeKey, serviceTypeLabel, serviceTypeVariant, serviceTypeFromVariant, serviceTypeIdl,
-} from "@/services/serviceTypes";
-import { idlFactory as jobIdl } from "@/declarations/job";
-import { idlFactory as quoteIdl } from "@/declarations/quote";
-import { idlFactory as contractorIdl } from "@/declarations/contractor";
+} from "@homegentic/shared/serviceTypes";
+import { idlFactory as jobIdl } from "@homegentic/shared/declarations/job";
+import { idlFactory as quoteIdl } from "@homegentic/shared/declarations/quote";
+import { idlFactory as contractorIdl } from "@homegentic/shared/declarations/contractor";
 
 const ROOT = resolve(__dirname, "../../../../");
 

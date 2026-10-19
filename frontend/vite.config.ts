@@ -42,10 +42,13 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        "@homegentic/shared": path.resolve(__dirname, "../packages/shared/src"),
       },
     },
     server: {
       port: 3000,
+      // packages/shared lives outside the Vite root.
+      fs: { allow: [path.resolve(__dirname, "..")] },
       proxy: {
         "/api": {
           target: "http://localhost:4943",
@@ -119,6 +122,7 @@ export default defineConfig(({ mode }) => {
       exclude: ["src/__tests__/integration/**"],
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        "@homegentic/shared": path.resolve(__dirname, "../packages/shared/src"),
       },
       coverage: {
         provider: "istanbul",

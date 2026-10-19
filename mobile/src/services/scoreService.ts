@@ -13,7 +13,7 @@
  */
 import type { Job } from "./jobService";
 import type { Property } from "./propertyService";
-import { serviceTypeLabel } from "./serviceTypes";
+import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 
 const DAY_MS   = 24 * 60 * 60 * 1000;
 const MONTH_MS = 30 * DAY_MS;

@@ -1,5 +1,5 @@
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/property";
+import { idlFactory } from "@homegentic/shared/declarations/property";
 export { idlFactory };
 
 const PROPERTY_CANISTER_ID = (process.env as any).PROPERTY_CANISTER_ID || "";
@@ -354,8 +354,9 @@ export const propertyService = {
 
   async getPendingVerifications(): Promise<Property[]> {
     const a = await getActor();
-    const props = await a.getPendingVerifications();
-    return (props as any[]).map(fromProperty);
+    const result: any = await a.getPendingVerifications();
+    if ("err" in result) throw new Error(Object.keys(result.err)[0]);
+    return (result.ok as any[]).map(fromProperty);
   },
 
   async isAdmin(principal: string): Promise<boolean> {

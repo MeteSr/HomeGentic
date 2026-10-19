@@ -9,7 +9,7 @@ import { Job } from "./job";
 import type { Property } from "./property";
 import type { RecurringServiceSummary } from "./recurringService";
 import type { Room } from "./room";
-import { idlFactory } from "@/declarations/report";
+import { idlFactory } from "@homegentic/shared/declarations/report";
 export { idlFactory };
 
 const REPORT_CANISTER_ID = (process.env as any).REPORT_CANISTER_ID || "";

@@ -13,8 +13,8 @@ import { climateService, type Season } from "./climateService";
 
 const PULSE_AGENT_URL =
   typeof import.meta !== "undefined"
-    ? (import.meta.env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001")
-    : "http://localhost:3001";
+    ? (import.meta.env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787")
+    : "http://localhost:8787";
 
 // ─── 8.1.1 Types ──────────────────────────────────────────────────────────────
 

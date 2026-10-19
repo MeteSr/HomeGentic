@@ -21,7 +21,7 @@ name: Mobile Release
 on:
   push:
     branches: [main]
-    paths: ['mobile/**']
+    paths: ['mobile/**', 'packages/shared/**']
     tags: ['mobile-v*']
   workflow_dispatch:
     inputs:

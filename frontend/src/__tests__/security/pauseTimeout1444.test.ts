@@ -64,12 +64,16 @@ describe("14.4.4: pause() timeout in all pauseable canisters", () => {
 describe("14.4.4: report canister — detailed pause behaviour", () => {
   const src = readCanister("report");
 
+  // The arithmetic lives in backend/shared/Admin.mo (pauseExpiry), shared by every canister.
+  const admin = readFileSync(resolve(__dirname, "../../../../backend/shared/Admin.mo"), "utf-8");
+
   it("timed pause: durationSeconds ?Nat → computed as Time.now() + secs * 1_000_000_000", () => {
-    expect(src).toMatch(/secs \* 1_000_000_000/);
+    expect(src).toMatch(/pauseExpiryNs\s*:=\s*Admin\.pauseExpiry\(durationSeconds,\s*Time\.now\(\)\)/);
+    expect(admin).toMatch(/secs \* 1_000_000_000/);
   });
 
   it("indefinite pause: null durationSeconds → pauseExpiryNs set to null", () => {
-    expect(src).toMatch(/case null\s*\{\s*null\s*\}/);
+    expect(admin).toMatch(/case null\s*\{\s*null\s*\}/);
   });
 
   it("unpause clears both isPaused and pauseExpiryNs", () => {

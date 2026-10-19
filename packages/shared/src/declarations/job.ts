@@ -1,5 +1,5 @@
 // Candid interface for the job canister — keep in sync with backend/job/main.mo
-import { serviceTypeIdl } from "../services/serviceTypes";
+import { serviceTypeIdl } from "../serviceTypes";
 export const idlFactory = ({ IDL }: any) => {
   const ServiceType = serviceTypeIdl(IDL);
   const JobStatus = IDL.Variant({
@@ -36,6 +36,7 @@ export const idlFactory = ({ IDL }: any) => {
     NotAuthorized:   IDL.Null,
     InvalidInput:    IDL.Text,
     AlreadyVerified: IDL.Null,
+    TierLimitReached: IDL.Text,
   });
   return IDL.Service({
     linkContractor: IDL.Func(
@@ -72,8 +73,8 @@ export const idlFactory = ({ IDL }: any) => {
     ),
     getReferralJobs: IDL.Func(
       [],
-      [IDL.Vec(Job)],
-      ["query"]
+      [IDL.Variant({ ok: IDL.Vec(Job), err: Error })],
+      []  // admin only: update call, returns #err(#NotAuthorized) otherwise
     ),
     getJob: IDL.Func(
       [IDL.Text],
@@ -188,6 +189,9 @@ export const idlFactory = ({ IDL }: any) => {
       }))],
       ["query"]
     ),
+    // R2: dual-signed jobs whose contractor signature came from an unverified
+    // contractor profile (excluded from scores / certificates / reports).
+    getUnattestedJobIds: IDL.Func([IDL.Text], [IDL.Vec(IDL.Text)], ["query"]),
     setPropertyCanisterId: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],

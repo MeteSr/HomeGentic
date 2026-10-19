@@ -11,7 +11,7 @@
  */
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 
-const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL || "http://localhost:3001";
+const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL || "http://localhost:8787";
 const VOICE_API_KEY   = (import.meta as any).env?.VITE_VOICE_AGENT_API_KEY || "";
 
 export interface DiscountCategory {
@@ -132,7 +132,7 @@ export async function estimateInsurerDiscount(
   req: InsurerDiscountRequest
 ): Promise<InsurerDiscountResult> {
   // Dev fallback — voice agent not running
-  if (!VOICE_AGENT_URL || VOICE_AGENT_URL === "http://localhost:3001") {
+  if (!VOICE_AGENT_URL || VOICE_AGENT_URL === "http://localhost:8787") {
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (VOICE_API_KEY) headers["x-api-key"] = VOICE_API_KEY;

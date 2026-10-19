@@ -1,5 +1,5 @@
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/recurring";
+import { idlFactory } from "@homegentic/shared/declarations/recurring";
 export { idlFactory };
 
 const RECURRING_CANISTER_ID = (process.env as any).RECURRING_CANISTER_ID || "";

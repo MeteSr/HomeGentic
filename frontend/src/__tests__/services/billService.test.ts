@@ -8,7 +8,7 @@ vi.mock("@/services/actor", () => ({
   getAgent: vi.fn().mockResolvedValue({}),
 }));
 
-vi.mock("@/declarations/bills", () => ({
+vi.mock("@homegentic/shared/declarations/bills", () => ({
   idlFactory: vi.fn(),
 }));
 

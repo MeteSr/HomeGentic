@@ -1,6 +1,6 @@
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/job";
-import { serviceTypeVariant, serviceTypeFromVariant } from "./serviceTypes";
+import { idlFactory } from "@homegentic/shared/declarations/job";
+import { serviceTypeVariant, serviceTypeFromVariant } from "@homegentic/shared/serviceTypes";
 export { idlFactory };
 
 const JOB_CANISTER_ID = (process.env as any).JOB_CANISTER_ID || "";
@@ -318,8 +318,13 @@ function createJobService() {
   /** Admin: return all jobs sourced via a HomeGentic quote request (referral fee pipeline). */
   async getReferralJobs(): Promise<Job[]> {
     const a = await getActor();
-    const raw: any[] = await a.getReferralJobs();
-    return raw.map(fromJob);
+    const result: any = await a.getReferralJobs();
+    if ("err" in result) {
+      const key = Object.keys(result.err)[0];
+      const val = result.err[key];
+      throw new Error(typeof val === "string" ? val : key);
+    }
+    return (result.ok as any[]).map(fromJob);
   },
 
   /** The caller's own jobs sourced via a HomeGentic quote request — bids this contractor won. */

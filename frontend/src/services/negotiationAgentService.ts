@@ -12,7 +12,7 @@
 import { pricingHistoryService, type PricingBenchmark } from "./pricingHistoryService";
 import type { Quote, QuoteRequest } from "./quote";
 
-const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
+const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 const STORAGE_KEY = "hf_negotiation_consents";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

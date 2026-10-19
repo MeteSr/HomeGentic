@@ -10,14 +10,14 @@
  */
 
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/ai_proxy";
+import { idlFactory } from "@homegentic/shared/declarations/ai_proxy";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 export { idlFactory };
 
 // M-6: the ATTOM / OpenPermit / Resend keys live only in the voice Worker
 // (never in canister memory), so those calls go to the Worker with the
 // caller's x-agent-session; the Worker enforces per-user quotas.
-const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
+const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 async function workerPost(path: string, body: unknown): Promise<{ ok: boolean; data: any }> {
   const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}${path}`, {

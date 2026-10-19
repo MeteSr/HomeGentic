@@ -7,7 +7,7 @@
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 
 const VOICE_AGENT_URL =
-  (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
+  (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 export type DocumentType =
   | "appliance_manual"

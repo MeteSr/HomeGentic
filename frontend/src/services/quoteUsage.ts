@@ -8,7 +8,7 @@
 import { billService, type BillRecord, type BillType } from "./billService";
 import { quoteService } from "./quote";
 import { statementMonth } from "./billsForecast";
-import { serviceTypeKey } from "./serviceTypes";
+import { serviceTypeKey } from "@homegentic/shared/serviceTypes";
 
 export type UsageCategory = "Electric" | "Gas" | "Water";
 

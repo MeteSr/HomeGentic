@@ -21,7 +21,7 @@ import fs from "fs";
 import path from "path";
 import { handleTeslaEvent } from "../handlers";
 import { recordSensorEvent } from "../icp";
-import { logger } from "../logger";
+import { logger } from "../../../packages/shared/src/logger";
 import type { TeslaPowerwallEvent } from "../types";
 
 const DEFAULT_GATEWAY_IP = "192.168.91.1";

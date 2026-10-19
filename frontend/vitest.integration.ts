@@ -36,6 +36,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@homegentic/shared": path.resolve(__dirname, "../packages/shared/src"),
     },
   },
   define: {
@@ -50,7 +51,7 @@ export default defineConfig({
     "process.env.PROPERTY_CANISTER_ID":JSON.stringify(process.env.CANISTER_ID_PROPERTY  || process.env.PROPERTY_CANISTER_ID  || ""),
     "process.env.QUOTE_CANISTER_ID":   JSON.stringify(process.env.CANISTER_ID_QUOTE     || process.env.QUOTE_CANISTER_ID     || ""),
     // VITE_ vars used by billsIntelligence and other services
-    "import.meta.env.VITE_VOICE_AGENT_URL": JSON.stringify(process.env.VITE_VOICE_AGENT_URL || "http://localhost:3001"),
+    "import.meta.env.VITE_VOICE_AGENT_URL": JSON.stringify(process.env.VITE_VOICE_AGENT_URL || "http://localhost:8787"),
     "import.meta.env.DEV": JSON.stringify(true),
   },
   test: {

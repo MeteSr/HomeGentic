@@ -31,8 +31,13 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     envDir: path.resolve(__dirname, ".."),
+    resolve: {
+      alias: { "@homegentic/shared": path.resolve(__dirname, "../packages/shared/src") },
+    },
     server: {
       port: 3002,
+      // packages/shared lives outside the Vite root.
+      fs: { allow: [path.resolve(__dirname, "..")] },
     },
     define: {
       "process.env.DFX_NETWORK":         JSON.stringify(network),

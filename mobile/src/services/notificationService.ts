@@ -1,3 +1,4 @@
+import { SESSION_HEADER } from "@homegentic/shared/agentSession";
 export type PushPlatform = "ios" | "android";
 
 /**
@@ -15,7 +16,7 @@ export function buildTokenPayload(token: string, platform: PushPlatform): TokenP
 }
 
 /** Header carrying the auth canister's agent session token (see authService.issueAgentSession). */
-export const SESSION_HEADER = "x-agent-session";
+export { SESSION_HEADER };
 
 /** Pure — extracts the deep-link route from a notification data object */
 export function parseNotificationRoute(data: unknown): string | null {
