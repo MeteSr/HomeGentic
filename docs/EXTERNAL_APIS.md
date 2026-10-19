@@ -37,7 +37,7 @@ directly in the app's checkout page — no redirect to Stripe-hosted pages.
 
 | Variable | Used by | Description |
 |---|---|---|
-| `STRIPE_SECRET_KEY` | voice Worker (`agents/voice/src/index.ts`; also `server.ts`) | Server-side only (Worker secret). Starts with `sk_test_` (sandbox) or `sk_live_`. |
+| `STRIPE_SECRET_KEY` | voice Worker (`agents/voice/src/index.ts`) | Server-side only (Worker secret). Starts with `sk_test_` (sandbox) or `sk_live_`. |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | `frontend/src/pages/CheckoutPage.tsx` | Client-side. Starts with `pk_test_` or `pk_live_`. |
 | `STRIPE_PRICE_PRO_YEARLY` | server | `price_xxx` ID |
 | `STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY` | server | `price_xxx` ID |
@@ -156,8 +156,7 @@ document classification, negotiation analysis, and maintenance digest generation
 
 **Used in:**
 - `agents/voice/anthropicProvider.ts` — API client
-- `agents/voice/src/index.ts` (Cloudflare Worker, production) and
-  `agents/voice/server.ts` (legacy Express) — the AI endpoints (`/api/chat`,
+- `agents/voice/src/index.ts` (Cloudflare Worker) — the AI endpoints (`/api/chat`,
   `/api/agent`, `/api/maintenance/chat`, `/api/classify`, `/api/pulse`,
   `/api/negotiate`, `/api/extract-document`, `/api/extract-bill`, and others)
 

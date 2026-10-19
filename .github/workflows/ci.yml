@@ -417,7 +417,7 @@ jobs:
           STRIPE_PRICE_PRO_YEARLY:           ${{ secrets.STRIPE_PRICE_PRO_YEARLY }}
           STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY: ${{ secrets.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY }}
           STRIPE_PRICE_CONTRACTOR_PRO_YEARLY:  ${{ secrets.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY }}
-        run: cd agents/voice && npm test -- stripe.integration stripe.elements.integration stripe.subscription.integration
+        run: cd agents/voice && npm test -- stripe.integration stripe.elements.integration
 
   test-e2e:
     runs-on: ubuntu-latest

@@ -247,7 +247,7 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | `getPriceQuote` | update | `(tier: Tier)` | Returns the subscription price in e8s with a 5% buffer. |
 | `cancelSubscription` | update | `()` | Mark the caller's subscription as cancelled-at-end-of-period. |
 | `redeemGift` | update | `(giftToken: Text)` | Redeem a pending gift. |
-| `adminActivateStripeSubscription` | update | `(userPrincipal: Principal, tier: Tier, months: Nat)` | Called by the Express voice server after Stripe confirms payment. |
+| `adminActivateStripeSubscription` | update | `(userPrincipal: Principal, tier: Tier, months: Nat)` | Called by the voice Worker after Stripe confirms payment. |
 | `adminGrantAgentCredits` | update | `(user: Principal, amount: Nat)` | Admin: grant agent credits to a principal after a verified Stripe payment. |
 | `consumeAgentCredit` | update | `(user: Principal)` | Admin: atomically decrement 1 agent credit for a user. |
 | `configureStripe` | update | `(config: StripeConfig)` | Admin: set Stripe secret key and price IDs |

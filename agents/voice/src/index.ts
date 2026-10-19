@@ -34,6 +34,9 @@ import {
   SUPPORTED_MIME_TYPES,
 } from "../extractDocumentHelpers";
 import { lookupPermits, generateKit, geocodeAddress } from "../buyersTruthKit";
+import {
+  parseInsightsPayload, describeFacts, parseNarrative, ruleBasedNarrative, NARRATIVE_SYSTEM_PROMPT,
+} from "../billsInsights";
 import type { BuyerTruthKitRequest } from "../buyersTruthKit";
 import type { ChatRequest } from "../types";
 import { logger } from "../logger";
@@ -697,6 +700,25 @@ Respond ONLY with plain text — no markdown, no JSON.`;
         degradationDetected: true, estimatedAnnualWaste,
         recommendation: `Your ${unit} has increased ${trendPct.toFixed(1)}% over this period. This may indicate system inefficiency — consider scheduling an HVAC inspection or checking for leaks.`,
       }, 200, cors);
+    }
+  }
+
+  // ── POST /api/bills-insights ──────────────────────────────────────────────
+  // Plain-language narrative over the client's deterministic bills forecast.
+  // Request:  InsightsPayload (see billsInsights.ts) — keys, numbers and dates only
+  // Response: { summary, tips[], source: "ai" | "rules" }
+  if (path === "/api/bills-insights" && method === "POST") {
+    const parsed = parseInsightsPayload(await readJsonBody(request));
+    if (!parsed.ok) return json({ error: parsed.error }, 400, cors);
+    try {
+      const text = await provider.complete({
+        system:    NARRATIVE_SYSTEM_PROMPT,
+        messages:  [{ role: "user", content: describeFacts(parsed.value) }],
+        maxTokens: 400,
+      });
+      return json(parseNarrative(text) ?? ruleBasedNarrative(parsed.value), 200, cors);
+    } catch {
+      return json(ruleBasedNarrative(parsed.value), 200, cors);
     }
   }
 
@@ -1474,7 +1496,7 @@ Rules:
 /** Anthropic- or paid-API-backed routes: session + per-principal daily quota. */
 const AUX_AI_ROUTES = new Set([
   "/api/maintenance/chat", "/api/classify", "/api/extract-bill", "/api/extract-document",
-  "/api/efficiency-alert", "/api/rebate-finder", "/api/telecom-negotiate", "/api/pulse",
+  "/api/efficiency-alert", "/api/bills-insights", "/api/rebate-finder", "/api/telecom-negotiate", "/api/pulse",
   "/api/negotiate", "/api/insurer-discount", "/api/buyers-truth-kit", "/api/rentcast/properties",
 ]);
 

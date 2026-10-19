@@ -185,12 +185,12 @@ describe("SUPPORTED_MIME_TYPES", () => {
   });
 });
 
-// ─── /api/extract-document is registered in server.ts ─────────────────────────
+// ─── /api/extract-document is registered in the Worker ────────────────────────
 
 import { readFileSync } from "fs";
 import { resolve }      from "path";
 
-const SERVER_SRC = readFileSync(resolve(__dirname, "../server.ts"), "utf-8");
+const SERVER_SRC = readFileSync(resolve(__dirname, "../src/index.ts"), "utf-8");
 
 describe("/api/extract-document endpoint registration", () => {
   it("registers POST /api/extract-document", () => {

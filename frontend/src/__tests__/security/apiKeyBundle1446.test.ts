@@ -58,9 +58,9 @@ describe("14.4.6: Anthropic API key bundle safety", () => {
     expect(pkg.scripts["check:security"]).toBeTruthy();
   });
 
-  it("voice agent server holds ANTHROPIC_API_KEY in process.env — not a VITE_ var", () => {
-    const server = read("agents/voice/server.ts");
-    expect(server).toMatch(/process\.env\.ANTHROPIC_API_KEY/);
+  it("voice agent Worker reads ANTHROPIC_API_KEY from its env bindings — not a VITE_ var", () => {
+    const server = read("agents/voice/src/index.ts");
+    expect(server).toMatch(/env\.ANTHROPIC_API_KEY/);
     expect(server).not.toMatch(/VITE_ANTHROPIC/i);
     expect(server).not.toMatch(/import\.meta\.env\.VITE_/);
   });

@@ -353,8 +353,7 @@ secret API keys.
 **Production hosting**: Cloudflare Workers. The entry point is
 `agents/voice/src/index.ts`, deployed by the `deploy-voice-worker` job in
 `deploy-mainnet.yml` (`wrangler deploy`); rate-limit counters live in
-Workers KV. `agents/voice/server.ts` is the older Express equivalent (port
-3001) with the same routes. See [DEPLOYMENT.md](DEPLOYMENT.md#voice-agent-cloudflare-workers).
+Workers KV. See [DEPLOYMENT.md](DEPLOYMENT.md#voice-agent-cloudflare-workers).
 
 ```
 User speaks or types in the ask bar
@@ -601,7 +600,7 @@ frontend/
   index.html      — Google Fonts, global reset
 
 agents/
-  voice/          — Claude voice / AI proxy (Cloudflare Worker; legacy Express server.ts)
+  voice/          — Claude voice / AI proxy (Cloudflare Worker)
   email/          — Lead-form email relay (Cloudflare Worker → Resend)
   notifications/  — Notification relay: APNs/FCM + VAPID web push, Resend email, Twilio SMS (port 3002)
   iot-gateway/    — Smart-home webhook ingestion → sensor canister

@@ -49,11 +49,10 @@ jobs:
           ANTHROPIC_API_KEY: mock-key
           MOCK_ANTHROPIC: "1"
           SENSOR_CANISTER_ID: dummy
-          VOICE_AGENT_PORT: "3001"
           FRONTEND_ORIGIN: http://localhost:3000
         run: |
           cd agents/voice && npm run dev &
-          npx --yes wait-on@latest http://localhost:3001/health --timeout 30000
+          npx --yes wait-on@latest http://localhost:8787/health --timeout 30000
 
       - name: Start IoT gateway
         env:
@@ -66,7 +65,7 @@ jobs:
       # Scenario 1: voice chat throughput (~2 min in CI)
       - name: Run voice chat load test
         env:
-          VOICE_AGENT_URL: http://localhost:3001
+          VOICE_AGENT_URL: http://localhost:8787
           MOCK_ANTHROPIC: "1"
         run: k6 run --out json=results-voice.json tests/k6/voice-chat.js
 

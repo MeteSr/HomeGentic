@@ -126,11 +126,11 @@ scaling meaningfully.
 
 ## Implementation notes
 
-- Limits are enforced in the Express voice agent server (`agents/voice/server.ts`) and its Cloudflare Workers equivalent (`agents/voice/src/rateLimiter.ts`), not the frontend. Frontend enforcement is display-only. Both implementations share the same `TIER_LIMITS`/`TIER_PERIOD` source in `agents/voice/agentLimiter.ts`.
+- Limits are enforced in the voice Worker (`agents/voice/src/rateLimiter.ts`), not the frontend. Frontend enforcement is display-only. `TIER_LIMITS`/`TIER_PERIOD` live in `agents/voice/agentLimiter.ts`.
 - The counter key is `agent:{principal}:{periodKey}`, where `periodKey` is `YYYY-MM-DD` for daily-reset tiers or an ISO week string `YYYY-Www` for weekly-reset tiers (currently just Free) — stored in Redis/Workers KV (or in-memory map for single-instance deployments).
 - The user's subscription tier is read from the payment canister on each request and cached for 5 minutes per principal to avoid canister round-trips on every call.
 - The `principal` comes from the `x-principal` header, which the frontend sets after Internet Identity authentication. Unauthenticated requests are treated as Free tier.
 
 ## Agentic turn limit
 
-Independent of the daily call limit, each individual agent call is capped at **5 internal tool-use turns** for all tiers. This caps the per-call cost ceiling at ~$0.050 (5 turns × worst-case token counts). The turn limit is already enforced in `agents/voice/server.ts`.
+Independent of the daily call limit, each individual agent call is capped at **5 internal tool-use turns** for all tiers. This caps the per-call cost ceiling at ~$0.050 (5 turns × worst-case token counts). The turn limit is enforced by the client loop (`MAX_TURNS` in `frontend/src/hooks/useVoiceAgent.ts`); each turn is still one counted `/api/agent` call on the Worker.

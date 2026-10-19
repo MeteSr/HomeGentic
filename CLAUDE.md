@@ -95,7 +95,7 @@ bash scripts/generate-declarations.sh   # Regenerate Candid bindings after .mo c
 ```
 backend/          20 Motoko canisters (each has main.mo) + shared/ (e.g. ServiceType.mo)
 frontend/         React + TypeScript SPA (Vite)
-agents/voice/     Claude voice/AI proxy — Cloudflare Worker (src/index.ts) in production; server.ts is the legacy Express equivalent
+agents/voice/     Claude voice/AI proxy — Cloudflare Worker (src/index.ts); `npm run dev` runs it locally with wrangler
 agents/email/     Lead-form email relay (Cloudflare Worker → Resend)
 agents/notifications/  Push relay (APNs / FCM / VAPID web push)
 agents/iot-gateway/    Smart-home webhook ingestion → sensor canister
@@ -186,7 +186,7 @@ Auth flow: `AuthContext.tsx` wraps the app and exposes `login()` / `devLogin()` 
 
 ### Voice Agent
 
-Production runs the Cloudflare Worker `agents/voice/src/index.ts` (deployed by CI with `wrangler deploy`; rate-limit counters in the `RateLimiterDO` Durable Object, `src/rateLimiterDO.ts`). `agents/voice/server.ts` is the older Express equivalent (port 3001, `npm start`) with the same routes. Main endpoints:
+Production runs the Cloudflare Worker `agents/voice/src/index.ts` (deployed by CI with `wrangler deploy`; rate-limit counters in the `RateLimiterDO` Durable Object, `src/rateLimiterDO.ts`). Locally `npm run dev` serves it with `wrangler dev` on :8787. Main endpoints:
 - `POST /api/chat` — SSE streaming chat (max 200 tokens, 2-3 sentence voice responses)
 - `POST /api/agent` — Agentic tool-use loop returning tool_calls or final answer
 - Plus document/bill extraction, Stripe checkout + webhook, Bid to List routes, and `/health` — see `docs/SYSTEMS.md` §17.
@@ -224,8 +224,7 @@ Copy `.env.example` to `.env`. Key vars:
 ```
 DFX_NETWORK=local
 ANTHROPIC_API_KEY=sk-ant-...     # Required for voice agent (local .env; Worker secrets in production)
-VOICE_AGENT_PORT=3001
 FRONTEND_ORIGIN=http://localhost:3000
-VITE_VOICE_AGENT_URL=http://localhost:3001
+VITE_VOICE_AGENT_URL=http://localhost:8787
 ```
 Canister IDs (`CANISTER_ID_AUTH`, etc.) are auto-populated by `scripts/deploy.sh`.

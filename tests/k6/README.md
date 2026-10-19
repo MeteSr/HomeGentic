@@ -4,8 +4,8 @@
 
 | Script | Target service | Default port | Duration |
 |---|---|---|---|
-| `voice-agent-load.js` | Voice agent (`agents/voice`) | 3001 | ~17.5 min |
-| `voice-chat.js` | Voice agent — chat only | 3001 | ~2 min |
+| `voice-agent-load.js` | Voice agent (`agents/voice`) | 8787 | ~17.5 min |
+| `voice-chat.js` | Voice agent — chat only | 8787 | ~2 min |
 | `iot-gateway-load.js` | IoT gateway (`agents/iot-gateway`) | 3002 | ~7 min (CI) / ~14 min |
 
 `voice-chat.js` is the CI-friendly subset of `voice-agent-load.js`: same endpoint, lighter load.
@@ -44,7 +44,7 @@ winget install k6 --source winget
 ```bash
 cd agents/voice
 MOCK_ANTHROPIC=1 npm run dev
-# Express starts on :3001
+# wrangler dev serves the Worker on :8787
 ```
 
 `MOCK_ANTHROPIC=1` stubs the Anthropic API — no tokens are consumed during load testing.
@@ -63,7 +63,7 @@ k6 run tests/k6/voice-agent-load.js
 
 | Variable | Default | Description |
 |---|---|---|
-| `VOICE_AGENT_URL` | `http://localhost:3001` | Base URL of the voice agent |
+| `VOICE_AGENT_URL` | `http://localhost:8787` | Base URL of the voice agent |
 | `MOCK_ANTHROPIC` | unset | Set to `1` to skip real Anthropic API calls |
 
 ## Running the IoT gateway test

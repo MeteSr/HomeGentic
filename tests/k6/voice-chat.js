@@ -1,5 +1,5 @@
 /**
- * k6 load test — Voice Agent chat throughput (agents/voice, port 3001)
+ * k6 load test — Voice Agent chat throughput (agents/voice, port 8787)
  *
  * Focused single-scenario load test for POST /api/chat.
  * Intended for CI gates and quick smoke runs.  For the full multi-scenario
@@ -29,7 +29,7 @@ import { Counter, Trend } from "k6/metrics";
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
-const BASE_URL = __ENV.VOICE_AGENT_URL || "http://localhost:3001";
+const BASE_URL = __ENV.VOICE_AGENT_URL || "http://localhost:8787";
 
 // ── Custom metrics ─────────────────────────────────────────────────────────────
 

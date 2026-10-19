@@ -4,7 +4,7 @@
 # Starts every piece of the application in one terminal:
 #   • dfx local replica + all 15 canisters (via scripts/deploy.sh)
 #   • frontend Vite dev server        → http://localhost:5173
-#   • voice agent Express proxy       → http://localhost:3001
+#   • voice agent Worker (wrangler)   → http://localhost:8787
 #   • admin dashboard Vite dev server → http://localhost:3002
 #
 # Ctrl+C kills all background processes cleanly.
@@ -92,7 +92,7 @@ mkfifo "$FRONTEND_LOG" "$VOICE_LOG" "$DASHBOARD_LOG"
 PIDS+=($!)
 ok "frontend    started (PID ${PIDS[-1]})"
 
-# Voice agent (ts-node, port 3001)
+# Voice agent (wrangler dev, port 8787)
 (cd "$REPO_ROOT/agents/voice" && npm run dev 2>&1) > "$VOICE_LOG" &
 PIDS+=($!)
 ok "voice agent started (PID ${PIDS[-1]})"
@@ -109,7 +109,7 @@ ${BOLD}  HomeGentic local stack is running${RESET}
 ${BOLD}${GREEN}══════════════════════════════════════════════${RESET}
 
   $(label "frontend")http://localhost:5173
-  $(label "voice agent")http://localhost:3001
+  $(label "voice agent")http://localhost:8787
   $(label "dashboard")http://localhost:3002
   $(label "ICP replica")http://localhost:4943
 
