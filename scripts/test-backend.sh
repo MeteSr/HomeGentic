@@ -8,8 +8,10 @@
 # Suites run in parallel against one set of deployed canisters, so they share
 # state: a suite that lowers its canister's update rate limit to test it makes
 # other suites' calls to that canister fail meanwhile. Suites in RUN_ALONE are
-# run on their own before the parallel batch for that reason (property: job and
-# bills register properties, and property/test.sh drops its limit to 2).
+# run on their own before the parallel batch for that reason (property: other
+# suites register properties, and property/test.sh lowers its rate limit and
+# pauses the canister). Concurrent property registrations are serialized by the
+# dfx shim below.
 #
 # Usage:
 #   bash scripts/test-backend.sh            # Run all canisters
@@ -62,6 +64,22 @@ declare -a ACTIVE=()   # canisters actually launched
 declare -a PIDS=()     # matching background PIDs
 
 LOG_DIR=$(mktemp -d /tmp/test-backend-XXXXXX)
+
+# property.registerProperty refuses a second registration while one from the
+# same caller is in flight, and most suites call it as the same default dfx
+# identity at the same time. A dfx shim serializes those calls with flock;
+# every other dfx call passes straight through.
+REAL_DFX=$(command -v dfx)
+mkdir -p "$LOG_DIR/bin"
+cat > "$LOG_DIR/bin/dfx" <<SHIM
+#!/usr/bin/env bash
+if [ "\$1" = canister ] && [ "\$2" = call ] && [ "\$3" = property ] && [ "\$4" = registerProperty ]; then
+  exec flock "$LOG_DIR/registerProperty.lock" "$REAL_DFX" "\$@"
+fi
+exec "$REAL_DFX" "\$@"
+SHIM
+chmod +x "$LOG_DIR/bin/dfx"
+export PATH="$LOG_DIR/bin:$PATH"
 
 _TOTAL_TESTS=$(node -e "
 const fs = require('fs');
