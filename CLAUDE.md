@@ -15,7 +15,7 @@ make frontend     # cd frontend && npm run dev (Vite dev server at :3000)
 make check-motoko # Compile-check every canister with `icp build` (no network needed)
 ```
 
-The canister CLI is **icp-cli** (`npm install -g @icp-sdk/icp-cli`; `icp.yaml` is the project config). `dfx.json` is still present for `dfx generate` (declarations), the PocketIC upgrade tests (which build with `dfx build`), and the bash canister test suites (`backend/*/test.sh`, which call `dfx canister call`).
+The canister CLI is **icp-cli** (`npm install -g @icp-sdk/icp-cli`; `icp.yaml` is the project config). `dfx.json` is still present for the PocketIC upgrade tests (which build with `dfx build`), and the bash canister test suites (`backend/*/test.sh`, which call `dfx canister call`).
 
 The voice agent runs separately (Cloudflare Workers via wrangler):
 ```bash
@@ -85,7 +85,7 @@ bash scripts/init-test-data.sh   # Seed test users and properties
 ### Frontend build
 ```bash
 cd frontend && npm run build    # Outputs to frontend/dist/ (served by assets canister)
-bash scripts/generate-declarations.sh   # Regenerate Candid bindings after .mo changes (needs dfx)
+bash scripts/ci/check-declarations.sh   # Check packages/shared declarations against the canisters (needs moc)
 ```
 
 ## Architecture
@@ -95,12 +95,13 @@ bash scripts/generate-declarations.sh   # Regenerate Candid bindings after .mo c
 ```
 backend/          20 Motoko canisters (each has main.mo) + shared/ (e.g. ServiceType.mo)
 frontend/         React + TypeScript SPA (Vite)
-agents/voice/     Claude voice/AI proxy — Cloudflare Worker (src/index.ts) in production; server.ts is the legacy Express equivalent
+agents/voice/     Claude voice/AI proxy — Cloudflare Worker (src/index.ts); `npm run dev` runs it locally with wrangler
 agents/email/     Lead-form email relay (Cloudflare Worker → Resend)
 agents/notifications/  Push relay (APNs / FCM / VAPID web push)
 agents/iot-gateway/    Smart-home webhook ingestion → sensor canister
 dashboard/        Standalone monitoring SPA (admin use)
 mobile/           Expo React Native app
+packages/shared/  Dependency-free TypeScript shared by frontend, mobile, dashboard and agents: Candid declarations, service types, agent-session helpers, logger
 tests/e2e/        Playwright tests (functional, visual, a11y)
 tests/upgrade/    PocketIC upgrade-persistence tests
 scripts/          Bash deploy/upgrade/test scripts; scripts/ci/ holds CI gates
@@ -162,15 +163,13 @@ Agent calls (agentic tool-use loop) are counted separately from chat calls. Limi
 
 `frontend/src/services/actor.ts` creates the ICP `HttpAgent`. In local dev it uses a fixed-seed Ed25519 identity to survive hot-reloads without re-authenticating. In production it uses `@dfinity/auth-client` (Internet Identity).
 
-Each service file (e.g. `job.ts`, `property.ts`) imports its canister's IDL from `frontend/src/declarations/<canister>/` and follows a mock-fallback pattern:
+Each service file (e.g. `job.ts`, `property.ts`) imports its canister's IDL from `@homegentic/shared/declarations/<canister>` (`packages/shared/src/declarations/`) and follows a mock-fallback pattern:
 ```typescript
 if (!CANISTER_ID) return mockData;   // canister not deployed → use mock
 ```
 Canister IDs come from `vite.config.ts` `define` block mapping `CANISTER_ID_*` env vars (written to `.env` by `scripts/deploy.sh`).
 
-**IDL maintenance rule** — whenever you add or rename a variant in a Motoko `.mo` file, you must update the matching IDL in **two** places:
-1. `frontend/src/declarations/<canister>/index.ts` — the single source of truth for each canister's Candid interface (replaces the old inline `idlFactory` in service files). Run `bash scripts/generate-declarations.sh` if `dfx` is available, otherwise edit the file by hand.
-2. `agents/iot-gateway/icp.ts` — `SensorDeviceIDL` / `SensorEventTypeIDL` (sensor canister only)
+**IDL maintenance rule** — whenever you add or rename a method, field or variant in a Motoko `.mo` file, update `packages/shared/src/declarations/<canister>.ts`. It is the single source of truth for each canister's Candid interface, used by the frontend, mobile, dashboard, voice Worker and relays (the frontend, mobile and dashboard import it as `@homegentic/shared/...`; the agents import it by relative path). Edit it by hand. Each factory takes `IDL` as an argument, so the package has no dependencies. `scripts/ci/check-declarations.sh` (run by CI's motoko-compile-check) builds each canister's Candid with moc and fails when a declared method's mode, arguments or results no longer match.
 
 After updating declarations, regenerate snapshots: `cd frontend && npm run test:unit -- --update` and commit the `.snap` files.
 
@@ -186,7 +185,7 @@ Auth flow: `AuthContext.tsx` wraps the app and exposes `login()` / `devLogin()` 
 
 ### Voice Agent
 
-Production runs the Cloudflare Worker `agents/voice/src/index.ts` (deployed by CI with `wrangler deploy`; rate-limit counters in the `RateLimiterDO` Durable Object, `src/rateLimiterDO.ts`). `agents/voice/server.ts` is the older Express equivalent (port 3001, `npm start`) with the same routes. Main endpoints:
+Production runs the Cloudflare Worker `agents/voice/src/index.ts` (deployed by CI with `wrangler deploy`; rate-limit counters in the `RateLimiterDO` Durable Object, `src/rateLimiterDO.ts`). Locally `npm run dev` serves it with `wrangler dev` on :8787. Main endpoints:
 - `POST /api/chat` — SSE streaming chat (max 200 tokens, 2-3 sentence voice responses)
 - `POST /api/agent` — Agentic tool-use loop returning tool_calls or final answer
 - Plus document/bill extraction, Stripe checkout + webhook, Bid to List routes, and `/health` — see `docs/SYSTEMS.md` §17.
@@ -224,8 +223,7 @@ Copy `.env.example` to `.env`. Key vars:
 ```
 DFX_NETWORK=local
 ANTHROPIC_API_KEY=sk-ant-...     # Required for voice agent (local .env; Worker secrets in production)
-VOICE_AGENT_PORT=3001
 FRONTEND_ORIGIN=http://localhost:3000
-VITE_VOICE_AGENT_URL=http://localhost:3001
+VITE_VOICE_AGENT_URL=http://localhost:8787
 ```
 Canister IDs (`CANISTER_ID_AUTH`, etc.) are auto-populated by `scripts/deploy.sh`.

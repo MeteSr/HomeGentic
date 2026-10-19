@@ -1,7 +1,8 @@
 /** Pure types and helpers for interacting with the voice-agent proxy. */
+import { SESSION_HEADER } from "@homegentic/shared/agentSession";
 
 const VOICE_AGENT_URL =
-  process.env.EXPO_PUBLIC_VOICE_AGENT_URL ?? "http://localhost:3001";
+  process.env.EXPO_PUBLIC_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ export interface AgentContext {
 }
 
 /** Header the voice Worker reads to identify the caller (see auth.issueAgentSession). */
-export const SESSION_HEADER = "x-agent-session";
+export { SESSION_HEADER };
 
 export async function callAgent(
   messages: AgentMessage[],

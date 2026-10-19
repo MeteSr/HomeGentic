@@ -6,7 +6,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { ConstructionPhotoUpload } from "@/components/ConstructionPhotoUpload";
 import { jobService } from "@/services/job";
-import { SERVICE_TYPE_LABELS } from "@/services/serviceTypes";
+import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
 import { photoService, PhotoQuota } from "@/services/photo";
 import { propertyService } from "@/services/property";
 import { usePropertyStore } from "@/store/propertyStore";

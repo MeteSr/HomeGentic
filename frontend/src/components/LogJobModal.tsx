@@ -3,7 +3,7 @@ import { X, CheckCircle, AlertTriangle, ShieldCheck, Wrench, HardHat } from "luc
 import { Button } from "./Button";
 import { jobService, isInsuranceRelevant } from "@/services/job";
 import { type Property } from "@/services/property";
-import { SERVICE_TYPE_LABELS } from "@/services/serviceTypes";
+import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 

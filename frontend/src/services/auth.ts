@@ -1,5 +1,5 @@
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/auth";
+import { idlFactory } from "@homegentic/shared/declarations/auth";
 export { idlFactory };
 
 function getCanisterId() { return (process.env as any).AUTH_CANISTER_ID || ""; }

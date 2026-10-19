@@ -1,6 +1,6 @@
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/contractor";
-import { serviceTypeVariant, serviceTypeFromVariant, serviceTypeLabel } from "./serviceTypes";
+import { idlFactory } from "@homegentic/shared/declarations/contractor";
+import { serviceTypeVariant, serviceTypeFromVariant, serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 export { idlFactory };
 
 const CONTRACTOR_CANISTER_ID = (process.env as any).CONTRACTOR_CANISTER_ID || "";

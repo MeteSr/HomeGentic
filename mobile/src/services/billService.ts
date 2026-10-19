@@ -7,9 +7,10 @@
  */
 
 import { getAgentSessionToken } from "./agentSession";
+import { SESSION_HEADER } from "@homegentic/shared/agentSession";
 
 const VOICE_AGENT_URL =
-  process.env.EXPO_PUBLIC_VOICE_AGENT_URL ?? "http://localhost:3001";
+  process.env.EXPO_PUBLIC_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 export type BillType = "Electric" | "Gas" | "Water" | "Internet" | "Telecom" | "Other";
 
@@ -74,7 +75,7 @@ export async function extractBill(
   // The Worker only runs AI routes for a signed-in user's session.
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const token = await getAgentSessionToken().catch(() => null);
-  if (token) headers["x-agent-session"] = token;
+  if (token) headers[SESSION_HEADER] = token;
   const res = await fetch(`${VOICE_AGENT_URL}/api/extract-bill`, {
     method:  "POST",
     headers,

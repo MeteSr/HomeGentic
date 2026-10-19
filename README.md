@@ -103,7 +103,6 @@ make frontend    # cd frontend && npm run dev  →  http://localhost:3000
 ```bash
 cd agents/voice && npm run dev
 # → wrangler dev, http://localhost:8787 (set VITE_VOICE_AGENT_URL to match)
-# or: npm run build && npm start  → legacy Express server on :3001
 ```
 
 ### 5. Start the admin dashboard (optional)
@@ -146,9 +145,8 @@ User speaks
 | `ANTHROPIC_API_KEY` | — | Required. Your Anthropic API key. |
 | `RESEND_API_KEY` | — | Required for email. Free key at resend.com. |
 | `RESEND_FROM_EMAIL` | `noreply@homegentic.app` | Sender address for transactional email. |
-| `VOICE_AGENT_PORT` | `3001` | Port for the legacy Express server (`npm start`). |
 | `FRONTEND_ORIGIN` | `http://localhost:3000` | CORS allowed origin. |
-| `VITE_VOICE_AGENT_URL` | `http://localhost:3001` | Proxy URL used by the frontend. |
+| `VITE_VOICE_AGENT_URL` | `http://localhost:8787` | Voice Worker URL used by the frontend (`wrangler dev` serves :8787). |
 
 ---
 
@@ -194,7 +192,6 @@ homegentic/
 │   ├── iot-gateway/              # Smart-home webhook ingestion → sensor canister
 │   └── voice/                    # Claude voice / AI proxy
 │       ├── src/index.ts          # Cloudflare Worker entry (production)
-│       ├── server.ts             # Legacy Express equivalent (port 3001)
 │       ├── prompts.ts            # Dynamic system prompt builder
 │       ├── tools.ts              # Claude tool definitions (server-side)
 │       ├── provider.ts           # AIProvider interface

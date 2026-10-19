@@ -1,8 +1,8 @@
 /**
- * 13.6.2 — k6 load test suite: HomeGentic voice agent Express proxy
+ * 13.6.2 — k6 load test suite: HomeGentic voice agent Worker
  *
- * Targets the voice agent server running at http://localhost:3001
- * (agents/voice/server.ts, Express port 3001).
+ * Targets the voice agent server running at http://localhost:8787
+ * (agents/voice/src/index.ts via wrangler dev, port 8787).
  *
  * Scenarios:
  *   ramp     — 0 → 50 VU over 2 minutes, then 50 VU for 3 minutes
@@ -23,7 +23,7 @@
  *
  * Usage:
  *   k6 run tests/k6/voice-agent-load.js
- *   k6 run --env VOICE_AGENT_URL=http://staging:3001 tests/k6/voice-agent-load.js
+ *   k6 run --env VOICE_AGENT_URL=https://voice-staging.example.workers.dev tests/k6/voice-agent-load.js
  *   k6 run --scenario ramp tests/k6/voice-agent-load.js
  *
  * Note: Set MOCK_ANTHROPIC=1 to skip real Anthropic API calls (stub responses).
@@ -36,7 +36,7 @@ import { Counter, Rate, Trend } from "k6/metrics";
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
-const BASE_URL  = __ENV.VOICE_AGENT_URL || "http://localhost:3001";
+const BASE_URL  = __ENV.VOICE_AGENT_URL || "http://localhost:8787";
 const MOCK_MODE = __ENV.MOCK_ANTHROPIC === "1";
 
 // ─── Custom metrics ───────────────────────────────────────────────────────────

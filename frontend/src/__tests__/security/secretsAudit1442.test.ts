@@ -59,10 +59,10 @@ describe("14.4.2: secrets audit — static codebase checks", () => {
     expect(defineBlock).not.toMatch(/ANTHROPIC_API_KEY/);
   });
 
-  it("voice agent server reads API key from process.env, not a hardcoded literal", () => {
-    const server = read("agents/voice/server.ts");
-    // Must contain process.env.ANTHROPIC_API_KEY
-    expect(server).toMatch(/process\.env\.ANTHROPIC_API_KEY/);
+  it("voice agent Worker reads the API key from its env bindings, not a hardcoded literal", () => {
+    const server = read("agents/voice/src/index.ts");
+    // Must read env.ANTHROPIC_API_KEY (a Worker secret)
+    expect(server).toMatch(/env\.ANTHROPIC_API_KEY/);
     // Must NOT contain an actual sk-ant- key
     expect(server).not.toMatch(/sk-ant-[A-Za-z0-9_-]{20,}/);
   });
@@ -71,7 +71,7 @@ describe("14.4.2: secrets audit — static codebase checks", () => {
     // Spot-check key source files
     const filesToCheck = [
       "frontend/src/services/actor.ts",
-      "agents/voice/server.ts",
+      "agents/voice/src/index.ts",
       "frontend/vite.config.ts",
     ];
     for (const f of filesToCheck) {

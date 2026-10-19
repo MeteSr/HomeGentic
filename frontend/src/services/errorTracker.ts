@@ -24,7 +24,7 @@
 
 import { useAuthStore } from "@/store/authStore";
 
-const AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
+const AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 const RELEASE   = (import.meta as any).env?.VITE_APP_VERSION as string | undefined;
 
 const MAX_BREADCRUMBS  = 25;

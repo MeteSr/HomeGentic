@@ -18,7 +18,7 @@
 
 import { handleEnphaseEvent } from "../handlers";
 import { recordSensorEvent } from "../icp";
-import { logger } from "../logger";
+import { logger } from "../../../packages/shared/src/logger";
 import type { EnphaseSystemEvent } from "../types";
 
 const ENVOY_API            = "https"; // scheme prefix — full URL built at call time

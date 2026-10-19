@@ -10,7 +10,7 @@ import { getLeads, getMyContractorProfile, getPendingSignatureJobs, buildLedger 
 import { getStreetAddresses, Property } from "./propertyService";
 import { computeBreakdown, computeScore, getScoreGrade, scoreHint } from "./scoreService";
 import { PlanLimits, PlanTier, tierName } from "./planService";
-import { serviceTypeLabel } from "./serviceTypes";
+import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 
 const DAY_MS = 86_400_000;
 

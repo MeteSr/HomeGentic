@@ -6,17 +6,16 @@
  * listing canister (invariant 04: charge then release, never the reverse).
  */
 
-import Array     "mo:core/Array";
 import Map       "mo:core/Map";
 import Iter      "mo:core/Iter";
 import Nat       "mo:core/Nat";
-import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Index     "../shared/Index";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
 
 persistent actor Fee {
 
@@ -67,8 +66,8 @@ persistent actor Fee {
   // Secondary indexes over `fees` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let feesByAgent = Index.empty();
-  private transient let feesIndexes : [Index.Keyed<FeeRecord>] = Index.indexed<FeeRecord>(fees, [
-    (feesByAgent, func(r : FeeRecord) : ?Text { ?Principal.toText(r.agentId) }),
+  private transient let feesIndexes : [Index.Keyed<FeeRecord>] = Index.indexed(fees, [
+    (feesByAgent, func(r : FeeRecord) : ?Text { ?r.agentId.toText() }),
   ]);
   /// requestId → feeId, so a second recordFeeOwed for the same request is rejected.
   private let feeByRequest = Map.empty<Text, Text>();
@@ -79,39 +78,34 @@ persistent actor Fee {
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
   private func isAdmin(caller: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(adminEntries, func(a) { a == caller }))
+    Admin.contains(adminEntries, caller)
   };
 
   private func isTrusted(caller: Principal) : Bool {
-    isAdmin(caller) or Principal.toText(caller) == listingCanisterId
+    isAdmin(caller) or caller.toText() == listingCanisterId
   };
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
-        case null { return #err(#InvalidInput("Canister is paused")) };
-      };
-    };
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
 
   private func nextFeeId() : Text {
     feeCounter += 1;
-    "FEE_" # Nat.toText(feeCounter)
+    "FEE_" # feeCounter.toText()
   };
 
   // ─── Fee lifecycle ───────────────────────────────────────────────────────────
@@ -128,9 +122,9 @@ persistent actor Fee {
     if (not isTrusted(msg.caller)) return #err(#NotAuthorized);
     if (amountCents == 0) return #err(#InvalidInput("amountCents must be positive"));
     let now = Time.now();
-    switch (Map.get(feeByRequest, Text.compare, requestId)) {
+    switch (feeByRequest.get(requestId)) {
       case (?existingId) {
-        switch (Map.get(fees, Text.compare, existingId)) {
+        switch (fees.get(existingId)) {
           case null { #err(#NotFound) }; // unreachable: index and map are kept in sync
           case (?existing) {
             if (existing.status == #Paid) return #err(#AlreadyExists);
@@ -149,7 +143,7 @@ persistent actor Fee {
           status = #Owed; createdAt = now; updatedAt = now;
         };
         Index.put(fees, feesIndexes, id, record);
-        Map.add(feeByRequest, Text.compare, requestId, id);
+        feeByRequest.add(requestId, id);
         #ok(record)
       };
     }
@@ -161,29 +155,29 @@ persistent actor Fee {
   /// Admins and the wired listing canister only; everyone else gets null.
   public query(msg) func getFeeForRequest(requestId: Text) : async ?FeeRecord {
     if (not isTrusted(msg.caller)) return null;
-    switch (Map.get(feeByRequest, Text.compare, requestId)) {
+    switch (feeByRequest.get(requestId)) {
       case null { null };
-      case (?feeId) { Map.get(fees, Text.compare, feeId) };
+      case (?feeId) { fees.get(feeId) };
     }
   };
 
   public query(msg) func getMyFees() : async [FeeRecord] {
-    Iter.toArray(Index.records(feesByAgent, Principal.toText(msg.caller), fees))
+    Index.records(feesByAgent, msg.caller.toText(), fees).toArray()
   };
 
   public query(msg) func getAllFees() : async Result.Result<[FeeRecord], Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    #ok(Iter.toArray(Map.values(fees)))
+    #ok(fees.values().toArray())
   };
 
   public query(msg) func getFeesDue() : async Result.Result<[FeeRecord], Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    #ok(Iter.toArray(Iter.filter(Map.values(fees), func(f: FeeRecord) : Bool { f.status == #Owed or f.status == #Invoiced })))
+    #ok(fees.values().filter(func(f: FeeRecord) : Bool { f.status == #Owed or f.status == #Invoiced }).toArray())
   };
 
   public shared(msg) func markFeeInvoiced(feeId: Text) : async Result.Result<FeeRecord, Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    switch (Map.get(fees, Text.compare, feeId)) {
+    switch (fees.get(feeId)) {
       case null { #err(#NotFound) };
       case (?f) {
         let updated = { f with status = #Invoiced; updatedAt = Time.now() };
@@ -197,7 +191,7 @@ persistent actor Fee {
   /// This is the single trigger for identity release — see invariant 04.
   public shared(msg) func markFeePaid(feeId: Text) : async Result.Result<FeeRecord, Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    switch (Map.get(fees, Text.compare, feeId)) {
+    switch (fees.get(feeId)) {
       case null { #err(#NotFound) };
       case (?f) {
         if (f.status == #Paid) return #ok(f); // idempotent on webhook retry
@@ -211,7 +205,7 @@ persistent actor Fee {
   /// 30-day "we did not sign" refund path (H6 / A3's stated refund term).
   public shared(msg) func waiveFee(feeId: Text) : async Result.Result<FeeRecord, Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    switch (Map.get(fees, Text.compare, feeId)) {
+    switch (fees.get(feeId)) {
       case null { #err(#NotFound) };
       case (?f) {
         let updated = { f with status = #Waived; updatedAt = Time.now() };
@@ -238,20 +232,14 @@ persistent actor Fee {
   /// H-20: Set the one-time bootstrap nonce before calling initAdmins() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   public shared(msg) func initAdmins(newAdmins: [Principal], nonce: Text) : async Result.Result<(), Error> {
     if (adminInitialized) return #err(#NotAuthorized);
-    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
     if (newAdmins.size() == 0) return #err(#InvalidInput("admin list cannot be empty"));
-    switch (bootstrapNonce) {
-      case null { return #err(#NotAuthorized) };
-      case (?n) { if (nonce != n) return #err(#NotAuthorized) };
-    };
+    if (not Admin.nonceMatches(bootstrapNonce, nonce)) return #err(#NotAuthorized);
     bootstrapNonce := null;
     adminEntries := newAdmins;
     adminInitialized := true;
@@ -260,23 +248,20 @@ persistent actor Fee {
 
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isAdmin(newAdmin)) { adminEntries := Array.concat(adminEntries, [newAdmin]) };
+    adminEntries := Admin.add(adminEntries, newAdmin);
     #ok(())
   };
 
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    adminEntries := Array.filter<Principal>(adminEntries, func(a) { a != target });
+    adminEntries := Admin.remove(adminEntries, target);
     #ok(())
   };
 
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     #ok(())
   };
 
@@ -290,10 +275,10 @@ persistent actor Fee {
   public query func metrics() : async Metrics {
     var owed = 0;
     var paid = 0;
-    for (f in Map.values(fees)) {
+    for (f in fees.values()) {
       if (f.status == #Owed or f.status == #Invoiced) { owed += f.amountCents };
       if (f.status == #Paid) { paid += f.amountCents };
     };
-    { totalFees = Map.size(fees); owedCents = owed; paidCents = paid; isPaused }
+    { totalFees = fees.size(); owedCents = owed; paidCents = paid; isPaused }
   };
 }

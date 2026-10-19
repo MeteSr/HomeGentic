@@ -4,7 +4,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
 import { useLoad } from "../hooks/useLoad";
 import { getJobs } from "../services/jobService";
-import { serviceTypeLabel } from "../services/serviceTypes";
+import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import { Card, Chip, chipTone, EmptyRow, Loading, Pill } from "../components/ui";
 import { type, v3 } from "../theme";
 

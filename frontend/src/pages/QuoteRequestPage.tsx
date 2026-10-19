@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { SERVICE_TYPE_LABELS } from "@/services/serviceTypes";
+import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
 import { ArrowLeft, Send, Zap, User, ChevronDown, ChevronUp, Lock } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";

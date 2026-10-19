@@ -6,7 +6,6 @@
     "dev": "wrangler dev src/index.ts",
     "deploy": "wrangler deploy",
     "build": "tsc",
-    "start": "node dist/voice/server.js",
     "test": "jest --passWithNoTests",
     "test:coverage": "jest --passWithNoTests --coverage"
   },
@@ -17,9 +16,6 @@
     ],
     "transform": {
       "^.+\\.tsx?$": "babel-jest"
-    },
-    "moduleNameMapper": {
-      "^\\./bidtolistRouter$": "<rootDir>/__mocks__/bidtolistRouter.js"
     },
     "collectCoverageFrom": [
       "*.ts",
@@ -41,10 +37,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": ">=0.126.0",
     "@icp-sdk/core": "^5.4.0",
-    "cors": "^2.8.5",
     "dotenv": "^17.3.1",
-    "express": "^5.2.1",
-    "express-rate-limit": "^8.5.2",
     "resend": "^6.28.1",
     "stripe": "^22.6.2"
   },
@@ -56,15 +49,10 @@
     "@babel/preset-env": "^7.29.7",
     "@babel/preset-typescript": "^7.29.7",
     "@cloudflare/workers-types": "^5.20260918.1",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.6.3",
-    "@types/supertest": "^7.2.0",
     "babel-jest": "^30.5.0",
     "jest": "^30.5.2",
-    "supertest": "^7.2.2",
-    "ts-node": "^10.9.2",
     "typescript": "^6.0.2",
     "wrangler": "^4.147.0"
   }

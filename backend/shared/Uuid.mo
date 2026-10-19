@@ -15,7 +15,7 @@ module {
   let HEX : [Char] = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'];
 
   public func fromBlob(b : Blob) : Text {
-    let src = Blob.toArray(b);
+    let src = b.toArray();
     var out = "";
     var i = 0;
     while (i < 16) {
@@ -23,8 +23,8 @@ module {
       if (i == 6) byte := (byte & 0x0f) | 0x40;  // version 4
       if (i == 8) byte := (byte & 0x3f) | 0x80;  // variant 10xx
       if (i == 4 or i == 6 or i == 8 or i == 10) out #= "-";
-      let n = Nat8.toNat(byte);
-      out #= Char.toText(HEX[n / 16]) # Char.toText(HEX[n % 16]);
+      let n = byte.toNat();
+      out #= HEX[n / 16].toText() # HEX[n % 16].toText();
       i += 1;
     };
     out

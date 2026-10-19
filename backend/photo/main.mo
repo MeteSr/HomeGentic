@@ -20,6 +20,8 @@ import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Index     "../shared/Index";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
+import Canisters "../shared/Canisters";
 
 persistent actor Photo {
 
@@ -147,65 +149,65 @@ persistent actor Photo {
   private let photoRateLimits = Map.empty<Text, (Nat, Int)>();
 
   // Secondary indexes (photo ids by jobId / propertyId), rebuilt on every upgrade.
-  private transient let photosByJob      = Index.build<Photo>(photoStore, func(p) { ?p.jobId });
-  private transient let photosByProperty = Index.build<Photo>(photoStore, func(p) { ?p.propertyId });
+  private transient let photosByJob      = Index.build(photoStore, func(p) { ?p.jobId });
+  private transient let photosByProperty = Index.build(photoStore, func(p) { ?p.propertyId });
 
   /// M-5: per-uploader usage (photo count, bytes), rebuilt on every upgrade
   /// and kept current by putPhoto / deletePhotoRecord.
   private transient let usageByOwner : Map.Map<Text, (Nat, Nat)> = do {
     let m = Map.empty<Text, (Nat, Nat)>();
-    for (p in Map.values(photoStore)) {
-      let k = Principal.toText(p.owner);
-      let (c, b) = Option.get(Map.get(m, Text.compare, k), (0, 0));
-      Map.add(m, Text.compare, k, (c + 1, b + p.size));
+    for (p in photoStore.values()) {
+      let k = p.owner.toText();
+      let (c, b) = m.get(k).get((0, 0));
+      m.add(k, (c + 1, b + p.size));
     };
     m
   };
 
   private func usageOf(owner : Principal) : (Nat, Nat) {
-    Option.get(Map.get(usageByOwner, Text.compare, Principal.toText(owner)), (0, 0))
+    usageByOwner.get(owner.toText()).get((0, 0))
   };
 
   private func addUsage(owner : Principal, count : Int, bytes : Int) {
     let (c, b) = usageOf(owner);
     let nc : Int = c + count;
     let nb : Int = b + bytes;
-    Map.add(usageByOwner, Text.compare, Principal.toText(owner),
+    usageByOwner.add(owner.toText(),
       (if (nc < 0) 0 else Int.abs(nc), if (nb < 0) 0 else Int.abs(nb)));
   };
 
   private func putPhoto(p: Photo) {
-    switch (Map.get(photoStore, Text.compare, p.id)) {
+    switch (photoStore.get(p.id)) {
       case (?old) { addUsage(old.owner, -1, -old.size) };
       case null   {};
     };
-    Map.add(photoStore, Text.compare, p.id, p);
+    photoStore.add(p.id, p);
     Index.add(photosByJob, p.jobId, p.id);
     Index.add(photosByProperty, p.propertyId, p.id);
     addUsage(p.owner, 1, p.size);
   };
 
   private func deletePhotoRecord(p: Photo) {
-    Map.remove(photoStore, Text.compare, p.id);
+    photoStore.remove(p.id);
     Index.remove(photosByJob, p.jobId, p.id);
     Index.remove(photosByProperty, p.propertyId, p.id);
     addUsage(p.owner, -1, -p.size);
   };
 
   private func hashKey(owner : Principal, hash : Text) : Text {
-    Principal.toText(owner) # ":" # hash
+    owner.toText() # ":" # hash
   };
 
   /// L-6: the caller's existing photo with this hash, if any. Legacy entries
   /// (bare-hash keys) only count when the caller uploaded that photo.
   private func dupOf(owner : Principal, hash : Text) : ?Text {
-    switch (Map.get(hashIndex, Text.compare, hashKey(owner, hash))) {
+    switch (hashIndex.get(hashKey(owner, hash))) {
       case (?id) { return ?id };
       case null {};
     };
-    switch (Map.get(hashIndex, Text.compare, hash)) {
+    switch (hashIndex.get(hash)) {
       case (?id) {
-        switch (Map.get(photoStore, Text.compare, id)) {
+        switch (photoStore.get(id)) {
           case (?p) { if (p.owner == owner) ?id else null };
           case null null;
         }
@@ -215,16 +217,16 @@ persistent actor Photo {
   };
 
   private func dropHash(p : Photo) {
-    for (k in [hashKey(p.owner, p.hash), p.hash].vals()) {
-      if (Map.get(hashIndex, Text.compare, k) == ?p.id) { Map.remove(hashIndex, Text.compare, k) };
+    for (k in [hashKey(p.owner, p.hash), p.hash].values()) {
+      if (hashIndex.get(k) == ?p.id) { hashIndex.remove(k) };
     };
   };
 
   system func postupgrade() {
-    for (old in Map.values(photos)) {
-      putPhoto({ old with data = Blob.fromArray(old.data) });
+    for (old in photos.values()) {
+      putPhoto({ old with data = old.data.toBlob() });
     };
-    Map.clear(photos);
+    photos.clear();
   };
 
   private func meta(p: Photo) : PhotoMeta {
@@ -238,7 +240,7 @@ persistent actor Photo {
   /// Photos are listed by jobId; listing photos use the synthetic jobId
   /// "LISTING_<propertyId>" and are public.
   private func isListingPhoto(p: Photo) : Bool {
-    Text.startsWith(p.jobId, #text "LISTING_")
+    p.jobId.startsWith(#text "LISTING_")
   };
 
   // ─── Ingress Inspection ───────────────────────────────────────────────────────
@@ -251,7 +253,7 @@ persistent actor Photo {
     // Valid Candid always carries at least a header — 0 bytes means a malformed
     // or probe call that would waste cycles. Photo uploads with real data will
     // always exceed this threshold by orders of magnitude.
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
@@ -264,23 +266,18 @@ persistent actor Photo {
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == p }))
+    Admin.contains(adminListEntries, p)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
-        case null { return #err(#InvalidInput("Canister is paused")) };
-      };
-    };
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
@@ -291,15 +288,13 @@ persistent actor Photo {
     if (Text.size(propCanisterId) == 0) {
       Runtime.trap("photo: propCanisterId not configured — call setPropertyCanisterId first");
     };
-    let propActor = actor(propCanisterId) : actor {
-      isAuthorized : (Text, Principal, Bool) -> async Bool;
-    };
+    let propActor = Canisters.property(propCanisterId);
     await propActor.isAuthorized(propertyId, caller, requireWrite)
   };
 
   private func nextPhotoId() : Text {
     photoCounter += 1;
-    "PHOTO_" # Nat.toText(photoCounter)
+    "PHOTO_" # photoCounter.toText()
   };
 
   // #Pro is the single homeowner plan ($59/year).
@@ -337,21 +332,21 @@ persistent actor Photo {
   /// Returns true and bumps the counter if the uploader is under the 10/min limit.
   /// Resets the window when 60 s have elapsed.
   private func tryConsumePhotoSlot(uploader: Principal) : Bool {
-    let key = Principal.toText(uploader);
+    let key = uploader.toText();
     let now = Time.now();
-    switch (Map.get(photoRateLimits, Text.compare, key)) {
+    switch (photoRateLimits.get(key)) {
       case null {
-        Map.add(photoRateLimits, Text.compare, key, (1, now));
+        photoRateLimits.add(key, (1, now));
         true
       };
       case (?(count, windowStart)) {
         if (now - windowStart >= oneMinuteNs) {
-          Map.add(photoRateLimits, Text.compare, key, (1, now));
+          photoRateLimits.add(key, (1, now));
           true
         } else if (count >= perMinutePhotoLimit) {
           false
         } else {
-          Map.add(photoRateLimits, Text.compare, key, (count + 1, windowStart));
+          photoRateLimits.add(key, (count + 1, windowStart));
           true
         }
       };
@@ -379,9 +374,9 @@ persistent actor Photo {
     if (Text.size(hash) != 64)         return #err(#InvalidInput("hash must be a 64-character hex string (SHA-256)"));
     if (data.size() == 0)           return #err(#InvalidInput("data cannot be empty"));
     if (data.size() > MAX_PHOTO_BYTES)
-      return #err(#InvalidInput("photo exceeds " # Nat.toText(MAX_PHOTO_BYTES) # " bytes"));
+      return #err(#InvalidInput("photo exceeds " # MAX_PHOTO_BYTES.toText() # " bytes"));
     if (Text.size(description) > MAX_DESCRIPTION_CHARS)
-      return #err(#InvalidInput("description exceeds " # Nat.toText(MAX_DESCRIPTION_CHARS) # " characters"));
+      return #err(#InvalidInput("description exceeds " # MAX_DESCRIPTION_CHARS.toText() # " characters"));
     if (Text.size(jobId) > MAX_ID_CHARS or Text.size(propertyId) > MAX_ID_CHARS)
       return #err(#InvalidInput("jobId/propertyId too long"));
 
@@ -403,18 +398,14 @@ persistent actor Photo {
     // When the caller is a delegated manager, use the property owner's tier
     // so managers don't need their own paid subscription.
     let effectivePrincipal : Principal = if (propCanisterId != "") {
-      let propActor = actor(propCanisterId) : actor {
-        getPropertyOwner : (Text) -> async ?Principal;
-      };
+      let propActor = Canisters.property(propCanisterId);
       switch (await propActor.getPropertyOwner(propertyId)) {
         case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
         case null     { msg.caller };
       }
     } else { msg.caller };
     let callerTierRaw : SubscriptionTier = if (payCanisterId != "") {
-      let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
-      };
+      let payActor = Canisters.payment(payCanisterId);
       await payActor.getTierForPrincipal(effectivePrincipal)
     } else {
       #Free  // payment canister not wired: no tier source, fail closed
@@ -438,13 +429,13 @@ persistent actor Photo {
 
     if (quota.maxPerJob > 0 and countByJob(jobId) >= quota.maxPerJob) {
       return #err(#QuotaExceeded(
-        "Job photo limit (" # Nat.toText(quota.maxPerJob) # ") reached for your plan." # upgradeHint
+        "Job photo limit (" # quota.maxPerJob.toText() # ") reached for your plan." # upgradeHint
       ));
     };
 
     if (quota.maxPerProperty > 0 and countByProperty(propertyId) >= quota.maxPerProperty) {
       return #err(#QuotaExceeded(
-        "Property photo limit (" # Nat.toText(quota.maxPerProperty) # ") reached for your plan." # upgradeHint
+        "Property photo limit (" # quota.maxPerProperty.toText() # ") reached for your plan." # upgradeHint
       ));
     };
 
@@ -455,7 +446,7 @@ persistent actor Photo {
       let (usedCount, usedBytes) = usageOf(msg.caller);
       if (usedCount >= maxCount or usedBytes + data.size() > maxBytes) {
         return #err(#QuotaExceeded(
-          "Account photo storage limit (" # Nat.toText(maxCount) # " photos / " #
+          "Account photo storage limit (" # maxCount.toText() # " photos / " #
           Nat.toText(maxBytes / 1_000_000) # " MB) reached for your plan." # upgradeHint
         ));
       };
@@ -485,7 +476,7 @@ persistent actor Photo {
     };
 
     putPhoto(photo);
-    Map.add(hashIndex, Text.compare, hashKey(msg.caller, hash), id);
+    hashIndex.add(hashKey(msg.caller, hash), id);
     #ok(meta(photo))
   };
 
@@ -493,7 +484,7 @@ persistent actor Photo {
   /// Caller must be the photo's owner or an admin.
   public shared(msg) func getPhoto(photoId: Text) : async Result.Result<Photo, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };  // L-7
-    switch (Map.get(photoStore, Text.compare, photoId)) {
+    switch (photoStore.get(photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
         if (not isAdmin(msg.caller)) {
@@ -509,7 +500,7 @@ persistent actor Photo {
   /// Caller must be the photo's owner or an admin.
   public shared(msg) func getPhotoData(photoId: Text) : async Result.Result<Blob, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };  // L-7
-    switch (Map.get(photoStore, Text.compare, photoId)) {
+    switch (photoStore.get(photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
         if (not isAdmin(msg.caller)) {
@@ -536,40 +527,40 @@ persistent actor Photo {
   /// at, and at most MAX_BATCH_AUTH_CALLS distinct properties are checked
   /// cross-canister per call (later ones are skipped; ask again for them).
   public shared(msg) func getPhotoDataBatch(photoIds: [Text]) : async [(Text, Blob)] {
-    if (Principal.isAnonymous(msg.caller)) return [];
+    if (msg.caller.isAnonymous()) return [];
     let admin = isAdmin(msg.caller);
     // One property-auth call per distinct property, not per photo.
     let allowed = Map.empty<Text, Bool>();
     var authCalls = 0;
     let out = List.empty<(Text, Blob)>();
     var bytes = 0;
-    let ids = if (photoIds.size() > MAX_BATCH_IDS) Array.sliceToArray<Text>(photoIds, 0, MAX_BATCH_IDS) else photoIds;
-    label fill for (id in ids.vals()) {
-      switch (Map.get(photoStore, Text.compare, id)) {
+    let ids = if (photoIds.size() > MAX_BATCH_IDS) photoIds.sliceToArray(0, MAX_BATCH_IDS) else photoIds;
+    label fill for (id in ids.values()) {
+      switch (photoStore.get(id)) {
         case null {};
         case (?p) {
           let ok = if (admin or isListingPhoto(p)) { true } else {
-            switch (Map.get(allowed, Text.compare, p.propertyId)) {
+            switch (allowed.get(p.propertyId)) {
               case (?known) { known };
               case null {
                 if (authCalls >= MAX_BATCH_AUTH_CALLS) { false } else {
                   authCalls += 1;
                   let res = await checkPropertyAuth(p.propertyId, p.owner, msg.caller, false);
-                  Map.add(allowed, Text.compare, p.propertyId, res);
+                  allowed.add(p.propertyId, res);
                   res
                 }
               };
             }
           };
           if (ok) {
-            if (List.size(out) > 0 and bytes + p.data.size() > BATCH_REPLY_BYTES) break fill;
-            List.add(out, (p.id, p.data));
+            if (out.size() > 0 and bytes + p.data.size() > BATCH_REPLY_BYTES) break fill;
+            out.add((p.id, p.data));
             bytes += p.data.size();
           };
         };
       };
     };
-    List.toArray(out)
+    out.toArray()
   };
 
   /// Bytes for FSBO listing photos (public, so anonymous buyers can load
@@ -578,19 +569,19 @@ persistent actor Photo {
   public query func getListingPhotoDataBatch(photoIds: [Text]) : async [(Text, Blob)] {
     let out = List.empty<(Text, Blob)>();
     var bytes = 0;
-    label fill for (id in photoIds.vals()) {
-      switch (Map.get(photoStore, Text.compare, id)) {
+    label fill for (id in photoIds.values()) {
+      switch (photoStore.get(id)) {
         case (?p) {
           if (isListingPhoto(p)) {
-            if (List.size(out) > 0 and bytes + p.data.size() > BATCH_REPLY_BYTES) break fill;
-            List.add(out, (p.id, p.data));
+            if (out.size() > 0 and bytes + p.data.size() > BATCH_REPLY_BYTES) break fill;
+            out.add((p.id, p.data));
             bytes += p.data.size();
           };
         };
         case null {};
       };
     };
-    List.toArray(out)
+    out.toArray()
   };
 
   /// All photos for a FSBO listing — publicly readable without authentication.
@@ -598,14 +589,14 @@ persistent actor Photo {
   /// No ownership check so prospective buyers can view listing photos anonymously.
   public query func getPublicListingPhotos(propertyId: Text) : async [PhotoMeta] {
     let syntheticJobId = "LISTING_" # propertyId;
-    Iter.toArray(Iter.map(Index.records(photosByJob, syntheticJobId, photoStore), meta))
+    Index.records(photosByJob, syntheticJobId, photoStore).map(meta).toArray()
   };
 
   /// Photos with the given jobId that the caller uploaded (admins: all of them).
   private func ownJobPhotos(jobId: Text, caller: Principal, keep: Photo -> Bool) : [PhotoMeta] {
     let admin = isAdmin(caller);
     Iter.toArray(Iter.map(
-      Iter.filter(Index.records(photosByJob, jobId, photoStore), func(p: Photo) : Bool {
+      Index.records(photosByJob, jobId, photoStore).filter(func(p: Photo) : Bool {
         (admin or p.owner == caller) and keep(p)
       }),
       meta
@@ -628,7 +619,7 @@ persistent actor Photo {
     let caller = msg.caller;
     let admin  = isAdmin(caller);
     Iter.toArray(Iter.map(
-      Iter.filter(Index.records(photosByProperty, propertyId, photoStore), func(p: Photo) : Bool {
+      Index.records(photosByProperty, propertyId, photoStore).filter(func(p: Photo) : Bool {
         admin or p.owner == caller
       }),
       meta
@@ -646,7 +637,7 @@ persistent actor Photo {
   public shared(msg) func verifyPhoto(photoId: Text) : async Result.Result<PhotoMeta, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(photoStore, Text.compare, photoId)) {
+    switch (photoStore.get(photoId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (not isAdmin(msg.caller)) {
@@ -655,17 +646,17 @@ persistent actor Photo {
         };
 
         let alreadyApproved = Option.isSome(
-          Array.find<Principal>(existing.approvals, func(a) { a == msg.caller })
+          existing.approvals.find(func(a) { a == msg.caller })
         );
         if (alreadyApproved) return #ok(meta(existing));
 
         let updated: Photo = {
           existing with
           verified    = true;
-          approvals   = Array.concat(existing.approvals, [msg.caller]);
+          approvals   = existing.approvals.concat([msg.caller]);
         };
         putPhoto(updated);
-        try { ignore await auditLog("PhotoApproved", ?existing.owner, "photoId=" # photoId # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+        try { ignore await auditLog("PhotoApproved", ?existing.owner, "photoId=" # photoId # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
         #ok(meta(updated))
       };
     }
@@ -675,7 +666,7 @@ persistent actor Photo {
   public shared(msg) func deletePhoto(photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(photoStore, Text.compare, photoId)) {
+    switch (photoStore.get(photoId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (not isAdmin(msg.caller)) {
@@ -696,7 +687,7 @@ persistent actor Photo {
   /// Must be called once after both canisters are deployed.
   public shared(msg) func setPaymentCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    payCanisterId := Principal.toText(id);
+    payCanisterId := id.toText();
     #ok(())
   };
 
@@ -705,7 +696,7 @@ persistent actor Photo {
   /// is a delegated manager.  Must be called once after both canisters are deployed.
   public shared(msg) func setPropertyCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    propCanisterId := Principal.toText(id);
+    propCanisterId := id.toText();
     #ok(())
   };
 
@@ -719,67 +710,45 @@ persistent actor Photo {
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once an admin exists, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminListEntries.size() > 0) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminListEntries.size() > 0, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   /// Add an admin. When no admins exist yet (bootstrap), requires the pre-shared nonce.
   /// Subsequent calls require an existing admin.
   public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
-    if (adminListEntries.size() > 0) {
-      // Normal path: require an existing admin to add new admins.
-      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    } else {
-      // Bootstrap path: require the pre-shared nonce.
-      switch (bootstrapNonce) {
-        case null    { return #err(#NotAuthorized) }; // nonce not set — reject
-        case (?n)    { if (nonce != n) return #err(#NotAuthorized) };
-      };
-      bootstrapNonce := null; // consume the nonce — single use
+    switch (Admin.authorizeAdd(adminListEntries.size() > 0, isAdmin(msg.caller), bootstrapNonce, nonce)) {
+      case (#denied)    { return #err(#NotAuthorized) };
+      case (#bootstrap) { bootstrapNonce := null };  // the nonce is single use
+      case (#admin)     {};
     };
-    if (not isAdmin(newAdmin)) {
-      adminListEntries := Array.concat(adminListEntries, [newAdmin]);
-    };
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    adminListEntries := Admin.add(adminListEntries, newAdmin);
+    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
     #ok(())
   };
 
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    adminListEntries := Array.filter<Principal>(adminListEntries, func(a) { a != target });
+    adminListEntries := Admin.remove(adminListEntries, target);
     #ok(())
   };
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };
 
   private func auditLog(action : Text, subject : ?Principal, detail : Text) : async () {
-    switch (auditCanisterId) {
-      case null {};
-      case (?aid) {
-        let a : actor {
-          log : (Text, Text, ?Principal, Text) -> async { #ok : Nat; #err : { #NotAuthorized; #InvalidInput : Text } }
-        } = actor(Principal.toText(aid));
-        try { ignore await a.log("photo", action, subject, detail) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
-      };
-    };
+    await* Canisters.auditLog(auditCanisterId, "photo", action, subject, detail)
   };
 
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
-    try { ignore await auditLog("CanisterPaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
+    try { ignore await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -787,19 +756,19 @@ persistent actor Photo {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := false;
     pauseExpiryNs := null;
-    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
     #ok(())
   };
 
   public query func getMetrics() : async Metrics {
     var verified   = 0;
     var totalBytes = 0;
-    for (p in Map.values(photoStore)) {
+    for (p in photoStore.values()) {
       if (p.verified) { verified += 1 };
       totalBytes += p.size;
     };
     {
-      totalPhotos       = Map.size(photoStore);
+      totalPhotos       = photoStore.size();
       verifiedPhotos    = verified;
       totalStorageBytes = totalBytes;
       isPaused;

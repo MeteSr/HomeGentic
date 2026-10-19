@@ -21,6 +21,7 @@ import Time      "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
 import Index        "../shared/Index";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
 
 persistent actor Contractor {
 
@@ -139,7 +140,7 @@ persistent actor Contractor {
   private let contractors    = Map.empty<Principal, ContractorProfile>();
   private let reviews        = Map.empty<Text, Review>();
   /// Review ids by contractor principal (transient, rebuilt on every upgrade).
-  private transient let reviewsByContractor = Index.build<Review>(reviews, func(r) { ?Principal.toText(r.contractor) });
+  private transient let reviewsByContractor = Index.build(reviews, func(r) { ?r.contractor.toText() });
   private let credentials    = Map.empty<Nat, JobCredential>();
   /// compositeKey = "reviewerPrincipal|jobId" → reviewId.
   private let reviewKeys     = Map.empty<Text, Text>();
@@ -158,35 +159,30 @@ persistent actor Contractor {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller) or isTrustedCanister(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(admins, func(a) { a == p }))
+    Admin.contains(admins, p)
   };
 
   private func isTrustedCanister(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(trustedCanisterEntries, func(t) { t == p }))
+    Admin.contains(trustedCanisterEntries, p)
   };
 
   private func isJobCanister(p: Principal) : Bool {
-    Text.size(jobCanisterId) > 0 and Principal.toText(p) == jobCanisterId
+    Text.size(jobCanisterId) > 0 and p.toText() == jobCanisterId
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#Paused) };
-        case null { return #err(#Paused) };
-      };
-    };
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
       return #err(#RateLimitExceeded)
     };
@@ -199,21 +195,21 @@ persistent actor Contractor {
   /// Returns true and bumps the counter if the reviewer is under their daily limit.
   /// Resets the window when 24 h have elapsed.
   private func tryConsumeReviewSlot(reviewer: Principal) : Bool {
-    let key = Principal.toText(reviewer);
+    let key = reviewer.toText();
     let now = Time.now();
-    switch (Map.get(reviewRateLimits, Text.compare, key)) {
+    switch (reviewRateLimits.get(key)) {
       case null {
-        Map.add(reviewRateLimits, Text.compare, key, (1, now));
+        reviewRateLimits.add(key, (1, now));
         true
       };
       case (?(count, windowStart)) {
         if (now - windowStart >= oneDayNs) {
-          Map.add(reviewRateLimits, Text.compare, key, (1, now));
+          reviewRateLimits.add(key, (1, now));
           true
         } else if (count >= dailyReviewLimit) {
           false
         } else {
-          Map.add(reviewRateLimits, Text.compare, key, (count + 1, windowStart));
+          reviewRateLimits.add(key, (count + 1, windowStart));
           true
         }
       };
@@ -268,15 +264,15 @@ persistent actor Contractor {
   /// Register a new contractor profile. Validates all required fields.
   public shared(msg) func register(args: RegisterArgs) : async Result.Result<ContractorProfile, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
-    if (Map.get(contractors, Principal.compare, msg.caller) != null) return #err(#AlreadyExists);
+    if (contractors.get(msg.caller) != null) return #err(#AlreadyExists);
 
     if (Text.size(args.name)  == 0)   return #err(#InvalidInput("name cannot be empty"));
     if (Text.size(args.name)  > 200)  return #err(#InvalidInput("name exceeds 200 characters"));
     if (Text.size(args.email) == 0)   return #err(#InvalidInput("email cannot be empty"));
     if (Text.size(args.email) > 254)  return #err(#InvalidInput("email exceeds 254 characters"));
-    if (not Text.contains(args.email, #text "@"))
+    if (not args.email.contains(#text "@"))
       return #err(#InvalidInput("email must contain @"));
-    if (Text.contains(args.email, #text " "))
+    if (args.email.contains(#text " "))
       return #err(#InvalidInput("email must not contain spaces"));
     if (Text.size(args.phone) == 0)   return #err(#InvalidInput("phone cannot be empty"));
     if (not validateE164Phone(args.phone))
@@ -303,7 +299,7 @@ persistent actor Contractor {
       alertZips     = [];
       origin        = #SelfRegistered;
     };
-    Map.add(contractors, Principal.compare, msg.caller, profile);
+    contractors.add(msg.caller, profile);
     #ok(profile)
   };
 
@@ -321,7 +317,7 @@ persistent actor Contractor {
   ) : async Result.Result<Review, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
-    if (Map.get(contractors, Principal.compare, contractorPrincipal) == null) return #err(#NotFound);
+    if (contractors.get(contractorPrincipal) == null) return #err(#NotFound);
     if (rating < 1 or rating > 5)
       return #err(#InvalidInput("rating must be between 1 and 5"));
     if (Text.size(comment) == 0)    return #err(#InvalidInput("comment cannot be empty"));
@@ -360,8 +356,8 @@ persistent actor Contractor {
     // If jobCanisterId is not set (dev/local), skip the cross-canister validation
 
     // Composite duplicate check: one review per reviewer+job
-    let compositeKey = Principal.toText(msg.caller) # "|" # jobId;
-    if (Map.get(reviewKeys, Text.compare, compositeKey) != null)
+    let compositeKey = msg.caller.toText() # "|" # jobId;
+    if (reviewKeys.get(compositeKey) != null)
       return #err(#InvalidInput("You have already reviewed this job"));
 
     // Daily rate limit
@@ -372,7 +368,7 @@ persistent actor Contractor {
     };
 
     reviewCounter += 1;
-    let id = "REV_" # Nat.toText(reviewCounter);
+    let id = "REV_" # reviewCounter.toText();
     let review: Review = {
       id;
       contractor = contractorPrincipal;
@@ -382,9 +378,9 @@ persistent actor Contractor {
       jobId;
       createdAt  = Time.now();
     };
-    Map.add(reviews, Text.compare, id, review);
-    Index.add(reviewsByContractor, Principal.toText(review.contractor), id);
-    Map.add(reviewKeys, Text.compare, compositeKey, id);
+    reviews.add(id, review);
+    Index.add(reviewsByContractor, review.contractor.toText(), id);
+    reviewKeys.add(compositeKey, id);
     #ok(review)
   };
 
@@ -396,9 +392,9 @@ persistent actor Contractor {
     if (Text.size(args.name)  > 200)  return #err(#InvalidInput("name exceeds 200 characters"));
     if (Text.size(args.email) == 0)   return #err(#InvalidInput("email cannot be empty"));
     if (Text.size(args.email) > 254)  return #err(#InvalidInput("email exceeds 254 characters"));
-    if (not Text.contains(args.email, #text "@"))
+    if (not args.email.contains(#text "@"))
       return #err(#InvalidInput("email must contain @"));
-    if (Text.contains(args.email, #text " "))
+    if (args.email.contains(#text " "))
       return #err(#InvalidInput("email must not contain spaces"));
     if (Text.size(args.phone) == 0)   return #err(#InvalidInput("phone cannot be empty"));
     if (not validateE164Phone(args.phone))
@@ -406,7 +402,7 @@ persistent actor Contractor {
     if (args.specialties.size() == 0) return #err(#InvalidInput("at least one trade category is required"));
     if (args.specialties.size() > 10) return #err(#InvalidInput("cannot exceed 10 trade categories"));
     if (args.serviceZips.size() > 50) return #err(#InvalidInput("serviceZips cannot exceed 50 entries"));
-    for (zip in args.serviceZips.vals()) {
+    for (zip in args.serviceZips.values()) {
       if (not validateZip(zip)) return #err(#InvalidInput("serviceZips: '" # zip # "' is not a valid 5-digit zip code"));
     };
     switch (args.bio) {
@@ -422,7 +418,7 @@ persistent actor Contractor {
       case null {};
     };
 
-    switch (Map.get(contractors, Principal.compare, msg.caller)) {
+    switch (contractors.get(msg.caller)) {
       case null { #err(#NotFound) };
       case (?existing) {
         let updated: ContractorProfile = {
@@ -448,37 +444,37 @@ persistent actor Contractor {
           alertZips     = existing.alertZips;
           origin        = existing.origin;
         };
-        Map.add(contractors, Principal.compare, msg.caller, updated);
+        contractors.add(msg.caller, updated);
         #ok(updated)
       };
     }
   };
 
   public query func getContractor(c: Principal) : async Result.Result<ContractorProfile, Error> {
-    switch (Map.get(contractors, Principal.compare, c)) {
+    switch (contractors.get(c)) {
       case null { #err(#NotFound) };
       case (?p) { #ok(p) };
     }
   };
 
   public query(msg) func getMyProfile() : async Result.Result<ContractorProfile, Error> {
-    switch (Map.get(contractors, Principal.compare, msg.caller)) {
+    switch (contractors.get(msg.caller)) {
       case null { #err(#NotFound) };
       case (?p) { #ok(p) };
     }
   };
 
   public query func getAll() : async [ContractorProfile] {
-    Iter.toArray(Iter.take(Map.values(contractors), 500))
+    contractors.values().take(500).toArray()
   };
 
   public query func getPage(from : Nat, limit : Nat) : async [ContractorProfile] {
-    Iter.toArray(Iter.take(Iter.drop(Map.values(contractors), from), Nat.min(limit, 100)))
+    contractors.values().drop(from).take(Nat.min(limit, 100)).toArray()
   };
 
   public query func getReviewsForContractor(c: Principal) : async [Review] {
-    Iter.toArray(
-      Index.records(reviewsByContractor, Principal.toText(c), reviews)
+    Index.records(reviewsByContractor, c.toText(), reviews).toArray(
+      
     )
   };
 
@@ -491,10 +487,10 @@ persistent actor Contractor {
     isVerified:    Bool;
     serviceZips:   [Text];
   } {
-    switch (Map.get(contractors, Principal.compare, p)) {
+    switch (contractors.get(p)) {
       case null { null };
       case (?profile) {
-        let count = Index.count(reviewsByContractor, Principal.toText(p));
+        let count = Index.count(reviewsByContractor, p.toText());
         ?{
           trustScore    = profile.trustScore;
           jobsCompleted = profile.jobsCompleted;
@@ -532,9 +528,9 @@ persistent actor Contractor {
       verifiedAt         = Time.now();
       homeownerPrincipal;
     };
-    Map.add(credentials, Nat.compare, credentialCounter, cred);
+    credentials.add(credentialCounter, cred);
 
-    switch (Map.get(contractors, Principal.compare, contractorPrincipal)) {
+    switch (contractors.get(contractorPrincipal)) {
       case null { #ok(()) };  // contractor not registered — credential minted but no profile to update
       case (?existing) {
         let newScore : Nat = if (existing.trustScore + 2 > 100) 100 else existing.trustScore + 2;
@@ -557,7 +553,7 @@ persistent actor Contractor {
           alertZips     = existing.alertZips;
           origin        = existing.origin;
         };
-        Map.add(contractors, Principal.compare, contractorPrincipal, updated);
+        contractors.add(contractorPrincipal, updated);
         #ok(())
       };
     }
@@ -589,16 +585,16 @@ persistent actor Contractor {
     if (not isJobCanister(msg.caller) and not isAdmin(msg.caller))
       return #err(#NotAuthorized);
 
-    switch (Map.get(contractors, Principal.compare, contractorPrincipal)) {
+    switch (contractors.get(contractorPrincipal)) {
       case (?_existing) { #ok(()) };  // already has a profile — no overwrite
       case null {
         if (Text.size(name)  == 0)   return #err(#InvalidInput("name cannot be empty"));
         if (Text.size(name)  > 200)  return #err(#InvalidInput("name exceeds 200 characters"));
         if (Text.size(email) == 0)   return #err(#InvalidInput("email cannot be empty"));
         if (Text.size(email) > 254)  return #err(#InvalidInput("email exceeds 254 characters"));
-        if (not Text.contains(email, #text "@"))
+        if (not email.contains(#text "@"))
           return #err(#InvalidInput("email must contain @"));
-        if (Text.contains(email, #text " "))
+        if (email.contains(#text " "))
           return #err(#InvalidInput("email must not contain spaces"));
         if (Text.size(phone) == 0)   return #err(#InvalidInput("phone cannot be empty"));
         if (not validateE164Phone(phone))
@@ -632,7 +628,7 @@ persistent actor Contractor {
           alertZips     = [];
           origin        = #GuestSigned(originJobId);
         };
-        Map.add(contractors, Principal.compare, contractorPrincipal, profile);
+        contractors.add(contractorPrincipal, profile);
         #ok(())
       };
     }
@@ -641,7 +637,7 @@ persistent actor Contractor {
   /// Returns all verified-job credentials for a given contractor.
   public query func getCredentials(contractorPrincipal: Principal) : async [JobCredential] {
     Iter.toArray(
-      Iter.filter(Map.values(credentials), func(c: JobCredential) : Bool {
+      credentials.values().filter(func(c: JobCredential) : Bool {
         c.contractorId == contractorPrincipal
       })
     )
@@ -661,7 +657,7 @@ persistent actor Contractor {
   /// canister to count this contractor's earlier signatures (R2).
   public shared(msg) func verifyContractor(c: Principal) : async Result.Result<ContractorProfile, Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    switch (Map.get(contractors, Principal.compare, c)) {
+    switch (contractors.get(c)) {
       case null { #err(#NotFound) };
       case (?existing) {
         let updated: ContractorProfile = {
@@ -683,7 +679,7 @@ persistent actor Contractor {
           alertZips     = existing.alertZips;
           origin        = existing.origin;
         };
-        Map.add(contractors, Principal.compare, c, updated);
+        contractors.add(c, updated);
         // R2: job signatures this contractor made while unverified start
         // counting toward scores / certificates. The profile change is already
         // committed; a failed call is ignored (re-run verifyContractor to retry,
@@ -704,17 +700,17 @@ persistent actor Contractor {
   public shared(msg) func updateNotificationPrefs(args: NotificationPrefsArgs) : async Result.Result<ContractorProfile, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
     if (args.alertZips.size() > 50) return #err(#InvalidInput("alertZips cannot exceed 50 entries"));
-    for (zip in args.alertZips.vals()) {
+    for (zip in args.alertZips.values()) {
       if (not validateZip(zip)) return #err(#InvalidInput("alertZips: '" # zip # "' is not a valid 5-digit zip code"));
     };
     switch (args.notifyEmail) {
       case (?e) {
         if (Text.size(e) > 254) return #err(#InvalidInput("notifyEmail exceeds 254 characters"));
-        if (not Text.contains(e, #text "@")) return #err(#InvalidInput("notifyEmail must contain @"));
+        if (not e.contains(#text "@")) return #err(#InvalidInput("notifyEmail must contain @"));
       };
       case null {};
     };
-    switch (Map.get(contractors, Principal.compare, msg.caller)) {
+    switch (contractors.get(msg.caller)) {
       case null { #err(#NotFound) };
       case (?existing) {
         let updated: ContractorProfile = {
@@ -736,7 +732,7 @@ persistent actor Contractor {
           alertZips     = args.alertZips;
           origin        = existing.origin;
         };
-        Map.add(contractors, Principal.compare, msg.caller, updated);
+        contractors.add(msg.caller, updated);
         #ok(updated)
       };
     }
@@ -752,25 +748,16 @@ persistent actor Contractor {
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
-    if (adminInitialized) {
-      // Normal path: require an existing admin to add new admins.
-      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    } else {
-      // Bootstrap path: require the pre-shared nonce.
-      switch (bootstrapNonce) {
-        case null    { return #err(#NotAuthorized) }; // nonce not set — reject
-        case (?n)    { if (nonce != n) return #err(#NotAuthorized) };
-      };
-      bootstrapNonce := null; // consume the nonce — single use
+    switch (Admin.authorizeAdd(adminInitialized, isAdmin(msg.caller), bootstrapNonce, nonce)) {
+      case (#denied)    { return #err(#NotAuthorized) };
+      case (#bootstrap) { bootstrapNonce := null };  // the nonce is single use
+      case (#admin)     {};
     };
-    admins := Array.concat(admins, [newAdmin]);
+    admins := Admin.add(admins, newAdmin);
     adminInitialized := true;
     #ok(())
   };
@@ -778,7 +765,7 @@ persistent actor Contractor {
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    admins := Array.filter<Principal>(admins, func(a) { a != target });
+    admins := Admin.remove(admins, target);
     #ok(())
   };
 
@@ -786,15 +773,13 @@ persistent actor Contractor {
   /// Trusted canisters (job) bypass per-principal rate limiting. Admin only.
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isTrustedCanister(p)) {
-      trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
-    };
+    trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
     #ok(())
   };
 
   public shared(msg) func removeTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    trustedCanisterEntries := Array.filter<Principal>(trustedCanisterEntries, func(t) { t != p });
+    trustedCanisterEntries := Admin.remove(trustedCanisterEntries, p);
     #ok(())
   };
 
@@ -805,10 +790,7 @@ persistent actor Contractor {
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     #ok(())
   };
 
@@ -823,8 +805,8 @@ persistent actor Contractor {
   /// Contractors with empty serviceZips are excluded (they haven't configured a service area yet).
   public query func getByZip(zipCode: Text) : async [ContractorProfile] {
     Iter.toArray(
-      Iter.filter(Map.values(contractors), func(c: ContractorProfile) : Bool {
-        Option.isSome(Array.find<Text>(c.serviceZips, func(z) { z == zipCode }))
+      contractors.values().filter(func(c: ContractorProfile) : Bool {
+        Option.isSome(c.serviceZips.find(func(z) { z == zipCode }))
       })
     )
   };
@@ -832,19 +814,19 @@ persistent actor Contractor {
   /// Return all contractors who serve a given trade category.
   public query func getBySpecialty(s: ServiceType) : async [ContractorProfile] {
     Iter.toArray(
-      Iter.filter(Map.values(contractors), func(c: ContractorProfile) : Bool {
-        Option.isSome(Array.find<ServiceType>(c.specialties, func(t) { t == s }))
+      contractors.values().filter(func(c: ContractorProfile) : Bool {
+        Option.isSome(c.specialties.find(func(t) { t == s }))
       })
     )
   };
 
   public query func getMetrics() : async Metrics {
     var verified = 0;
-    for (c in Map.values(contractors)) { if (c.isVerified) { verified += 1 } };
+    for (c in contractors.values()) { if (c.isVerified) { verified += 1 } };
     {
-      totalContractors    = Map.size(contractors);
+      totalContractors    = contractors.size();
       verifiedContractors = verified;
-      totalReviews        = Map.size(reviews);
+      totalReviews        = reviews.size();
       isPaused;
     }
   };

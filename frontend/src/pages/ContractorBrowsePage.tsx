@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useState, useMemo } from "react";
-import { TRADE_LABELS } from "@/services/serviceTypes";
+import { TRADE_LABELS } from "@homegentic/shared/serviceTypes";
 import { useNavigate }                          from "react-router-dom";
 import { Search, AlertTriangle, ShieldCheck, X } from "lucide-react";
 import { Layout }                               from "@/components/Layout";

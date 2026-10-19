@@ -35,7 +35,7 @@ Thank you for your interest in contributing to HomeGentic!
 - Add a corresponding `test.sh` under `backend/<name>/test.sh`
 - Register the canister in `icp.yaml` (and `dfx.json`, which the declarations generator and bash tests still use)
 - Add a deploy step (and admin bootstrap via `setBootstrapNonce` + `addAdmin`) to `scripts/deploy.sh`
-- Add its IDL under `frontend/src/declarations/<name>/` and document its methods in `docs/API.md`
+- Add its IDL as `packages/shared/src/declarations/<name>.ts` and document its methods in `docs/API.md`
 
 ## Reporting Issues
 

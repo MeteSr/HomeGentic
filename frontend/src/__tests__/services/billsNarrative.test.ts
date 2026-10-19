@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 
-vi.mock("@/services/voiceAgentHeaders", () => ({
-  voiceAgentHeaders: () => ({ "Content-Type": "application/json", "x-api-key": "k" }),
-}));
+// voiceAgentFetch adds the session token in the app; here it just adds the headers.
+vi.mock("@/services/voiceAgentHeaders", () => {
+  const voiceAgentHeaders = () => ({ "Content-Type": "application/json", "x-api-key": "k" });
+  return {
+    voiceAgentHeaders,
+    voiceAgentFetch: (url: string, init: RequestInit = {}) =>
+      fetch(url, { ...init, headers: { ...voiceAgentHeaders(), ...(init.headers as object) } }),
+  };
+});
 
 import { getBillsNarrative } from "@/services/billsIntelligence";
 import { buildBillsForecast } from "@/services/billsForecast";

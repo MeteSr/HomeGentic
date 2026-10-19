@@ -107,21 +107,21 @@ function extractServiceDef(idlFactory: (opts: { IDL: ReturnType<typeof mockIDL> 
 // without `importOriginal`, replacing every export including `idlFactory`),
 // so importing through them here makes this contract test hostage to
 // whatever mock last touched the same module in the same worker.
-import { idlFactory as authIdl }        from "@/declarations/auth";
-import { idlFactory as propertyIdl }    from "@/declarations/property";
-import { idlFactory as jobIdl }         from "@/declarations/job";
-import { idlFactory as contractorIdl }  from "@/declarations/contractor";
-import { idlFactory as quoteIdl }       from "@/declarations/quote";
-import { idlFactory as paymentIdl }     from "@/declarations/payment";
-import { idlFactory as photoIdl }       from "@/declarations/photo";
-import { idlFactory as reportIdl }      from "@/declarations/report";
-import { idlFactory as maintenanceIdl } from "@/declarations/maintenance";
-import { idlFactory as sensorIdl }      from "@/declarations/sensor";
-import { idlFactory as listingIdl }     from "@/declarations/listing";
-import { idlFactory as recurringIdl }   from "@/declarations/recurring";
-import { idlFactory as aiProxyIdl }     from "@/declarations/ai_proxy";
-import { idlFactory as monitoringIdl }  from "@/declarations/monitoring";
-import { idlFactory as billsIdl }       from "@/declarations/bills";
+import { idlFactory as authIdl }        from "@homegentic/shared/declarations/auth";
+import { idlFactory as propertyIdl }    from "@homegentic/shared/declarations/property";
+import { idlFactory as jobIdl }         from "@homegentic/shared/declarations/job";
+import { idlFactory as contractorIdl }  from "@homegentic/shared/declarations/contractor";
+import { idlFactory as quoteIdl }       from "@homegentic/shared/declarations/quote";
+import { idlFactory as paymentIdl }     from "@homegentic/shared/declarations/payment";
+import { idlFactory as photoIdl }       from "@homegentic/shared/declarations/photo";
+import { idlFactory as reportIdl }      from "@homegentic/shared/declarations/report";
+import { idlFactory as maintenanceIdl } from "@homegentic/shared/declarations/maintenance";
+import { idlFactory as sensorIdl }      from "@homegentic/shared/declarations/sensor";
+import { idlFactory as listingIdl }     from "@homegentic/shared/declarations/listing";
+import { idlFactory as recurringIdl }   from "@homegentic/shared/declarations/recurring";
+import { idlFactory as aiProxyIdl }     from "@homegentic/shared/declarations/ai_proxy";
+import { idlFactory as monitoringIdl }  from "@homegentic/shared/declarations/monitoring";
+import { idlFactory as billsIdl }       from "@homegentic/shared/declarations/bills";
 
 describe("Candid contract snapshots — method arity", () => {
   it("auth", ()         => { expect(extractServiceDef(authIdl as any)).toMatchSnapshot(); });

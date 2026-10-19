@@ -8,7 +8,7 @@
  */
 
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/monitoring";
+import { idlFactory } from "@homegentic/shared/declarations/monitoring";
 export { idlFactory };
 
 const MONITORING_CANISTER_ID = (import.meta as any).env?.VITE_MONITORING_CANISTER_ID ?? "";

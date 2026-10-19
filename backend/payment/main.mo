@@ -16,6 +16,8 @@ import Time      "mo:core/Time";
 import OutCall   "mo:caffeineai-http-outcalls/outcall";
 import IC        "ic:aaaaa-aa";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
+import Canisters "../shared/Canisters";
 
 persistent actor Payment {
 
@@ -209,8 +211,8 @@ persistent actor Payment {
   /// Compute e8s price from USD using fresh XRC rate.
   /// priceE8s = usdPrice * 10^(8 + decimals) / rate
   private func computeE8s(usdPrice: Nat, rate: Nat64, decimals: Nat32) : Nat {
-    let rateNat    = Nat64.toNat(rate);
-    let decNat     = Nat32.toNat(decimals);
+    let rateNat    = rate.toNat();
+    let decNat     = decimals.toNat();
     let multiplier = Nat.pow(10, 8 + decNat);
     usdPrice * multiplier / rateNat
   };
@@ -222,8 +224,8 @@ persistent actor Payment {
   private let errsByMethod : Map.Map<Text, Nat> = Map.empty();
 
   private func countError(method : Text) {
-    let prev = Option.get(Map.get(errsByMethod, Text.compare, method), 0);
-    Map.add(errsByMethod, Text.compare, method, prev + 1);
+    let prev = errsByMethod.get(method).get(0);
+    errsByMethod.add(method, prev + 1);
   };
 
   // Admin
@@ -242,12 +244,12 @@ persistent actor Payment {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
 
   private func isAdmin(caller: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(adminEntries, func(a) { a == caller }))
+    Admin.contains(adminEntries, caller)
   };
 
   /// F-9: the voice Worker's identity only needs to activate Stripe-paid
@@ -257,7 +259,7 @@ persistent actor Payment {
   private var stripeRelayEntries : [Principal] = [];
 
   private func isStripeRelay(caller: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(stripeRelayEntries, func(a) { a == caller }))
+    Admin.contains(stripeRelayEntries, caller)
   };
 
   private func isAdminOrRelay(caller: Principal) : Bool {
@@ -295,12 +297,12 @@ persistent actor Payment {
   };
 
   private func isTrustedCanister(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(trustedCanisterEntries, func(t) { t == p }))
+    Admin.contains(trustedCanisterEntries, p)
   };
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isTrustedCanister(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
@@ -313,13 +315,8 @@ persistent actor Payment {
   /// rejects anonymous callers, honors the pause kill-switch, and applies the
   /// per-principal update rate limit.
   private func _requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
-        case null { return #err(#InvalidInput("Canister is paused")) };
-      };
-    };
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) return #err(#RateLimited);
     #ok(())
   };
@@ -327,10 +324,7 @@ persistent actor Payment {
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     #ok(())
   };
 
@@ -343,16 +337,14 @@ persistent actor Payment {
 
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isTrustedCanister(p)) {
-      trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
-    };
-    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
+    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
   public shared(msg) func removeTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    trustedCanisterEntries := Array.filter<Principal>(trustedCanisterEntries, func(t) { t != p });
+    trustedCanisterEntries := Admin.remove(trustedCanisterEntries, p);
     #ok(())
   };
 
@@ -365,10 +357,7 @@ persistent actor Payment {
   /// H-20: Set the one-time bootstrap nonce before calling initAdmins() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   /// One-time admin bootstrap. Requires the pre-shared bootstrap nonce (H-20) —
@@ -376,12 +365,9 @@ persistent actor Payment {
   /// the real deployer. Fails if already initialized or called by anonymous principal.
   public shared(msg) func initAdmins(newAdmins: [Principal], nonce: Text) : async Result.Result<(), Error> {
     if (adminInitialized)              return #err(#NotAuthorized);
-    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
     if (newAdmins.size() == 0)         return #err(#InvalidInput("admin list cannot be empty"));
-    switch (bootstrapNonce) {
-      case null { return #err(#NotAuthorized) };
-      case (?n) { if (nonce != n) return #err(#NotAuthorized) };
-    };
+    if (not Admin.nonceMatches(bootstrapNonce, nonce)) return #err(#NotAuthorized);
     bootstrapNonce   := null;
     adminEntries     := newAdmins;
     adminInitialized := true;
@@ -391,18 +377,16 @@ persistent actor Payment {
   /// Add a new admin principal (existing admin only).
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (not isAdmin(newAdmin)) {
-      adminEntries := Array.concat(adminEntries, [newAdmin]);
-    };
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    adminEntries := Admin.add(adminEntries, newAdmin);
+    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    adminEntries := Array.filter<Principal>(adminEntries, func(a) { a != target });
-    try { ignore await auditLog("AdminRemoved", ?target, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    adminEntries := Admin.remove(adminEntries, target);
+    try { ignore await auditLog("AdminRemoved", ?target, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -414,18 +398,16 @@ persistent actor Payment {
   /// Stripe activation / agent-credit functions. Use this instead of addAdmin.
   public shared(msg) func addStripeRelay(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (Principal.isAnonymous(p)) return #err(#InvalidInput("anonymous principal"));
-    if (not isStripeRelay(p)) {
-      stripeRelayEntries := Array.concat(stripeRelayEntries, [p]);
-    };
-    try { ignore await auditLog("StripeRelayAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
+    stripeRelayEntries := Admin.add(stripeRelayEntries, p);
+    try { ignore await auditLog("StripeRelayAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
   public shared(msg) func removeStripeRelay(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    stripeRelayEntries := Array.filter<Principal>(stripeRelayEntries, func(a) { a != p });
-    try { ignore await auditLog("StripeRelayRemoved", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    stripeRelayEntries := Admin.remove(stripeRelayEntries, p);
+    try { ignore await auditLog("StripeRelayRemoved", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -436,21 +418,13 @@ persistent actor Payment {
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };
 
   private func auditLog(action : Text, subject : ?Principal, detail : Text) : async () {
-    switch (auditCanisterId) {
-      case null {};
-      case (?aid) {
-        let a : actor {
-          log : (Text, Text, ?Principal, Text) -> async { #ok : Nat; #err : { #NotAuthorized; #InvalidInput : Text } }
-        } = actor(Principal.toText(aid));
-        try { ignore await a.log("payment", action, subject, detail) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
-      };
-    };
+    await* Canisters.auditLog(auditCanisterId, "payment", action, subject, detail)
   };
 
   public shared(msg) func setReferralsCanisterId(id: Text) : async Result.Result<(), Error> {
@@ -489,7 +463,7 @@ persistent actor Payment {
   /// letters and digits.
   private func isValidCheckoutSessionId(s: Text) : Bool {
     if (s.size() < 9 or s.size() > 255) return false;
-    if (not (Text.startsWith(s, #text "cs_test_") or Text.startsWith(s, #text "cs_live_"))) return false;
+    if (not (s.startsWith(#text "cs_test_") or s.startsWith(#text "cs_live_"))) return false;
     var i = 0;
     for (c in s.chars()) {
       if (i >= 8) {
@@ -569,8 +543,8 @@ persistent actor Payment {
         or tooLong(meta.giftMessage) or tooLong(meta.deliveryDate)) {
       return #err(#InvalidInput("gift field too long"));
     };
-    if (Option.isSome(Map.get(pendingGifts, Text.compare, giftToken))) return #ok(());
-    Map.add(pendingGifts, Text.compare, giftToken, {
+    if (Option.isSome(pendingGifts.get(giftToken))) return #ok(());
+    pendingGifts.add(giftToken, {
       giftToken;
       tier;
       billing;
@@ -590,11 +564,11 @@ persistent actor Payment {
   /// the success page), `?#err(#NotAuthorized)` when another principal used
   /// it, `null` when it hasn't been consumed.
   private func alreadyConsumed(key: Text, caller: Principal) : ?Result.Result<Subscription, Error> {
-    switch (Map.get(consumedStripeRefs, Text.compare, key)) {
+    switch (consumedStripeRefs.get(key)) {
       case null { null };
       case (?owner) {
         if (owner != caller) return ?#err(#NotAuthorized);
-        switch (Map.get(subscriptions, Principal.compare, caller)) {
+        switch (subscriptions.get(caller)) {
           case (?sub) { ?#ok(sub) };
           case null   { ?#err(#InvalidInput("Session already redeemed")) };
         }
@@ -606,8 +580,8 @@ persistent actor Payment {
   /// the gift token (= Stripe session ID) they received via email.
   /// Grants the subscription to msg.caller and marks the gift as redeemed.
   public shared(msg) func redeemGift(giftToken: Text) : async Result.Result<Subscription, Error> {
-    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
-    switch (Map.get(pendingGifts, Text.compare, giftToken)) {
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    switch (pendingGifts.get(giftToken)) {
       case null { #err(#NotFound) };
       case (?gift) {
         if (Option.isSome(gift.redeemedBy)) return #err(#InvalidInput("Gift already redeemed"));
@@ -619,10 +593,10 @@ persistent actor Payment {
           createdAt   = now;
           cancelledAt = null;
         };
-        Map.add(subscriptions, Principal.compare, msg.caller, sub);
+        subscriptions.add(msg.caller, sub);
         // Mark redeemed BEFORE the first await so concurrent calls see the guard
         // and return #err(#InvalidInput) instead of granting a second subscription.
-        Map.add(pendingGifts, Text.compare, giftToken, {
+        pendingGifts.add(giftToken, {
           gift with redeemedBy = ?msg.caller
         });
         #ok(sub)
@@ -633,8 +607,8 @@ persistent actor Payment {
   /// Admin: list all pending (unredeemed) gifts.
   public query(msg) func listPendingGifts() : async Result.Result<[PendingGift], Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    let arr = Array.fromIter(Map.values(pendingGifts));
-    #ok(Array.filter<PendingGift>(arr, func(g) { Option.isNull(g.redeemedBy) }))
+    let arr = pendingGifts.values().toArray();
+    #ok(arr.filter(func(g) { Option.isNull(g.redeemedBy) }))
   };
 
   // ─── Payment quote ───────────────────────────────────────────────────────────
@@ -670,17 +644,17 @@ persistent actor Payment {
   /// The frontend must call icrc2_approve on the ICP ledger first (use getPriceQuote for amount).
   /// For Free: records the subscription immediately with no payment.
   public shared(msg) func subscribe(tier: Tier) : async Result.Result<Subscription, Error> {
-    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
     if (not tryConsumeUpdateSlot(msg.caller)) return #err(#RateLimited);
 
     // CallerGuard: block concurrent subscribe calls from the same principal.
     // Without this, two concurrent calls could both pass the rate-limit check,
     // then both await xrc and both await icrc2_transfer_from — double-charging.
-    let callerKey = Principal.toText(msg.caller);
-    if (Option.isSome(Map.get(activeSubscribers, Text.compare, callerKey))) {
+    let callerKey = msg.caller.toText();
+    if (Option.isSome(activeSubscribers.get(callerKey))) {
       return #err(#RateLimited);
     };
-    Map.add(activeSubscribers, Text.compare, callerKey, true);
+    activeSubscribers.add(callerKey, true);
 
     let usdPrice = priceUsd(tier);
     if (usdPrice > 0) {
@@ -692,12 +666,12 @@ persistent actor Payment {
       });
       let priceE8s = switch (rateResult) {
         case (#Err(_)) {
-          Map.remove(activeSubscribers, Text.compare, callerKey);
+          activeSubscribers.remove(callerKey);
           return #err(#PaymentFailed("Could not fetch ICP/USD exchange rate"));
         };
         case (#Ok(r)) {
           if (r.rate == 0) {
-            Map.remove(activeSubscribers, Text.compare, callerKey);
+            activeSubscribers.remove(callerKey);
             return #err(#PaymentFailed("Invalid exchange rate"));
           };
           computeE8s(usdPrice, r.rate, r.metadata.decimals)
@@ -710,28 +684,28 @@ persistent actor Payment {
         to                 = { owner = Principal.fromActor(Payment); subaccount = null };
         amount             = priceE8s;
         fee                = ?ICP_FEE;
-        memo               = ?Blob.fromArray([]);
+        memo               = ?Array.toBlob([]);
         // created_at_time gives the ledger a 24-hour deduplication window, preventing
         // replay of an approved allowance if the client retries after a timeout.
-        created_at_time    = ?Nat64.fromNat(Int.abs(Time.now()));
+        created_at_time    = ?Int.abs(Time.now()).toNat64();
       });
       switch (transferResult) {
         case (#Err(e)) {
           let errMsg = switch e {
             case (#InsufficientFunds { balance }) {
               "Insufficient ICP. Need " # Nat.toText(priceE8s + ICP_FEE) #
-              " e8s, have " # Nat.toText(balance)
+              " e8s, have " # balance.toText()
             };
             case (#InsufficientAllowance { allowance }) {
-              "ICP allowance too low. Have " # Nat.toText(allowance) #
+              "ICP allowance too low. Have " # allowance.toText() #
               " e8s, need " # Nat.toText(priceE8s + ICP_FEE) # ". Please re-approve."
             };
             case (#BadFee { expected_fee }) {
-              "Wrong fee. Expected " # Nat.toText(expected_fee) # " e8s"
+              "Wrong fee. Expected " # expected_fee.toText() # " e8s"
             };
             case _ { "Payment transfer failed" };
           };
-          Map.remove(activeSubscribers, Text.compare, callerKey);
+          activeSubscribers.remove(callerKey);
           return #err(#PaymentFailed(errMsg));
         };
         case (#Ok(_)) {};
@@ -751,8 +725,8 @@ persistent actor Payment {
       createdAt   = now;
       cancelledAt = null;
     };
-    Map.add(subscriptions, Principal.compare, msg.caller, sub);
-    Map.remove(activeSubscribers, Text.compare, callerKey);  // release lock before cross-canister calls
+    subscriptions.add(msg.caller, sub);
+    activeSubscribers.remove(callerKey);  // release lock before cross-canister calls
     if (usdPrice > 0) { await notifyReferralConverted(msg.caller) };
     #ok(sub)
   };
@@ -775,7 +749,7 @@ persistent actor Payment {
       };
     };
     let now = Time.now();
-    let durationNs : Int = Int.fromNat(months) * 30 * 24 * 60 * 60 * 1_000_000_000;
+    let durationNs : Int = months.toInt() * 30 * 24 * 60 * 60 * 1_000_000_000;
     let sub : Subscription = {
       owner       = userPrincipal;
       tier;
@@ -783,9 +757,9 @@ persistent actor Payment {
       createdAt   = now;
       cancelledAt = null;
     };
-    Map.add(subscriptions, Principal.compare, userPrincipal, sub);
+    subscriptions.add(userPrincipal, sub);
     await notifyReferralConverted(userPrincipal);
-    try { ignore await auditLog("TierActivated", ?userPrincipal, "months=" # Nat.toText(months) # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { ignore await auditLog("TierActivated", ?userPrincipal, "months=" # months.toText() # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
 
@@ -816,7 +790,7 @@ persistent actor Payment {
       case null {};
     };
 
-    let existing = Map.get(subscriptions, Principal.compare, userPrincipal);
+    let existing = subscriptions.get(userPrincipal);
     let (createdAt, finalExpiry) = switch (existing) {
       // Same paid tier still running (e.g. a gift): don't shorten it.
       case (?e) {
@@ -834,10 +808,10 @@ persistent actor Payment {
       cancelledAt = null;
     };
     // Consume and write before any await.
-    Map.add(consumedStripeRefs, Text.compare, stripeRef, userPrincipal);
-    Map.add(subscriptions, Principal.compare, userPrincipal, sub);
+    consumedStripeRefs.add(stripeRef, userPrincipal);
+    subscriptions.add(userPrincipal, sub);
     await notifyReferralConverted(userPrincipal);
-    try { ignore await auditLog("TierActivated", ?userPrincipal, "ref=" # stripeRef # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { ignore await auditLog("TierActivated", ?userPrincipal, "ref=" # stripeRef # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
 
@@ -858,13 +832,13 @@ persistent actor Payment {
       createdAt   = now;
       cancelledAt = null;
     };
-    Map.add(subscriptions, Principal.compare, principal, sub);
-    try { ignore await auditLog("TierGranted", ?principal, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    subscriptions.add(principal, sub);
+    try { ignore await auditLog("TierGranted", ?principal, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
 
   public query(msg) func getMySubscription() : async Result.Result<Subscription, Error> {
-    switch (Map.get(subscriptions, Principal.compare, msg.caller)) {
+    switch (subscriptions.get(msg.caller)) {
       case null { #ok({ owner = msg.caller; tier = #Free; expiresAt = 0; createdAt = Time.now(); cancelledAt = null }) };
       case (?s) { #ok(s) };
     }
@@ -873,8 +847,8 @@ persistent actor Payment {
   /// Mark the caller's subscription as cancelled-at-end-of-period.
   /// Access is retained until expiresAt; the tier is not changed immediately.
   public shared(msg) func cancelSubscription() : async Result.Result<Subscription, Error> {
-    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
-    switch (Map.get(subscriptions, Principal.compare, msg.caller)) {
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    switch (subscriptions.get(msg.caller)) {
       case null { #err(#NotFound) };
       case (?sub) {
         let now = Time.now();
@@ -891,7 +865,7 @@ persistent actor Payment {
           createdAt   = sub.createdAt;
           cancelledAt = ?now;
         };
-        Map.add(subscriptions, Principal.compare, msg.caller, updated);
+        subscriptions.add(msg.caller, updated);
         #ok(updated)
       };
     }
@@ -926,7 +900,7 @@ persistent actor Payment {
     var contractorPro   = 0;
     var activePaid      = 0;
 
-    for (sub in Map.values(subscriptions)) {
+    for (sub in subscriptions.values()) {
       let isActive = sub.expiresAt == 0 or sub.expiresAt > now;
       switch (sub.tier) {
         case (#Free)           { free           += 1 };
@@ -937,7 +911,7 @@ persistent actor Payment {
     };
 
     {
-      total           = Map.size(subscriptions);
+      total           = subscriptions.size();
       free;
       pro;
       contractorFree;
@@ -951,7 +925,7 @@ persistent actor Payment {
   public query func getMetrics() : async Metrics {
     let now = Time.now();
     var activePaid = 0;
-    for (sub in Map.values(subscriptions)) {
+    for (sub in subscriptions.values()) {
       let isActive = sub.expiresAt == 0 or sub.expiresAt > now;
       switch (sub.tier) {
         case (#Free or #ContractorFree) {};
@@ -959,16 +933,16 @@ persistent actor Payment {
       };
     };
     {
-      totalSubscriptions = Map.size(subscriptions);
+      totalSubscriptions = subscriptions.size();
       activePaid;
-      errorsByMethod = Iter.toArray(Map.entries(errsByMethod));
+      errorsByMethod = errsByMethod.entries().toArray();
     }
   };
 
   /// Inter-canister helper: returns the effective tier for a principal.
   /// Returns #Free if no subscription exists or if the subscription has expired.
   public query func getTierForPrincipal(p: Principal) : async Tier {
-    switch (Map.get(subscriptions, Principal.compare, p)) {
+    switch (subscriptions.get(p)) {
       case null  { #Free };
       case (?s)  {
         if (s.expiresAt > 0 and s.expiresAt <= Time.now()) { #Free }
@@ -983,7 +957,7 @@ persistent actor Payment {
   /// Returns 0 if no credits exist or all credits have expired.
   public query(msg) func getMyAgentCredits() : async Nat {
     let now = Time.now();
-    switch (Map.get(agentCreditBalances, Principal.compare, msg.caller)) {
+    switch (agentCreditBalances.get(msg.caller)) {
       case null  { 0 };
       case (?b)  {
         if (b.expiresAt > 0 and b.expiresAt <= now) { 0 }
@@ -1004,7 +978,7 @@ persistent actor Payment {
     let now          = Time.now();
     let twelveMonths : Int = 365 * 24 * 60 * 60 * 1_000_000_000;
     let newExpiry    = now + twelveMonths;
-    let existing     = switch (Map.get(agentCreditBalances, Principal.compare, user)) {
+    let existing     = switch (agentCreditBalances.get(user)) {
       case null  { { balance = 0; expiresAt = 0 } };
       case (?b)  {
         if (b.expiresAt > 0 and b.expiresAt <= now) { { balance = 0; expiresAt = 0 } }
@@ -1015,7 +989,7 @@ persistent actor Payment {
       balance   = existing.balance + amount;
       expiresAt = if (existing.expiresAt > newExpiry) existing.expiresAt else newExpiry;
     };
-    Map.add(agentCreditBalances, Principal.compare, user, updated);
+    agentCreditBalances.add(user, updated);
     #ok(updated.balance)
   };
 
@@ -1031,13 +1005,13 @@ persistent actor Payment {
     if (not isAdminOrRelay(msg.caller)) return #err(#NotAuthorized);
     if (amount == 0 or amount > 1000) return #err(#InvalidInput("amount out of range"));
     if (stripeRef.size() == 0 or stripeRef.size() > 200) return #err(#InvalidInput("invalid stripeRef"));
-    if (Option.isSome(Map.get(consumedStripeRefs, Text.compare, stripeRef))) {
+    if (Option.isSome(consumedStripeRefs.get(stripeRef))) {
       return #err(#InvalidInput("already_consumed"));
     };
     let now          = Time.now();
     let twelveMonths : Int = 365 * 24 * 60 * 60 * 1_000_000_000;
     let newExpiry    = now + twelveMonths;
-    let existing     = switch (Map.get(agentCreditBalances, Principal.compare, user)) {
+    let existing     = switch (agentCreditBalances.get(user)) {
       case null  { { balance = 0; expiresAt = 0 } };
       case (?b)  {
         if (b.expiresAt > 0 and b.expiresAt <= now) { { balance = 0; expiresAt = 0 } }
@@ -1048,8 +1022,8 @@ persistent actor Payment {
       balance   = existing.balance + amount;
       expiresAt = if (existing.expiresAt > newExpiry) existing.expiresAt else newExpiry;
     };
-    Map.add(consumedStripeRefs, Text.compare, stripeRef, user);
-    Map.add(agentCreditBalances, Principal.compare, user, updated);
+    consumedStripeRefs.add(stripeRef, user);
+    agentCreditBalances.add(user, updated);
     #ok(updated.balance)
   };
 
@@ -1060,25 +1034,25 @@ persistent actor Payment {
   public shared(msg) func consumeAgentCredit(user: Principal) : async Result.Result<Nat, Error> {
     if (not isAdminOrRelay(msg.caller)) return #err(#NotAuthorized);
     let now = Time.now();
-    switch (Map.get(agentCreditBalances, Principal.compare, user)) {
+    switch (agentCreditBalances.get(user)) {
       case null  {
-        Debug.print("payment.consumeAgentCredit: no credits for " # Principal.toText(user));
+        Debug.print("payment.consumeAgentCredit: no credits for " # user.toText());
         countError("consumeAgentCredit");
         #err(#NotFound)
       };
       case (?b)  {
         if (b.expiresAt > 0 and b.expiresAt <= now) {
-          Debug.print("payment.consumeAgentCredit: credits expired for " # Principal.toText(user));
+          Debug.print("payment.consumeAgentCredit: credits expired for " # user.toText());
           countError("consumeAgentCredit");
           return #err(#NotFound)
         };
         if (b.balance == 0) {
-          Debug.print("payment.consumeAgentCredit: balance zero for " # Principal.toText(user));
+          Debug.print("payment.consumeAgentCredit: balance zero for " # user.toText());
           countError("consumeAgentCredit");
           return #err(#NotFound)
         };
         let updated : AgentCreditBalance = { balance = b.balance - 1; expiresAt = b.expiresAt };
-        Map.add(agentCreditBalances, Principal.compare, user, updated);
+        agentCreditBalances.add(user, updated);
         #ok(updated.balance)
       };
     }

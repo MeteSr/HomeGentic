@@ -526,7 +526,7 @@ Floating mic button on every authenticated page (mounted in `Layout`).
 - Tap → speak a question → hear a spoken response
 - Knows: authenticated user's properties + recent jobs (fetched live from ICP)
 - Topics: maintenance schedules, upgrade ROI, contractor guidance, system lifespans, property value context
-- Powered by Claude via Express proxy at `:3001`
+- Powered by Claude via the voice Worker (`agents/voice`)
 - Rate-limited by tier (see AI_RATE_LIMITS.md)
 - Max 5 tool-use turns per interaction
 

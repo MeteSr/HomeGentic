@@ -1,6 +1,6 @@
 import { HttpAgent } from "@icp-sdk/core/agent";
 import { Principal } from "@icp-sdk/core/principal";
-import { idlFactory } from "../declarations/property";
+import { idlFactory } from "@homegentic/shared/declarations/property";
 import { actorFor, nsToMs, tag, unwrap } from "./canister";
 
 export type VerificationLevel = "Unverified" | "PendingReview" | "Basic" | "Premium";

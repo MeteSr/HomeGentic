@@ -57,9 +57,8 @@ On testnet an upgrade that fails with `Memory-incompatible program upgrade` is r
 The voice / AI proxy (`agents/voice/`) proxies Claude API calls, handles
 Stripe checkout and webhooks, and serves the Bid to List routes. In
 production it runs as a Cloudflare Worker (`agents/voice/src/index.ts`,
-config in `agents/voice/wrangler.toml`). `agents/voice/server.ts` is the
-older Express equivalent with the same routes (still usable locally with
-`npm run build && npm start`, or via `agents/voice/Dockerfile`).
+config in `agents/voice/wrangler.toml`). Locally, `npm run dev` serves the
+same Worker with `wrangler dev` on port 8787.
 
 ### Deploys
 
@@ -80,7 +79,7 @@ The frontend bundle (and the CSP `connect-src` in `frontend/index.html`) is
 built with that URL baked in. Both deploy workflows pass it from the
 `VITE_VOICE_AGENT_URL` secret, and `scripts/deploy.sh` refuses to build the
 frontend for testnet or mainnet unless it is an `https://` URL — otherwise
-every voice/Stripe call would fall back to `http://localhost:3001` and be
+every voice/Stripe call would fall back to `http://localhost:8787` and be
 blocked by the CSP. The Worker only accepts requests from its
 `FRONTEND_ORIGIN`, so that must match the frontend that uses it.
 

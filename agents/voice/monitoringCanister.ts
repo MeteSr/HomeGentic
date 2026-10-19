@@ -5,6 +5,7 @@
 
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
 import { identityFromPem } from "./paymentCanister";
+import { idlFactory } from "../../packages/shared/src/declarations/monitoring";
 
 const MONITORING_CANISTER_ID =
   process.env.CANISTER_ID_MONITORING ?? "";
@@ -12,46 +13,6 @@ const MONITORING_CANISTER_ID =
 const IC_HOST = process.env.DFX_NETWORK === "local"
   ? "http://localhost:4943"
   : "https://ic0.app";
-
-const idlFactory = ({ IDL }: any) => {
-  const AlertSeverity  = IDL.Variant({ Critical: IDL.Null, Warning: IDL.Null, Info: IDL.Null });
-  const AlertCategory  = IDL.Variant({
-    Cycles: IDL.Null, ErrorRate: IDL.Null, ResponseTime: IDL.Null,
-    Memory: IDL.Null, Milestone: IDL.Null, TopUp: IDL.Null, Stale: IDL.Null,
-  });
-  const Alert = IDL.Record({
-    id:         IDL.Text,
-    severity:   AlertSeverity,
-    category:   AlertCategory,
-    canisterId: IDL.Opt(IDL.Principal),
-    message:    IDL.Text,
-    resolved:   IDL.Bool,
-    createdAt:  IDL.Int,
-    resolvedAt: IDL.Opt(IDL.Int),
-  });
-  const CycleLevelResult = IDL.Record({
-    id:        IDL.Principal,
-    name:      IDL.Text,
-    cycles:    IDL.Nat,
-    status:    IDL.Text,
-    fromCache: IDL.Bool,
-  });
-  const ErrorSummaryInput = IDL.Record({
-    fingerprint : IDL.Text,
-    message     : IDL.Text,
-    errorType   : IDL.Text,
-    count       : IDL.Nat,
-    firstSeen   : IDL.Int,
-    lastSeen    : IDL.Int,
-    tierCounts  : IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat)),
-    release     : IDL.Opt(IDL.Text),
-  });
-  return IDL.Service({
-    getCriticalCycleAlerts: IDL.Func([], [IDL.Vec(Alert)], ["query"]),
-    checkCycleLevels:       IDL.Func([], [IDL.Vec(CycleLevelResult)], []),
-    recordFrontendError:    IDL.Func([ErrorSummaryInput], [], []),
-  });
-};
 
 let _actor: any = null;
 

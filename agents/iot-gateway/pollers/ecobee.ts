@@ -21,7 +21,7 @@ import fs from "fs";
 import path from "path";
 import { handleEcobeeEvent } from "../handlers";
 import { recordSensorEvent } from "../icp";
-import { logger } from "../logger";
+import { logger } from "../../../packages/shared/src/logger";
 import type { EcobeeWebhookEvent, EcobeeAlert } from "../types";
 
 const ECOBEE_API        = "https://api.ecobee.com";

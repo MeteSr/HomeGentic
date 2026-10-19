@@ -27,6 +27,9 @@ import { HttpAgent, Actor } from "@icp-sdk/core/agent";
 import { Principal } from "@icp-sdk/core/principal";
 import { RefreshCw, AlertTriangle, Users, DollarSign, TrendingUp, Server, Cpu, LogIn, LogOut, ShieldOff } from "lucide-react";
 import { isSignedIn, signIn, signOut, makeAuthedAgent, MISSING_LOCAL_ROOT_KEY } from "../auth";
+import { idlFactory as authIdlFactory } from "@homegentic/shared/declarations/auth";
+import { idlFactory as paymentIdlFactory } from "@homegentic/shared/declarations/payment";
+import { idlFactory as monitoringIdlFactory } from "@homegentic/shared/declarations/monitoring";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,7 +48,7 @@ interface SubscriptionStats {
   total: bigint;
   free: bigint;
   pro: bigint;
-  premium: bigint;
+  contractorFree: bigint;
   contractorPro: bigint;
   activePaid: bigint;
   estimatedMrrUsd: bigint;
@@ -116,120 +119,6 @@ interface FrontendErrorStats {
   unresolved      : bigint;
   topFingerprints : ErrorSummary[];
 }
-
-// ── IDL factories ─────────────────────────────────────────────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const authIdlFactory = ({ IDL: I }: any) => {
-  const UserStats = I.Record({
-    total:          I.Nat,
-    newToday:       I.Nat,
-    newThisWeek:    I.Nat,
-    activeThisWeek: I.Nat,
-    homeowners:     I.Nat,
-    contractors:    I.Nat,
-    realtors:       I.Nat,
-    builders:       I.Nat,
-  });
-  return I.Service({
-    getUserStats:     I.Func([], [UserStats], ["query"]),
-    isAdminPrincipal: I.Func([I.Principal], [I.Bool], ["query"]),
-  });
-};
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const paymentIdlFactory = ({ IDL: I }: any) => {
-  const SubscriptionStats = I.Record({
-    total:           I.Nat,
-    free:            I.Nat,
-    pro:             I.Nat,
-    premium:         I.Nat,
-    contractorPro:   I.Nat,
-    activePaid:      I.Nat,
-    estimatedMrrUsd: I.Nat,
-  });
-  return I.Service({
-    getSubscriptionStats: I.Func([], [SubscriptionStats], ["query"]),
-    isAdminPrincipal:     I.Func([I.Principal], [I.Bool], ["query"]),
-  });
-};
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const monitoringIdlFactory = ({ IDL: I }: any) => {
-  const AlertSeverity = I.Variant({ Critical: I.Null, Warning: I.Null, Info: I.Null });
-  const AlertCategory = I.Variant({
-    Cycles: I.Null, ErrorRate: I.Null, ResponseTime: I.Null,
-    Memory: I.Null, Milestone: I.Null, TopUp: I.Null, Stale: I.Null,
-  });
-  const Alert = I.Record({
-    id:         I.Text,
-    severity:   AlertSeverity,
-    category:   AlertCategory,
-    canisterId: I.Opt(I.Principal),
-    message:    I.Text,
-    resolved:   I.Bool,
-    createdAt:  I.Int,
-    resolvedAt: I.Opt(I.Int),
-  });
-  const CanisterMetrics = I.Record({
-    canisterId:        I.Principal,
-    cyclesBalance:     I.Nat,
-    cyclesBurned:      I.Nat,
-    memoryBytes:       I.Nat,
-    memoryCapacity:    I.Nat,
-    requestCount:      I.Nat,
-    errorCount:        I.Nat,
-    avgResponseTimeMs: I.Nat,
-    updatedAt:         I.Int,
-  });
-  const CostMetrics = I.Record({
-    totalCyclesBurned:       I.Nat,
-    totalUsdCost:            I.Float64,
-    storageCostUsd:          I.Float64,
-    computeCostUsd:          I.Float64,
-    networkCostUsd:          I.Float64,
-    projectedMonthlyCostUsd: I.Float64,
-    costPerUserUsd:          I.Float64,
-    calculatedAt:            I.Int,
-  });
-  const ProfitabilityMetrics = I.Record({
-    revenueUsd:     I.Float64,
-    costUsd:        I.Float64,
-    profitUsd:      I.Float64,
-    marginPct:      I.Float64,
-    arpu:           I.Float64,
-    ltv:            I.Float64,
-    cac:            I.Float64,
-    ltvToCacRatio:  I.Float64,
-    breakEvenUsers: I.Nat,
-    calculatedAt:   I.Int,
-  });
-  const ErrorSummary = I.Record({
-    fingerprint : I.Text,
-    message     : I.Text,
-    errorType   : I.Text,
-    firstSeen   : I.Int,
-    lastSeen    : I.Int,
-    count       : I.Nat,
-    tierCounts  : I.Vec(I.Tuple(I.Text, I.Nat)),
-    release     : I.Opt(I.Text),
-    resolved    : I.Bool,
-  });
-  const FrontendErrorStats = I.Record({
-    total:           I.Nat,
-    unresolved:      I.Nat,
-    topFingerprints: I.Vec(ErrorSummary),
-  });
-  return I.Service({
-    getActiveAlerts:        I.Func([], [I.Vec(Alert)],             ["query"]),
-    getAllCanisterMetrics:   I.Func([], [I.Vec(CanisterMetrics)],   ["query"]),
-    calculateCostMetrics:   I.Func([I.Nat],  [CostMetrics],        ["query"]),
-    calculateProfitability: I.Func([I.Float64, I.Nat, I.Nat], [ProfitabilityMetrics], ["query"]),
-    getFrontendErrorStats:  I.Func([], [FrontendErrorStats],        ["query"]),
-    getFrontendErrors:      I.Func([I.Nat, I.Nat], [I.Vec(ErrorSummary)], ["query"]),
-    resolveFrontendError:   I.Func([I.Text], [I.Variant({ ok: I.Null, err: I.Variant({ NotFound: I.Null, Unauthorized: I.Null, InvalidInput: I.Text }) })], []),
-  });
-};
 
 // ── Agent ─────────────────────────────────────────────────────────────────────
 
@@ -647,9 +536,9 @@ function SignedInDashboard({ principal, onSignOut }: { principal: string; onSign
               <div style={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                 <StatCard label="Est. MRR"      value={`$${fmt(data.subs.estimatedMrrUsd)}`} color={C.green} />
                 <StatCard label="Active Paid"   value={fmt(data.subs.activePaid)}    sub="non-free, not expired" />
-                <StatCard label="Pro"           value={fmt(data.subs.pro)}           sub="$10/mo" />
-                <StatCard label="Premium"       value={fmt(data.subs.premium)}       sub="$20/mo" />
+                <StatCard label="Pro"           value={fmt(data.subs.pro)}           sub="$59/yr" />
                 <StatCard label="ContractorPro" value={fmt(data.subs.contractorPro)} sub="$40/mo" />
+                <StatCard label="ContractorFree" value={fmt(data.subs.contractorFree)} color={C.muted} />
                 <StatCard label="Free Tier"     value={fmt(data.subs.free)}          color={C.muted} />
               </div>
             </div>

@@ -8,12 +8,12 @@
  */
 
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/bills";
+import { idlFactory } from "@homegentic/shared/declarations/bills";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 export { idlFactory };
 
 const BILLS_CANISTER_ID = (process.env as any).BILLS_CANISTER_ID || "";
-const VOICE_AGENT_URL   = (import.meta as any).env?.VITE_VOICE_AGENT_URL || "http://localhost:3001";
+const VOICE_AGENT_URL   = (import.meta as any).env?.VITE_VOICE_AGENT_URL || "http://localhost:8787";
 
 // ─── TypeScript types ─────────────────────────────────────────────────────────
 

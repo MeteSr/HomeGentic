@@ -1,6 +1,5 @@
 /**
  * Duplicate job detection for contractor-initiated proposals.
- * (Frontend mirror of agents/voice/duplicateDetection.ts — kept in sync)
  *
  * A job is considered a potential duplicate when all three match:
  *   1. Same propertyId

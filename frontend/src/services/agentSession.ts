@@ -10,33 +10,26 @@
  */
 import { authService } from "./auth";
 import { useAuthStore } from "@/store/authStore";
+import { SESSION_HEADER, createSessionTokenCache } from "@homegentic/shared/agentSession";
 
-export const AGENT_SESSION_HEADER = "x-agent-session";
-const REFRESH_MARGIN_MS = 5 * 60_000;
+export const AGENT_SESSION_HEADER = SESSION_HEADER;
 
-let cached: { token: string; expiresAtMs: number; principal: string | null } | null = null;
-let inflight: Promise<string | null> | null = null;
+const sessions = createSessionTokenCache({
+  issue: () => authService.issueAgentSession(),
+  owner: () => useAuthStore.getState().principal ?? null,
+  onError: (err) => console.warn("[agentSession] could not issue a voice-agent session:", err),
+});
 
 /** A live session token for the signed-in user, or null (not signed in, no auth canister, or issue failed). */
 export async function getAgentSessionToken(): Promise<string | null> {
   if (!(process.env as any).AUTH_CANISTER_ID) return null;   // mock/dev mode: no canister to issue from
-  const principal = useAuthStore.getState().principal ?? null;
-  if (!principal) return null;
-  if (cached && cached.principal === principal && cached.expiresAtMs - REFRESH_MARGIN_MS > Date.now()) {
-    return cached.token;
-  }
-  if (!inflight) {
-    inflight = authService.issueAgentSession()
-      .then((s) => { cached = { ...s, principal }; return s.token; })
-      .catch((err) => { console.warn("[agentSession] could not issue a voice-agent session:", err); return null; })
-      .finally(() => { inflight = null; });
-  }
-  return inflight;
+  if (!useAuthStore.getState().principal) return null;
+  return sessions.get();
 }
 
 /** Forget the cached token (on logout, or after the Worker rejects it). */
 export function clearAgentSession(): void {
-  cached = null;
+  sessions.clear();
 }
 
 /**

@@ -1,6 +1,6 @@
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
-import { idlFactory as quoteIdlFactory } from "../declarations/quote";
-import { idlFactory as contractorIdlFactory } from "../declarations/contractor";
+import { idlFactory as quoteIdlFactory } from "@homegentic/shared/declarations/quote";
+import { idlFactory as contractorIdlFactory } from "@homegentic/shared/declarations/contractor";
 import { getIcpAgent }      from "./icpAgent";
 import type { Urgency }     from "./quoteFormService";
 

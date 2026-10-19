@@ -36,7 +36,7 @@ import crypto from "crypto";
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import { logger } from "./logger";
+import { logger } from "../../packages/shared/src/logger";
 import { handleNestEvent, handleEcobeeEvent, handleMoenFloEvent, handleHoneywellHomeEvent, handleSmartThingsEvent, handleLGThinQEvent } from "./handlers";
 import { recordSensorEvent, getGatewayPrincipal, registerVerifiedDevice } from "./icp";
 import { requestPrincipal } from "./session";

@@ -24,6 +24,7 @@
  * Access control: callers may only read/write their own bills.
  */
 
+import Int "mo:core/Int";
 import Array     "mo:core/Array";
 import Char      "mo:core/Char";
 import Float     "mo:core/Float";
@@ -31,12 +32,13 @@ import List      "mo:core/List";
 import Map       "mo:core/Map";
 import Iter      "mo:core/Iter";
 import Nat       "mo:core/Nat";
-import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Index     "../shared/Index";
+import Admin "../shared/Admin";
+import Canisters "../shared/Canisters";
 
 persistent actor Bills {
 
@@ -167,12 +169,12 @@ persistent actor Bills {
   // Index.put / Index.delete with the matching index list.
   private transient let billsByProperty  = Index.empty();
   private transient let billsByHomeowner = Index.empty();
-  private transient let billIndexes : [Index.Keyed<BillRecord>] = Index.indexed<BillRecord>(bills, [
+  private transient let billIndexes : [Index.Keyed<BillRecord>] = Index.indexed(bills, [
     (billsByProperty,  func(b : BillRecord) : ?Text { ?b.propertyId }),
-    (billsByHomeowner, func(b : BillRecord) : ?Text { ?Principal.toText(b.homeowner) }),
+    (billsByHomeowner, func(b : BillRecord) : ?Text { ?b.homeowner.toText() }),
   ]);
   private transient let expensesByProperty = Index.empty();
-  private transient let expenseIndexes : [Index.Keyed<RecurringExpense>] = Index.indexed<RecurringExpense>(recurringExpenses, [
+  private transient let expenseIndexes : [Index.Keyed<RecurringExpense>] = Index.indexed(recurringExpenses, [
     (expensesByProperty, func(e : RecurringExpense) : ?Text { ?e.propertyId }),
   ]);
   private transient let MAX_RECURRING_PER_PROPERTY : Nat = 50;
@@ -187,29 +189,23 @@ persistent actor Bills {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
   private func isAdmin(caller: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == caller }))
+    Admin.contains(adminListEntries, caller)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      // 14.4.4 — auto-expire timed pauses
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
-        case null { return #err(#InvalidInput("Canister is paused")) };
-      };
-    };
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     #ok(())
   };
 
   private func nextBillId() : Text {
     billCounter += 1;
-    "BILL_" # Nat.toText(billCounter)
+    "BILL_" # billCounter.toText()
   };
 
 
@@ -229,7 +225,7 @@ persistent actor Bills {
 
   private func countUploadsThisMonth(caller: Principal, nowNs: Int) : Nat {
     var count : Nat = 0;
-    for (b in Index.records(billsByHomeowner, Principal.toText(caller), bills)) {
+    for (b in Index.records(billsByHomeowner, caller.toText(), bills)) {
       if (nowNs - b.uploadedAt <= ONE_MONTH_NS) {
         count += 1;
       }
@@ -258,12 +254,12 @@ persistent actor Bills {
           and b.uploadedAt < refNs
           and refNs - b.uploadedAt <= threeMonthsNs)
       {
-        sum   += Float.fromInt(b.amountCents);
+        sum   += Int.toFloat(b.amountCents);
         count += 1;
       }
     };
     if (count < 2) null
-    else ?(sum / Float.fromInt(count))
+    else ?(sum / Int.toFloat(count))
   };
 
   private func billTypeEq(a: BillType, b: BillType) : Bool {
@@ -282,9 +278,7 @@ persistent actor Bills {
   /// when wired, else from the local grant map (dev fallback).
   private func resolveTier(caller: Principal) : async* SubscriptionTier {
     if (payCanisterId != "") {
-      let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
-      };
+      let payActor = Canisters.payment(payCanisterId);
       await payActor.getTierForPrincipal(caller)
     } else {
       #Free  // payment canister not wired: no tier source, fail closed
@@ -329,10 +323,10 @@ persistent actor Bills {
   };
 
   private func isIsoDate(t: Text) : Bool {
-    let cs = Text.toArray(t);
+    let cs = t.toArray();
     if (cs.size() != 10) return false;
     for (i in cs.keys()) {
-      let ok = if (i == 4 or i == 7) cs[i] == '-' else Char.isDigit(cs[i]);
+      let ok = if (i == 4 or i == 7) cs[i] == '-' else cs[i].isDigit();
       if (not ok) return false;
     };
     true
@@ -401,9 +395,9 @@ persistent actor Bills {
     )) {
       case null { (false, null) };
       case (?avg) {
-        let amount = Float.fromInt(args.amountCents);
+        let amount = Int.toFloat(args.amountCents);
         if (avg > 0.0 and amount > avg * 1.2) {
-          let pct = Float.toText(Float.nearest((amount / avg - 1.0) * 100.0));
+          let pct = Float.nearest((amount / avg - 1.0) * 100.0).toText();
           (true, ?("Bill is " # pct # "% above your 3-month average for " # args.provider))
         } else {
           (false, null)
@@ -435,8 +429,7 @@ persistent actor Bills {
   /// property (owner, co-owner, manager, viewer), otherwise only the caller's own.
   public shared(msg) func getBillsForProperty(propertyId: Text) : async Result.Result<[BillRecord], Error> {
     let shared_ = seesProperty(await* accessRole(propertyId, msg.caller));
-    let result = Array.filter<BillRecord>(
-      Iter.toArray(Index.records(billsByProperty, propertyId, bills)),
+    let result = Index.records(billsByProperty, propertyId, bills).toArray().filter(
       func(b) {
         shared_ or Principal.equal(b.homeowner, msg.caller)
       }
@@ -466,7 +459,7 @@ persistent actor Bills {
             switch (b.usageUnit) {
               case null {};
               case (?unit) {
-                List.add(periodsBuf, {
+                periodsBuf.add({
                   periodStart = b.periodStart;
                   usageAmount = amount;
                   usageUnit   = unit;
@@ -479,7 +472,7 @@ persistent actor Bills {
     };
 
     // Sort chronologically by periodStart (lexicographic on YYYY-MM-DD is correct)
-    let sorted = Array.sort<UsagePeriod>(List.toArray(periodsBuf), func(a, b) {
+    let sorted = periodsBuf.toArray().sort(func(a, b) {
       Text.compare(a.periodStart, b.periodStart)
     });
     #ok(sorted)
@@ -488,7 +481,7 @@ persistent actor Bills {
   /// Delete a bill. Allowed for its author, the property's owner or co-owners, or an admin.
   public shared(msg) func deleteBill(id: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    let propertyId = switch (Map.get(bills, Text.compare, id)) {
+    let propertyId = switch (bills.get(id)) {
       case null { return #err(#NotFound) };
       case (?b) {
         if (Principal.equal(b.homeowner, msg.caller) or isAdmin(msg.caller)) {
@@ -500,7 +493,7 @@ persistent actor Bills {
     };
     if (not hasFullControl(await* accessRole(propertyId, msg.caller))) return #err(#NotAuthorized);
     // Re-check after the await: the bill may have been removed meanwhile.
-    if (Map.get(bills, Text.compare, id) == null) return #err(#NotFound);
+    if (bills.get(id) == null) return #err(#NotFound);
     Index.delete(bills, billIndexes, id);
     #ok(())
   };
@@ -536,7 +529,7 @@ persistent actor Bills {
     recurringCounter += 1;
     let now = Time.now();
     let expense : RecurringExpense = {
-      id          = "REC_" # Nat.toText(recurringCounter);
+      id          = "REC_" # recurringCounter.toText();
       propertyId;
       homeowner   = msg.caller;
       category    = fields.category;
@@ -557,8 +550,7 @@ persistent actor Bills {
   /// owner and co-owners see; others see only entries they created.
   public shared(msg) func getRecurringExpensesForProperty(propertyId: Text) : async Result.Result<[RecurringExpense], Error> {
     let role = await* accessRole(propertyId, msg.caller);
-    let visible = Array.filter<RecurringExpense>(
-      Iter.toArray(Index.records(expensesByProperty, propertyId, recurringExpenses)),
+    let visible = Index.records(expensesByProperty, propertyId, recurringExpenses).toArray().filter(
       func(e) {
         (
           Principal.equal(e.homeowner, msg.caller)
@@ -566,7 +558,7 @@ persistent actor Bills {
         )
       }
     );
-    #ok(Array.sort<RecurringExpense>(visible, func(a, b) { Text.compare(a.startDate, b.startDate) }))
+    #ok(visible.sort(func(a, b) { Text.compare(a.startDate, b.startDate) }))
   };
 
   /// Replace the editable fields of a recurring expense (e.g. a refinance or
@@ -578,13 +570,13 @@ persistent actor Bills {
   ) : async Result.Result<RecurringExpense, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     switch (validateRecurringFields(fields)) { case (?m) return #err(#InvalidInput(m)); case null {} };
-    let propertyId = switch (Map.get(recurringExpenses, Text.compare, id)) {
+    let propertyId = switch (recurringExpenses.get(id)) {
       case null { return #err(#NotFound) };
       case (?e) e.propertyId;
     };
     let role = await* accessRole(propertyId, msg.caller);
     // Re-read after the await so a concurrent edit or delete isn't clobbered.
-    switch (Map.get(recurringExpenses, Text.compare, id)) {
+    switch (recurringExpenses.get(id)) {
       case null { #err(#NotFound) };
       case (?e) {
         if (not Principal.equal(e.homeowner, msg.caller) and not hasFullControl(role)) return #err(#NotAuthorized);
@@ -611,7 +603,7 @@ persistent actor Bills {
   /// or co-owners, or an admin.
   public shared(msg) func deleteRecurringExpense(id: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    let propertyId = switch (Map.get(recurringExpenses, Text.compare, id)) {
+    let propertyId = switch (recurringExpenses.get(id)) {
       case null { return #err(#NotFound) };
       case (?e) {
         if (Principal.equal(e.homeowner, msg.caller) or isAdmin(msg.caller)) {
@@ -622,7 +614,7 @@ persistent actor Bills {
       };
     };
     if (not hasFullControl(await* accessRole(propertyId, msg.caller))) return #err(#NotAuthorized);
-    if (Map.get(recurringExpenses, Text.compare, id) == null) return #err(#NotFound);
+    if (recurringExpenses.get(id) == null) return #err(#NotFound);
     Index.delete(recurringExpenses, expenseIndexes, id);
     #ok(())
   };
@@ -645,25 +637,16 @@ persistent actor Bills {
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminInitialized) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
-    if (adminInitialized) {
-      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    } else {
-      switch (bootstrapNonce) {
-        case null { return #err(#NotAuthorized) };
-        case (?n) { if (nonce != n) return #err(#NotAuthorized) };
-      };
-      bootstrapNonce := null;
+    switch (Admin.authorizeAdd(adminInitialized, isAdmin(msg.caller), bootstrapNonce, nonce)) {
+      case (#denied)    { return #err(#NotAuthorized) };
+      case (#bootstrap) { bootstrapNonce := null };  // the nonce is single use
+      case (#admin)     {};
     };
-    if (not isAdmin(newAdmin)) {
-      adminListEntries := Array.concat(adminListEntries, [newAdmin]);
-    };
+    adminListEntries := Admin.add(adminListEntries, newAdmin);
     adminInitialized := true;
     #ok(())
   };
@@ -671,17 +654,14 @@ persistent actor Bills {
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    adminListEntries := Array.filter<Principal>(adminListEntries, func(a) { a != target });
+    adminListEntries := Admin.remove(adminListEntries, target);
     #ok(())
   };
 
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     #ok(())
   };
 
@@ -693,6 +673,6 @@ persistent actor Bills {
   };
 
   public query func metrics() : async Metrics {
-    { totalBills = Map.size(bills); isPaused }
+    { totalBills = bills.size(); isPaused }
   };
 }

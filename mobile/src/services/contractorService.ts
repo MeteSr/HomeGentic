@@ -1,10 +1,10 @@
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
-import { idlFactory as quoteIdlFactory } from "../declarations/quote";
-import { idlFactory as jobIdlFactory } from "../declarations/job";
-import { idlFactory as contractorIdlFactory } from "../declarations/contractor";
+import { idlFactory as quoteIdlFactory } from "@homegentic/shared/declarations/quote";
+import { idlFactory as jobIdlFactory } from "@homegentic/shared/declarations/job";
+import { idlFactory as contractorIdlFactory } from "@homegentic/shared/declarations/contractor";
 import { getIcpAgent }      from "./icpAgent";
 import { referralFeeCents, isFeeFloored, type PlanTier } from "./planService";
-import { serviceTypeLabel } from "./serviceTypes";
+import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import type { Job } from "./jobService";
 
 export type Urgency = "Low" | "Medium" | "High" | "Emergency";

@@ -1,5 +1,5 @@
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
-import { idlFactory as quoteIdlFactory } from "../declarations/quote";
+import { idlFactory as quoteIdlFactory } from "@homegentic/shared/declarations/quote";
 import { getIcpAgent }      from "./icpAgent";
 
 export interface SubmitBidInput {

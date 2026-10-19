@@ -17,24 +17,24 @@ import Text "mo:core/Text";
 module {
   public type Index = Map.Map<Text, Set.Set<Text>>;
 
-  public func empty() : Index = Map.empty<Text, Set.Set<Text>>();
+  public func empty() : Index = Map.empty();
 
   public func add(ix : Index, key : Text, id : Text) {
-    switch (Map.get(ix, Text.compare, key)) {
-      case (?ids) { Set.add(ids, Text.compare, id) };
+    switch (ix.get(key)) {
+      case (?ids) { ids.add(id) };
       case null {
         let ids = Set.empty<Text>();
-        Set.add(ids, Text.compare, id);
-        Map.add(ix, Text.compare, key, ids);
+        ids.add(id);
+        ix.add(key, ids);
       };
     };
   };
 
   public func remove(ix : Index, key : Text, id : Text) {
-    switch (Map.get(ix, Text.compare, key)) {
+    switch (ix.get(key)) {
       case (?ids) {
-        Set.remove(ids, Text.compare, id);
-        if (Set.isEmpty(ids)) { Map.remove(ix, Text.compare, key) };
+        ids.remove(id);
+        if (ids.isEmpty()) { ix.remove(key) };
       };
       case null {};
     };
@@ -49,22 +49,22 @@ module {
   };
 
   public func ids(ix : Index, key : Text) : Iter.Iter<Text> {
-    switch (Map.get(ix, Text.compare, key)) {
-      case (?ids) { Set.values(ids) };
+    switch (ix.get(key)) {
+      case (?ids) { ids.values() };
       case null   { Iter.empty<Text>() };
     }
   };
 
   public func count(ix : Index, key : Text) : Nat {
-    switch (Map.get(ix, Text.compare, key)) {
-      case (?ids) { Set.size(ids) };
+    switch (ix.get(key)) {
+      case (?ids) { ids.size() };
       case null   { 0 };
     }
   };
 
   /// The records filed under `key`, looked up in the primary map.
   public func records<R>(ix : Index, key : Text, primary : Map.Map<Text, R>) : Iter.Iter<R> {
-    Iter.filterMap<Text, R>(ids(ix, key), func(id) { Map.get(primary, Text.compare, id) })
+    ids(ix, key).filterMap(func(id) { primary.get(id) })
   };
 
   /// An index together with the function that gives a record's key in it
@@ -74,7 +74,7 @@ module {
   /// Fills each index from `primary` and returns them; use it to initialise
   /// a canister's transient index list.
   public func indexed<R>(primary : Map.Map<Text, R>, ixs : [Keyed<R>]) : [Keyed<R>] {
-    for ((id, r) in Map.entries(primary)) { file(ixs, id, r) };
+    for ((id, r) in primary.entries()) { file(ixs, id, r) };
     ixs
   };
 
@@ -83,9 +83,9 @@ module {
   /// Indexes whose key didn't change are left untouched, so it is safe to
   /// put records while iterating an index over a key they keep.
   public func put<R>(primary : Map.Map<Text, R>, ixs : [Keyed<R>], id : Text, r : R) {
-    let old = Map.get(primary, Text.compare, id);
-    Map.add(primary, Text.compare, id, r);
-    for ((ix, keyOf) in ixs.vals()) {
+    let old = primary.get(id);
+    primary.add(id, r);
+    for ((ix, keyOf) in ixs.values()) {
       let newKey = keyOf(r);
       let oldKey = switch (old) { case (?o) { keyOf(o) }; case null { null } };
       if (oldKey != newKey) {
@@ -97,20 +97,20 @@ module {
 
   /// Removes `id` from `primary` and from every index.
   public func delete<R>(primary : Map.Map<Text, R>, ixs : [Keyed<R>], id : Text) {
-    switch (Map.get(primary, Text.compare, id)) {
-      case (?old) { unfile(ixs, id, old); Map.remove(primary, Text.compare, id) };
+    switch (primary.get(id)) {
+      case (?old) { unfile(ixs, id, old); primary.remove(id) };
       case null   {};
     };
   };
 
   func file<R>(ixs : [Keyed<R>], id : Text, r : R) {
-    for ((ix, keyOf) in ixs.vals()) {
+    for ((ix, keyOf) in ixs.values()) {
       switch (keyOf(r)) { case (?k) { add(ix, k, id) }; case null {} };
     };
   };
 
   func unfile<R>(ixs : [Keyed<R>], id : Text, r : R) {
-    for ((ix, keyOf) in ixs.vals()) {
+    for ((ix, keyOf) in ixs.values()) {
       switch (keyOf(r)) { case (?k) { remove(ix, k, id) }; case null {} };
     };
   };
@@ -119,7 +119,7 @@ module {
   /// under, or null to leave it out.
   public func build<R>(primary : Map.Map<Text, R>, keyOf : R -> ?Text) : Index {
     let ix = empty();
-    for ((id, r) in Map.entries(primary)) {
+    for ((id, r) in primary.entries()) {
       switch (keyOf(r)) { case (?k) { add(ix, k, id) }; case null {} };
     };
     ix

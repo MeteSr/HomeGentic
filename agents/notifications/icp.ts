@@ -14,11 +14,14 @@ import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
 import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo } from "./types";
+import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
+import { idlFactory as contractorIdl } from "../../packages/shared/src/declarations/contractor";
+import { idlFactory as authIdl } from "../../packages/shared/src/declarations/auth";
 
 const IC_HOST = () => process.env.IC_HOST ?? "https://icp-api.io";
 const isLocalHost = (host: string) => /localhost|127\.0\.0\.1/.test(host);
 
-// ── IDL slices ────────────────────────────────────────────────────────────────
+// ── Outbox IDL (every canister with a notification outbox exposes it) ────────────────────────────────────────────────────────────────────────
 
 const outboxIdl = ({ IDL }: any) => {
   const Event = IDL.Record({
@@ -41,83 +44,6 @@ const outboxIdl = ({ IDL }: any) => {
   });
   return IDL.Service({
     getNotificationEvents: IDL.Func([IDL.Nat, IDL.Nat], [IDL.Variant({ ok: Page, err: Error })], ["query"]),
-  });
-};
-
-const ServiceTypeTags = [
-  "Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows",
-  "Landscaping", "Gutters", "GeneralHandyman", "Pest", "Concrete", "Fencing",
-  "Insulation", "Solar", "Pool", "Foundation", "Drywall", "KitchenRemodel",
-  "BathroomRemodel", "Other",
-];
-const serviceTypeIdl = (IDL: any) =>
-  IDL.Variant(Object.fromEntries(ServiceTypeTags.map((t) => [t, IDL.Null])));
-
-const quoteIdl = ({ IDL }: any) => {
-  const QuoteRequest = IDL.Record({
-    id:               IDL.Text,
-    propertyId:       IDL.Text,
-    homeowner:        IDL.Principal,
-    serviceType:      serviceTypeIdl(IDL),
-    description:      IDL.Text,
-    urgency:          IDL.Variant({ Low: IDL.Null, Medium: IDL.Null, High: IDL.Null, Emergency: IDL.Null }),
-    status:           IDL.Variant({ Open: IDL.Null, Quoted: IDL.Null, Accepted: IDL.Null, Closed: IDL.Null, Cancelled: IDL.Null }),
-    createdAt:        IDL.Int,
-    closeAt:          IDL.Opt(IDL.Int),
-    zipCode:          IDL.Opt(IDL.Text),
-    minTrustScore:    IDL.Opt(IDL.Nat),
-    minJobsCompleted: IDL.Opt(IDL.Nat),
-    minReviews:       IDL.Opt(IDL.Nat),
-    maxBids:          IDL.Opt(IDL.Nat),
-  });
-  const Error = IDL.Variant({ NotFound: IDL.Null, NotAuthorized: IDL.Null, InvalidInput: IDL.Text });
-  return IDL.Service({
-    getQuoteRequest: IDL.Func([IDL.Text], [IDL.Variant({ ok: QuoteRequest, err: Error })], ["query"]),
-  });
-};
-
-const contractorIdl = ({ IDL }: any) => {
-  const ContractorProfile = IDL.Record({
-    id:            IDL.Principal,
-    name:          IDL.Text,
-    specialties:   IDL.Vec(serviceTypeIdl(IDL)),
-    email:         IDL.Text,
-    phone:         IDL.Text,
-    bio:           IDL.Opt(IDL.Text),
-    licenseNumber: IDL.Opt(IDL.Text),
-    serviceArea:   IDL.Opt(IDL.Text),
-    serviceZips:   IDL.Vec(IDL.Text),
-    trustScore:    IDL.Nat,
-    jobsCompleted: IDL.Nat,
-    isVerified:    IDL.Bool,
-    createdAt:     IDL.Int,
-    notifyEmail:   IDL.Opt(IDL.Text),
-    notifyPush:    IDL.Opt(IDL.Bool),
-    alertZips:     IDL.Vec(IDL.Text),
-    origin:        IDL.Variant({ SelfRegistered: IDL.Null, GuestSigned: IDL.Text }),
-  });
-  const Error = IDL.Variant({
-    NotFound: IDL.Null, AlreadyExists: IDL.Null, NotAuthorized: IDL.Null,
-    Paused: IDL.Null, RateLimitExceeded: IDL.Null, InvalidInput: IDL.Text,
-  });
-  return IDL.Service({
-    getAll:        IDL.Func([], [IDL.Vec(ContractorProfile)], ["query"]),
-    getContractor: IDL.Func([IDL.Principal], [IDL.Variant({ ok: ContractorProfile, err: Error })], ["query"]),
-  });
-};
-
-const authIdl = ({ IDL }: any) => {
-  const Error = IDL.Variant({
-    NotFound: IDL.Null, AlreadyExists: IDL.Null, NotAuthorized: IDL.Null,
-    Paused: IDL.Null, InvalidInput: IDL.Text,
-  });
-  return IDL.Service({
-    resolveAgentSession:    IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
-    getNotificationContact: IDL.Func(
-      [IDL.Principal],
-      [IDL.Variant({ ok: IDL.Opt(IDL.Record({ email: IDL.Text })), err: Error })],
-      ["query"],
-    ),
   });
 };
 

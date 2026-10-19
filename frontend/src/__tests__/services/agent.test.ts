@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/services/actor", () => ({ getAgent: vi.fn().mockResolvedValue({}) }));
-vi.mock("@/declarations/agent", () => ({ idlFactory: vi.fn() }));
+vi.mock("@homegentic/shared/declarations/agent", () => ({ idlFactory: vi.fn() }));
 vi.mock("@icp-sdk/core/principal", () => ({
   Principal: { fromText: vi.fn((t: string) => ({ toText: () => t })) },
 }));

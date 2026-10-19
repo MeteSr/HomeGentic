@@ -7,6 +7,7 @@
  * at call time (the Worker copies its bindings into process.env per request).
  */
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
+import { idlFactory } from "../../../packages/shared/src/declarations/job";
 
 export interface InvitePreview {
   jobId:           string;
@@ -18,34 +19,6 @@ export interface InvitePreview {
   expiresAt:       bigint;   // ns
   alreadySigned:   boolean;
 }
-
-const SERVICE_TYPES = [
-  "Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows",
-  "Landscaping", "Gutters", "GeneralHandyman", "Pest", "Concrete", "Fencing",
-  "Insulation", "Solar", "Pool", "Foundation", "Drywall", "KitchenRemodel",
-  "BathroomRemodel", "Other",
-];
-
-const idlFactory = ({ IDL }: { IDL: any }) => {
-  const ServiceType = IDL.Variant(Object.fromEntries(SERVICE_TYPES.map((t) => [t, IDL.Null])));
-  const Preview = IDL.Record({
-    jobId:           IDL.Text,
-    title:           IDL.Text,
-    serviceType:     ServiceType,
-    description:     IDL.Text,
-    amount:          IDL.Nat,
-    completedDate:   IDL.Int,
-    propertyAddress: IDL.Text,
-    contractorName:  IDL.Opt(IDL.Text),
-    expiresAt:       IDL.Int,
-    alreadySigned:   IDL.Bool,
-  });
-  return IDL.Service({
-    // err is decoded as `reserved` so this client doesn't have to track the
-    // job canister's Error variant.
-    getJobByInviteToken: IDL.Func([IDL.Text], [IDL.Variant({ ok: Preview, err: IDL.Reserved })], ["query"]),
-  });
-};
 
 const agents = new Map<string, Promise<HttpAgent>>();
 function agentFor(local: boolean): Promise<HttpAgent> {

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "ts-node server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/agents/notifications/server.js",
     "test": "jest --passWithNoTests"
   },
   "jest": {

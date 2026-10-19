@@ -7,7 +7,7 @@ import { useLoad } from "../../hooks/useLoad";
 import { useOfflineQueue } from "../../hooks/useOfflineQueue";
 import { getMyContractorProfile } from "../../services/contractorService";
 import { HOMEGENTIC_WEB_URL } from "../../services/reportService";
-import { serviceTypeLabel } from "../../services/serviceTypes";
+import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import { PlanCard } from "../../components/PlanCard";
 import { PageHeader, TabScroll } from "../../components/ui";
 import { SettingsCard, useNotificationsSetting, useSignOut } from "./AccountScreen";

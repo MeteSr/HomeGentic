@@ -11,7 +11,7 @@ import { describe, it, expect, vi } from "vitest";
 import { runwayDays, cyclesToUsd, canisterLabel } from "@/services/monitoringService";
 
 vi.mock("@/services/actor", () => ({ getAgent: vi.fn().mockResolvedValue({}) }));
-vi.mock("@/declarations/monitoring", () => ({ idlFactory: vi.fn() }));
+vi.mock("@homegentic/shared/declarations/monitoring", () => ({ idlFactory: vi.fn() }));
 
 describe("runwayDays", () => {
   it("returns null for zero or negative daily burn", () => {

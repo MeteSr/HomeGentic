@@ -261,7 +261,7 @@ must be proxied through the voice agent — never stored in `VITE_*` environment
 variables, which are baked into the browser bundle at build time.
 
 **Pattern:**
-1. Add a proxy route to `agents/voice/server.ts` that reads the key from `process.env`
+1. Add a proxy route to the voice Worker (`agents/voice/src/index.ts`) that reads the key from a Worker secret (`env`)
 2. Call that route from the frontend instead of the third-party API directly
 3. Authenticate the proxy route with `x-api-key: VITE_VOICE_AGENT_API_KEY`
 

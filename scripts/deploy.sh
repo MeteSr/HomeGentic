@@ -1094,7 +1094,7 @@ echo "============================================"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export DFX_NETWORK="$ENV"
 # The voice/AI Worker URL is baked into the bundle (and the CSP connect-src in
-# index.html). Unset, every voice/Stripe call falls back to localhost:3001 and
+# index.html). Unset, every voice/Stripe call falls back to localhost:8787 and
 # the CSP blocks it — so refuse to ship that to a real network.
 if [ "$ENV" != "local" ]; then
   VOICE_URL="${VITE_VOICE_AGENT_URL:-$( { grep -E '^VITE_VOICE_AGENT_URL=' "$REPO_ROOT/.env" 2>/dev/null || true; } | tail -1 | cut -d= -f2-)}"

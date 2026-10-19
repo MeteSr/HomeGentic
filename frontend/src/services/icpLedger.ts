@@ -1,5 +1,5 @@
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/icp_ledger";
+import { idlFactory } from "@homegentic/shared/declarations/icp_ledger";
 export { idlFactory };
 
 const ICP_LEDGER_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";

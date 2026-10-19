@@ -10,6 +10,7 @@
 /// The outbox keeps the newest MAX_EVENTS entries; older ones are pruned, so a
 /// relay that is offline for long enough misses them rather than sending a
 /// burst of stale pushes when it comes back.
+import Char "mo:core/Char";
 import Iter "mo:core/Iter";
 import Map  "mo:core/Map";
 import Nat  "mo:core/Nat";
@@ -59,7 +60,7 @@ module {
     summary:   Text,
   ) : Nat {
     let seq = latestSeq + 1;
-    Map.add(log, Nat.compare, seq, {
+    log.add(seq, {
       seq;
       kind;
       recipient;
@@ -67,9 +68,9 @@ module {
       summary   = truncate(summary);
       createdAt = Time.now();
     });
-    while (Map.size(log) > MAX_EVENTS) {
-      switch (Map.minEntry(log)) {
-        case (?(oldest, _)) { Map.remove(log, Nat.compare, oldest) };
+    while (log.size() > MAX_EVENTS) {
+      switch (log.minEntry()) {
+        case (?(oldest, _)) { log.remove(oldest) };
         case null {};
       };
     };
@@ -80,8 +81,7 @@ module {
   public func page(log: Map.Map<Nat, Event>, latestSeq: Nat, afterSeq: Nat, limit: Nat) : Page {
     let cap = Nat.min(limit, MAX_PAGE);
     let events = Iter.toArray(
-      Iter.map<(Nat, Event), Event>(
-        Iter.take(Map.entriesFrom(log, Nat.compare, afterSeq + 1), cap),
+      log.entriesFrom(afterSeq + 1).take(cap).map(
         func((_, e)) { e },
       )
     );
@@ -94,7 +94,7 @@ module {
     var n = 0;
     label chars for (c in t.chars()) {
       if (n + 1 >= MAX_SUMMARY_CHARS) break chars;
-      out #= Text.fromChar(c);
+      out #= c.toText();
       n += 1;
     };
     out # "…"

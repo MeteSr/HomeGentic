@@ -4,7 +4,7 @@
  * canister is the source of truth for which tier a principal is on.
  */
 import { HttpAgent } from "@icp-sdk/core/agent";
-import { idlFactory } from "../declarations/payment";
+import { idlFactory } from "@homegentic/shared/declarations/payment";
 import { actorFor, nsToMs, tag } from "./canister";
 
 export type PlanTier = "Free" | "Pro" | "ContractorFree" | "ContractorPro";

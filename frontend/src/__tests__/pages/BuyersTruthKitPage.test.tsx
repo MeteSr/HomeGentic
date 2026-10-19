@@ -113,7 +113,7 @@ describe("BuyersTruthKitPage — generate flow", () => {
     fireEvent.click(screen.getByText("Generate My Truth Kit"));
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3001/api/buyers-truth-kit",
+      "http://localhost:8787/api/buyers-truth-kit",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ address: "123 Main St, Plano, TX 75023", yearBuilt: 1987, claims: DEFAULT_CLAIMS }),
@@ -165,7 +165,7 @@ describe("BuyersTruthKitPage — shared-link auto-run", () => {
     renderAt(`/truth-kit?d=${encoded}`);
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3001/api/buyers-truth-kit",
+      "http://localhost:8787/api/buyers-truth-kit",
       expect.objectContaining({
         body: JSON.stringify({ address: "456 Oak Ave, Austin, TX 78701", yearBuilt: 1999, claims: DEFAULT_CLAIMS }),
       })

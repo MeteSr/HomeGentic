@@ -13,13 +13,14 @@ import Map      "mo:core/Map";
 import Int      "mo:core/Int";
 import Iter     "mo:core/Iter";
 import Nat      "mo:core/Nat";
-import Option   "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
 import Text     "mo:core/Text";
 import Time     "mo:core/Time";
 import Index     "../shared/Index";
 import RateLimit "../shared/RateLimit";
+import Admin "../shared/Admin";
+import Canisters "../shared/Canisters";
 
 persistent actor Maintenance {
 
@@ -141,7 +142,7 @@ persistent actor Maintenance {
   // Secondary indexes over `schedule` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let scheduleByProperty = Index.empty();
-  private transient let scheduleIndexes : [Index.Keyed<ScheduleEntry>] = Index.indexed<ScheduleEntry>(schedule, [
+  private transient let scheduleIndexes : [Index.Keyed<ScheduleEntry>] = Index.indexed(schedule, [
     (scheduleByProperty, func(r : ScheduleEntry) : ?Text { ?r.propertyId }),
   ]);
 
@@ -157,29 +158,24 @@ persistent actor Maintenance {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(p: Principal) : Bool {
-    Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == p }))
+    Admin.contains(adminListEntries, p)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
-    if (isPaused) {
-      switch (pauseExpiryNs) {
-        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
-        case null { return #err(#InvalidInput("Canister is paused")) };
-      };
-    };
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
@@ -188,9 +184,7 @@ persistent actor Maintenance {
   /// Falls back to direct principal comparison when propCanisterId is unset (local dev).
   private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
     if (Text.size(propCanisterId) > 0) {
-      let propActor = actor(propCanisterId) : actor {
-        isAuthorized : (Text, Principal, Bool) -> async Bool;
-      };
+      let propActor = Canisters.property(propCanisterId);
       await propActor.isAuthorized(propertyId, caller, requireWrite)
     } else {
       caller == owner
@@ -218,7 +212,7 @@ persistent actor Maintenance {
         " and plan replacement immediately."
       };
       case (#Soon) {
-        "📅 " # sys.name # " has roughly " # Int.toText(yearsRemaining) # " year(s) remaining. " #
+        "📅 " # sys.name # " has roughly " # yearsRemaining.toText() # " year(s) remaining. " #
         "Start saving now — typical cost $" # Nat.toText(sys.costLowCents / 100) #
         "–$" # Nat.toText(sys.costHighCents / 100) # "."
       };
@@ -246,10 +240,10 @@ persistent actor Maintenance {
     var budgetLow  : Nat = 0;
     var budgetHigh : Nat = 0;
 
-    for (sys in SYSTEMS.vals()) {
+    for (sys in SYSTEMS.values()) {
       // Find the most recent job year for this system
       var lastYear : Nat = yearBuilt;
-      for (job in jobs.vals()) {
+      for (job in jobs.values()) {
         if (job.serviceType == sys.name and job.completedYear > lastYear) {
           lastYear := job.completedYear;
         };
@@ -271,7 +265,7 @@ persistent actor Maintenance {
         recommendation         = recommendationFor(sys, urgency, remaining);
         diyViable              = sys.diyViable;
       };
-      predictions := Array.concat(predictions, [pred]);
+      predictions := predictions.concat([pred]);
 
       // Accumulate budget for Critical and Soon items only
       switch (urgency) {
@@ -282,8 +276,7 @@ persistent actor Maintenance {
     };
 
     // Sort predictions: Critical first, then Soon, Watch, Good
-    let sorted = Array.sort<SystemPrediction>(
-      predictions,
+    let sorted = predictions.sort(
       func(a, b) {
         let rankA = switch (a.urgency) { case (#Critical) 0; case (#Soon) 1; case (#Watch) 2; case (#Good) 3 };
         let rankB = switch (b.urgency) { case (#Critical) 0; case (#Soon) 1; case (#Watch) 2; case (#Good) 3 };
@@ -327,7 +320,7 @@ persistent actor Maintenance {
     };
 
     scheduleCounter += 1;
-    let id = "SCH_" # Nat.toText(scheduleCounter);
+    let id = "SCH_" # scheduleCounter.toText();
 
     let entry : ScheduleEntry = {
       id;
@@ -349,24 +342,23 @@ persistent actor Maintenance {
   /// An update call (not a query) so the property canister can be asked live;
   /// unauthorized callers get an empty list.
   public shared(msg) func getScheduleByProperty(propertyId: Text) : async [ScheduleEntry] {
-    if (Principal.isAnonymous(msg.caller)) return [];
+    if (msg.caller.isAnonymous()) return [];
     if (not isAdmin(msg.caller)) {
       if (Text.size(propCanisterId) > 0) {
         if (not (await checkPropertyAuth(propertyId, msg.caller, msg.caller, false))) return [];
       } else {
         // Local dev (property canister not wired): only the caller's own entries.
-        return Iter.toArray(Iter.filter<ScheduleEntry>(
-          Index.records(scheduleByProperty, propertyId, schedule),
+        return Iter.toArray(Index.records(scheduleByProperty, propertyId, schedule).filter(
           func(e) { e.createdBy == msg.caller }
         ));
       };
     };
-    Iter.toArray(Index.records(scheduleByProperty, propertyId, schedule))
+    Index.records(scheduleByProperty, propertyId, schedule).toArray()
   };
 
   public shared(msg) func markCompleted(entryId: Text) : async Result.Result<ScheduleEntry, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(schedule, Text.compare, entryId)) {
+    switch (schedule.get(entryId)) {
       case null { #err(#NotFound) };
       case (?first) {
         if (not isAdmin(msg.caller)) {
@@ -374,7 +366,7 @@ persistent actor Maintenance {
           if (not authOk) return #err(#NotAuthorized);
         };
         // Re-read after the await (TOCTOU).
-        let entry = switch (Map.get(schedule, Text.compare, entryId)) {
+        let entry = switch (schedule.get(entryId)) {
           case null { return #err(#NotFound) };
           case (?e) { e };
         };
@@ -402,7 +394,7 @@ persistent actor Maintenance {
   /// Must be called once after deploy by an admin.
   public shared(msg) func setPropertyCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    propCanisterId := Principal.toText(id);
+    propCanisterId := id.toText();
     #ok(())
   };
 
@@ -416,42 +408,30 @@ persistent actor Maintenance {
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once the admin list is initialized, and can only be set once.
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
-    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
-    if (adminListEntries.size() > 0) return;  // already bootstrapped — ignore
-    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
-    bootstrapNonce := ?nonce;
+    if (Admin.canSetNonce(msg.caller, adminListEntries.size() > 0, bootstrapNonce)) bootstrapNonce := ?nonce;
   };
 
   public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
-    if (adminListEntries.size() > 0) {
-      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    } else {
-      switch (bootstrapNonce) {
-        case null { return #err(#NotAuthorized) };
-        case (?n) { if (nonce != n) return #err(#NotAuthorized) };
-      };
-      bootstrapNonce := null;
+    switch (Admin.authorizeAdd(adminListEntries.size() > 0, isAdmin(msg.caller), bootstrapNonce, nonce)) {
+      case (#denied)    { return #err(#NotAuthorized) };
+      case (#bootstrap) { bootstrapNonce := null };  // the nonce is single use
+      case (#admin)     {};
     };
-    if (not isAdmin(newAdmin)) {
-      adminListEntries := Array.concat(adminListEntries, [newAdmin]);
-    };
+    adminListEntries := Admin.add(adminListEntries, newAdmin);
     #ok(())
   };
 
   /// Remove an existing admin principal (existing admin only).
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    adminListEntries := Array.filter<Principal>(adminListEntries, func(a) { a != target });
+    adminListEntries := Admin.remove(adminListEntries, target);
     #ok(())
   };
 
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
-    pauseExpiryNs := switch (durationSeconds) {
-      case null    { null };
-      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
-    };
+    pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     #ok(())
   };
 
@@ -464,7 +444,7 @@ persistent actor Maintenance {
 
   public query func getMetrics() : async Metrics {
     var completed = 0;
-    for (e in Map.values(schedule)) { if (e.isCompleted) { completed += 1 } };
-    { scheduleEntries = Map.size(schedule); completedEntries = completed; isPaused }
+    for (e in schedule.values()) { if (e.isCompleted) { completed += 1 } };
+    { scheduleEntries = schedule.size(); completedEntries = completed; isPaused }
   };
 }

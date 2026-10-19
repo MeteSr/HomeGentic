@@ -1,5 +1,5 @@
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/sensor";
+import { idlFactory } from "@homegentic/shared/declarations/sensor";
 export { idlFactory };
 
 const SENSOR_CANISTER_ID = (process.env as any).SENSOR_CANISTER_ID || "";

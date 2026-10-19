@@ -1,6 +1,7 @@
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { fromProfile, UserProfile } from "./authTypes";
-import { idlFactory } from "../declarations/auth";
+import { idlFactory } from "@homegentic/shared/declarations/auth";
+import type { IssuedSession } from "@homegentic/shared/agentSession";
 
 export type { UserRole, UserProfile } from "./authTypes";
 export { fromProfile } from "./authTypes";
@@ -38,9 +39,10 @@ export async function getProfile(agent: HttpAgent): Promise<UserProfile | null> 
  * the app asserts itself. Returns null when no canister ID is configured or
  * the caller isn't a registered user.
  */
-export async function issueAgentSession(agent: HttpAgent): Promise<string | null> {
+export async function issueAgentSession(agent: HttpAgent): Promise<IssuedSession | null> {
   if (!AUTH_CANISTER_ID) return null;
   const actor = Actor.createActor(idlFactory, { agent, canisterId: AUTH_CANISTER_ID });
   const result = await (actor as any).issueAgentSession();
-  return "ok" in result ? (result.ok.token as string) : null;
+  if (!("ok" in result)) return null;
+  return { token: result.ok.token as string, expiresAtMs: Number(BigInt(result.ok.expiresAt) / 1_000_000n) };
 }

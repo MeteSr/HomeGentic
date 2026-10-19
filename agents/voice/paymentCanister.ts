@@ -2,6 +2,7 @@ import { HttpAgent, Actor } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
 import crypto from "node:crypto";
+import { idlFactory } from "../../packages/shared/src/declarations/payment";
 
 // Read at call time, not module load: the Cloudflare Worker copies its env
 // bindings into process.env per request, after this module is imported, so a
@@ -67,63 +68,6 @@ async function getAgent(): Promise<HttpAgent> {
   })();
   return _agentPromise;
 }
-
-// ── Minimal IDL for the three admin methods ───────────────────────────────────
-const idlFactory = ({ IDL }: { IDL: any }) => {
-  const Tier = IDL.Variant({
-    Free: IDL.Null, Pro: IDL.Null,
-    ContractorFree: IDL.Null, ContractorPro: IDL.Null,
-    RealtorFree: IDL.Null, RealtorPro: IDL.Null,
-  });
-  const Err = IDL.Variant({
-    NotFound: IDL.Null, NotAuthorized: IDL.Null,
-    PaymentFailed: IDL.Text, RateLimited: IDL.Null, InvalidInput: IDL.Text,
-  });
-  const Sub = IDL.Record({
-    owner: IDL.Principal, tier: Tier,
-    expiresAt: IDL.Int, createdAt: IDL.Int, cancelledAt: IDL.Opt(IDL.Int),
-  });
-  return IDL.Service({
-    adminActivateStripeSubscription: IDL.Func(
-      [IDL.Principal, Tier, IDL.Nat],
-      [IDL.Variant({ ok: Sub, err: Err })],
-      [],
-    ),
-    consumeAgentCredit: IDL.Func(
-      [IDL.Principal],
-      [IDL.Variant({ ok: IDL.Nat, err: Err })],
-      [],
-    ),
-    adminGrantAgentCredits: IDL.Func(
-      [IDL.Principal, IDL.Nat],
-      [IDL.Variant({ ok: IDL.Nat, err: Err })],
-      [],
-    ),
-    stripeActivateSubscription: IDL.Func(
-      [IDL.Principal, Tier, IDL.Int, IDL.Text],
-      [IDL.Variant({ ok: Sub, err: Err })],
-      [],
-    ),
-    stripeGrantAgentCredits: IDL.Func(
-      [IDL.Principal, IDL.Nat, IDL.Text],
-      [IDL.Variant({ ok: IDL.Nat, err: Err })],
-      [],
-    ),
-    stripeRecordGift: IDL.Func(
-      [IDL.Text, Tier, IDL.Variant({ Monthly: IDL.Null, Yearly: IDL.Null }), IDL.Record({
-        recipientEmail: IDL.Text, recipientName: IDL.Text, senderName: IDL.Text,
-        giftMessage: IDL.Text, deliveryDate: IDL.Text,
-      })],
-      [IDL.Variant({ ok: IDL.Null, err: Err })],
-      [],
-    ),
-    getTierForPrincipal: IDL.Func(
-      [IDL.Principal],
-      [IDL.Variant({ Free: IDL.Null, Pro: IDL.Null, ContractorFree: IDL.Null, ContractorPro: IDL.Null, RealtorFree: IDL.Null, RealtorPro: IDL.Null })],
-      ["query"],
-    ),
-  });
-};
 
 type PaymentActor = {
   adminActivateStripeSubscription(

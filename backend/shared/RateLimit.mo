@@ -26,28 +26,25 @@ module {
   /// the limit. Callers that are exempt (admins, trusted canisters) should
   /// skip this call so they are not counted.
   public func tryConsume(limits : Limits, key : Text, now : Int, maxPerWindow : Nat) : Bool {
-    switch (Map.get(limits, Text.compare, key)) {
+    switch (limits.get(key)) {
       case null {
-        if (Map.size(limits) > 0 and Map.size(limits) % SWEEP_EVERY == 0) { sweep(limits, now) };
-        Map.add(limits, Text.compare, key, (1, now));
+        if (limits.size() > 0 and limits.size() % SWEEP_EVERY == 0) { sweep(limits, now) };
+        limits.add(key, (1, now));
         true
       };
       case (?(count, windowStart)) {
-        if (now - windowStart >= WINDOW_NS) { Map.add(limits, Text.compare, key, (1, now)); true }
+        if (now - windowStart >= WINDOW_NS) { limits.add(key, (1, now)); true }
         else if (maxPerWindow > 0 and count >= maxPerWindow) { false }
-        else { Map.add(limits, Text.compare, key, (count + 1, windowStart)); true }
+        else { limits.add(key, (count + 1, windowStart)); true }
       };
     }
   };
 
   /// Removes every entry whose window has closed.
   public func sweep(limits : Limits, now : Int) {
-    let stale = Iter.toArray(
-      Iter.filterMap<(Text, (Nat, Int)), Text>(
-        Map.entries(limits),
-        func((k, (_, ws))) = if (now - ws >= WINDOW_NS) ?k else null,
-      )
-    );
-    for (k in stale.values()) { Map.remove(limits, Text.compare, k) };
+    let stale = limits.entries()
+      .filterMap(func((k, (_, ws))) = if (now - ws >= WINDOW_NS) ?k else null)
+      .toArray();
+    for (k in stale.values()) { limits.remove(k) };
   };
 };

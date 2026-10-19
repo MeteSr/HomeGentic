@@ -16,7 +16,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@homegentic/shared/*": ["../packages/shared/src/*"]
     },
     "types": ["vite/client", "node", "vitest/globals"]
   },

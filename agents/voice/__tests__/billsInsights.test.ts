@@ -3,28 +3,33 @@
  * BILLS.2  parseInsightsPayload — rejects unknown series keys, free text and out-of-range numbers
  * BILLS.3  describeFacts / ruleBasedNarrative — render only the supplied figures
  * BILLS.4  parseNarrative — validates model JSON
- * BILLS.5  POST /api/bills-insights — AI path, fallback on provider error, fallback on bad JSON, 400 on bad input
+ * BILLS.5  Worker POST /api/bills-insights — AI path, fallback on provider error, fallback on bad JSON, 400 on bad input, session required
  */
 
+const mockComplete = jest.fn();
 jest.mock("../paymentCanister", () => ({
-  getSubscriptionTier:  jest.fn().mockRejectedValue(new Error("no canister in test")),
-  consumeAgentCredit:   jest.fn().mockRejectedValue(new Error("no canister in test")),
-  activateInCanister:   jest.fn().mockResolvedValue(undefined),
-  grantAgentCredits:    jest.fn().mockResolvedValue(undefined),
-  PRINCIPAL_RE:         /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/,
+  fetchSubscriptionTier: jest.fn().mockResolvedValue("Free"),
+  consumeAgentCredit:    jest.fn().mockRejectedValue(new Error("no canister in test")),
 }));
+jest.mock("../monitoringCanister", () => ({
+  getCriticalCycleAlerts: jest.fn().mockResolvedValue([]),
+  checkCycleLevels:       jest.fn().mockResolvedValue([]),
+  recordFrontendError:    jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("../authCanister", () => ({ resolveAgentSessionOwner: jest.fn() }));
 jest.mock("../anthropicProvider", () => ({
-  createAnthropicProvider: jest.fn().mockReturnValue({
-    stream: jest.fn(), complete: jest.fn(), completeWithTools: jest.fn(),
-  }),
+  AnthropicProvider: jest.fn().mockImplementation(() => ({
+    complete: mockComplete, stream: jest.fn(), completeWithTools: jest.fn(),
+  })),
 }));
-jest.mock("../prompts", () => ({ buildSystemPrompt: jest.fn().mockReturnValue("p") }));
-jest.mock("../../maintenance/prompts", () => ({ buildMaintenanceSystemPrompt: jest.fn().mockReturnValue("p") }));
+jest.mock("../src/session", () => ({
+  SESSION_HEADER: "x-agent-session",
+  resolveSessionPrincipal: jest.fn(async (token: string | null) => (token === "hgs_good" ? "user-aaa" : null)),
+}));
+jest.mock("../src/tier", () => ({ resolveTier: jest.fn().mockResolvedValue("Pro") }));
 
-import { describe, it, expect, beforeAll, beforeEach } from "@jest/globals";
-import supertest from "supertest";
-import { createAnthropicProvider } from "../anthropicProvider";
-import { app } from "../server";
+import { describe, it, expect, beforeEach } from "@jest/globals";
+import worker from "../src/index";
 import {
   parseInsightsPayload, describeFacts, ruleBasedNarrative, parseNarrative, type InsightsPayload,
 } from "../billsInsights";
@@ -126,37 +131,62 @@ describe("BILLS.4 — parseNarrative", () => {
   });
 });
 
-describe("BILLS.5 — POST /api/bills-insights", () => {
-  let complete: jest.Mock;
-  beforeAll(() => { complete = (createAnthropicProvider as jest.Mock).mock.results[0]!.value.complete; });
-  beforeEach(() => { complete.mockReset(); });
+function fakeKV() {
+  const store = new Map<string, string>();
+  return {
+    get: async (k: string) => store.get(k) ?? null,
+    put: async (k: string, v: string) => { store.set(k, v); },
+  } as unknown as KVNamespace;
+}
+const env: any = {
+  ANTHROPIC_API_KEY: "sk-ant", VOICE_AGENT_API_KEY: "pubkey", FRONTEND_ORIGIN: "https://app.test",
+  NODE_ENV: "production", CANISTER_ID_AUTH: "auth-id", RATE_LIMIT: fakeKV(),
+};
+const ctx: any = { waitUntil: () => {} };
+async function post(body: unknown, session = "hgs_good"): Promise<{ status: number; body: any }> {
+  const res = await worker.fetch(new Request("https://worker.test/api/bills-insights", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": "pubkey", "x-agent-session": session },
+    body: JSON.stringify(body),
+  }), env, ctx);
+  return { status: res.status, body: await res.json() };
+}
+
+describe("BILLS.5 — Worker POST /api/bills-insights", () => {
+  beforeEach(() => { mockComplete.mockReset(); });
 
   it("returns the model's narrative and sends it only rendered facts", async () => {
-    complete.mockResolvedValueOnce('{"summary":"Tax is due in November.","tips":["Save $6,120."]}');
-    const res = await supertest(app).post("/api/bills-insights").send(PAYLOAD);
+    mockComplete.mockResolvedValueOnce('{"summary":"Tax is due in November.","tips":["Save $6,120."]}');
+    const res = await post(PAYLOAD);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ summary: "Tax is due in November.", tips: ["Save $6,120."], source: "ai" });
-    const call = complete.mock.calls[0][0] as { messages: { content: string }[] };
+    const call = mockComplete.mock.calls[0][0] as { messages: { content: string }[] };
     expect(call.messages[0].content).toBe(describeFacts(PAYLOAD));
   });
 
   it("falls back to rules when the provider throws", async () => {
-    complete.mockRejectedValueOnce(new Error("overloaded"));
-    const res = await supertest(app).post("/api/bills-insights").send(PAYLOAD);
+    mockComplete.mockRejectedValueOnce(new Error("overloaded"));
+    const res = await post(PAYLOAD);
     expect(res.status).toBe(200);
     expect(res.body.source).toBe("rules");
     expect(res.body.tips).toHaveLength(3);
   });
 
   it("falls back to rules when the model returns unusable output", async () => {
-    complete.mockResolvedValueOnce("no json here");
-    const res = await supertest(app).post("/api/bills-insights").send(PAYLOAD);
+    mockComplete.mockResolvedValueOnce("no json here");
+    const res = await post(PAYLOAD);
     expect(res.body.source).toBe("rules");
   });
 
   it("rejects an invalid payload with 400 without calling the model", async () => {
-    const res = await supertest(app).post("/api/bills-insights").send({ ...PAYLOAD, series: [] });
+    const res = await post({ ...PAYLOAD, series: [] });
     expect(res.status).toBe(400);
-    expect(complete).not.toHaveBeenCalled();
+    expect(mockComplete).not.toHaveBeenCalled();
+  });
+
+  it("needs a session, like the other AI routes", async () => {
+    const res = await post(PAYLOAD, "hgs_bad");
+    expect(res.status).toBe(401);
+    expect(mockComplete).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 import { lazyActor } from "./lazyActor";
-import { idlFactory } from "@/declarations/quote";
-import { serviceTypeVariant, serviceTypeFromVariant } from "./serviceTypes";
+import { idlFactory } from "@homegentic/shared/declarations/quote";
+import { serviceTypeVariant, serviceTypeFromVariant } from "@homegentic/shared/serviceTypes";
 import { ibeEncryptAmount, ibeDecryptBids, sealedBidIdentity, type RevealedBid as SealedRevealedBid } from "./sealedBid";
 import type { UsageCategory, UsageSummary } from "./quoteUsage";
 export { idlFactory };

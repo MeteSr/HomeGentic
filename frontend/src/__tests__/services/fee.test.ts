@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/services/actor", () => ({ getAgent: vi.fn().mockResolvedValue({}) }));
-vi.mock("@/declarations/fee", () => ({ idlFactory: vi.fn() }));
+vi.mock("@homegentic/shared/declarations/fee", () => ({ idlFactory: vi.fn() }));
 
 const mockActor = { getMyFees: vi.fn() };
 const { mockCreateActor } = vi.hoisted(() => ({ mockCreateActor: vi.fn() }));

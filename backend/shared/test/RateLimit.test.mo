@@ -28,10 +28,10 @@ do {
 do {
   let l : RateLimit.Limits = Map.empty();
   var i = 0;
-  while (i < RateLimit.SWEEP_EVERY) { ignore RateLimit.tryConsume(l, Nat.toText(i), 0, 30); i += 1 };
-  assert Map.size(l) == RateLimit.SWEEP_EVERY;
+  while (i < RateLimit.SWEEP_EVERY) { ignore RateLimit.tryConsume(l, i.toText(), 0, 30); i += 1 };
+  assert l.size() == RateLimit.SWEEP_EVERY;
   ignore RateLimit.tryConsume(l, "late", MIN, 30);   // every earlier window has closed
-  assert Map.size(l) == 1;
+  assert l.size() == 1;
 };
 
 // sweep keeps open windows
@@ -40,6 +40,6 @@ do {
   ignore RateLimit.tryConsume(l, "old", 0, 30);
   ignore RateLimit.tryConsume(l, "new", MIN, 30);
   RateLimit.sweep(l, MIN);
-  assert Map.size(l) == 1;
+  assert l.size() == 1;
   assert not RateLimit.tryConsume(l, "new", MIN, 1); // still counted
 };

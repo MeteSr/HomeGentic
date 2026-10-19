@@ -10,7 +10,7 @@
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 
 // Rentcast API key is held server-side in the voice agent (not VITE_RENTCAST_API_KEY which would be exposed in the browser bundle)
-const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
+const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 export interface PropertyLookupResult {
   yearBuilt?:     number;

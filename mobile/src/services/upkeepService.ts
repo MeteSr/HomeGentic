@@ -4,9 +4,9 @@
  * Property and Upkeep tabs show about keeping the house running.
  */
 import { HttpAgent } from "@icp-sdk/core/agent";
-import { idlFactory as recurringIdl }   from "../declarations/recurring";
-import { idlFactory as maintenanceIdl } from "../declarations/maintenance";
-import { idlFactory as sensorIdl }      from "../declarations/sensor";
+import { idlFactory as recurringIdl }   from "@homegentic/shared/declarations/recurring";
+import { idlFactory as maintenanceIdl } from "@homegentic/shared/declarations/maintenance";
+import { idlFactory as sensorIdl }      from "@homegentic/shared/declarations/sensor";
 import { actorFor, nsToMs, tag, unwrap } from "./canister";
 
 const RECURRING_CANISTER_ID   = process.env.EXPO_PUBLIC_RECURRING_CANISTER_ID   ?? "";

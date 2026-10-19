@@ -6,7 +6,7 @@ import { useAppData } from "../context/AppData";
 import { useLoad } from "../hooks/useLoad";
 import { getMyQuoteRequests, isOpenRequest, type QuoteRequest } from "../services/quoteService";
 import { urgencyLabel } from "../services/quoteFormService";
-import { serviceTypeLabel } from "../services/serviceTypes";
+import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import { Card, Chip, chipTone, EmptyRow, Loading, Pill, Row } from "../components/ui";
 import { type, v3 } from "../theme";
 

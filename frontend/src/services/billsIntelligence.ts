@@ -9,9 +9,9 @@
 import { billService } from "./billService";
 import type { BillType } from "./billService";
 import type { BillsForecast } from "./billsForecast";
-import { voiceAgentHeaders, voiceAgentFetch } from "./voiceAgentHeaders";
+import { voiceAgentFetch } from "./voiceAgentHeaders";
 
-const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL || "http://localhost:3001";
+const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL || "http://localhost:8787";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -198,10 +198,9 @@ export async function getBillsNarrative(forecast: BillsForecast): Promise<BillsN
     series: forecast.series.map(({ key, method, confidence, next12Cents }) => ({ key, method, confidence, next12Cents })),
     insights: forecast.insights,
   };
-  const response = await fetch(`${VOICE_AGENT_URL}/api/bills-insights`, {
-    method:  "POST",
-    headers: voiceAgentHeaders(),
-    body:    JSON.stringify(payload),
+  const response = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/bills-insights`, {
+    method: "POST",
+    body:   JSON.stringify(payload),
   });
   if (!response.ok) throw new Error(`Bills insights request failed: ${response.status}`);
   return response.json() as Promise<BillsNarrative>;

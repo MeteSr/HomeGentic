@@ -8,7 +8,7 @@ import Nat   "mo:core/Nat";
 
 type Rec = { owner : Text; job : ?Text };
 
-func ids(ix : Index.Index, key : Text) : [Text] = Iter.toArray(Index.ids(ix, key));
+func ids(ix : Index.Index, key : Text) : [Text] = Index.ids(ix, key).toArray();
 
 // add / remove / count; empty sets disappear
 do {
@@ -25,7 +25,7 @@ do {
   Index.remove(ix, "other", "b");                 // unknown key is a no-op
   assert ids(ix, "p1") == ["b"];
   Index.remove(ix, "p1", "b");
-  assert Map.size(ix) == 0;                       // empty key is dropped
+  assert ix.size() == 0;                       // empty key is dropped
 };
 
 // move re-files only when the key changes
@@ -41,7 +41,7 @@ do {
 // ids sort as Text, so "EVT_10" comes before "EVT_9"
 do {
   let ix = Index.empty();
-  for (id in ["EVT_9", "EVT_10", "EVT_1"].vals()) { Index.add(ix, "k", id) };
+  for (id in ["EVT_9", "EVT_10", "EVT_1"].values()) { Index.add(ix, "k", id) };
   assert ids(ix, "k") == ["EVT_1", "EVT_10", "EVT_9"];
 };
 
@@ -63,7 +63,7 @@ do {
   assert Index.count(byJob, "j1") == 2;
 
   // records() resolves ids through the primary map
-  let owners = Iter.toArray(Iter.map<Rec, Text>(Index.records(byJob, "j1", primary), func(r) { r.owner }));
+  let owners = Index.records(byJob, "j1", primary).map(func(r) { r.owner }).toArray();
   assert owners == ["alice", "bob"];
 
   // changing an indexed field moves the record; others stay put
@@ -79,7 +79,7 @@ do {
   // delete removes it from the primary map and every index
   Index.delete(primary, ixs, "r1");
   Index.delete(primary, ixs, "missing");
-  assert Map.get(primary, Text.compare, "r1") == null;
+  assert primary.get("r1") == null;
   assert ids(byOwner, "bob") == ["r3"];
   assert ids(byJob, "j1") == [];
 
@@ -89,7 +89,7 @@ do {
   assert ids(rebuilt, "alice") == ["r2"] and ids(rebuilt, "bob") == ["r3"];
 
   // build() gives the same result as indexed()
-  let built = Index.build<Rec>(primary, func(r) { ?r.owner });
+  let built = Index.build(primary, func(r) { ?r.owner });
   assert ids(built, "alice") == ids(rebuilt, "alice");
 };
 

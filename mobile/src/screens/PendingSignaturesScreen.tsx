@@ -6,7 +6,7 @@ import type { RootStackParamList } from "../navigation/types";
 import { useLoad } from "../hooks/useLoad";
 import { formatEarnings, getPendingSignatureJobs, sortPendingJobs } from "../services/contractorService";
 import { getStreetAddresses } from "../services/propertyService";
-import { serviceTypeLabel } from "../services/serviceTypes";
+import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import { Card, Chip, chipTone, EmptyRow, Loading, PageHeader, Pill, TabScroll } from "../components/ui";
 import { family, type, v3 } from "../theme";
 

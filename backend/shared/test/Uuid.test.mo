@@ -8,7 +8,7 @@ import Nat8  "mo:core/Nat8";
 func isHex(c : Char) : Bool = (c >= '0' and c <= '9') or (c >= 'a' and c <= 'f');
 
 func wellFormed(u : Text) : Bool {
-  let cs = Text.toArray(u);
+  let cs = u.toArray();
   if (cs.size() != 36) return false;
   for (i in cs.keys()) {
     let dash = i == 8 or i == 13 or i == 18 or i == 23;
@@ -34,7 +34,7 @@ do {
 
 // sequential bytes: layout and only the first 16 bytes are used
 do {
-  let bytes = Array.tabulate<Nat8>(32, func i = Nat.toNat8(i * 7 % 256));
+  let bytes = Array.tabulate(32, func i = Nat.toNat8(i * 7 % 256));
   let u = Uuid.fromBlob(bytes.toBlob());
   assert u == "00070e15-1c23-4a31-b83f-464d545b6269";
   assert wellFormed(u);

@@ -20,9 +20,9 @@ import { PocketIc, createIdentity } from "@dfinity/pic";
 import type { Identity } from "@icp-sdk/core/agent";
 import { readFileSync } from "fs";
 import { createPic, wasmPath, baseWasmPath, tearDownLeftovers } from "./__helpers__/setup";
-import { idlFactory as jobIdl } from "../../frontend/src/declarations/job";
-import { idlFactory as propIdl } from "../../frontend/src/declarations/property";
-import { idlFactory as quoteIdl } from "../../frontend/src/declarations/quote";
+import { idlFactory as jobIdl } from "../../packages/shared/src/declarations/job";
+import { idlFactory as propIdl } from "../../packages/shared/src/declarations/property";
+import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
 
 const CANISTERS = ["photo", "sensor", "job", "property", "quote", "audit"];
 const haveBase = CANISTERS.every((c) => baseWasmPath(c) !== null);
