@@ -138,7 +138,7 @@ export default function VerifyRepresentativePage() {
                 Review holds your place.
               </div>
               <p style={{ fontSize: 13, fontFamily: V2_FONTS.body, color: "#9CA3AF", lineHeight: 1.6, margin: 0 }}>
-                Once you send for review, the 72-hour window is paused. No other claimant can take the address while your review is in progress.
+                Send your documents within the 7-day window. Your claim stays open while HomeGentic reviews it, and the first owner verified at an address keeps it.
               </p>
             </div>
 

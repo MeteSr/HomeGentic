@@ -59,7 +59,7 @@ test.describe("State 1 — Claim opened", () => {
   });
 
   test("PV2-1.1 shows heading and countdown", async ({ page }) => {
-    await expect(page.getByText("Two proofs, three days.")).toBeVisible();
+    await expect(page.getByText("Two proofs, one week.")).toBeVisible();
     await expect(page.getByText(/LEFT/)).toBeVisible();
   });
 
@@ -212,8 +212,8 @@ test.describe("State 6 — Expired", () => {
     await expect(page.getByText("The address went back on the market.")).toBeVisible();
   });
 
-  test("PV2-6.2 shows CLAIM RELEASED badge", async ({ page }) => {
-    await expect(page.getByText("CLAIM RELEASED")).toBeVisible();
+  test("PV2-6.2 shows WINDOW CLOSED badge", async ({ page }) => {
+    await expect(page.getByText("WINDOW CLOSED")).toBeVisible();
   });
 
   test("PV2-6.3 shows restart CTA", async ({ page }) => {

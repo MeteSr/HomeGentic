@@ -4,9 +4,9 @@ import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useVerifyContext } from "./VerifyLayout";
 
 const STATUS_ITEMS = [
-  { icon: "✓", color: "#16A34A", label: "Your identity check stands",   detail: "Stripe Identity result is retained for 90 days." },
+  { icon: "✓", color: "#16A34A", label: "Your identity check stands",   detail: "A cleared ID check stays on this property record." },
   { icon: "✗", color: V2_COLORS.coral, label: "The address is claimable",    detail: "Another user may register this address now." },
-  { icon: "✗", color: V2_COLORS.coral, label: "Uploads were discarded",       detail: "Document hashes are removed when the window closes." },
+  { icon: "!", color: V2_COLORS.coral, label: "You can still finish",         detail: "Submit the missing proof. If someone else is verified at this address first, your claim can't be approved." },
   { icon: "✓", color: "#16A34A", label: "Nothing you logged is lost",  detail: "Jobs, photos, and notes remain on your account." },
 ];
 
@@ -25,7 +25,7 @@ export default function VerifyExpiredPage() {
               The address went back on the market.
             </h1>
             <p style={{ fontFamily: V2_FONTS.body, fontSize: 14, color: V2_COLORS.muted, lineHeight: 1.6, marginBottom: 28 }}>
-              The 72-hour verification window closed before both proofs were submitted. Your claim on {claim.address} has been released.
+              The 7-day verification window closed before both proofs cleared. Another person can now register {claim.address}.
             </p>
 
             {/* Warning card */}
@@ -33,8 +33,8 @@ export default function VerifyExpiredPage() {
               <span style={{ fontSize: 28 }}>⏱</span>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                  <span style={{ fontSize: 15, fontFamily: V2_FONTS.body, fontWeight: 700, color: V2_COLORS.ink }}>The 72 hours are up</span>
-                  <span style={{ fontSize: 10, fontFamily: V2_FONTS.mono, fontWeight: 700, color: "#C62828", background: "#FFEBEE", padding: "3px 8px", borderRadius: 6, letterSpacing: "0.06em" }}>CLAIM RELEASED</span>
+                  <span style={{ fontSize: 15, fontFamily: V2_FONTS.body, fontWeight: 700, color: V2_COLORS.ink }}>The 7 days are up</span>
+                  <span style={{ fontSize: 10, fontFamily: V2_FONTS.mono, fontWeight: 700, color: "#C62828", background: "#FFEBEE", padding: "3px 8px", borderRadius: 6, letterSpacing: "0.06em" }}>WINDOW CLOSED</span>
                 </div>
                 <div style={{ fontSize: 12, fontFamily: V2_FONTS.body, color: V2_COLORS.muted }}>
                   Expired {new Date(claim.claimWindowEndsAt).toLocaleDateString()}
@@ -68,7 +68,7 @@ export default function VerifyExpiredPage() {
               Start a new claim on {claim.address}
             </button>
             <p style={{ fontSize: 12, fontFamily: V2_FONTS.body, color: V2_COLORS.muted, textAlign: "center" }}>
-              A fresh 72-hour window opens immediately. Your identity check may still be valid.
+              Your property and everything you logged stay on your account.
             </p>
           </div>
 
@@ -79,7 +79,7 @@ export default function VerifyExpiredPage() {
                 Why We Release
               </div>
               <p style={{ fontSize: 13, fontFamily: V2_FONTS.body, color: "#9CA3AF", lineHeight: 1.6, margin: 0 }}>
-                Unclaimed property records block other verified owners from adding their home to HomeGentic. The 72-hour window is long enough for any genuine owner to complete both steps.
+                Unverified claims would otherwise block the real owner from adding their home. Seven days is long enough for any genuine owner to complete both steps.
               </p>
             </div>
 

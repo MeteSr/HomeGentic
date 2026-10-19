@@ -65,7 +65,7 @@ export default function PropertyVerifyModal({ open, onClose, propertyId }: Prope
           Verify your ownership
         </h2>
         <p style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: V2_COLORS.muted, lineHeight: 1.7, marginBottom: "1.5rem", textAlign: "center" }}>
-          Complete two quick steps — a photo ID check and an ownership document upload — within 72 hours to lock in your property record.
+          Complete two quick steps — a photo ID check and an ownership document upload — within 7 days to lock in your property record.
         </p>
 
         <Button size="lg" style={{ width: "100%" }} onClick={handleStart} icon={<Shield size={14} />}>
