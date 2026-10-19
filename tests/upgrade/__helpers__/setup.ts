@@ -18,7 +18,8 @@
 import { PocketIc, PocketIcServer, createIdentity } from "@dfinity/pic";
 import { IDL }      from "@icp-sdk/core/candid";
 import type { Principal } from "@icp-sdk/core/principal";
-import { copyFileSync, existsSync } from "fs";
+import { copyFileSync, existsSync, rmSync } from "fs";
+import { tmpdir }     from "os";
 import { resolve }    from "path";
 
 // Project root relative to this file (tests/upgrade/__helpers__/)
@@ -63,7 +64,13 @@ export async function createPic(): Promise<PocketIc> {
   const bundled = resolve(__dirname, "../node_modules/@dfinity/pic/pocket-ic");
   const bin = process.env.POCKET_IC_BIN;
   if (bin && existsSync(bin)) copyFileSync(bin, bundled);
+  // A server that died leaves its port file behind, and every later start in
+  // this process would read the dead port from it. With nothing of ours
+  // running, any port file left is stale.
+  if (live.size === 0) rmSync(resolve(tmpdir(), `pocket_ic_${process.ppid}.port`), { force: true });
   const server = await PocketIcServer.start();
+  const proc = (server as any).serverProcess as import("child_process").ChildProcess;
+  let stopping = false;
   const pic = await PocketIc.create(server.getUrl());
 
   // Upgrades default to the principal that installed the canister (its
@@ -85,12 +92,21 @@ export async function createPic(): Promise<PocketIc> {
     ...opts,
   });
   const tearDown = pic.tearDown.bind(pic);
-  pic.tearDown = async () => { live.delete(pic); await tearDown(); await server.stop(); };
+  pic.tearDown = async () => {
+    live.delete(pic);
+    stopping = true;
+    try { await tearDown(); }
+    finally { if (proc.exitCode === null && proc.signalCode === null) await server.stop(); }
+  };
   live.add(pic);
+  proc.on("exit", (code, signal) => {
+    live.delete(pic);
+    if (!stopping) console.error(`PocketIC server exited unexpectedly (code ${code}, signal ${signal})`);
+  });
   return pic;
 }
 
-/** PocketIC instances not yet torn down (see tearDownLeftovers). */
+/** PocketIC instances not yet torn down whose server is still running (see tearDownLeftovers). */
 const live = new Set<PocketIc>();
 
 /**

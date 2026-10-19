@@ -44,10 +44,13 @@ async function install(name: string, b: Build, idl: any) {
   return { pic, id: f.canisterId as Principal, as, cost };
 }
 
+/** Concurrent writes per batch; larger batches have crashed the PocketIC server on CI runners. */
+const BATCH = 10;
+
 /** Runs `n` writes, a batch at a time. */
 async function fill(n: number, write: (i: number) => Promise<unknown>) {
-  for (let i = 0; i < n; i += 25) {
-    await Promise.all(Array.from({ length: Math.min(25, n - i) }, (_, k) => write(i + k)));
+  for (let i = 0; i < n; i += BATCH) {
+    await Promise.all(Array.from({ length: Math.min(BATCH, n - i) }, (_, k) => write(i + k)));
   }
 }
 
