@@ -96,6 +96,15 @@ export function getGatewayPrincipal(): string {
   return id.getPrincipal().toText();
 }
 
+/**
+ * IOT_GATEWAY_DRY_RUN=1 makes recordSensorEvent succeed without calling the
+ * sensor canister, so the k6 load test can measure the gateway itself. It is
+ * ignored when NODE_ENV is "production".
+ */
+export function isDryRun(): boolean {
+  return process.env.IOT_GATEWAY_DRY_RUN === "1" && process.env.NODE_ENV !== "production";
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export type RecordResult =
@@ -120,6 +129,7 @@ export async function recordSensorEvent(
   source: DeviceSourceName,
   vendorAccountId = "",
 ): Promise<RecordResult> {
+  if (isDryRun()) return { success: true, eventId: `DRYRUN_${reading.externalDeviceId}` };
   try {
     const actor = await getSensorActor();
     const result = await actor.recordEventFor(
