@@ -5,9 +5,11 @@
 # files, prints them sequentially once all suites finish, and exits non-zero if
 # any canister failed.
 #
-# Parallelism is safe because every canister test script operates on its own
-# canister and registers its own test identities — there is no shared mutable
-# state between suites.
+# Suites run in parallel against one set of deployed canisters, so they share
+# state: a suite that lowers its canister's update rate limit to test it makes
+# other suites' calls to that canister fail meanwhile. Suites in RUN_ALONE are
+# run on their own before the parallel batch for that reason (property: job and
+# bills register properties, and property/test.sh drops its limit to 2).
 #
 # Usage:
 #   bash scripts/test-backend.sh            # Run all canisters
@@ -42,6 +44,9 @@ ALL_CANISTERS=(
   bills
 )
 
+# Run one at a time, before the parallel batch (see header).
+RUN_ALONE=(property)
+
 # Use command-line args as filter, or run all
 if [ $# -gt 0 ]; then
   CANISTERS=("$@")
@@ -75,11 +80,18 @@ echo "============================================"
 echo "  HomeGentic — Backend Test Suite"
 echo "  ${#CANISTERS[@]} canister suite(s)  ·  ${_TOTAL_TESTS} tests"
 echo "============================================"
-echo "  Launching ${#CANISTERS[@]} canister suite(s) in parallel"
+echo "  Launching ${#CANISTERS[@]} canister suite(s): ${RUN_ALONE[*]} alone, the rest in parallel"
 echo ""
 
-# ── Launch all suites in parallel ────────────────────────────────────────────
-for CANISTER in "${CANISTERS[@]}"; do
+is_alone() { local c; for c in "${RUN_ALONE[@]}"; do [ "$c" = "$1" ] && return 0; done; return 1; }
+
+# Alone suites first, then the rest; each list keeps the given order.
+ORDERED=()
+for CANISTER in "${CANISTERS[@]}"; do is_alone "$CANISTER" && ORDERED+=("$CANISTER"); done
+for CANISTER in "${CANISTERS[@]}"; do is_alone "$CANISTER" || ORDERED+=("$CANISTER"); done
+
+# ── Launch suites (RUN_ALONE ones finish before the next starts) ─────────────
+for CANISTER in "${ORDERED[@]}"; do
   TEST_SCRIPT="$REPO_ROOT/backend/$CANISTER/test.sh"
 
   if [ ! -f "$TEST_SCRIPT" ]; then
@@ -100,7 +112,12 @@ for CANISTER in "${CANISTERS[@]}"; do
   bash "$TEST_SCRIPT" > "$LOG_DIR/$CANISTER.log" 2>&1 &
   PIDS+=($!)
   ACTIVE+=("$CANISTER")
-  echo "  ▶ $CANISTER launched (pid $!)"
+  if is_alone "$CANISTER"; then
+    echo "  ▶ $CANISTER running alone (pid $!)"
+    wait $!; echo $? > "$LOG_DIR/$CANISTER.rc"; date +%s > "$LOG_DIR/$CANISTER.end"
+  else
+    echo "  ▶ $CANISTER launched (pid $!)"
+  fi
 done
 
 echo ""
@@ -114,15 +131,15 @@ for i in "${!ACTIVE[@]}"; do
   START_S=$(cat "$LOG_DIR/$CANISTER.start")
 
   # wait returns the exit code of the background process
-  if wait "$PID"; then
-    END_S=$(date +%s)
+  if [ -f "$LOG_DIR/$CANISTER.rc" ]; then RC=$(cat "$LOG_DIR/$CANISTER.rc"); else wait "$PID"; RC=$?; fi
+  END_S=$(cat "$LOG_DIR/$CANISTER.end" 2>/dev/null || date +%s)
+  if [ "$RC" -eq 0 ]; then
     ELAPSED=$(( END_S - START_S ))
     # Passing tests: suppress full log — just show the summary line.
     # Full log is still on disk until rm -rf below if you need to debug locally.
     echo "   ✅  $CANISTER passed (${ELAPSED}s)"
     PASSED+=("$CANISTER")
   else
-    END_S=$(date +%s)
     ELAPSED=$(( END_S - START_S ))
     echo ""
     echo "── [$CANISTER FAILED — full output] ──────────────────────────────────"
