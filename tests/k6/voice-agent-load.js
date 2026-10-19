@@ -21,23 +21,20 @@
  *   http_req_failed                    rate < 0.05   (< 5% errors)
  *   rate_limit_429                     rate < 0.01   (< 1% rate-limit hits)
  *
- * Usage:
+ * Usage: start the mock Anthropic API and wrangler dev as in tests/k6/README.md, then
  *   k6 run tests/k6/voice-agent-load.js
- *   k6 run --env VOICE_AGENT_URL=https://voice-staging.example.workers.dev tests/k6/voice-agent-load.js
- *   k6 run --scenario ramp tests/k6/voice-agent-load.js
  *
- * Note: Set MOCK_ANTHROPIC=1 to skip real Anthropic API calls (stub responses).
- *       Without this flag the test will consume real API tokens.
+ * Local only: a deployed Worker needs a real session token per request and
+ * rate-limits by the real client IP (see lib/voice.js).
  */
 
 import http from "k6/http";
 import { check, sleep } from "k6";
-import { Counter, Rate, Trend } from "k6/metrics";
+import { Counter, Trend } from "k6/metrics";
+import { BASE_URL, CONTEXT, voiceHeaders, health } from "./lib/voice.js";
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
-const BASE_URL  = __ENV.VOICE_AGENT_URL || "http://localhost:8787";
-const MOCK_MODE = __ENV.MOCK_ANTHROPIC === "1";
 
 // ─── Custom metrics ───────────────────────────────────────────────────────────
 
@@ -102,40 +99,32 @@ export const options = {
 
 // ─── Payloads ─────────────────────────────────────────────────────────────────
 
-// Realistic but minimal chat context (avoids large property lists in CI)
-const MOCK_CONTEXT = JSON.stringify({
-  properties: [{ id: 1, address: "123 Main St", city: "Austin", state: "TX", yearBuilt: 2000, squareFeet: 2000 }],
-  jobs:       [{ id: "j1", serviceType: "HVAC", amount: 250000, date: "2022-06-01", isDiy: false, verified: true }],
-});
 
 const CHAT_PAYLOADS = [
-  { message: "What is the maintenance score for my home?",    context: MOCK_CONTEXT },
-  { message: "When is my HVAC due for replacement?",          context: MOCK_CONTEXT },
-  { message: "What is the estimated value of my home improvements?", context: MOCK_CONTEXT },
-  { message: "Are there any critical maintenance issues?",    context: MOCK_CONTEXT },
+  { message: "What is the maintenance score for my home?",    context: CONTEXT },
+  { message: "When is my HVAC due for replacement?",          context: CONTEXT },
+  { message: "What is the estimated value of my home improvements?", context: CONTEXT },
+  { message: "Are there any critical maintenance issues?",    context: CONTEXT },
 ];
 
 const AGENT_PAYLOADS = [
-  { message: "Summarise the maintenance history",             context: MOCK_CONTEXT },
-  { message: "What upgrades would add the most value?",       context: MOCK_CONTEXT },
+  { messages: [{ role: "user", content: "Summarise the maintenance history" }],      context: CONTEXT },
+  { messages: [{ role: "user", content: "What upgrades would add the most value?" }], context: CONTEXT },
 ];
-
-const HEADERS = { "Content-Type": "application/json" };
 
 // ─── VU behaviour ─────────────────────────────────────────────────────────────
 
 export default function () {
-  const scenario = __ENV.k6_scenario || "ramp";
+  const headers = voiceHeaders();
 
   // ── Health check (every VU, every iteration) ──────────────────────────────
   {
     const t0  = Date.now();
-    const res = http.get(`${BASE_URL}/health`, { tags: { endpoint: "health" } });
+    const res = health({ tags: { endpoint: "health" } });
     healthDuration.add(Date.now() - t0);
 
     check(res, {
-      "health 200": (r) => r.status === 200,
-      "health body ok": (r) => r.body?.includes("ok") || r.body?.includes("healthy") || r.status === 200,
+      "health responds": (r) => r.status === 200 || r.status === 503,
     });
 
     if (res.status === 429) rateLimitHits.add(1);
@@ -150,7 +139,7 @@ export default function () {
     const res     = http.post(
       `${BASE_URL}/api/chat`,
       JSON.stringify(payload),
-      { headers: HEADERS, tags: { endpoint: "chat" }, timeout: "10s" }
+      { headers, tags: { endpoint: "chat" }, timeout: "10s" }
     );
     chatDuration.add(Date.now() - t0);
 
@@ -158,7 +147,8 @@ export default function () {
       rateLimitHits.add(1);
     } else {
       check(res, {
-        "chat 200 or SSE":     (r) => r.status === 200,
+        "chat 200":             (r) => r.status === 200,
+        "chat streams text":    (r) => typeof r.body === "string" && r.body.includes('"text"'),
         "chat no server error": (r) => r.status !== 500,
       });
     }
@@ -173,7 +163,7 @@ export default function () {
     const res     = http.post(
       `${BASE_URL}/api/agent`,
       JSON.stringify(payload),
-      { headers: HEADERS, tags: { endpoint: "agent" }, timeout: "15s" }
+      { headers, tags: { endpoint: "agent" }, timeout: "15s" }
     );
     agentDuration.add(Date.now() - t0);
 
@@ -195,14 +185,10 @@ export default function () {
 export function setup() {
   console.log(`[13.6.2] k6 voice-agent load test`);
   console.log(`  Target: ${BASE_URL}`);
-  console.log(`  Mock mode: ${MOCK_MODE}`);
-  if (!MOCK_MODE) {
-    console.log("  ⚠ MOCK_ANTHROPIC not set — real Anthropic API calls will be made");
-  }
 
   // Verify server is reachable before starting load
-  const res = http.get(`${BASE_URL}/health`);
-  if (res.status !== 200) {
+  const res = health();
+  if (res.status !== 200 && res.status !== 503) {
     console.warn(`  ⚠ Health check failed (${res.status}) — server may not be running`);
   }
   return { startTime: Date.now() };

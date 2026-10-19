@@ -40,14 +40,20 @@ winget install k6 --source winget
 
 ## Running the voice agent tests
 
-### Start the server
+### Start the mock Anthropic API and the Worker
 ```bash
+node tests/k6/mock-anthropic.mjs &            # mock Messages API on :8788
 cd agents/voice
-MOCK_ANTHROPIC=1 npm run dev
-# wrangler dev serves the Worker on :8787
+npx wrangler dev src/index.ts --port 8787 \
+  --var NODE_ENV:development --var ANTHROPIC_API_KEY:mock \
+  --var ANTHROPIC_BASE_URL:http://localhost:8788
 ```
 
-`MOCK_ANTHROPIC=1` stubs the Anthropic API — no tokens are consumed during load testing.
+The Worker sends its Anthropic calls to the mock, so no tokens are spent. The mock replies with a short fixed answer (streamed for `/api/chat`) after `MOCK_LATENCY_MS` (default 300 ms).
+
+`NODE_ENV:development` overrides the `production` value in `wrangler.toml`. With no `CANISTER_ID_AUTH`, the Worker takes the caller from the `x-icp-principal` header. The scripts send a fresh principal and `CF-Connecting-IP` on every iteration (`lib/voice.js`), so the per-user chat/agent quotas and the 30/min per-IP limit don't throttle the run. Those limiters have their own unit tests. `/health` answers 503 locally because production secrets are unset, and the scripts treat that as up.
+
+These scripts only work against a local Worker. A deployed one needs a real session token on every request and rate-limits by the real client IP.
 
 ### Run voice-chat.js (quick CI gate, ~2 min)
 ```bash
@@ -64,7 +70,8 @@ k6 run tests/k6/voice-agent-load.js
 | Variable | Default | Description |
 |---|---|---|
 | `VOICE_AGENT_URL` | `http://localhost:8787` | Base URL of the voice agent |
-| `MOCK_ANTHROPIC` | unset | Set to `1` to skip real Anthropic API calls |
+| `VOICE_AGENT_API_KEY` | unset | Sent as `x-api-key` if the Worker is started with one |
+| `MOCK_LATENCY_MS` | `300` | Simulated model latency (set on the mock, not k6) |
 
 ## Running the IoT gateway test
 

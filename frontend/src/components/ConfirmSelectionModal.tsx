@@ -1,7 +1,7 @@
 /**
  * ConfirmSelectionModal — Bid to List H5
- * The only screen where money moves. Irreversible. Disclosure copy and the
- * checkbox are compliance surface, not decoration — kept verbatim.
+ * Choosing is irreversible. Disclosure copy and the checkbox are compliance
+ * surface, not decoration: keep them in step with what the flow actually does.
  */
 
 import { useState } from "react";
@@ -18,16 +18,18 @@ export interface ConfirmSelectionModalProps {
   requestId: string;
   feeCents: number;
   onClose: () => void;
+  /** Called after the selection is recorded (defaults to onClose). */
+  onConfirmed?: () => void;
 }
 
 const CONSEQUENCE_ROWS: { label: string; note: string; ok: boolean }[] = [
-  { label: "Their card is charged", note: "Authorized when they bid. The charge is what performs the introduction.", ok: true },
+  { label: "They're billed the platform fee", note: "They pay it in Bid to List. Nothing is released to either side until it clears.", ok: true },
   { label: "Your name, address and record release to them", note: "Maintenance history, permits and invoiced work, all at once.", ok: true },
-  { label: "Their name, license and contact release to you", note: "Verified against the Florida DBPR before they were allowed to bid.", ok: true },
+  { label: "Their name, license and contact release to you", note: "HomeGentic checked their license before they were allowed to bid.", ok: true },
   { label: "The other four bids close permanently", note: "They cannot be reopened while this selection stands.", ok: false },
 ];
 
-export function ConfirmSelectionModal({ proposal, requestId, feeCents, onClose }: ConfirmSelectionModalProps) {
+export function ConfirmSelectionModal({ proposal, feeCents, onClose, onConfirmed }: ConfirmSelectionModalProps) {
   const [acknowledged, setAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,22 +37,14 @@ export function ConfirmSelectionModal({ proposal, requestId, feeCents, onClose }
     if (!acknowledged || submitting) return;
     setSubmitting(true);
     try {
-      const feeId = await listingService.acceptProposal(proposal.id);
-      const res = await fetch("/api/listing-fee/stripe/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ feeId, proposalId: proposal.id, requestId }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-      // Stripe not configured (local/dev mock) — nothing was charged; surface that plainly.
-      toast("Payment not configured in this environment — selection recorded but unpaid.");
-      setSubmitting(false);
+      // Records the selection and the winning agent's platform fee (Owed in the
+      // fee canister). The agent pays that fee from Bid to List; identities are
+      // released once it settles. Nothing is charged to the homeowner here.
+      await listingService.acceptProposal(proposal.id);
+      toast.success(`Bid ${proposal.letter} chosen. Identities release once the agent's platform fee clears.`);
+      (onConfirmed ?? onClose)();
     } catch (err: any) {
-      // Invariant 04: a failed charge/selection leaves the auction fully masked and live.
+      // Invariant 04: a failed selection leaves the auction fully masked and live.
       toast.error(err?.message ?? "Selection failed — the auction is still live and masked.");
       setSubmitting(false);
     }

@@ -44,15 +44,21 @@ jobs:
       - name: Install IoT gateway dependencies
         run: cd agents/iot-gateway && npm ci
 
-      - name: Start voice agent
-        env:
-          ANTHROPIC_API_KEY: mock-key
-          MOCK_ANTHROPIC: "1"
-          SENSOR_CANISTER_ID: dummy
-          FRONTEND_ORIGIN: http://localhost:3000
+      # The Worker talks to a mock Anthropic API, so the load test spends no tokens.
+      - name: Start mock Anthropic API
         run: |
-          cd agents/voice && npm run dev &
-          npx --yes wait-on@latest http://localhost:8787/health --timeout 30000
+          node tests/k6/mock-anthropic.mjs 8788 &
+          npx --yes wait-on@latest http://localhost:8788/health --timeout 30000
+
+      # NODE_ENV=development with no auth canister: the Worker takes the caller
+      # from x-icp-principal (see tests/k6/lib/voice.js). /health answers 503
+      # without production secrets, so wait on the port instead.
+      - name: Start voice agent
+        run: |
+          cd agents/voice && npx wrangler dev src/index.ts --port 8787 \
+            --var NODE_ENV:development --var ANTHROPIC_API_KEY:mock \
+            --var ANTHROPIC_BASE_URL:http://localhost:8788 &
+          npx --yes wait-on@latest tcp:localhost:8787 --timeout 60000
 
       - name: Start IoT gateway
         env:
@@ -66,7 +72,6 @@ jobs:
       - name: Run voice chat load test
         env:
           VOICE_AGENT_URL: http://localhost:8787
-          MOCK_ANTHROPIC: "1"
         run: k6 run --out json=results-voice.json tests/k6/voice-chat.js
 
       # Scenario 2: IoT gateway webhook burst + polling steady + spike (~7 min in CI)

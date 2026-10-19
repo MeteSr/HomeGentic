@@ -45,7 +45,7 @@ Baselines established via k6 load tests in `tests/k6/`.  Thresholds are enforced
 | `POST /api/agent` (no tool calls) | < 1 s | < 3 s | < 1 % |
 | `GET /health` | < 10 ms | < 50 ms | < 0.1 % |
 
-Measured with `tests/k6/voice-chat.js` (20 VU, 1 min hold, `MOCK_ANTHROPIC=1`).
+Measured with `tests/k6/voice-chat.js` (20 VU, 1 min hold) against a local `wrangler dev` pointed at the mock Anthropic API (`tests/k6/mock-anthropic.mjs`, 300 ms simulated model latency), so the numbers are the Worker's own overhead plus that latency.
 
 ### IoT Gateway (`POST /webhooks/*`)
 
@@ -63,7 +63,9 @@ Measured with `tests/k6/iot-gateway-load.js` (`webhook_burst` scenario, 100 VU, 
 
 ```bash
 # Start services
-cd agents/voice       && MOCK_ANTHROPIC=1 npm run dev &
+node tests/k6/mock-anthropic.mjs &
+(cd agents/voice && npx wrangler dev src/index.ts --var NODE_ENV:development \
+  --var ANTHROPIC_API_KEY:mock --var ANTHROPIC_BASE_URL:http://localhost:8788) &
 cd agents/iot-gateway && SENSOR_CANISTER_ID=dummy npm run dev &
 
 # Run tests

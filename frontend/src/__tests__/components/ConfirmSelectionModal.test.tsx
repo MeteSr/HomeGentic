@@ -1,11 +1,9 @@
 /**
  * ConfirmSelectionModal — real logic worth locking down:
  *   - Confirm is disabled until the disclosure checkbox is checked
- *   - a successful confirm accepts the proposal, creates a Stripe
- *     checkout session, and redirects to its url
- *   - when Stripe isn't configured (no url in the response) it shows a
- *     "recorded but unpaid" toast instead of redirecting, and
- *     re-enables the button
+ *   - a successful confirm accepts the proposal and hands back to the page;
+ *     it never starts a checkout (the winning agent pays the fee, not the
+ *     homeowner)
  *   - a failed confirm shows the failure toast and re-enables the button
  *   - backdrop click closes unless a submission is in flight
  */
@@ -26,6 +24,7 @@ const { mockToastError, mockToast } = vi.hoisted(() => ({
   mockToast: vi.fn() as any,
 }));
 mockToast.error = mockToastError;
+mockToast.success = vi.fn();
 vi.mock("react-hot-toast", () => ({ default: mockToast }));
 
 function makeProposal(overrides: Partial<MaskedProposal> = {}): MaskedProposal {
@@ -65,32 +64,30 @@ describe("ConfirmSelectionModal — checkbox gating", () => {
 });
 
 describe("ConfirmSelectionModal — confirm flow", () => {
-  it("accepts the proposal and redirects to the Stripe checkout url", async () => {
+  it("accepts the proposal, confirms, and never starts a checkout", async () => {
     mockAcceptProposal.mockResolvedValue("fee-1");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ json: async () => ({ url: "https://stripe.test/checkout" }) }));
-    renderModal();
+    vi.stubGlobal("fetch", vi.fn());
+    const onConfirmed = vi.fn();
+    renderModal({ onConfirmed });
 
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByText(/Choose Bid A and unmask/));
 
-    await waitFor(() => expect(mockAcceptProposal).toHaveBeenCalledWith("prop-1"));
-    expect(fetch).toHaveBeenCalledWith("/api/listing-fee/stripe/create-checkout-session", expect.objectContaining({
-      method: "POST",
-      body: JSON.stringify({ feeId: "fee-1", proposalId: "prop-1", requestId: "req-1" }),
-    }));
-    await waitFor(() => expect(window.location.href).toBe("https://stripe.test/checkout"));
+    await waitFor(() => expect(onConfirmed).toHaveBeenCalled());
+    expect(mockAcceptProposal).toHaveBeenCalledWith("prop-1");
+    expect(mockToast.success).toHaveBeenCalledWith("Bid A chosen. Identities release once the agent's platform fee clears.");
+    expect(fetch).not.toHaveBeenCalled();
+    expect(window.location.href).toBe("");
   });
 
-  it("shows an unpaid-recorded toast and re-enables the button when Stripe isn't configured", async () => {
+  it("falls back to onClose when no onConfirmed is given", async () => {
     mockAcceptProposal.mockResolvedValue("fee-1");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ json: async () => ({}) }));
-    renderModal();
+    const { onClose } = renderModal();
 
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByText(/Choose Bid A and unmask/));
 
-    await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Payment not configured in this environment — selection recorded but unpaid."));
-    expect(window.location.href).toBe("");
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
   it("shows the failure toast and re-enables the button when acceptProposal rejects", async () => {
