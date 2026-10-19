@@ -213,7 +213,7 @@ test.describe("State 6 — Expired", () => {
   });
 
   test("PV2-6.2 shows WINDOW CLOSED badge", async ({ page }) => {
-    await expect(page.getByText("WINDOW CLOSED")).toBeVisible();
+    await expect(page.getByText("WINDOW CLOSED", { exact: true })).toBeVisible();
   });
 
   test("PV2-6.3 shows restart CTA", async ({ page }) => {

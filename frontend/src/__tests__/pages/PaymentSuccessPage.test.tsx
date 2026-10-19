@@ -16,19 +16,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 
-const { mockVerifyStripeSession, mockRedeemQuorumCoupon, mockGetPrincipal, mockIsAuthenticated } = vi.hoisted(() => ({
+const { mockVerifyStripeSession, mockGetPrincipal, mockIsAuthenticated } = vi.hoisted(() => ({
   mockVerifyStripeSession: vi.fn(),
-  mockRedeemQuorumCoupon:  vi.fn().mockResolvedValue(undefined),
   mockGetPrincipal:        vi.fn().mockResolvedValue("test-principal"),
   mockIsAuthenticated:     { value: true },
 }));
 
 vi.mock("@/services/payment", () => ({
   paymentService: { verifyStripeSession: mockVerifyStripeSession },
-}));
-
-vi.mock("@/services/benefit", () => ({
-  redeemQuorumCoupon: mockRedeemQuorumCoupon,
 }));
 
 vi.mock("@/services/actor", () => ({
@@ -76,17 +71,12 @@ describe("PaymentSuccessPage — legacy session_id flow", () => {
     await waitFor(() => expect(screen.getByText(/welcome to pro/i)).toBeInTheDocument());
   });
 
-  it("redeems a quorum coupon on subscription success when one is present in the URL", async () => {
-    mockVerifyStripeSession.mockResolvedValue({ type: "subscription", tier: "Pro" });
-    renderAt("/payment-success?session_id=cs_test_123&quorum_coupon=QRM-ABC");
-    await waitFor(() => expect(mockRedeemQuorumCoupon).toHaveBeenCalledWith("QRM-ABC"));
-  });
-
   it("renders the gift state with the token when the session is a gift", async () => {
     mockVerifyStripeSession.mockResolvedValue({ type: "gift", giftToken: "GIFT-XYZ" });
     renderAt("/payment-success?session_id=cs_test_gift");
     await waitFor(() => expect(screen.getByText(/gift is on its way/i)).toBeInTheDocument());
-    expect(screen.getByText("GIFT-XYZ")).toBeInTheDocument();
+    expect(screen.getByText(/emailed your recipient/i)).toBeInTheDocument();
+    expect(screen.getByText(`${window.location.origin}/gift/redeem?token=GIFT-XYZ`)).toBeInTheDocument();
   });
 
   it("renders an error state with the failure message when verification rejects", async () => {
