@@ -388,6 +388,22 @@ persistent actor Maintenance {
     }
   };
 
+  // ─── Account deletion ─────────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Deletes every schedule entry the caller created. Returns how many were removed.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+
+    let ids = schedule.entries()
+      .filter(func((_, e)) = e.createdBy == msg.caller)
+      .map(func((id, _)) = id)
+      .toArray();
+    for (id in ids.values()) { Index.delete(schedule, scheduleIndexes, id) };
+    #ok(ids.size())
+  };
+
   // ─── Admin Functions ──────────────────────────────────────────────────────────
 
   /// Wire the property canister for centralized ownership checks.

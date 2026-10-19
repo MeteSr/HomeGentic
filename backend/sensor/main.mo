@@ -897,8 +897,69 @@ persistent actor Sensor {
       jobId      = maybeJobId;
     };
 
+    // The device may have been deleted (deleteMyData) while we awaited.
+    if (Option.isNull(devices.get(deviceId))) return #err(#NotFound);
     putEvent(eventSeq(eventId), event);
     #ok(event)
+  };
+
+  // ─── Account Deletion ─────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Returns how many records were removed.
+  ///
+  /// Deletes every device the caller registered (as homeowner), every event
+  /// for those devices or that names the caller as homeowner, and the
+  /// external-ID, verified-binding, vendor-account, property-index and
+  /// critical-job cooldown entries keyed to those devices.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+
+    let mine = Iter.toArray(devices.values().filter(func(d) = d.homeowner == caller));
+    let deviceSet = Set.empty<Text>();
+    for (d in mine.values()) { deviceSet.add(d.id) };
+    let isMine = func(e : SensorEvent) : Bool { e.homeowner == caller or deviceSet.contains(e.deviceId) };
+
+    var removed = 0;
+
+    // Events (current log + legacy store).
+    let seqs = Iter.toArray(eventLog.entries().filter(func((_, e)) = isMine(e)).map(func((s, _)) = s));
+    for (seq in seqs.values()) {
+      switch (eventLog.get(seq)) {
+        case (?e) {
+          switch (eventsByProperty.get(e.propertyId)) {
+            case (?ix) {
+              ix.remove(seq);
+              if (ix.isEmpty()) eventsByProperty.remove(e.propertyId);
+            };
+            case null {};
+          };
+          eventLog.remove(seq);
+          removed += 1;
+        };
+        case null {};
+      };
+    };
+    let legacy = Iter.toArray(events.entries().filter(func((_, e)) = isMine(e)).map(func((id, _)) = id));
+    for (id in legacy.values()) { events.remove(id); removed += 1 };
+
+    // Devices and every map keyed to them.
+    for (d in mine.values()) {
+      retireDevice(d);   // drops this device's externalIdIdx / verifiedIdx bindings
+      deviceVendorAccount.remove(d.id);
+      lastCriticalJobNs.remove(d.id);
+      Index.remove(devicesByProperty, d.propertyId, d.id);
+      devices.remove(d.id);
+      removed += 1;
+    };
+    // Any index entry still pointing at a deleted device.
+    for (ix in [externalIdIdx, verifiedIdx].values()) {
+      let stale = Iter.toArray(ix.entries().filter(func((_, id)) = deviceSet.contains(id)).map(func((k, _)) = k));
+      for (k in stale.values()) { ix.remove(k) };
+    };
+    #ok(removed)
   };
 
   // M-07: restrict getEventsForProperty to property owner, admin, or trusted canister

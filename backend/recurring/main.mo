@@ -422,6 +422,30 @@ persistent actor Recurring {
     })
   };
 
+  // ─── Account deletion ─────────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Deletes every recurring service whose homeowner is the caller, plus all
+  /// visit logs filed under those services. Returns how many records were removed.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+
+    let serviceIds = services.entries()
+      .filter(func((_, s)) = Principal.equal(s.homeowner, msg.caller))
+      .map(func((id, _)) = id)
+      .toArray();
+    var removed = 0;
+    for (sid in serviceIds.values()) {
+      let visitIds = Index.ids(visitsByService, sid).toArray();
+      for (vid in visitIds.values()) { Index.delete(visits, visitsIndexes, vid) };
+      removed += visitIds.size();
+      Index.delete(services, servicesIndexes, sid);
+      removed += 1;
+    };
+    #ok(removed)
+  };
+
   // ─── Admin Functions ──────────────────────────────────────────────────────────
 
   /// M8: wire the property canister for live owner/manager checks (admin only).

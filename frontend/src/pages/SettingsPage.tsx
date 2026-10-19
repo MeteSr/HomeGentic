@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { MobileAccountPage } from "@/pages/MobileAccountPage";
-import { User, CreditCard, Bell, Lock, CheckCircle, Download } from "lucide-react";
+import { User, CreditCard, Bell, Lock, CheckCircle, Download, Trash2 } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { authService } from "@/services/auth";
 import { PLANS, type PlanTier } from "@/services/planConstants";
 import { paymentService } from "@/services/payment";
+import { accountDeletionService } from "@/services/accountDeletion";
+import { useAuth } from "@/contexts/AuthContext";
 import { winBackService } from "@/services/winBackService";
 import { contractorService } from "@/services/contractor";
 import { getPushStatus, enablePush, disablePush, type PushStatus } from "@/services/pushNotifications";
@@ -780,7 +782,7 @@ function ContractorPrivacyTab() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const payload = { exportedAt: new Date().toISOString(), note: "Bid history, credentials, and reviews are permanently stored on the Internet Computer blockchain." };
+      const payload = { exportedAt: new Date().toISOString(), note: "Bid history, credentials and reviews are stored on HomeGentic's canisters on the Internet Computer." };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
@@ -808,11 +810,13 @@ function ContractorPrivacyTab() {
       <SectionDivider />
       <SectionHeading>Export Your Data</SectionHeading>
       <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
-        Download your contractor record as JSON. Your bids, job credentials, and reviews are also permanently stored on the Internet Computer blockchain — you own them regardless of your subscription status.
+        Download your contractor record as JSON. You can export it at any time, whatever plan you're on.
       </p>
       <Button loading={exporting} onClick={handleExport} icon={<Download size={13} />} variant="outline">
         Download My Data (JSON)
       </Button>
+
+      <DeleteAccountSection />
     </div>
   );
 }
@@ -870,7 +874,7 @@ function PrivacyTab() {
       <SectionDivider />
       <SectionHeading>Export Your Data</SectionHeading>
       <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
-        Download all your property and job records as JSON. Your data is yours — no lock-in, no expiration. Records are also permanently stored on the Internet Computer blockchain.
+        Download all your property and job records as JSON. Your data is yours, and you can export it at any time.
       </p>
       <Button loading={exporting} onClick={handleExport} icon={<Download size={13} />} variant="outline">
         Download My Data (JSON)
@@ -878,6 +882,82 @@ function PrivacyTab() {
       <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, marginTop: "0.5rem" }}>
         Includes {properties.length} propert{properties.length !== 1 ? "ies" : "y"} and {jobs.length} job record{jobs.length !== 1 ? "s" : ""}.
       </p>
+
+      <DeleteAccountSection />
     </div>
+  );
+}
+
+// ── Delete account ────────────────────────────────────────────────────────────
+
+const DELETE_CONFIRM_WORD = "DELETE";
+
+function DeleteAccountSection() {
+  const [open,    setOpen]    = useState(false);
+  const [typed,   setTyped]   = useState("");
+  const [running, setRunning] = useState(false);
+  const [step,    setStep]    = useState("");
+  const [error,   setError]   = useState("");
+  const { logout } = useAuth();
+  const navigate   = useNavigate();
+
+  const body = { fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" };
+
+  const handleDelete = async () => {
+    setRunning(true);
+    setError("");
+    try {
+      await accountDeletionService.deleteMyAccount((s) => setStep(s));
+      toast.success("Your account has been deleted");
+      await logout();
+      navigate("/");
+    } catch (e: any) {
+      setError(`${e?.message ?? "Deletion failed"}. Nothing after this step was deleted, so you can try again.`);
+    } finally {
+      setRunning(false);
+      setStep("");
+    }
+  };
+
+  return (
+    <>
+      <SectionDivider />
+      <SectionHeading>Delete Your Account</SectionHeading>
+      <p style={body}>
+        This stops your subscription from renewing and deletes your profile, properties, jobs, photos, documents, bills, reports and
+        share links, quotes, smart-home devices and listings from HomeGentic. It can't be undone, so download your data first.
+        We keep payment, platform-fee and referral records for tax and accounting, and jobs a contractor logged on someone else's home stay on that home's record.
+      </p>
+      {!open ? (
+        <Button variant="danger" icon={<Trash2 size={13} />} onClick={() => setOpen(true)}>
+          Delete My Account
+        </Button>
+      ) : (
+        <div style={{ border: `1px solid ${V2_COLORS.coral}`, borderRadius: V2_RADIUS.sm, padding: "1rem" }}>
+          <FieldLabel>Type {DELETE_CONFIRM_WORD} to confirm</FieldLabel>
+          <input
+            aria-label={`Type ${DELETE_CONFIRM_WORD} to confirm`}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            disabled={running}
+            style={{ width: "100%", maxWidth: "16rem", padding: "0.5rem 0.75rem", fontFamily: V2_FONTS.body, fontSize: "0.875rem", border: `1px solid ${V2_COLORS.border}`, borderRadius: V2_RADIUS.sm, marginBottom: "0.75rem" }}
+          />
+          {running && step && (
+            <p role="status" style={{ ...body, marginBottom: "0.75rem" }}>Deleting your {step}…</p>
+          )}
+          {error && (
+            <p role="alert" style={{ ...body, color: V2_COLORS.coralText, marginBottom: "0.75rem" }}>{error}</p>
+          )}
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <Button variant="danger" loading={running} disabled={typed !== DELETE_CONFIRM_WORD} onClick={handleDelete}>
+              Permanently Delete
+            </Button>
+            <Button variant="outline" disabled={running} onClick={() => { setOpen(false); setTyped(""); setError(""); }}>
+              Keep My Account
+            </Button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

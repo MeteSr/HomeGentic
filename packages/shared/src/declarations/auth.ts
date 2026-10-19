@@ -53,6 +53,7 @@ export const idlFactory = ({ IDL }: any) => {
       [],
     ),
     revokeAgentSession:  IDL.Func([], [], []),
+    deleteMyData:        IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     resolveAgentSession: IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
     hasRole:       IDL.Func([UserRole], [IDL.Bool], ["query"]),
     getUserStats:  IDL.Func([], [UserStats], ["query"]),

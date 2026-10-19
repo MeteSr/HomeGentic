@@ -2133,6 +2133,122 @@ persistent actor Property {
     }
   };
 
+  // ─── Account deletion ─────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Every property the caller owns goes, with its rooms/fixtures, managers,
+  /// manager invites, approval requests, owner notifications, pending
+  /// transfer and transfer history. Identity-check and verification-document
+  /// data live on the Property record itself, so they go with it. The address
+  /// index is re-pointed at another claim on the same address if one exists,
+  /// otherwise the address is released (index + addressClaimSince dropped) so
+  /// someone else can claim it. The caller is also removed as a manager from
+  /// other owners' properties. Synchronous: nothing can interleave.
+  /// Returns how many records were removed.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+    // A registration suspended at an await would write a property after us.
+    if (inFlightRegistrations.get(caller.toText()) != null)
+      return #err(#InvalidInput("A property registration is in progress; try again shortly"));
+
+    var removed = 0;
+    let owned = ownedBy(caller).toArray();
+
+    for (p in owned.values()) {
+      let pid = p.id;
+
+      // Rooms (and their fixtures) on this property.
+      let roomIds = Index.ids(roomsByProperty, pid).toArray();
+      for (rid in roomIds.values()) {
+        Index.delete(rooms, roomIndexes, rid);
+        removed += 1;
+      };
+
+      // Managers, invites (+ token index), approvals, owner notifications.
+      clearDelegatedAccess(pid);
+
+      // Pending transfer and its token index.
+      switch (pendingTransfers.get(pid)) {
+        case (?pt) { tokenIndex.remove(pt.token); pendingTransfers.remove(pid); removed += 1 };
+        case null  {};
+      };
+
+      // Transfer history for this property.
+      let histKeys = transfers.entries()
+        .filter(func((_, r) : (Nat, TransferRecord)) : Bool { r.propertyId == pid })
+        .map(func((k, _) : (Nat, TransferRecord)) : Nat { k })
+        .toArray();
+      for (k in histKeys.values()) { transfers.remove(k); removed += 1 };
+
+      // The property itself (also unfiles it from propertiesByOwner).
+      Index.delete(properties, propertyIndexes, pid);
+      removed += 1;
+
+      // Address index: only touch it if it points at this property.
+      let key = addressKey(p.address, p.city, p.state, p.zipCode);
+      switch (addressIdx.get(key)) {
+        case (?indexedId) {
+          if (indexedId == pid) {
+            // Re-point at the best remaining claim on the same address
+            // (verified wins, else newest — same rule as rekeyAddressIndex).
+            var best : ?Property = null;
+            for (other in properties.values()) {
+              if (addressKey(other.address, other.city, other.state, other.zipCode) == key) {
+                best := switch (best) {
+                  case null ?other;
+                  case (?b) {
+                    if (isVerified(b.verificationLevel) != isVerified(other.verificationLevel)) {
+                      if (isVerified(other.verificationLevel)) ?other else ?b
+                    } else if (other.createdAt > b.createdAt) ?other else ?b
+                  };
+                };
+              };
+            };
+            switch (best) {
+              case (?b) { addressIdx.add(key, b.id) };
+              case null {
+                // No claim left on this address: release it entirely so the
+                // next registrant starts clean and nothing dangles.
+                addressIdx.remove(key);
+                addressClaimSince.remove(key);
+              };
+            };
+          };
+        };
+        case null {
+          // Unindexed address: drop the claim-run start only if no property
+          // at this address remains.
+          let anyLeft = properties.values().find(func(o : Property) : Bool {
+            addressKey(o.address, o.city, o.state, o.zipCode) == key
+          });
+          if (anyLeft == null) { addressClaimSince.remove(key) };
+        };
+      };
+    };
+
+    // Remove the caller as a delegated manager on other owners' properties.
+    let managedIds = managersMap.entries()
+      .filter(func((_, ms) : (Text, [PropertyManager])) : Bool {
+        ms.find(func(m : PropertyManager) : Bool { m.principal == caller }) != null
+      })
+      .map(func((k, _) : (Text, [PropertyManager])) : Text { k })
+      .toArray();
+    for (pid in managedIds.values()) {
+      switch (managersMap.get(pid)) {
+        case (?ms) {
+          managersMap.add(pid, ms.filter(func(m : PropertyManager) : Bool { m.principal != caller }));
+          removed += 1;
+        };
+        case null {};
+      };
+    };
+
+    updateCallLimits.remove(caller.toText());
+    #ok(removed)
+  };
+
   // ─── Builder: bulk property import ────────────────────────────────────────
 
   /// Batch-create properties on behalf of a Builder.

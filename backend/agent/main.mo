@@ -433,6 +433,38 @@ persistent actor Agent {
     Index.records(reviewsByAgent, agentId.toText(), reviews).toArray()
   };
 
+  // ─── Account Deletion ────────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller —
+  /// their realtor profile, reviews about them and reviews they wrote.
+  /// Returns how many records were removed.
+  ///
+  /// Kept on purpose: `reviewDedup` ("reviewer|transactionId") and
+  /// `reviewByTransaction` (transactionId → reviewId) entries for the deleted
+  /// reviews, and the caller's daily window in `reviewRateLimits`. They enforce
+  /// one review per awarded transaction and 10 reviews/day; dropping them would
+  /// let someone delete their account and review the same transaction again.
+  /// They hold ids only, no review content.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+    var removed = 0;
+
+    let reviewIds = reviews.values()
+      .filter(func(r) { r.agentId == caller or r.reviewerPrincipal == caller })
+      .map(func(r) { r.id })
+      .toArray();
+    for (id in reviewIds.values()) {
+      Index.delete(reviews, reviewsIndexes, id);
+      removed += 1;
+    };
+
+    if (Option.isSome(profiles.get(caller))) { profiles.remove(caller); removed += 1 };
+
+    #ok(removed)
+  };
+
   // ─── Admin ───────────────────────────────────────────────────────────────────
 
   public shared(msg) func setListingCanisterId(id: Text) : async Result.Result<(), Error> {

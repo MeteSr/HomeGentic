@@ -58,6 +58,7 @@ export const idlFactory = ({ IDL }: any) => {
   });
 
   return IDL.Service({
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     createRecurringService: IDL.Func(
       [
         IDL.Text,              // propertyId
