@@ -10,17 +10,17 @@ import Principal "mo:core/Principal";
 module {
   /// Whether `p` is in a principal allow-list (admins, trusted canisters, …).
   public func contains(list : [Principal], p : Principal) : Bool {
-    Array.find<Principal>(list, func(a) { a == p }) != null
+    list.contains(p)
   };
 
   /// `list` with `p` appended, unless it is already there.
   public func add(list : [Principal], p : Principal) : [Principal] {
-    if (contains(list, p)) list else Array.concat(list, [p])
+    if (list.contains(p)) list else list.concat([p])
   };
 
   /// `list` without `p`.
   public func remove(list : [Principal], p : Principal) : [Principal] {
-    Array.filter<Principal>(list, func(a) { a != p })
+    list.filter(func a = a != p)
   };
 
   // ── Pause ──────────────────────────────────────────────────────────────────
