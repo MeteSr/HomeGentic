@@ -105,7 +105,7 @@ describe("RecurringServiceDetailPage — visit log", () => {
     fireEvent.click(screen.getByText("Save"));
 
     await waitFor(() => expect(mockAddVisitLog).toHaveBeenCalledWith("svc-1", expect.any(String), undefined));
-    await waitFor(() => expect(screen.getByText("Jun 01, 2024")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Jun 1, 2024")).toBeInTheDocument());
     expect(screen.queryByText("Save")).not.toBeInTheDocument(); // form closed
     expect(mockToastSuccess).toHaveBeenCalledWith("Visit logged");
   });

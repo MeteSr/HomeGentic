@@ -20,6 +20,7 @@ import {
 } from "@/services/fsboOffer";
 import { fsboService } from "@/services/fsbo";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { formatCents } from "@/utils/format";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -30,10 +31,6 @@ const UI = {
   mono:     V2_FONTS.body,
   sans:     V2_FONTS.body,
 };
-
-function fmt(cents: number): string {
-  return "$" + (cents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 });
-}
 
 const STATUS_COLOR: Record<string, string> = {
   Active:    UI.inkLight,
@@ -115,15 +112,15 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
       <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
         <div>
           <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase" }}>Offer</div>
-          <div style={{ fontFamily: UI.sans, fontWeight: 700, fontSize: "1rem", color: UI.ink }}>{fmt(offer.offerAmountCents)}</div>
+          <div style={{ fontFamily: UI.sans, fontWeight: 700, fontSize: "1rem", color: UI.ink }}>{formatCents(offer.offerAmountCents)}</div>
         </div>
         <div>
           <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase" }}>Est. Net</div>
-          <div style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.95rem", color: "#188038" }}>{fmt(net)}</div>
+          <div style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.95rem", color: "#188038" }}>{formatCents(net)}</div>
         </div>
         <div>
           <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase" }}>Earnest</div>
-          <div style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: UI.ink }}>{fmt(offer.earnestMoneyCents)}</div>
+          <div style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: UI.ink }}>{formatCents(offer.earnestMoneyCents)}</div>
         </div>
         <div>
           <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase" }}>Contingencies</div>
@@ -138,7 +135,7 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
         <div style={{ borderTop: `1px solid ${UI.rule}`, paddingTop: "0.5rem", marginBottom: "0.5rem" }}>
           {offer.counters.map((c) => (
             <div key={c.id} style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.ink, marginBottom: "0.25rem" }}>
-              <strong>{fmt(c.amountCents)}</strong>
+              <strong>{formatCents(c.amountCents)}</strong>
               {c.notes && <span style={{ color: UI.inkLight }}> — {c.notes}</span>}
             </div>
           ))}

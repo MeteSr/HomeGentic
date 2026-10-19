@@ -20,12 +20,10 @@ import {
 } from "@/services/listing";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
+import { formatCents } from "@/utils/format";
 
 const UI = V2_COLORS;
 
-function money(cents: number): string {
-  return "$" + Math.round(cents / 100).toLocaleString("en-US");
-}
 function commissionPct(bps: number): string {
   return (bps / 100).toFixed(2).replace(/0$/, "") + "%";
 }
@@ -166,10 +164,10 @@ export default function ListingDetailPage() {
                       <span>Commission</span><span>{commissionPct(winner.commissionBps)}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", color: UI.paper, fontFamily: V2_FONTS.body, fontSize: "0.875rem" }}>
-                      <span>Suggested list</span><span>{money(winner.suggestedListCents)}</span>
+                      <span>Suggested list</span><span>{formatCents(winner.suggestedListCents)}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", color: UI.greenBright, fontFamily: V2_FONTS.body, fontSize: "0.875rem" }}>
-                      <span>Fee she paid</span><span>{money(feeCents)}</span>
+                      <span>Fee she paid</span><span>{formatCents(feeCents)}</span>
                     </div>
                   </div>
                   <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: "rgba(252,252,253,0.55)", marginTop: 12 }}>
@@ -196,7 +194,7 @@ export default function ListingDetailPage() {
                   <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.68rem", letterSpacing: "0.08em", color: UI.muted, textTransform: "uppercase", marginBottom: 8 }}>If this does not work out</div>
                   <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: UI.ink, marginBottom: 12 }}>
                     You are not committed. Tell us within 30 days that you did not sign with her and we refund her{" "}
-                    {money(feeCents)} and reopen your request to the other agents.
+                    {formatCents(feeCents)} and reopen your request to the other agents.
                   </p>
                   <Button variant="outline" size="sm" onClick={() => toast("Report submitted — our team will follow up.")}>
                     Report that we did not sign
@@ -308,7 +306,7 @@ export default function ListingDetailPage() {
                   </div>
                   <div style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.05rem", color: UI.ink }}>{commissionPct(p.commissionBps)}</div>
                   <div>
-                    <div style={{ fontFamily: V2_FONTS.mono, fontWeight: 600, fontSize: "0.9375rem", color: UI.ink }}>{money(p.suggestedListCents)}</div>
+                    <div style={{ fontFamily: V2_FONTS.mono, fontWeight: 600, fontSize: "0.9375rem", color: UI.ink }}>{formatCents(p.suggestedListCents)}</div>
                     {p.derived.overCompFlag && (
                       <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.6rem", fontWeight: 600, color: UI.orange, marginTop: 2 }}>
                         +{(p.derived.pctVsCompsBps / 100).toFixed(1)}% OVER COMPS
@@ -316,7 +314,7 @@ export default function ListingDetailPage() {
                     )}
                   </div>
                   <div>
-                    <div style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.05rem", color: isBest ? UI.green : UI.ink }}>{money(p.derived.estNetToSellerCents)}</div>
+                    <div style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.05rem", color: isBest ? UI.green : UI.ink }}>{formatCents(p.derived.estNetToSellerCents)}</div>
                     <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.6rem", fontWeight: 600, color: isBest ? UI.green : UI.muted, marginTop: 2 }}>
                       {isBest ? "HIGHEST NET" : "AFTER COMMISSION"}
                     </div>

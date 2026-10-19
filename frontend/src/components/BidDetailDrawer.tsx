@@ -10,12 +10,9 @@ import { Button } from "@/components/Button";
 import { listingService, type MaskedProposal, type ThreadMessage } from "@/services/listing";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
+import { formatCents } from "@/utils/format";
 
 const UI = V2_COLORS;
-
-function money(cents: number): string {
-  return "$" + Math.round(cents / 100).toLocaleString("en-US");
-}
 
 export interface BidDetailDrawerProps {
   proposal: MaskedProposal;
@@ -88,8 +85,8 @@ export function BidDetailDrawer({ proposal, onClose, onChoose }: BidDetailDrawer
         <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {statLabel("Commission", `${(proposal.commissionBps / 100).toFixed(2).replace(/0$/, "")}%`)}
-            {statLabel("Suggested list", money(proposal.suggestedListCents), proposal.derived.overCompFlag ? "warn" : "plain")}
-            {statLabel("Est. net to you", money(proposal.derived.estNetToSellerCents), "good")}
+            {statLabel("Suggested list", formatCents(proposal.suggestedListCents), proposal.derived.overCompFlag ? "warn" : "plain")}
+            {statLabel("Est. net to you", formatCents(proposal.derived.estNetToSellerCents), "good")}
             {statLabel("Avg DOM", `${proposal.agentRecord.avgDom} d`)}
           </div>
 

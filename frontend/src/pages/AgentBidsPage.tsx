@@ -9,12 +9,9 @@ import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { listingService, type ListingProposal } from "@/services/listing";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
+import { formatCents } from "@/utils/format";
 
 const UI = V2_COLORS;
-
-function money(cents: number): string {
-  return "$" + Math.round(cents / 100).toLocaleString("en-US");
-}
 
 const STATUS_STYLE: Record<string, { label: string; bg: string; color: string }> = {
   Accepted:  { label: "WON",          bg: UI.greenBg,      color: UI.green },
@@ -63,7 +60,7 @@ export default function AgentBidsPage() {
                 }}>
                   <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: UI.ink }}>Bid {p.letter}</span>
                   <span style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "0.9rem" }}>{(p.commissionBps / 100).toFixed(2).replace(/0$/, "")}%</span>
-                  <span style={{ fontFamily: V2_FONTS.mono, fontSize: "0.85rem" }}>{money(p.suggestedListCents)}</span>
+                  <span style={{ fontFamily: V2_FONTS.mono, fontSize: "0.85rem" }}>{formatCents(p.suggestedListCents)}</span>
                   <span style={{
                     fontFamily: V2_FONTS.mono, fontSize: "0.62rem", letterSpacing: "0.06em", padding: "4px 10px",
                     borderRadius: 100, background: s.bg, color: s.color, width: "fit-content",

@@ -21,6 +21,7 @@ import {
   type InsurerDiscountResult,
   type DiscountCategory,
 } from "@/services/insurerDiscountService";
+import { formatCents, formatIsoDate } from "@/utils/format";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -31,17 +32,6 @@ const UI = {
   serif:    V2_FONTS.display,
   mono:     V2_FONTS.body,
 };
-
-function fmtDate(iso: string): string {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-");
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `${months[parseInt(m) - 1]} ${parseInt(d)}, ${y}`;
-}
-
-function fmt(cents: number): string {
-  return `$${(cents / 100).toLocaleString()}`;
-}
 
 const SYSTEM_RELEVANCE: Record<string, string> = {
   Roofing:    "Roof condition and replacement history",
@@ -371,7 +361,7 @@ export default function InsuranceDefensePage() {
               {[
                 { label: "Insurance-Relevant Records", value: String(insuranceJobs.length) },
                 { label: "Blockchain Verified",        value: String(verifiedCount) },
-                { label: "Total Documented Value",     value: fmt(totalValue) },
+                { label: "Total Documented Value",     value: formatCents(totalValue) },
                 { label: "Properties Covered",         value: String(byProperty.length) },
               ].map((stat, i, arr) => (
                 <div key={stat.label} style={{ flex: 1, padding: "1.25rem", borderRight: i < arr.length - 1 ? `1px solid ${UI.rule}` : "none", textAlign: "center", background: V2_COLORS.paper }}>
@@ -456,11 +446,11 @@ export default function InsuranceDefensePage() {
                             </p>
                           )}
                         </div>
-                        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem" }}>{fmtDate(job.date)}</div>
+                        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem" }}>{formatIsoDate(job.date)}</div>
                         <div style={{ fontFamily: UI.mono, fontSize: "0.65rem" }}>
                           {job.isDiy ? "DIY — Homeowner" : (job.contractorName ?? "—")}
                         </div>
-                        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem" }}>{fmt(job.amount)}</div>
+                        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem" }}>{formatCents(job.amount)}</div>
                         <div>
                           {isVerified ? (
                             <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>

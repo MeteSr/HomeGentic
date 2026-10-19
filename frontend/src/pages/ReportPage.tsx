@@ -11,6 +11,7 @@ import { Shield, CheckCircle, Wrench, FileText, Printer, AlertTriangle, XCircle,
 import { reportService, ReportSnapshot, ShareLink, JobInput, BillsSummary, BILLS_SUMMARY_LABELS, disclosureFromParams } from "@/services/report";
 import { DocumentedValueSection } from "@/components/DocumentedValueSection";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { formatCents, formatIsoDate } from "@/utils/format";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -36,17 +37,8 @@ const SERVICE_ICONS: Record<string, string> = {
   Kitchen: "🍳", Bathroom: "🚿", Other: "🔩",
 };
 
-function fmt(cents: number): string { return `$${(cents / 100).toLocaleString()}`; }
-
 function fmtMonthly(cents: number): string {
   return `$${Math.round(cents / 100).toLocaleString()}`;
-}
-
-function fmtDate(iso: string): string {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-");
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `${months[parseInt(m) - 1]} ${d}, ${y}`;
 }
 
 function contractorLabel(job: JobInput): string {
@@ -303,7 +295,7 @@ export default function ReportPage() {
         <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem", flexWrap: "wrap" }}>
           <StatBox label="Total Jobs"        value={snapshot.jobs.length} />
           <StatBox label="Verified On-Chain" value={snapshot.verifiedJobCount} sub={snapshot.jobs.length ? `${Math.round(snapshot.verifiedJobCount / snapshot.jobs.length * 100)}%` : undefined} />
-          {!disclosure.hideAmounts && <StatBox label="Investment" value={fmt(snapshot.totalAmountCents)} />}
+          {!disclosure.hideAmounts && <StatBox label="Investment" value={formatCents(snapshot.totalAmountCents)} />}
           {!disclosure.hidePermits  && <StatBox label="Permits on Record" value={snapshot.permitCount} />}
         </div>
 
@@ -366,11 +358,11 @@ export default function ReportPage() {
                           </span>
                         )}
                       </div>
-                      {!disclosure.hideAmounts && <span style={{ fontFamily: UI.serif, fontWeight: 700, color: UI.ink }}>{fmt(job.amountCents)}</span>}
+                      {!disclosure.hideAmounts && <span style={{ fontFamily: UI.serif, fontWeight: 700, color: UI.ink }}>{formatCents(job.amountCents)}</span>}
                     </div>
                     <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.inkLight, marginBottom: "0.5rem" }}>{job.description}</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>
-                      <span>{fmtDate(job.date)}</span>
+                      <span>{formatIsoDate(job.date)}</span>
                       <span>{contractorLabel(job)}</span>
                       {job.permitNumber && <span>Permit: {job.permitNumber}</span>}
                       {job.warrantyMonths && <span>Warranty: {job.warrantyMonths} mo</span>}
@@ -438,7 +430,7 @@ export default function ReportPage() {
                   <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
                     {svc.lastVisitDate && (
                       <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
-                        Last: {fmtDate(svc.lastVisitDate)}
+                        Last: {formatIsoDate(svc.lastVisitDate)}
                       </span>
                     )}
                     <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
@@ -492,7 +484,7 @@ export default function ReportPage() {
               </div>
             </div>
             <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", lineHeight: 1.5, color: UI.inkLight, marginTop: "0.625rem" }}>
-              Reported by the homeowner as of {fmtDate(bills.asOf)}. Excludes mortgage. Actual costs vary with occupancy and usage.
+              Reported by the homeowner as of {formatIsoDate(bills.asOf)}. Excludes mortgage. Actual costs vary with occupancy and usage.
             </p>
           </div>
         )}
@@ -571,7 +563,7 @@ export default function ReportPage() {
                         <span style={{ fontSize: "1rem" }}>{SERVICE_ICONS[job.serviceType] ?? "🔩"}</span>
                         <div>
                           <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.ink, marginBottom: "0.125rem" }}>{job.serviceType}</p>
-                          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{contractorLabel(job)} · Started {fmtDate(job.date)}</p>
+                          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{contractorLabel(job)} · Started {formatIsoDate(job.date)}</p>
                         </div>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
@@ -598,7 +590,7 @@ export default function ReportPage() {
                       <span style={{ fontSize: "1rem", filter: "grayscale(1)" }}>{SERVICE_ICONS[job.serviceType] ?? "🔩"}</span>
                       <div>
                         <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>{job.serviceType}</p>
-                        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{fmtDate(job.date)}</p>
+                        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{formatIsoDate(job.date)}</p>
                       </div>
                     </div>
                     <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>Expired</span>
@@ -644,7 +636,7 @@ export default function ReportPage() {
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", background: V2_COLORS.paper, border: `1px solid ${UI.rule}` }}>
                   <div>
                     <span style={{ fontFamily: UI.mono, fontWeight: 600, fontSize: "0.65rem", color: UI.ink }}>{job.serviceType}</span>
-                    <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginLeft: "0.75rem" }}>{fmtDate(job.date)}</span>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginLeft: "0.75rem" }}>{formatIsoDate(job.date)}</span>
                   </div>
                   <span style={{ fontFamily: UI.mono, fontWeight: 600, fontSize: "0.65rem", color: UI.ink, border: `1px solid ${UI.rule}`, padding: "0.2rem 0.5rem" }}>
                     {job.permitNumber}

@@ -10,12 +10,9 @@ import { Button } from "@/components/Button";
 import { listingService, type ListingProposal, type ListingBidRequest } from "@/services/listing";
 import { feeService, type FeeRecord } from "@/services/fee";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
+import { formatCents } from "@/utils/format";
 
 const UI = V2_COLORS;
-
-function money(cents: number): string {
-  return "$" + Math.round(cents / 100).toLocaleString("en-US");
-}
 
 export default function AgentAwardPage() {
   const { id } = useParams<{ id: string }>();
@@ -47,7 +44,7 @@ export default function AgentAwardPage() {
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "0 1.5rem 4rem" }}>
         <div style={{ background: UI.green, color: "#fff", borderRadius: V2_RADIUS.card, padding: "16px 22px", margin: "1.5rem 0" }}>
           <div style={{ fontFamily: V2_FONTS.body, fontWeight: 600 }}>
-            The homeowner chose your bid. {money(fee?.amountCents ?? 0)} charged{fee ? "" : " (pending confirmation)"}.
+            The homeowner chose your bid. {formatCents(fee?.amountCents ?? 0)} charged{fee ? "" : " (pending confirmation)"}.
           </div>
           <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", marginTop: 4, opacity: 0.85 }}>RECEIPT SENT</div>
         </div>
@@ -82,7 +79,7 @@ export default function AgentAwardPage() {
               The record, now unlocked
             </div>
             <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: UI.ink }}>
-              This is what {money(fee?.amountCents ?? 0)} bought that a lead-generation site cannot sell you: a seller
+              This is what {formatCents(fee?.amountCents ?? 0)} bought that a lead-generation site cannot sell you: a seller
               who documented the house before you arrived.
             </p>
           </div>

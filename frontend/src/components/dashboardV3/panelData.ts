@@ -24,6 +24,7 @@ import type { PersonAccess } from "@/services/people";
 import { estimateSystems } from "@/services/systemAgeEstimator";
 import { computeTenYearBudget } from "@/services/instantForecast";
 import type { FlowKey, PanelData, PanelKey, PanelRow } from "./types";
+import { formatCents, formatDollars } from "@/utils/format";
 
 const GOOD  = "var(--hg-good)";
 const BAD   = "var(--hg-bad)";
@@ -43,9 +44,6 @@ export const CTA_FLOW: Partial<Record<PanelKey, FlowKey>> = {
   score: "logJob", property: "logJob", safety: "logJob",
 };
 
-function money(cents: number): string {
-  return `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-}
 function moneyCents(cents: number): string {
   return `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 }
@@ -153,7 +151,7 @@ function buildScore(ctx: PanelCtx): PanelData {
     cta: "See how to earn them",
     rows: [
       row("Verified jobs", `${ctx.jobs.filter((j) => j.verified).length} VERIFIED JOBS · 4 PTS EACH`, b.verifiedJobPts, 40),
-      row("Documented value", `${money(ctx.jobs.reduce((s, j) => s + j.amount, 0))} DOCUMENTED · 1 PT PER $2,500`, b.valuePts, 20, "docs"),
+      row("Documented value", `${formatCents(ctx.jobs.reduce((s, j) => s + j.amount, 0))} DOCUMENTED · 1 PT PER $2,500`, b.valuePts, 20, "docs"),
       row("Property verification", `${ctx.properties.filter((p) => p.verificationLevel === "Basic" || p.verificationLevel === "Premium").length} OF ${ctx.properties.length} PROPERTIES VERIFIED`, b.verificationPts, 20, "property"),
       row("Job diversity", `${new Set(ctx.jobs.map((j) => j.serviceType)).size} TRADES LOGGED · 4 PTS EACH`, b.diversityPts, 20, "jobs"),
     ],
@@ -194,7 +192,7 @@ function buildMarket(ctx: PanelCtx): PanelData {
   const rows: PanelRow[] = [
     { lead: "Est. value — ZIP median", sub: `${ctx.zipCode || "—"} · CURRENT`, right: "Median", rightSub: "BASELINE", tone: MUTED },
     est
-      ? { lead: "What buyers pay extra", sub: `AT GRADE ${ctx.grade}, ON COMPARABLE SALES`, right: `${money(est.low * 100)}–${money(est.high * 100)}`, rightSub: "ABOVE MEDIAN", tone: GOOD }
+      ? { lead: "What buyers pay extra", sub: `AT GRADE ${ctx.grade}, ON COMPARABLE SALES`, right: `${formatCents(est.low * 100)}–${formatCents(est.high * 100)}`, rightSub: "ABOVE MEDIAN", tone: GOOD }
       : { lead: "Log more jobs to unlock value insights", sub: "PREMIUM ESTIMATES NEED A SCORE ABOVE ZERO", right: "—", rightSub: "", tone: MUTED },
     { lead: "Certificate link", sub: "READ-ONLY · SCORE, VERIFIED JOBS, NO CONTACT DETAILS", right: "Copy", rightSub: "SHAREABLE", tone: BLUE },
     { lead: "List for agent bids", sub: "AGENTS BID COMMISSION AND PRICE · COSTS YOU $0", right: "Start", rightSub: "SELL", tone: WARN, flow: "listing" },
@@ -203,7 +201,7 @@ function buildMarket(ctx: PanelCtx): PanelData {
   return {
     chip: "MARKET", count: ctx.zipCode ? "" : "",
     asked: "What the record is worth at sale",
-    title: est ? `${money(est.low * 100)}–${money(est.high * 100)} above the median` : "Log jobs to see resale value",
+    title: est ? `${formatCents(est.low * 100)}–${formatCents(est.high * 100)} above the median` : "Log jobs to see resale value",
     sub: `What a documented ${ctx.activeProperty?.address ?? "record"} clears against an equivalent unverified sale.`,
     cta: "Generate resale report",
     rows,
@@ -227,10 +225,6 @@ function buildMarket(ctx: PanelCtx): PanelData {
 const URGENCY_TONE: Record<string, string> = { Critical: BAD, Soon: WARN, Watch: BLUE, Good: INK };
 const URGENCY_BAR: Record<string, string> = { Critical: BAD, Soon: WARN, Watch: "#2B34FF", Good: "#2B34FF" };
 
-function dollars(d: number): string {
-  return `$${Math.round(d).toLocaleString()}`;
-}
-
 function buildForecast(ctx: PanelCtx): PanelData {
   const p = ctx.activeProperty;
   if (!p) {
@@ -246,7 +240,7 @@ function buildForecast(ctx: PanelCtx): PanelData {
   const rows: PanelRow[] = due.map((e) => ({
     lead: e.systemName,
     sub: `INSTALLED ${e.installYear} · ${e.ageYears} YRS AGAINST A ${e.lifespanYears} YR LIFE · ${e.urgency.toUpperCase()}`,
-    right: `${dollars(e.replacementCostLow)}–${dollars(e.replacementCostHigh)}`,
+    right: `${formatDollars(e.replacementCostLow)}–${formatDollars(e.replacementCostHigh)}`,
     rightSub: e.yearsRemaining <= 0 ? "PAST LIFE" : `${e.yearsRemaining} YRS LEFT`,
     tone: URGENCY_TONE[e.urgency] ?? INK,
     hasBar: true, pct: `${Math.min(100, Math.round(e.percentLifeUsed))}%`, barColor: URGENCY_BAR[e.urgency] ?? "#2B34FF",
@@ -255,13 +249,13 @@ function buildForecast(ctx: PanelCtx): PanelData {
     rows.push({
       lead: "Ten-year budget",
       sub: `${due.length} SYSTEM${due.length === 1 ? "" : "S"} DUE · LOW END OF EACH RANGE`,
-      right: dollars(budgetLow), rightSub: "TEN YEARS", tone: GOOD,
+      right: formatDollars(budgetLow), rightSub: "TEN YEARS", tone: GOOD,
     });
   }
   return {
-    chip: "FORECAST", count: budgetLow >= 1000 ? `$${(budgetLow / 1000).toFixed(1)}k` : dollars(budgetLow),
-    asked: due.length ? `${dollars(budgetLow)} of replacements over the next ten years` : "Nothing is due within ten years",
-    title: due.length ? `${dollars(budgetLow)} of replacements come due within ten years` : "Nothing is due within ten years",
+    chip: "FORECAST", count: budgetLow >= 1000 ? `$${(budgetLow / 1000).toFixed(1)}k` : formatDollars(budgetLow),
+    asked: due.length ? `${formatDollars(budgetLow)} of replacements over the next ten years` : "Nothing is due within ten years",
+    title: due.length ? `${formatDollars(budgetLow)} of replacements come due within ten years` : "Nothing is due within ten years",
     sub: `${estimates.length} tracked system${estimates.length === 1 ? "" : "s"} for a ${p.yearBuilt} build${p.state ? `, ${p.state} climate` : ""}. Costs are the low end of each replacement range.`,
     cta: "Copy the forecast link",
     rows: rows.length ? rows : [{ lead: "No systems tracked yet", sub: "SET SYSTEM AGES ON THE PROPERTY PAGE", right: "Open", rightSub: "", tone: BLUE, go: "property" }],
@@ -390,7 +384,7 @@ function buildPros(ctx: PanelCtx): PanelData {
     const latest = [...list].sort((a, b) => b.date.localeCompare(a.date))[0];
     return unsigned
       ? { lead: name, sub: `${unsigned.serviceType.toUpperCase()} · AWAITING COUNTERSIGN`, right: moneyCents(unsigned.amount), rightSub: shortDate(unsigned.date).toUpperCase(), tone: BAD, flow: "chase" as FlowKey }
-      : { lead: name, sub: `${list[0].serviceType.toUpperCase()} · ${list.length} JOB${list.length === 1 ? "" : "S"} · VERIFIED`, right: money(total), rightSub: shortDate(latest.date).toUpperCase(), tone: INK };
+      : { lead: name, sub: `${list[0].serviceType.toUpperCase()} · ${list.length} JOB${list.length === 1 ? "" : "S"} · VERIFIED`, right: formatCents(total), rightSub: shortDate(latest.date).toUpperCase(), tone: INK };
   });
   const outstanding = rows.filter((r) => r.tone === BAD).length;
   const baseRows = rows.length ? rows : [{ lead: "No contractors on record yet", sub: "LOG A JOB TO ADD ONE", right: "Add", rightSub: "", tone: BLUE, flow: "logJob" as FlowKey }];
@@ -521,12 +515,12 @@ function buildSpend(ctx: PanelCtx): PanelData {
   const rows: PanelRow[] = sorted.map(([type, e]) => ({
     lead: type,
     sub: `${e.count} JOB${e.count === 1 ? "" : "S"}${e.names.size ? " · " + Array.from(e.names).join(", ").toUpperCase() : ""}`,
-    right: money(e.total), rightSub: grandTotal ? `${Math.round((e.total / grandTotal) * 100)}%` : "0%",
+    right: formatCents(e.total), rightSub: grandTotal ? `${Math.round((e.total / grandTotal) * 100)}%` : "0%",
     tone: INK, hasBar: true, pct: `${Math.round((e.total / max) * 100)}%`, barColor: "#2B34FF",
   }));
   return {
-    chip: "SPEND", count: money(grandTotal),
-    asked: `You have spent ${money(grandTotal)} across ${byType.size} trade${byType.size === 1 ? "" : "s"}`,
+    chip: "SPEND", count: formatCents(grandTotal),
+    asked: `You have spent ${formatCents(grandTotal)} across ${byType.size} trade${byType.size === 1 ? "" : "s"}`,
     title: sorted.length ? `${sorted[0][0]} is the largest line` : "Nothing spent yet",
     sub: "All logged jobs, by trade.",
     cta: "See every line item",
@@ -628,7 +622,7 @@ export function buildPanels(ctx: PanelCtx): Record<PanelKey, PanelData> {
       cta: "Open the listing request",
       rows: [
         { lead: "What agents see", sub: "RECORD, PERMITS, SCORE · SEALED UNTIL YOU PICK", right: "Sealed", rightSub: "UNTIL YOU PICK", tone: BLUE },
-        { lead: "What the record is worth here", sub: "DOCUMENTED VS UNVERIFIED", right: ctx.premium ? `${money(ctx.premium.low * 100)}–${money(ctx.premium.high * 100)}` : "—", rightSub: "AT SALE", tone: GOOD },
+        { lead: "What the record is worth here", sub: "DOCUMENTED VS UNVERIFIED", right: ctx.premium ? `${formatCents(ctx.premium.low * 100)}–${formatCents(ctx.premium.high * 100)}` : "—", rightSub: "AT SALE", tone: GOOD },
         { lead: "Start the listing request", sub: "SETS YOUR PRICE EXPECTATION AND WHAT'S RELEASED", right: "Start", rightSub: "", tone: WARN, flow: "listing" },
       ],
     },

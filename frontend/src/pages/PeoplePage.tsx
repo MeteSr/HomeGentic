@@ -15,6 +15,7 @@ import {
   type AuditRow,
 } from "@/services/people";
 import { Panel, Pill, hudInputStyle, type PillTone } from "@/components/hud";
+import { formatCents } from "@/utils/format";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
 const BODY = "'Hanken Grotesk',sans-serif";
@@ -54,10 +55,6 @@ function relativeTime(ms: number): string {
   if (days === 1) return 'YESTERDAY';
   if (days < 30) return `${days} DAYS AGO`;
   return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase();
-}
-
-function money(cents: number): string {
-  return `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
 function RoleBadge({ role }: { role: PersonRole }) {
@@ -215,7 +212,7 @@ function PeopleScreen({ propertyId, property, onInvite }: { propertyId: string; 
                     )}
                   </div>
                   <div style={{ fontFamily: BODY, fontSize: '0.78rem', color: "var(--hg-muted)", marginTop: 2 }}>
-                    {person.role === 'MANAGER' && person.spendLimitCents !== null && `Up to ${money(person.spendLimitCents)} per action`}
+                    {person.role === 'MANAGER' && person.spendLimitCents !== null && `Up to ${formatCents(person.spendLimitCents)} per action`}
                     {person.role === 'MANAGER' && person.spendLimitCents === null && 'No spend limit'}
                     {person.role !== 'MANAGER' && (person.isPending ? 'Invited ' : 'Added ') + relativeTime(person.addedAt).toLowerCase()}
                   </div>
@@ -299,7 +296,7 @@ function previewContent(role: PersonRole, limit: number | null) {
       body: `Full authority with no spend ceiling. They can approve anything a Manager sends up, invite new Viewers and Managers, and act on the property just as you would — except removing the original owner.`,
     };
   }
-  const limitLabel = limit === null ? 'no ceiling' : limit === 0 ? 'asking you first on every transaction' : `a ${money(limit)} limit`;
+  const limitLabel = limit === null ? 'no ceiling' : limit === 0 ? 'asking you first on every transaction' : `a ${formatCents(limit)} limit`;
   return {
     title: 'What your Manager can do',
     body: `They can book and pay for work, pull quotes, upload photos and documents — all under ${limitLabel}. Anything above the limit comes to you for approval before anything is committed.`,
@@ -473,7 +470,7 @@ function ApprovalCard({ approval, onRespond }: { approval: PendingApproval; onRe
           {approval.description}
         </p>
         <p style={{ fontFamily: MONO, fontSize: '1.1rem', fontWeight: 700, color: "var(--hg-ink)", margin: '0 0 16px' }}>
-          {money(approval.amountCents)}
+          {formatCents(approval.amountCents)}
         </p>
         {!responded ? (
           <div style={{ display: 'flex', gap: 10 }}>

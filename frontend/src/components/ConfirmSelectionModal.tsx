@@ -9,12 +9,9 @@ import { Button } from "@/components/Button";
 import { listingService, type MaskedProposal } from "@/services/listing";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
+import { formatCents } from "@/utils/format";
 
 const UI = V2_COLORS;
-
-function money(cents: number): string {
-  return "$" + Math.round(cents / 100).toLocaleString("en-US");
-}
 
 export interface ConfirmSelectionModalProps {
   proposal: MaskedProposal;
@@ -74,7 +71,7 @@ export function ConfirmSelectionModal({ proposal, requestId, feeCents, onClose }
           <div>
             <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.1em", color: UI.blue, textTransform: "uppercase" }}>You are choosing</div>
             <div style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.1rem", color: UI.ink }}>
-              Bid {proposal.letter} · {(proposal.commissionBps / 100).toFixed(2).replace(/0$/, "")}% · {money(proposal.suggestedListCents)}
+              Bid {proposal.letter} · {(proposal.commissionBps / 100).toFixed(2).replace(/0$/, "")}% · {formatCents(proposal.suggestedListCents)}
             </div>
           </div>
         </div>
@@ -109,7 +106,7 @@ export function ConfirmSelectionModal({ proposal, requestId, feeCents, onClose }
             <span>Charged to you</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-            <span style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.1rem", color: UI.ink }}>{money(feeCents)}</span>
+            <span style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.1rem", color: UI.ink }}>{formatCents(feeCents)}</span>
             <span style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.1rem", color: UI.green }}>$0</span>
           </div>
           <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.78rem", color: UI.muted, marginTop: 8, marginBottom: 0 }}>
@@ -121,7 +118,7 @@ export function ConfirmSelectionModal({ proposal, requestId, feeCents, onClose }
           <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: UI.amberText, margin: 0 }}>
             This is an introduction, not a listing agreement. You are under no obligation to sign with this agent,
             and you can walk away after meeting them. If you never sign a listing agreement with anyone, the agent's
-            {" "}{money(feeCents)} is refunded.
+            {" "}{formatCents(feeCents)} is refunded.
           </p>
         </div>
 

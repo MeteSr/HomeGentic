@@ -91,8 +91,8 @@ describe("AgentBidFormPage — comps math", () => {
     fireEvent.change(inputs[0], { target: { value: "3" } });        // commission %
     fireEvent.change(inputs[1], { target: { value: "400000" } });   // suggested list $
 
-    // net = 40,000,000 cents * (10000-300)/10000 = 38,800,000 cents = $38,800,000
-    await waitFor(() => expect(screen.getByText("$38,800,000")).toBeInTheDocument());
+    // net = 40,000,000 cents * (10000-300)/10000 = 38,800,000 cents = $388,000
+    await waitFor(() => expect(screen.getByText("$388,000")).toBeInTheDocument());
   });
 
   it("flags the price as over comps when more than 4% above the local median", async () => {

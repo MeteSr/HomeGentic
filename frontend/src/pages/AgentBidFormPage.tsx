@@ -12,6 +12,7 @@ import { listingService, type BidRequestSummary, type CompsConfig } from "@/serv
 import { agentService, type AgentProfile } from "@/services/agent";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
+import { formatCents } from "@/utils/format";
 
 const UI = V2_COLORS;
 
@@ -19,10 +20,6 @@ const COMMITMENTS = [
   "Professional photography", "Twilight shoot", "Broker preview", "Paid social campaign",
   "Staging consult", "Drone video", "Weekly price review", "Open houses first fortnight",
 ];
-
-function money(cents: number): string {
-  return "$" + Math.round(cents).toLocaleString("en-US");
-}
 
 const numInput: React.CSSProperties = {
   border: `1.5px solid ${UI.blue}`, borderRadius: V2_RADIUS.input, padding: "10px 14px",
@@ -132,7 +129,7 @@ export default function AgentBidFormPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
                 <div>
                   <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.6rem", color: UI.blueDeepText }}>EST. NET TO SELLER</div>
-                  <div style={{ fontFamily: V2_FONTS.display, fontWeight: 700, color: UI.blueDeepText }}>{money(estNet)}</div>
+                  <div style={{ fontFamily: V2_FONTS.display, fontWeight: 700, color: UI.blueDeepText }}>{formatCents(estNet)}</div>
                 </div>
                 <div>
                   <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.6rem", color: UI.blueDeepText }}>VS COMPS</div>
@@ -145,7 +142,7 @@ export default function AgentBidFormPage() {
               </div>
               {comps && (
                 <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.78rem", color: UI.blueDeepText, marginTop: 10, marginBottom: 0 }}>
-                  Local closed median is {money(comps.medianCents)}. Anything above {money(threshold)} is shown to the seller
+                  Local closed median is {formatCents(comps.medianCents)}. Anything above {formatCents(threshold)} is shown to the seller
                   with an over-comps flag. {overFlag ? "Yours is flagged." : "Yours is not flagged."}
                 </p>
               )}

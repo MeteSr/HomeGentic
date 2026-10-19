@@ -1,16 +1,13 @@
 import { Gauge } from "lucide-react";
 import { USAGE_LABELS, type UsageSummary } from "@/services/quoteUsage";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { formatCents } from "@/utils/format";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function monthLabel(ym: string): string {
   const [y, m] = ym.split("-");
   return `${MONTHS[Number(m) - 1]} ${y.slice(2)}`;
-}
-
-function dollars(cents: number): string {
-  return `$${Math.round(cents / 100).toLocaleString()}`;
 }
 
 function usageText(n: number, unit: string | null): string {
@@ -57,7 +54,7 @@ export function UsageHistory({ summary, title = "Utility usage", onStopSharing, 
                 {USAGE_LABELS[s.category]}
               </span>
               <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", color: V2_COLORS.muted }}>
-                avg {dollars(avg)}/mo{avgUsage !== null ? ` · ${usageText(avgUsage, s.unit)}/mo` : ""}
+                avg {formatCents(avg)}/mo{avgUsage !== null ? ` · ${usageText(avgUsage, s.unit)}/mo` : ""}
               </span>
             </div>
             <table style={{ width: "100%", maxWidth: "34rem", borderCollapse: "collapse", fontFamily: V2_FONTS.body, fontSize: "0.7rem" }}>
@@ -74,7 +71,7 @@ export function UsageHistory({ summary, title = "Utility usage", onStopSharing, 
                       <div style={{ height: 6, width: `${Math.max(2, (m.amountCents / max) * 100)}%`, background: V2_COLORS.blue, opacity: 0.75 }} />
                     </td>
                     <td style={{ textAlign: "right", color: V2_COLORS.ink, padding: "0.15rem 0", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
-                      {dollars(m.amountCents)}
+                      {formatCents(m.amountCents)}
                     </td>
                     <td style={{ textAlign: "right", color: V2_COLORS.muted, padding: "0.15rem 0 0.15rem 0.75rem", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", width: "6rem" }}>
                       {m.usage !== null ? usageText(m.usage, s.unit) : "—"}
