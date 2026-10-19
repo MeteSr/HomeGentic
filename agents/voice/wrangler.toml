@@ -11,13 +11,17 @@ BIDTOLIST_RESEND_FROM = "noreply@bidtolist.com"
 BIDTOLIST_ICP_HOST = "https://ic0.app"
 HOMEGENTIC_ICP_HOST = "https://ic0.app"
 
+# Persisted Workers Logs (otherwise logs exist only in a live `wrangler tail`).
+[observability]
+enabled = true
+
 # KV namespace for rate limiting (global 30 req/min + agent daily quotas).
-# Create with: wrangler kv:namespace create RATE_LIMIT
-# then replace the placeholder IDs below.
+# No `id`: wrangler creates the namespace on the first deploy and reuses it
+# after (the placeholder ID that was here made every production deploy fail).
+# To pin an existing namespace instead, add its id from
+# `npx wrangler kv namespace list`.
 [[kv_namespaces]]
 binding     = "RATE_LIMIT"
-id          = "PLACEHOLDER_KV_NAMESPACE_ID"
-preview_id  = "PLACEHOLDER_KV_PREVIEW_NAMESPACE_ID"
 
 # Durable Object for atomic rate-limit counters and email dedupe (F-10):
 # one RateLimiterDO instance per limiter key (src/rateLimiterDO.ts). KV above
@@ -45,6 +49,12 @@ crons = ["0 * * * *"]   # every hour — fires scheduledBidtolist (deadline remi
 #   DFX_IDENTITY_PEM              Ed25519 PEM for ICP canister admin calls
 #   CANISTER_ID_PAYMENT
 #   CANISTER_ID_AUTH              resolves x-agent-session tokens (401 without it)
+#   CANISTER_ID_JOB               contractor-invite email (/api/email/contractor-invite)
+#   RESEND_API_KEY                transactional email (moved off ai_proxy)
+#   RESEND_FROM                   sender on a Resend-verified domain
+#   ATTOM_API_KEY                 property-record lookups (/api/property/details)
+#   OPENPERMIT_API_KEY            permit imports (/api/permits/import)
+#   LOCAL_BROKER_EMAIL            recipient of /api/email/broker-lead
 #
 # Stripe price IDs (Pro is annual-only; PRO_MONTHLY is accepted but unused):
 #   STRIPE_PRICE_PRO_YEARLY

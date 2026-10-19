@@ -64,9 +64,11 @@ describe("PROD.12a — deploy.sh wires every set*CanisterId defined in Motoko", 
 
   for (const { canister, funcName } of wiringFns) {
     it(`deploy.sh calls \`${canister} ${funcName}\``, () => {
-      // Accept both icp-cli and dfx call syntax
+      // Accept icp-cli and dfx call syntax, and deploy.sh's bg_call wrapper
+      // (`bg_call <canister> <method>` runs `icp canister call` in the
+      // background and fails the deploy if it fails).
       const pattern = new RegExp(
-        `(?:icp|dfx)\\s+canister\\s+call\\s+${canister}\\s+${funcName}`,
+        `(?:(?:icp|dfx)\\s+canister\\s+call|bg_call)\\s+${canister}\\s+${funcName}`,
         "m"
       );
       expect(

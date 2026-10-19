@@ -91,6 +91,8 @@ jobs:
           # they can be environment variables; secrets work too.
           NOTIFIER_PRINCIPAL: ${{ vars.NOTIFIER_PRINCIPAL || secrets.NOTIFIER_PRINCIPAL }}
           VOICE_WORKER_PRINCIPAL: ${{ vars.VOICE_WORKER_PRINCIPAL || secrets.VOICE_WORKER_PRINCIPAL }}
+          # Unset, sensor accepts self-asserted device IDs for every platform.
+          IOT_GATEWAY_PRINCIPAL: ${{ vars.IOT_GATEWAY_PRINCIPAL || secrets.IOT_GATEWAY_PRINCIPAL }}
           START_FRONTEND_CANISTER_FIRST: ${{ inputs.start_frontend_canister_first || 'false' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           VOICE_AGENT_API_KEY: ${{ secrets.VOICE_AGENT_API_KEY }}
@@ -128,12 +130,19 @@ jobs:
             git commit -m "ops: update canister IDs after testnet deploy [skip ci]"
             git -c core.hooksPath=/dev/null push \
               "https://x-access-token:${CI_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-              "HEAD:${GITHUB_REF}" || echo "⚠️  Push blocked by branch protection — commit canister_ids.json manually from the deploy log above"
+              "HEAD:${GITHUB_REF}" || {
+                echo "::error::Push blocked — commit canister_ids.json by hand from this log before the next deploy"
+                git diff HEAD~1 -- canister_ids.json
+                exit 1
+              }
           fi
 
   deploy-voice-worker:
     runs-on: ubuntu-latest
     environment: testnet
+    # After the canisters, so the Worker never calls a method that isn't
+    # deployed yet (same order as deploy-mainnet.yml).
+    needs: deploy
     # Manual dispatch only from main/develop (the job holds the testnet
     # deploy PEM and runs the ref's own scripts/deploy.sh). workflow_run only
     # for a successful CI *push* run in this repo: the branches filter above
@@ -183,8 +192,10 @@ jobs:
       - name: Install email relay dependencies
         working-directory: agents/email
         run: npm ci
-      - name: Deploy email relay to Cloudflare Workers
+      - name: Deploy email relay to Cloudflare Workers (testnet)
+        # --env testnet deploys homegentic-email-relay-testnet. Without it this
+        # job overwrote the production relay on every merge.
         working-directory: agents/email
-        run: npx wrangler deploy
+        run: npx wrangler deploy --env testnet
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

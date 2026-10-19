@@ -304,9 +304,11 @@ const MAX_ERROR_FINGERPRINTS = 200;
 const ERROR_FLUSH_INTERVAL_MS = 60_000;
 let lastErrorFlushMs = 0;
 
-async function flushErrorAggregations(): Promise<void> {
+/** `force` flushes now: the first report of a fingerprint is sent at once, so
+ *  an isolate that is evicted before the next flush loses only repeat counts. */
+async function flushErrorAggregations(force = false): Promise<void> {
   const now = Date.now();
-  if (now - lastErrorFlushMs < ERROR_FLUSH_INTERVAL_MS) return;
+  if (!force && now - lastErrorFlushMs < ERROR_FLUSH_INTERVAL_MS) return;
   lastErrorFlushMs = now;
   const { recordFrontendError } = await import("../monitoringCanister");
   for (const [fingerprint, agg] of errorAggMap) {
@@ -1097,6 +1099,7 @@ Rules:
     const fingerprint = `${message.slice(0, 100)}::${(stack ?? "").split("\n").find((l: string) => l.includes("/src/"))?.trim().slice(0, 100) ?? ""}`;
     const now = Date.now();
     const existing = errorAggMap.get(fingerprint);
+    const isNew = !existing;
     if (existing) {
       existing.count++;
       existing.lastSeen = now;
@@ -1111,7 +1114,7 @@ Rules:
         count: 1, firstSeen: now, lastSeen: now, tierCounts, release, dirty: true,
       });
     }
-    ctx.waitUntil(flushErrorAggregations());
+    ctx.waitUntil(flushErrorAggregations(isNew));
 
     return new Response(null, { status: 204, headers: cors });
   }
@@ -1498,8 +1501,16 @@ Rules:
   // ── GET /health ───────────────────────────────────────────────────────────
   // F-11: report overall readiness only, not which secrets are configured.
   if (path === "/health" && method === "GET") {
-    const allOk = !!(env.ANTHROPIC_API_KEY && env.VOICE_AGENT_API_KEY && env.FRONTEND_ORIGIN &&
-                     env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET);
+    // Everything a signed-in request needs: without CANISTER_ID_AUTH every
+    // session route returns 401, and without the PEM / payment ID no
+    // subscription can be activated, so /health must not report OK.
+    const required = {
+      ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY, VOICE_AGENT_API_KEY: env.VOICE_AGENT_API_KEY,
+      FRONTEND_ORIGIN: env.FRONTEND_ORIGIN, STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY,
+      STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET, DFX_IDENTITY_PEM: env.DFX_IDENTITY_PEM,
+      CANISTER_ID_AUTH: env.CANISTER_ID_AUTH, CANISTER_ID_PAYMENT: env.CANISTER_ID_PAYMENT,
+    };
+    const allOk = Object.values(required).every(Boolean);
     return json({ ok: allOk }, allOk ? 200 : 503, cors);
   }
 

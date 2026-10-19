@@ -153,6 +153,19 @@ describe("GenerateReportModal — report generation never fires in-app notificat
     expect(vi.mocked(notificationService.create)).not.toHaveBeenCalled();
   });
 
+  it("does not create a report when the recurring-services fetch fails", async () => {
+    // Snapshots are immutable, so a partial report must not be created.
+    const { reportService } = await import("@/services/report");
+    const { recurringService } = await import("@/services/recurringService");
+    const toast = (await import("react-hot-toast")).default;
+    vi.mocked(reportService.generateReport).mockClear();
+    vi.mocked(recurringService.getByProperty).mockRejectedValueOnce(new Error("recurring unreachable"));
+    renderModal();
+    await clickGenerate();
+    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalledWith("recurring unreachable"));
+    expect(vi.mocked(reportService.generateReport)).not.toHaveBeenCalled();
+  });
+
   it("does NOT call notificationService.create when generateReport throws", async () => {
     const { reportService } = await import("@/services/report");
     vi.mocked(reportService.generateReport).mockRejectedValueOnce(new Error("fail"));

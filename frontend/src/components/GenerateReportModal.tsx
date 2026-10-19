@@ -82,10 +82,13 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
   const handleGenerate = async () => {
     setGenerating(true);
     try {
+      // No .catch(() => []) on these: a snapshot is immutable once created, so
+      // a transient fetch failure must stop generation rather than produce a
+      // report that silently leaves out services, rooms or visits.
       const [jobs, recurringList, roomList] = await Promise.all([
         jobService.getByProperty(propertyId),
-        recurringService.getByProperty(propertyId).catch(() => []),
-        roomService.getRoomsByProperty(propertyId).catch(() => []),
+        recurringService.getByProperty(propertyId),
+        roomService.getRoomsByProperty(propertyId),
       ]);
       const score        = computeScore(jobs, [property]);
       const grade        = getScoreGrade(score);
@@ -94,7 +97,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       // Build recurring summaries with visit logs
       const recurringSummaries = await Promise.all(
         recurringList.map(async (svc) => {
-          const visits = await recurringService.getVisitLogs(svc.id).catch(() => []);
+          const visits = await recurringService.getVisitLogs(svc.id);
           return recurringService.toSummary(svc, visits);
         })
       );
