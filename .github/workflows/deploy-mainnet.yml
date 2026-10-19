@@ -35,23 +35,24 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: '22'
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install icp-cli
         # Pinned — this job also holds MAINNET_IDENTITY_PEM/MAINNET_WALLET_ID;
         # an unpinned `npm install -g` here would let a compromised package
         # release run with mainnet wallet/identity secrets in scope.
-        run: npm install -g @icp-sdk/icp-cli@1.5.0
+        run: npm install -g @icp-sdk/icp-cli@1.7.0
       - name: Install mops
-        run: npm install -g ic-mops@3.2.2
+        run: npm install -g ic-mops@3.5.1
       - name: Install Node dependencies
         run: npm ci
 
       - name: Install dfx
         run: |
-          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xz
+          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz"
+          echo "d8701438d05d9da0da0c90ab9342ac9ba6b0371ae9f5d1a943e94600fd674498  /tmp/dfx.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/dfx.tar.gz
           DFX_BIN=$(find . -name "dfx*" -type f -perm /111 | head -1)
           sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
           dfx --version

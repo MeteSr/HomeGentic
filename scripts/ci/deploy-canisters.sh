@@ -25,7 +25,7 @@ has_method() {
 
 # moc-wrapper (installed by ic-mops) delegates to mops moc 1.16.1.
 # That moc still needs aaaaa-aa.did in the --actor-idl directory for
-# canisters that import ic:aaaaa-aa (e.g. caffeineai-http-outcalls).
+# canisters that import ic:aaaaa-aa.
 mkdir -p .dfx/local/canisters/idl/
 cp did/aaaaa-aa.did .dfx/local/canisters/idl/
 

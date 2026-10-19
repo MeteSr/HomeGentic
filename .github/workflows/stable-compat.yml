@@ -45,7 +45,7 @@ jobs:
       - uses: actions/setup-node@v7
         if: steps.base.outputs.skip != 'true'
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Cache mops packages
         if: steps.base.outputs.skip != 'true'
@@ -57,7 +57,7 @@ jobs:
       - name: Install mops and moc
         if: steps.base.outputs.skip != 'true'
         run: |
-          npm install -g ic-mops
+          npm install -g ic-mops@3.5.1
           mops install
           mops toolchain use moc 1.16.1
           "$(mops toolchain bin moc)" --version

@@ -38,13 +38,13 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install icp-cli
         # Pinned — this job later loads DFX_IDENTITY_PEM (MAINNET_IDENTITY_PEM)
         # from secrets; an unpinned `npm install -g` here would let a compromised
         # package release run with that mainnet identity in scope.
-        run: npm install -g @icp-sdk/icp-cli@1.5.0
+        run: npm install -g @icp-sdk/icp-cli@1.7.0
 
       # dfx is still required for `dfx canister status` (cycle balance parsing)
       # and `dfx canister deposit-cycles` — icp-cli does not yet expose these
@@ -52,8 +52,9 @@ jobs:
       - name: Install dfx
         run: |
           mkdir -p /tmp/dfx-install
-          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xzC /tmp/dfx-install
+          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz"
+          echo "d8701438d05d9da0da0c90ab9342ac9ba6b0371ae9f5d1a943e94600fd674498  /tmp/dfx.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/dfx.tar.gz -C /tmp/dfx-install
           DFX_BIN=$(find /tmp/dfx-install -name "dfx" -type f -perm /111 | head -1)
           sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
           dfx --version

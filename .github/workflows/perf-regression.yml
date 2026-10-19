@@ -58,12 +58,13 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install dfx
         run: |
-          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xz
+          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz"
+          echo "d8701438d05d9da0da0c90ab9342ac9ba6b0371ae9f5d1a943e94600fd674498  /tmp/dfx.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/dfx.tar.gz
           DFX_BIN=$(find . -name "dfx*" -type f -perm /111 | head -1)
           sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
           dfx --version
@@ -76,7 +77,7 @@ jobs:
 
       - name: Install mops and Motoko dependencies
         run: |
-          npm install -g ic-mops
+          npm install -g ic-mops@3.5.1
           mops install
           mops toolchain use moc 1.16.1
           MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
