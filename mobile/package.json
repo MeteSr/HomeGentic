@@ -17,6 +17,9 @@
     "moduleNameMapper": {
       "^@homegentic/shared/(.*)$": "<rootDir>/../packages/shared/src/$1"
     },
+    "modulePaths": [
+      "<rootDir>/node_modules"
+    ],
     "testMatch": [
       "**/__tests__/**/*.test.{ts,tsx}"
     ],

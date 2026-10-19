@@ -7,6 +7,12 @@ const config = getDefaultConfig(__dirname);
 const shared = path.resolve(__dirname, "../packages/shared");
 
 config.watchFolders = [...(config.watchFolders ?? []), shared];
+// Files under packages/shared resolve their imports (incl. Babel's runtime
+// helpers) from this app's node_modules; there is none above them.
+config.resolver.nodeModulesPaths = [
+  ...(config.resolver.nodeModulesPaths ?? []),
+  path.resolve(__dirname, "node_modules"),
+];
 config.resolver.extraNodeModules = {
   ...(config.resolver.extraNodeModules ?? {}),
   "@homegentic/shared": path.join(shared, "src"),
