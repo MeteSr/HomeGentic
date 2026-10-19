@@ -80,23 +80,23 @@ persistent actor Referrals {
 
   private func tryConsumeSlot(caller : Principal) : Bool {
     if (isAdmin(caller)) return true;
-    RateLimit.tryConsume(callLimits, Principal.toText(caller), Time.now(), MAX_CALLS_PER_MIN)
+    RateLimit.tryConsume(callLimits, caller.toText(), Time.now(), MAX_CALLS_PER_MIN)
   };
 
   /// Cycle-saving ingress filter only (the real checks are in each method).
   system func inspect({ caller : Principal }) : Bool {
-    not Principal.isAnonymous(caller)
+    not caller.isAnonymous()
   };
 
   // ─── Helpers ──────────────────────────────────────────────────────────────────
 
   private func isAdmin(caller : Principal) : Bool {
-    let t = Principal.toText(caller);
-    Option.isSome(Array.find<Text>(adminList, func(a) { a == t }))
+    let t = caller.toText();
+    Option.isSome(adminList.find(func(a) { a == t }))
   };
 
   private func padNum(n : Nat) : Text {
-    let s = Nat.toText(n);
+    let s = n.toText();
     let len = Text.size(s);
     if (len >= 6) { s } else {
       var pad = s;
@@ -112,15 +112,15 @@ persistent actor Referrals {
   };
 
   private func requireActive(caller : Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#Unauthorized);
+    if (caller.isAnonymous()) return #err(#Unauthorized);
     if (Admin.pausedNow(paused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeSlot(caller)) return #err(#InvalidInput("Rate limit exceeded. Try again in a minute."));
     #ok(())
   };
 
   private func addCredit(p : Text, amount : Nat) {
-    let current = Option.get(Map.get(credits, Text.compare, p), 0);
-    ignore Map.add(credits, Text.compare, p, current + amount);
+    let current = credits.get(p).get(0);
+    ignore credits.add(p, current + amount);
   };
 
   // ─── Public API ───────────────────────────────────────────────────────────────
@@ -128,15 +128,15 @@ persistent actor Referrals {
   /// Get (or lazily create) the caller's unique referral code.
   /// L6: the anonymous principal gets no code (it would be a shared identity).
   public shared(msg) func getMyCode() : async Text {
-    if (Principal.isAnonymous(msg.caller)) return "";
-    let key = Principal.toText(msg.caller);
-    switch (Map.get(referrerCode, Text.compare, key)) {
+    if (msg.caller.isAnonymous()) return "";
+    let key = msg.caller.toText();
+    switch (referrerCode.get(key)) {
       case (?code) code;
       case null {
         switch (requireActive(msg.caller)) { case (#err _) return ""; case _ {} };
         let code = makeCode();
-        ignore Map.add(referrerCode, Text.compare, key, code);
-        ignore Map.add(codeOwner,    Text.compare, code, key);
+        ignore referrerCode.add(key, code);
+        ignore codeOwner.add(code, key);
         code
       };
     }
@@ -146,13 +146,13 @@ persistent actor Referrals {
   /// Call once during onboarding — idempotent error if already referred.
   public shared(msg) func useReferralCode(code : Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    let callerId = Principal.toText(msg.caller);
+    let callerId = msg.caller.toText();
 
     if (Text.size(code) == 0) return #err(#InvalidInput("code cannot be empty"));
     if (Text.size(code) > 32) return #err(#InvalidInput("code too long"));
 
     // Resolve the referrer
-    let referrer = switch (Map.get(codeOwner, Text.compare, code)) {
+    let referrer = switch (codeOwner.get(code)) {
       case null    return #err(#CodeNotFound);
       case (?r)    r;
     };
@@ -160,7 +160,7 @@ persistent actor Referrals {
     if (referrer == callerId) return #err(#SelfReferral);
 
     // Only allow one referral per referee
-    if (Option.isSome(Map.get(referralOf, Text.compare, callerId))) {
+    if (Option.isSome(referralOf.get(callerId))) {
       return #err(#AlreadyReferred);
     };
 
@@ -177,7 +177,7 @@ persistent actor Referrals {
         case _ { return #err(#InvalidInput("Referral codes can only be used before your first paid subscription")) };
       };
       // Re-check after the await (TOCTOU): one referral per referee.
-      if (Option.isSome(Map.get(referralOf, Text.compare, callerId))) {
+      if (Option.isSome(referralOf.get(callerId))) {
         return #err(#AlreadyReferred);
       };
     };
@@ -189,7 +189,7 @@ persistent actor Referrals {
       referredAt = Time.now();
       convertedAt = null;
     };
-    ignore Map.add(referralOf, Text.compare, callerId, r);
+    ignore referralOf.add(callerId, r);
     #ok(())
   };
 
@@ -197,13 +197,13 @@ persistent actor Referrals {
   /// Awards $10 credit to both referrer and referee.
   /// Must be called by the registered payment canister.
   public shared(msg) func markConverted(referee : Principal) : async Result.Result<(), Error> {
-    let caller = Principal.toText(msg.caller);
+    let caller = msg.caller.toText();
     if (caller != paymentCanisterId and not isAdmin(msg.caller)) {
       return #err(#Unauthorized);
     };
 
-    let refText = Principal.toText(referee);
-    switch (Map.get(referralOf, Text.compare, refText)) {
+    let refText = referee.toText();
+    switch (referralOf.get(refText)) {
       case null   return #err(#CodeNotFound);
       case (?r) {
         if (Option.isSome(r.convertedAt)) return #err(#AlreadyConverted);
@@ -214,7 +214,7 @@ persistent actor Referrals {
           referredAt  = r.referredAt;
           convertedAt = ?Time.now();
         };
-        ignore Map.add(referralOf, Text.compare, refText, updated);
+        ignore referralOf.add(refText, updated);
         addCredit(r.referrer, CREDIT_CENTS);
         addCredit(r.referee,  CREDIT_CENTS);
         #ok(())
@@ -224,16 +224,16 @@ persistent actor Referrals {
 
   /// All referrals made by the caller (people who used their code).
   public shared query(msg) func getMyReferrals() : async [Referral] {
-    let callerId = Principal.toText(msg.caller);
-    let all = Iter.toArray(Map.values(referralOf));
-    Array.filter<Referral>(all, func(r) { r.referrer == callerId })
+    let callerId = msg.caller.toText();
+    let all = referralOf.values().toArray();
+    all.filter(func(r) { r.referrer == callerId })
   };
 
   /// Credit balance in cents (1000 = $10.00).
   public shared query(msg) func getCreditBalance() : async Nat {
-    if (Principal.isAnonymous(msg.caller)) return 0;
-    let key = Principal.toText(msg.caller);
-    Option.get(Map.get(credits, Text.compare, key), 0)
+    if (msg.caller.isAnonymous()) return 0;
+    let key = msg.caller.toText();
+    credits.get(key).get(0)
   };
 
   // ─── Admin ────────────────────────────────────────────────────────────────────
@@ -256,9 +256,9 @@ persistent actor Referrals {
       case (#bootstrap) { bootstrapNonce := null };  // the nonce is single use
       case (#admin)     {};
     };
-    let t = Principal.toText(p);
-    if (Option.isNull(Array.find<Text>(adminList, func(a) { a == t }))) {
-      adminList := Array.concat(adminList, [t]);
+    let t = p.toText();
+    if (Option.isNull(adminList.find(func(a) { a == t }))) {
+      adminList := adminList.concat([t]);
     };
     adminInitialized := true;
     #ok(())
@@ -281,11 +281,11 @@ persistent actor Referrals {
   // ─── Metrics ──────────────────────────────────────────────────────────────────
 
   public query func metrics() : async Stats {
-    let all = Iter.toArray(Map.values(referralOf));
+    let all = referralOf.values().toArray();
     {
       totalCodes     = codeCounter;
       totalReferrals = all.size();
-      totalConverted = Array.filter<Referral>(all, func(r) {
+      totalConverted = all.filter(func(r) {
         Option.isSome(r.convertedAt)
       }).size();
     }

@@ -380,8 +380,8 @@ persistent actor Property {
   private let errsByMethod : Map.Map<Text, Nat> = Map.empty();
 
   private func countError(method : Text) {
-    let prev = Option.get(Map.get(errsByMethod, Text.compare, method), 0);
-    Map.add(errsByMethod, Text.compare, method, prev + 1);
+    let prev = errsByMethod.get(method).get(0);
+    errsByMethod.add(method, prev + 1);
   };
 
   private let properties      = Map.empty<Text, Property>();
@@ -403,11 +403,11 @@ persistent actor Property {
   // Secondary indexes (transient, rebuilt on every upgrade). Writes to
   // `properties` / `rooms` go through putProperty / putRoom / Index.delete.
   private transient let propertiesByOwner = Index.empty();
-  private transient let propertyIndexes : [Index.Keyed<Property>] = Index.indexed<Property>(properties, [
-    (propertiesByOwner, func(p : Property) : ?Text { ?Principal.toText(p.owner) }),
+  private transient let propertyIndexes : [Index.Keyed<Property>] = Index.indexed(properties, [
+    (propertiesByOwner, func(p : Property) : ?Text { ?p.owner.toText() }),
   ]);
   private transient let roomsByProperty = Index.empty();
-  private transient let roomIndexes : [Index.Keyed<RoomRecord>] = Index.indexed<RoomRecord>(rooms, [
+  private transient let roomIndexes : [Index.Keyed<RoomRecord>] = Index.indexed(rooms, [
     (roomsByProperty, func(r : RoomRecord) : ?Text { ?r.propertyId }),
   ]);
 
@@ -416,7 +416,7 @@ persistent actor Property {
 
   /// An owner's properties (active and inactive).
   private func ownedBy(owner : Principal) : Iter.Iter<Property> {
-    Index.records(propertiesByOwner, Principal.toText(owner), properties)
+    Index.records(propertiesByOwner, owner.toText(), properties)
   };
 
   // ─── Manager delegation state ────────────────────────────────────────────
@@ -440,11 +440,11 @@ persistent actor Property {
   /// Convert a Blob to a lowercase hex string.
   private func blobToHex(b : Blob) : Text {
     let hex   = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'];
-    let bytes = Blob.toArray(b);
+    let bytes = b.toArray();
     var result = "";
-    for (byte in bytes.vals()) {
-      let n = Nat8.toNat(byte);
-      result := result # Text.fromChar(hex[n / 16]) # Text.fromChar(hex[n % 16]);
+    for (byte in bytes.values()) {
+      let n = byte.toNat();
+      result := result # hex[n / 16].toText() # hex[n % 16].toText();
     };
     result
   };
@@ -460,15 +460,15 @@ persistent actor Property {
   /// Returns true if `caller` is the property owner OR an authorised manager.
   /// When `requireWrite` is true, a #Viewer manager is not sufficient.
   private func checkAuthorized(propertyId: Text, caller: Principal, requireWrite: Bool) : Bool {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null false;
       case (?prop) {
         if (prop.owner == caller) return true;
-        let mgrs = switch (Map.get(managersMap, Text.compare, propertyId)) {
+        let mgrs = switch (managersMap.get(propertyId)) {
           case null    [];
           case (?list) list;
         };
-        for (m in mgrs.vals()) {
+        for (m in mgrs.values()) {
           if (m.principal == caller) {
             if (requireWrite) { return m.role == #Manager or m.role == #CoOwner };
             return true;
@@ -482,14 +482,14 @@ persistent actor Property {
   /// Append a notification to the owner's queue for the given property.
   /// Removes a consumed/cancelled/expired invite from all three indexes.
   private func dropInvite(propertyId: Text, token: Text) {
-    Map.remove(managerInvites,  Text.compare, token);
-    Map.remove(managerTokenIdx, Text.compare, token);
-    let existingTokens = switch (Map.get(propertyInvitesIdx, Text.compare, propertyId)) {
+    managerInvites.remove(token);
+    managerTokenIdx.remove(token);
+    let existingTokens = switch (propertyInvitesIdx.get(propertyId)) {
       case null    [];
       case (?list) list;
     };
-    Map.add(propertyInvitesIdx, Text.compare, propertyId,
-      Array.filter<Text>(existingTokens, func(t) { t != token }));
+    propertyInvitesIdx.add(propertyId,
+      existingTokens.filter(func(t) { t != token }));
   };
 
   private func pushNotification(propertyId: Text, managerP: Principal, managerN: Text, desc: Text) {
@@ -502,15 +502,15 @@ persistent actor Property {
       timestamp        = Time.now();
       seen             = false;
     };
-    let existing = switch (Map.get(ownerNotifs, Text.compare, propertyId)) {
+    let existing = switch (ownerNotifs.get(propertyId)) {
       case null    [];
       case (?list) list;
     };
     // M-5: keep only the newest MAX_NOTIFS_PER_PROPERTY entries.
     let kept = if (existing.size() >= MAX_NOTIFS_PER_PROPERTY) {
-      Array.sliceToArray<OwnerNotification>(existing, existing.size() + 1 - MAX_NOTIFS_PER_PROPERTY, existing.size())
+      existing.sliceToArray((existing.size() + 1 - MAX_NOTIFS_PER_PROPERTY : Int), existing.size())
     } else existing;
-    Map.add(ownerNotifs, Text.compare, propertyId, Array.concat<OwnerNotification>(kept, [notif]));
+    ownerNotifs.add(propertyId, kept.concat([notif]));
   };
 
   /// M-3: drops every delegated grant on a property — managers, pending
@@ -518,18 +518,18 @@ persistent actor Property {
   /// ownership changes hands so the previous owner's delegates (including an
   /// alt principal the seller invited) lose access.
   private func clearDelegatedAccess(propertyId : Text) {
-    Map.remove(managersMap, Text.compare, propertyId);
-    let tokens = switch (Map.get(propertyInvitesIdx, Text.compare, propertyId)) {
+    managersMap.remove(propertyId);
+    let tokens = switch (propertyInvitesIdx.get(propertyId)) {
       case null    [];
       case (?list) list;
     };
-    for (t in tokens.vals()) {
-      Map.remove(managerInvites,  Text.compare, t);
-      Map.remove(managerTokenIdx, Text.compare, t);
+    for (t in tokens.values()) {
+      managerInvites.remove(t);
+      managerTokenIdx.remove(t);
     };
-    Map.remove(propertyInvitesIdx, Text.compare, propertyId);
-    Map.remove(approvalsMap, Text.compare, propertyId);
-    Map.remove(ownerNotifs,  Text.compare, propertyId);
+    propertyInvitesIdx.remove(propertyId);
+    approvalsMap.remove(propertyId);
+    ownerNotifs.remove(propertyId);
   };
 
   /// D-1/H-5: true when `caller` may see a property's verification PII
@@ -584,12 +584,12 @@ persistent actor Property {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller) or isTrustedCanister(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(caller: Principal) : Bool {
@@ -601,10 +601,10 @@ persistent actor Property {
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
@@ -625,8 +625,8 @@ persistent actor Property {
   };
 
   private func normalisePart(t: Text) : Text {
-    let words = Iter.filter<Text>(Text.split(Text.toLower(t), #predicate(Char.isWhitespace)), func(w) { w != "" });
-    Text.join(words, " ")
+    let words = t.toLower().split(#predicate(Char.isWhitespace)).filter(func(w) { w != "" });
+    words.join(" ")
   };
 
   /// Re-keys addressIdx with the current addressKey. Idempotent, so it runs on
@@ -634,17 +634,17 @@ persistent actor Property {
   /// When several properties now share a key, a verified one wins, otherwise
   /// the newest, which is the property registerProperty would have kept.
   private func rekeyAddressIndex() {
-    let ids = Iter.toArray(Map.values(addressIdx));
-    Map.clear(addressIdx);
-    for (id in ids.vals()) {
-      switch (Map.get(properties, Text.compare, id)) {
+    let ids = addressIdx.values().toArray();
+    addressIdx.clear();
+    for (id in ids.values()) {
+      switch (properties.get(id)) {
         case null {};
         case (?p) {
           let key = addressKey(p.address, p.city, p.state, p.zipCode);
-          let keep = switch (Map.get(addressIdx, Text.compare, key)) {
+          let keep = switch (addressIdx.get(key)) {
             case null { true };
             case (?otherId) {
-              switch (Map.get(properties, Text.compare, otherId)) {
+              switch (properties.get(otherId)) {
                 case null { true };
                 case (?other) {
                   if (isVerified(other.verificationLevel) != isVerified(p.verificationLevel)) {
@@ -654,7 +654,7 @@ persistent actor Property {
               }
             };
           };
-          if (keep) { Map.add(addressIdx, Text.compare, key, id) };
+          if (keep) { addressIdx.add(key, id) };
         };
       };
     };
@@ -717,10 +717,10 @@ persistent actor Property {
   /// began (addressClaimSince) — re-registering from a fresh principal does
   /// not restart that window.
   private func addressConflict(key : Text, caller : Principal) : ?Error {
-    switch (Map.get(addressIdx, Text.compare, key)) {
+    switch (addressIdx.get(key)) {
       case null null;
       case (?existingId) {
-        switch (Map.get(properties, Text.compare, existingId)) {
+        switch (properties.get(existingId)) {
           case null null;  // stale index entry — harmless, overwritten on write
           case (?existing) {
             if (existing.owner == caller) return null;  // idempotent re-registration
@@ -737,13 +737,13 @@ persistent actor Property {
   /// the indexed unverified property's createdAt (claims made before
   /// addressClaimSince existed), else `dflt`.
   private func claimStart(key : Text, dflt : Int) : Int {
-    switch (Map.get(addressClaimSince, Text.compare, key)) {
+    switch (addressClaimSince.get(key)) {
       case (?t) t;
       case null {
-        switch (Map.get(addressIdx, Text.compare, key)) {
+        switch (addressIdx.get(key)) {
           case null dflt;
           case (?id) {
-            switch (Map.get(properties, Text.compare, id)) {
+            switch (properties.get(id)) {
               case (?p) { if (isVerified(p.verificationLevel) or p.createdAt > dflt) dflt else p.createdAt };
               case null dflt;
             }
@@ -782,7 +782,7 @@ persistent actor Property {
       return #err(#InvalidInput("squareFeet must be between 1 and 100,000"));
     let currentYear = Int.abs(Time.now()) / 1_000_000_000 / 31_536_000 + 1970;
     if (args.yearBuilt < 1600 or args.yearBuilt > currentYear)
-      return #err(#InvalidInput("yearBuilt must be between 1600 and " # Nat.toText(currentYear)));
+      return #err(#InvalidInput("yearBuilt must be between 1600 and " # currentYear.toText()));
 
     let caller = msg.caller;
     let key    = addressKey(args.address, args.city, args.state, args.zipCode);
@@ -802,12 +802,12 @@ persistent actor Property {
     // ── Per-caller in-flight guard ───────────────────────────────────────────
     // Prevents concurrent calls from the same principal all passing the tier
     // limit check before any property is written (tier-limit bypass race).
-    let callerKey = Principal.toText(caller);
-    switch (Map.get(inFlightRegistrations, Text.compare, callerKey)) {
+    let callerKey = caller.toText();
+    switch (inFlightRegistrations.get(callerKey)) {
       case (?_) { return #err(#InvalidInput("A property registration is already in progress for this account")) };
       case null {};
     };
-    Map.add(inFlightRegistrations, Text.compare, callerKey, true);
+    inFlightRegistrations.add(callerKey, true);
 
     // ── Tier limit check ────────────────────────────────────────────────────
     // When payment canister is wired, tier comes from getTierForPrincipal();
@@ -817,7 +817,7 @@ persistent actor Property {
       // A rejected call must not leave the in-flight lock set, or the
       // caller could never register again.
       try { await payActor.getTierForPrincipal(caller) } catch (e) {
-        Map.remove(inFlightRegistrations, Text.compare, callerKey);
+        inFlightRegistrations.remove(callerKey);
         throw e;
       }
     } else {
@@ -841,15 +841,15 @@ persistent actor Property {
         case (#Free)  " Subscribe to Pro ($59/year) for 20 properties.";
         case _        "";
       };
-      Map.remove(inFlightRegistrations, Text.compare, callerKey);
+      inFlightRegistrations.remove(callerKey);
       return #err(#InvalidInput(
-        tierName # " plan limit of " # Nat.toText(limit) # " propert" #
+        tierName # " plan limit of " # limit.toText() # " propert" #
         (if (limit == 1) "y" else "ies") # " reached." # upgradeMsg
       ));
     };
 
     let id  = try { await nextPropertyId() } catch (e) {
-      Map.remove(inFlightRegistrations, Text.compare, callerKey);
+      inFlightRegistrations.remove(callerKey);
       throw e;
     };
     let now = Time.now();
@@ -858,7 +858,7 @@ persistent actor Property {
     // may have landed while this call was suspended.
     switch (addressConflict(key, caller)) {
       case (?e) {
-        Map.remove(inFlightRegistrations, Text.compare, callerKey);
+        inFlightRegistrations.remove(callerKey);
         countError("registerProperty");
         return #err(e);
       };
@@ -896,18 +896,18 @@ persistent actor Property {
     putProperty(prop);
     // A verified property keeps the address index (only its own owner gets
     // here past addressConflict), so verifyProperty can still see it.
-    let indexedVerified = switch (Map.get(addressIdx, Text.compare, key)) {
+    let indexedVerified = switch (addressIdx.get(key)) {
       case (?otherId) {
-        switch (Map.get(properties, Text.compare, otherId)) {
+        switch (properties.get(otherId)) {
           case (?other) { isVerified(other.verificationLevel) };
           case null     { false };
         }
       };
       case null { false };
     };
-    if (not indexedVerified) { Map.add(addressIdx, Text.compare, key, id) };
-    Map.add(addressClaimSince, Text.compare, key, since);
-    Map.remove(inFlightRegistrations, Text.compare, callerKey);
+    if (not indexedVerified) { addressIdx.add(key, id) };
+    addressClaimSince.add(key, since);
+    inFlightRegistrations.remove(callerKey);
     #ok(prop)
   };
 
@@ -932,7 +932,7 @@ persistent actor Property {
     if (Text.size(method)       == 0) return #err(#InvalidInput("method required"));
     if (Text.size(documentHash) == 0) return #err(#InvalidInput("documentHash required"));
 
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.owner != msg.caller) return #err(#NotAuthorized);
@@ -976,7 +976,7 @@ persistent actor Property {
   ) : async Result.Result<Property, Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
 
-    switch (Map.get(properties, Text.compare, id)) {
+    switch (properties.get(id)) {
       case null {
         Debug.print("property.verifyProperty: not found: " # id);
         countError("verifyProperty");
@@ -988,10 +988,10 @@ persistent actor Property {
         // newly verified property takes the address index.
         let key = addressKey(existing.address, existing.city, existing.state, existing.zipCode);
         if (isVerified(level)) {
-          switch (Map.get(addressIdx, Text.compare, key)) {
+          switch (addressIdx.get(key)) {
             case (?otherId) {
               if (otherId != id) {
-                switch (Map.get(properties, Text.compare, otherId)) {
+                switch (properties.get(otherId)) {
                   case (?other) {
                     if (other.isActive and isVerified(other.verificationLevel)) {
                       countError("verifyProperty");
@@ -1017,8 +1017,8 @@ persistent actor Property {
           updatedAt           = now;
         };
         putProperty(updated);
-        if (isVerified(level)) { Map.add(addressIdx, Text.compare, key, id) };
-        try { ignore await auditLog("PropertyVerified", ?existing.owner, "propertyId=" # id # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+        if (isVerified(level)) { addressIdx.add(key, id) };
+        try { ignore await auditLog("PropertyVerified", ?existing.owner, "propertyId=" # id # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
         #ok(updated)
       };
     }
@@ -1028,8 +1028,8 @@ persistent actor Property {
 
   public query(msg) func getMyProperties() : async [Property] {
     let caller = msg.caller;
-    Iter.toArray(
-      Iter.filter(ownedBy(caller), func(p: Property) : Bool { p.isActive })
+    ownedBy(caller).filter(func(p: Property) : Bool { p.isActive }).toArray(
+      
     )
   };
 
@@ -1039,8 +1039,8 @@ persistent actor Property {
   /// principal to their home addresses, legal names and Stripe session IDs.)
   public query(msg) func getPropertiesByOwner(owner: Principal) : async [Property] {
     if (msg.caller != owner and not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return [];
-    Iter.toArray(
-      Iter.filter(ownedBy(owner), func(p: Property) : Bool { p.isActive })
+    ownedBy(owner).filter(func(p: Property) : Bool { p.isActive }).toArray(
+      
     )
   };
 
@@ -1048,7 +1048,7 @@ persistent actor Property {
   /// gets the full record; anyone else gets the public view with identity and
   /// verification evidence blanked (see redactProperty).
   public query(msg) func getProperty(id: Text) : async Result.Result<Property, Error> {
-    switch (Map.get(properties, Text.compare, id)) {
+    switch (properties.get(id)) {
       case null  { #err(#NotFound) };
       case (?p)  { #ok(viewFor(p, msg.caller)) };
     }
@@ -1061,7 +1061,7 @@ persistent actor Property {
   /// Returns Text rather than VerificationLevel to keep the inter-canister
   /// interface simple and stable as new variants are added.
   public query func getVerificationLevel(id: Text) : async ?Text {
-    switch (Map.get(properties, Text.compare, id)) {
+    switch (properties.get(id)) {
       case null  { null };
       case (?p)  {
         ?(switch (p.verificationLevel) {
@@ -1077,7 +1077,7 @@ persistent actor Property {
   /// Returns the year a property was built, or null if not found.
   /// Called cross-canister by the market canister's computePropertyScore.
   public query func getPropertyYearBuilt(id: Text) : async ?Nat {
-    switch (Map.get(properties, Text.compare, id)) {
+    switch (properties.get(id)) {
       case null  { null };
       case (?p)  { ?p.yearBuilt };
     }
@@ -1088,7 +1088,7 @@ persistent actor Property {
   /// the homeowner stored on a sensor device actually owns the property
   /// before auto-creating a sensor-triggered job.
   public query func getPropertyOwner(id: Text) : async ?Principal {
-    switch (Map.get(properties, Text.compare, id)) {
+    switch (properties.get(id)) {
       case null  { null };
       case (?p)  { ?p.owner };
     }
@@ -1100,7 +1100,7 @@ persistent actor Property {
   public shared(msg) func getPendingVerifications() : async Result.Result<[Property], Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     let pending = Iter.toArray(
-      Iter.filter(Map.values(properties), func(p: Property) : Bool {
+      properties.values().filter(func(p: Property) : Bool {
         p.verificationLevel == #PendingReview and p.isActive
       })
     );
@@ -1117,7 +1117,7 @@ persistent actor Property {
   public query(msg) func getVerifyStatus(
     propertyId : Text
   ) : async Result.Result<VerifyStatus, Error> {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?p) {
         if (not checkAuthorized(propertyId, msg.caller, false)) return #err(#NotAuthorized);
@@ -1151,7 +1151,7 @@ persistent actor Property {
     name       : Text
   ) : async Result.Result<Property, Error> {
     if (not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return #err(#NotAuthorized);
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         let now = Time.now();
@@ -1196,7 +1196,7 @@ persistent actor Property {
     // write would let two concurrent calls both pass the check first.
     let randBytes = await Random.blob();
 
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
@@ -1210,8 +1210,8 @@ persistent actor Property {
         let token : Text = blobToHex(randBytes);
 
         // Remove previous token from secondary index if one existed
-        switch (Map.get(pendingTransfers, Text.compare, propertyId)) {
-          case (?old) { Map.remove(tokenIndex, Text.compare, old.token) };
+        switch (pendingTransfers.get(propertyId)) {
+          case (?old) { tokenIndex.remove(old.token) };
           case null   {};
         };
 
@@ -1222,8 +1222,8 @@ persistent actor Property {
           initiatedAt = now;
           expiresAt   = now + NINETY_DAYS_NS;
         };
-        Map.add(pendingTransfers, Text.compare, propertyId, pending);
-        Map.add(tokenIndex,       Text.compare, token,      propertyId);
+        pendingTransfers.add(propertyId, pending);
+        tokenIndex.add(token,      propertyId);
         #ok(pending)
       };
     }
@@ -1236,18 +1236,18 @@ persistent actor Property {
   ) : async Result.Result<Property, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
-    switch (Map.get(tokenIndex, Text.compare, token)) {
+    switch (tokenIndex.get(token)) {
       case null { #err(#NotFound) };
       case (?propertyId) {
-        switch (Map.get(pendingTransfers, Text.compare, propertyId)) {
+        switch (pendingTransfers.get(propertyId)) {
           case null { #err(#NotFound) };
           case (?pending) {
             if (pending.token != token) return #err(#NotFound);
 
             if (Time.now() > pending.expiresAt) {
               // Expired — clean up and surface a clear error
-              Map.remove(pendingTransfers, Text.compare, propertyId);
-              Map.remove(tokenIndex,       Text.compare, token);
+              pendingTransfers.remove(propertyId);
+              tokenIndex.remove(token);
               return #err(#InvalidInput("Transfer link has expired. Ask the seller to generate a new one."));
             };
 
@@ -1255,7 +1255,7 @@ persistent actor Property {
               return #err(#InvalidInput("Cannot claim your own property transfer."));
             };
 
-            switch (Map.get(properties, Text.compare, propertyId)) {
+            switch (properties.get(propertyId)) {
               case null { #err(#NotFound) };
               case (?prop) {
                 let now = Time.now();
@@ -1281,11 +1281,11 @@ persistent actor Property {
                   timestamp = now;
                   txHash    = "";  // no off-chain hash for token-based transfers
                 };
-                Map.add(transfers, Nat.compare, transferCounter, record);
+                transfers.add(transferCounter, record);
 
                 // Invalidate token
-                Map.remove(pendingTransfers, Text.compare, propertyId);
-                Map.remove(tokenIndex,       Text.compare, token);
+                pendingTransfers.remove(propertyId);
+                tokenIndex.remove(token);
 
                 #ok(updated)
               };
@@ -1300,13 +1300,13 @@ persistent actor Property {
   public shared(msg) func cancelTransfer(
     propertyId : Text
   ) : async Result.Result<(), Error> {
-    switch (Map.get(pendingTransfers, Text.compare, propertyId)) {
+    switch (pendingTransfers.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?pending) {
         if (pending.from != msg.caller and not isAdmin(msg.caller))
           return #err(#NotAuthorized);
-        Map.remove(tokenIndex,       Text.compare, pending.token);
-        Map.remove(pendingTransfers, Text.compare, propertyId);
+        tokenIndex.remove(pending.token);
+        pendingTransfers.remove(propertyId);
         #ok(())
       };
     }
@@ -1316,11 +1316,11 @@ persistent actor Property {
   /// C-1: the record carries the bearer claim token, so only the current
   /// owner (who created it) or an admin may read it; everyone else gets null.
   public query(msg) func getPendingTransfer(propertyId: Text) : async ?PendingTransfer {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null null;
       case (?prop) {
         if (prop.owner != msg.caller and not isAdmin(msg.caller)) return null;
-        Map.get(pendingTransfers, Text.compare, propertyId)
+        pendingTransfers.get(propertyId)
       };
     }
   };
@@ -1328,9 +1328,9 @@ persistent actor Property {
   /// Looks up a pending transfer by its bearer token.
   /// Used by the claim page to display property details before the buyer logs in.
   public query func getPendingTransferByToken(token: Text) : async ?PendingTransfer {
-    switch (Map.get(tokenIndex, Text.compare, token)) {
+    switch (tokenIndex.get(token)) {
       case null          null;
-      case (?propertyId) Map.get(pendingTransfers, Text.compare, propertyId);
+      case (?propertyId) pendingTransfers.get(propertyId);
     }
   };
 
@@ -1339,14 +1339,14 @@ persistent actor Property {
   /// are about to accept, with identity/verification evidence blanked.
   /// Returns null for an unknown or expired token.
   public query func getPropertyByTransferToken(token: Text) : async ?Property {
-    switch (Map.get(tokenIndex, Text.compare, token)) {
+    switch (tokenIndex.get(token)) {
       case null null;
       case (?propertyId) {
-        switch (Map.get(pendingTransfers, Text.compare, propertyId)) {
+        switch (pendingTransfers.get(propertyId)) {
           case null null;
           case (?pt) {
             if (pt.token != token or Time.now() > pt.expiresAt) return null;
-            switch (Map.get(properties, Text.compare, propertyId)) {
+            switch (properties.get(propertyId)) {
               case null null;
               case (?p) ?redactProperty(p);
             }
@@ -1360,12 +1360,12 @@ persistent actor Property {
   /// Returns records sorted by timestamp ascending (oldest first).
   public query func getOwnershipHistory(propertyId: Text) : async [TransferRecord] {
     let filtered = Iter.toArray(
-      Iter.filter(Map.values(transfers), func(r: TransferRecord) : Bool {
+      transfers.values().filter(func(r: TransferRecord) : Bool {
         r.propertyId == propertyId
       })
     );
     // Sort ascending by timestamp
-    Array.sort<TransferRecord>(filtered, func(a, b) {
+    filtered.sort(func(a, b) {
       if      (a.timestamp < b.timestamp) { #less    }
       else if (a.timestamp > b.timestamp) { #greater }
       else                                { #equal   }
@@ -1416,28 +1416,28 @@ persistent actor Property {
       case _ { return #err(#InvalidInput("Shared access is a Pro feature. Subscribe to Pro ($59/year) to invite a manager or viewer.")) };
     };
 
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
         if (Text.size(displayName) == 0) return #err(#InvalidInput("Display name is required."));
 
-        let existingTokens = switch (Map.get(propertyInvitesIdx, Text.compare, propertyId)) {
+        let existingTokens = switch (propertyInvitesIdx.get(propertyId)) {
           case null    [];
           case (?list) list;
         };
         // Drop any prior pending invite for this same role — only one pending
         // invite per role per property at a time.
         var keptTokens : [Text] = [];
-        for (t in existingTokens.vals()) {
-          switch (Map.get(managerInvites, Text.compare, t)) {
+        for (t in existingTokens.values()) {
+          switch (managerInvites.get(t)) {
             case null {};
             case (?inv) {
               if (inv.role == role) {
-                Map.remove(managerInvites,  Text.compare, t);
-                Map.remove(managerTokenIdx, Text.compare, t);
+                managerInvites.remove(t);
+                managerTokenIdx.remove(t);
               } else {
-                keptTokens := Array.concat<Text>(keptTokens, [t]);
+                keptTokens := keptTokens.concat([t]);
               };
             };
           };
@@ -1459,9 +1459,9 @@ persistent actor Property {
           expiresAt = now + NINETY_DAYS_NS;
           spendLimitCents;
         };
-        Map.add(managerInvites,    Text.compare, token,      invite);
-        Map.add(managerTokenIdx,   Text.compare, token,      propertyId);
-        Map.add(propertyInvitesIdx, Text.compare, propertyId, Array.concat<Text>(keptTokens, [token]));
+        managerInvites.add(token,      invite);
+        managerTokenIdx.add(token,      propertyId);
+        propertyInvitesIdx.add(propertyId, keptTokens.concat([token]));
         #ok(invite)
       };
     }
@@ -1472,11 +1472,11 @@ persistent actor Property {
     propertyId : Text,
     token      : Text
   ) : async Result.Result<(), Error> {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
-        switch (Map.get(managerInvites, Text.compare, token)) {
+        switch (managerInvites.get(token)) {
           case null { #err(#NotFound) };
           case (?invite) {
             if (invite.propertyId != propertyId) return #err(#NotFound);
@@ -1494,19 +1494,19 @@ persistent actor Property {
   public query(msg) func getPendingInvitesForProperty(
     propertyId : Text
   ) : async Result.Result<[ManagerInvite], Error> {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
-        let tokens = switch (Map.get(propertyInvitesIdx, Text.compare, propertyId)) {
+        let tokens = switch (propertyInvitesIdx.get(propertyId)) {
           case null    [];
           case (?list) list;
         };
         var invites : [ManagerInvite] = [];
-        for (t in tokens.vals()) {
-          switch (Map.get(managerInvites, Text.compare, t)) {
+        for (t in tokens.values()) {
+          switch (managerInvites.get(t)) {
             case null {};
-            case (?inv) { invites := Array.concat<ManagerInvite>(invites, [inv]) };
+            case (?inv) { invites := invites.concat([inv]) };
           };
         };
         #ok(invites)
@@ -1520,25 +1520,25 @@ persistent actor Property {
   ) : async Result.Result<{ propertyId: Text; role: ManagerRole }, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
-    switch (Map.get(managerInvites, Text.compare, token)) {
+    switch (managerInvites.get(token)) {
       case null { #err(#NotFound) };
       case (?invite) {
         if (Time.now() > invite.expiresAt) {
           dropInvite(invite.propertyId, token);
           return #err(#InvalidInput("Invite link has expired."));
         };
-        switch (Map.get(properties, Text.compare, invite.propertyId)) {
+        switch (properties.get(invite.propertyId)) {
           case null { #err(#NotFound) };
           case (?prop) {
             if (prop.owner == msg.caller) {
               return #err(#InvalidInput("You already own this property."));
             };
             // Prevent duplicates — remove existing entry for this principal if any
-            let existing = switch (Map.get(managersMap, Text.compare, invite.propertyId)) {
+            let existing = switch (managersMap.get(invite.propertyId)) {
               case null    [];
               case (?list) list;
             };
-            let filtered = Array.filter<PropertyManager>(existing, func(m) {
+            let filtered = existing.filter(func(m) {
               m.principal != msg.caller
             });
             let newMgr : PropertyManager = {
@@ -1548,8 +1548,8 @@ persistent actor Property {
               addedAt     = Time.now();
               spendLimitCents = invite.spendLimitCents;
             };
-            Map.add(managersMap, Text.compare, invite.propertyId,
-              Array.concat<PropertyManager>(filtered, [newMgr]));
+            managersMap.add(invite.propertyId,
+              filtered.concat([newMgr]));
             // Consume the token
             dropInvite(invite.propertyId, token);
             #ok({ propertyId = invite.propertyId; role = invite.role })
@@ -1566,26 +1566,26 @@ persistent actor Property {
     newRole             : ManagerRole,
     newSpendLimitCents  : ?Nat
   ) : async Result.Result<(), Error> {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
-        let existing = switch (Map.get(managersMap, Text.compare, propertyId)) {
+        let existing = switch (managersMap.get(propertyId)) {
           case null    return #err(#NotFound);
           case (?list) list;
         };
         // Check the manager exists before updating
-        let found = Array.find<PropertyManager>(existing, func(m) { m.principal == managerPrincipal });
+        let found = existing.find(func(m) { m.principal == managerPrincipal });
         switch found {
           case null return #err(#NotFound);
           case _ {};
         };
-        let updated = Array.map<PropertyManager, PropertyManager>(existing, func(m) {
+        let updated = existing.map(func(m) {
           if (m.principal == managerPrincipal) {
             { m with role = newRole; spendLimitCents = newSpendLimitCents }
           } else m
         });
-        Map.add(managersMap, Text.compare, propertyId, updated);
+        managersMap.add(propertyId, updated);
         #ok(())
       };
     }
@@ -1596,18 +1596,18 @@ persistent actor Property {
     propertyId       : Text,
     managerPrincipal : Principal
   ) : async Result.Result<(), Error> {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
-        let existing = switch (Map.get(managersMap, Text.compare, propertyId)) {
+        let existing = switch (managersMap.get(propertyId)) {
           case null    return #err(#NotFound);
           case (?list) list;
         };
-        let filtered = Array.filter<PropertyManager>(existing, func(m) {
+        let filtered = existing.filter(func(m) {
           m.principal != managerPrincipal
         });
-        Map.add(managersMap, Text.compare, propertyId, filtered);
+        managersMap.add(propertyId, filtered);
         #ok(())
       };
     }
@@ -1617,28 +1617,28 @@ persistent actor Property {
   public shared(msg) func resignAsManager(
     propertyId : Text
   ) : async Result.Result<(), Error> {
-    let existing = switch (Map.get(managersMap, Text.compare, propertyId)) {
+    let existing = switch (managersMap.get(propertyId)) {
       case null    return #err(#NotFound);
       case (?list) list;
     };
-    let filtered = Array.filter<PropertyManager>(existing, func(m) {
+    let filtered = existing.filter(func(m) {
       m.principal != msg.caller
     });
     if (filtered.size() == existing.size()) return #err(#NotFound);
-    Map.add(managersMap, Text.compare, propertyId, filtered);
+    managersMap.add(propertyId, filtered);
     #ok(())
   };
 
   /// Returns all properties where the caller has been granted manager access.
   public query(msg) func getMyManagedProperties() : async [{ property: Property; role: ManagerRole }] {
     var result : [{ property: Property; role: ManagerRole }] = [];
-    for ((propId, mgrs) in Map.entries(managersMap)) {
-      for (m in mgrs.vals()) {
+    for ((propId, mgrs) in managersMap.entries()) {
+      for (m in mgrs.values()) {
         if (m.principal == msg.caller) {
-          switch (Map.get(properties, Text.compare, propId)) {
+          switch (properties.get(propId)) {
             case null {};
             case (?prop) {
-              result := Array.concat<{ property: Property; role: ManagerRole }>(result, [{ property = prop; role = m.role }]);
+              result := result.concat([{ property = prop; role = m.role }]);
             };
           };
         };
@@ -1650,11 +1650,11 @@ persistent actor Property {
   /// Returns the managers for a property.
   /// Only the owner may call this.
   public query(msg) func getPropertyManagers(propertyId: Text) : async Result.Result<[PropertyManager], Error> {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
-        let mgrs = switch (Map.get(managersMap, Text.compare, propertyId)) {
+        let mgrs = switch (managersMap.get(propertyId)) {
           case null    [];
           case (?list) list;
         };
@@ -1666,18 +1666,18 @@ persistent actor Property {
   /// Look up a pending manager invite by token — used by the claim page
   /// to display context before the invitee logs in (unauthenticated query).
   public query func getManagerInviteByToken(token: Text) : async ?ManagerInvite {
-    Map.get(managerInvites, Text.compare, token)
+    managerInvites.get(token)
   };
 
   /// The property behind a live manager invite, for the claim page. Same
   /// rules as getPropertyByTransferToken: token-gated, address included,
   /// identity/verification evidence blanked, null when unknown or expired.
   public query func getPropertyByManagerInviteToken(token: Text) : async ?Property {
-    switch (Map.get(managerInvites, Text.compare, token)) {
+    switch (managerInvites.get(token)) {
       case null null;
       case (?invite) {
         if (Time.now() > invite.expiresAt) return null;
-        switch (Map.get(properties, Text.compare, invite.propertyId)) {
+        switch (properties.get(invite.propertyId)) {
           case null null;
           case (?p) ?redactProperty(p);
         }
@@ -1705,17 +1705,17 @@ persistent actor Property {
     switch (requireActive(msg.caller)) { case (#err _) return []; case _ {} };
     let jid = switch (jobCanisterId) { case null return []; case (?j) j };
     if (jobIds.size() > MAX_JOB_ADDRESS_LOOKUPS) return [];
-    let jobActor = actor (Principal.toText(jid)) : actor {
+    let jobActor = actor (jid.toText()) : actor {
       getJob : query (Text) -> async { #ok : { propertyId : Text; homeowner : Principal; contractor : ?Principal; status : { #Pending; #InProgress; #Completed; #Verified; #PendingHomeownerApproval; #RejectedByHomeowner } }; #err : Any };
     };
     // Start every lookup first, then await them, so the calls run concurrently.
     var pending : [async { #ok : { propertyId : Text; homeowner : Principal; contractor : ?Principal; status : { #Pending; #InProgress; #Completed; #Verified; #PendingHomeownerApproval; #RejectedByHomeowner } }; #err : Any }] = [];
-    for (id in jobIds.vals()) {
-      pending := Array.concat(pending, [jobActor.getJob(id)]);
+    for (id in jobIds.values()) {
+      pending := pending.concat([jobActor.getJob(id)]);
     };
     var out : [JobPropertyAddress] = [];
     var i = 0;
-    for (f in pending.vals()) {
+    for (f in pending.values()) {
       let jobId = jobIds[i];
       i += 1;
       let r = try { await f } catch _ { #err(()) };
@@ -1729,10 +1729,10 @@ persistent actor Property {
             (accepted and (switch (j.contractor) { case (?c) c == msg.caller; case null false }));
           if (isParty) {
             // Read the property after the await (state may have changed).
-            switch (Map.get(properties, Text.compare, j.propertyId)) {
+            switch (properties.get(j.propertyId)) {
               case (?p) {
                 if (p.isActive) {
-                  out := Array.concat<JobPropertyAddress>(out, [{ jobId; propertyId = p.id; address = p.address }]);
+                  out := out.concat([{ jobId; propertyId = p.id; address = p.address }]);
                 };
               };
               case null {};
@@ -1753,13 +1753,13 @@ persistent actor Property {
   ) : async Result.Result<(), Error> {
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
     if (Text.size(description) > MAX_DESCRIPTION_CHARS)
-      return #err(#InvalidInput("description exceeds " # Nat.toText(MAX_DESCRIPTION_CHARS) # " characters"));
+      return #err(#InvalidInput("description exceeds " # MAX_DESCRIPTION_CHARS.toText() # " characters"));
     // Resolve manager's display name for the notification
-    let managerName : Text = switch (Map.get(managersMap, Text.compare, propertyId)) {
+    let managerName : Text = switch (managersMap.get(propertyId)) {
       case null "A manager";
       case (?mgrs) {
         var found = "A manager";
-        for (m in mgrs.vals()) {
+        for (m in mgrs.values()) {
           if (m.principal == msg.caller) found := m.displayName;
         };
         found
@@ -1774,16 +1774,16 @@ persistent actor Property {
   public query(msg) func getOwnerNotifications(
     propertyId : Text
   ) : async Result.Result<[OwnerNotification], Error> {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
-        let notifs = switch (Map.get(ownerNotifs, Text.compare, propertyId)) {
+        let notifs = switch (ownerNotifs.get(propertyId)) {
           case null    [];
           case (?list) list;
         };
         // Return newest first
-        let sorted = Array.sort<OwnerNotification>(notifs, func(a, b) {
+        let sorted = notifs.sort(func(a, b) {
           if      (a.timestamp > b.timestamp) #less
           else if (a.timestamp < b.timestamp) #greater
           else                                #equal
@@ -1797,11 +1797,11 @@ persistent actor Property {
   public shared(msg) func dismissNotifications(
     propertyId : Text
   ) : async Result.Result<(), Error> {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
-        Map.add(ownerNotifs, Text.compare, propertyId, []);
+        ownerNotifs.add(propertyId, []);
         #ok(())
       };
     }
@@ -1818,18 +1818,18 @@ persistent actor Property {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
     if (not checkAuthorized(propertyId, msg.caller, false)) return #err(#NotAuthorized);
     if (Text.size(description) > MAX_DESCRIPTION_CHARS)
-      return #err(#InvalidInput("description exceeds " # Nat.toText(MAX_DESCRIPTION_CHARS) # " characters"));
-    let pendingCount = switch (Map.get(approvalsMap, Text.compare, propertyId)) {
+      return #err(#InvalidInput("description exceeds " # MAX_DESCRIPTION_CHARS.toText() # " characters"));
+    let pendingCount = switch (approvalsMap.get(propertyId)) {
       case null    0;
-      case (?list) Array.filter<PendingApprovalRequest>(list, func(a) { a.status == #Pending }).size();
+      case (?list) list.filter(func(a) { a.status == #Pending }).size();
     };
     if (pendingCount >= MAX_APPROVALS_PER_PROPERTY)
       return #err(#InvalidInput("Too many pending approval requests for this property"));
-    let requesterName : Text = switch (Map.get(managersMap, Text.compare, propertyId)) {
+    let requesterName : Text = switch (managersMap.get(propertyId)) {
       case null "A manager";
       case (?mgrs) {
         var found = "A manager";
-        for (m in mgrs.vals()) {
+        for (m in mgrs.values()) {
           if (m.principal == msg.caller) found := m.displayName;
         };
         found
@@ -1846,7 +1846,7 @@ persistent actor Property {
       createdAt = Time.now();
       status = #Pending;
     };
-    let existing = switch (Map.get(approvalsMap, Text.compare, propertyId)) {
+    let existing = switch (approvalsMap.get(propertyId)) {
       case null    [];
       case (?list) list;
     };
@@ -1854,12 +1854,12 @@ persistent actor Property {
     var trimmed = existing;
     while (trimmed.size() >= MAX_APPROVALS_PER_PROPERTY) {
       var dropped = false;
-      trimmed := Array.filter<PendingApprovalRequest>(trimmed, func(a) {
+      trimmed := trimmed.filter(func(a) {
         if (not dropped and a.status != #Pending) { dropped := true; false } else true
       });
       if (not dropped) return #err(#InvalidInput("Too many pending approval requests for this property"));
     };
-    Map.add(approvalsMap, Text.compare, propertyId, Array.concat<PendingApprovalRequest>(trimmed, [req]));
+    approvalsMap.add(propertyId, trimmed.concat([req]));
     pushNotification(propertyId, msg.caller, requesterName, "Requested approval: " # description);
     #ok(approvalCounter)
   };
@@ -1870,24 +1870,24 @@ persistent actor Property {
     approvalId : Nat,
     approve    : Bool
   ) : async Result.Result<(), Error> {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
-        let existing = switch (Map.get(approvalsMap, Text.compare, propertyId)) {
+        let existing = switch (approvalsMap.get(propertyId)) {
           case null    return #err(#NotFound);
           case (?list) list;
         };
-        let found = Array.find<PendingApprovalRequest>(existing, func(a) { a.id == approvalId });
+        let found = existing.find(func(a) { a.id == approvalId });
         switch found {
           case null return #err(#NotFound);
           case _ {};
         };
         let newStatus = if (approve) #Approved else #Declined;
-        let updated = Array.map<PendingApprovalRequest, PendingApprovalRequest>(existing, func(a) {
+        let updated = existing.map(func(a) {
           if (a.id == approvalId) { { a with status = newStatus } } else a
         });
-        Map.add(approvalsMap, Text.compare, propertyId, updated);
+        approvalsMap.add(propertyId, updated);
         #ok(())
       };
     }
@@ -1896,15 +1896,15 @@ persistent actor Property {
   /// Returns all approval requests for a property (any status), newest first.
   /// Only the property owner may call this.
   public query(msg) func getApprovals(propertyId: Text) : async Result.Result<[PendingApprovalRequest], Error> {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
-        let list = switch (Map.get(approvalsMap, Text.compare, propertyId)) {
+        let list = switch (approvalsMap.get(propertyId)) {
           case null    [];
           case (?l)    l;
         };
-        let sorted = Array.sort<PendingApprovalRequest>(list, func(a, b) {
+        let sorted = list.sort(func(a, b) {
           if      (a.createdAt > b.createdAt) #less
           else if (a.createdAt < b.createdAt) #greater
           else                                #equal
@@ -1929,15 +1929,15 @@ persistent actor Property {
   /// property doesn't exist. Finer-grained than isAuthorized — called
   /// cross-canister by bills, which hides mortgage entries from #Manager/#Viewer.
   public query func getAccessRole(propertyId : Text, principal : Principal) : async ?AccessRole {
-    switch (Map.get(properties, Text.compare, propertyId)) {
+    switch (properties.get(propertyId)) {
       case null null;
       case (?prop) {
         if (prop.owner == principal) return ?#Owner;
-        let mgrs = switch (Map.get(managersMap, Text.compare, propertyId)) {
+        let mgrs = switch (managersMap.get(propertyId)) {
           case null    [];
           case (?list) list;
         };
-        for (m in mgrs.vals()) {
+        for (m in mgrs.values()) {
           if (m.principal == principal) {
             return ?(switch (m.role) {
               case (#CoOwner) #CoOwner;
@@ -1958,7 +1958,7 @@ persistent actor Property {
   /// Must be called once after both canisters are deployed.
   public shared(msg) func setPaymentCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    payCanisterId := Principal.toText(id);
+    payCanisterId := id.toText();
     #ok(())
   };
 
@@ -1991,7 +1991,7 @@ persistent actor Property {
     };
     admins := Admin.add(admins, newAdmin);
     adminInitialized := true;
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -2004,7 +2004,7 @@ persistent actor Property {
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };
@@ -2018,7 +2018,7 @@ persistent actor Property {
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
-    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -2036,7 +2036,7 @@ persistent actor Property {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
     pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
-    try { ignore await auditLog("CanisterPaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { ignore await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -2044,7 +2044,7 @@ persistent actor Property {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := false;
     pauseExpiryNs := null;
-    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -2055,7 +2055,7 @@ persistent actor Property {
     var pendingReview = 0;
     var unverified    = 0;
 
-    for (p in Map.values(properties)) {
+    for (p in properties.values()) {
       if (p.isActive) {
         switch (p.verificationLevel) {
           case (#Unverified)    { unverified    += 1 };
@@ -2066,12 +2066,12 @@ persistent actor Property {
     };
 
     {
-      totalProperties         = Map.size(properties);
+      totalProperties         = properties.size();
       verifiedProperties      = verified;
       pendingReviewProperties = pendingReview;
       unverifiedProperties    = unverified;
       isPaused;
-      errorsByMethod          = Iter.toArray(Map.entries(errsByMethod));
+      errorsByMethod          = errsByMethod.entries().toArray();
     }
   };
 
@@ -2097,13 +2097,13 @@ persistent actor Property {
     let failed    = List.empty<BulkImportError>();
 
     var i = 0;
-    for (args in rows.vals()) {
+    for (args in rows.values()) {
       // Duplicate address check against the same index registerProperty uses
       // (an active property at this address, or an earlier row in this batch).
       let key = addressKey(args.address, args.city, args.state, args.zipCode);
-      let duplicate = switch (Map.get(addressIdx, Text.compare, key)) {
+      let duplicate = switch (addressIdx.get(key)) {
         case (?existingId) {
-          switch (Map.get(properties, Text.compare, existingId)) {
+          switch (properties.get(existingId)) {
             case (?existing) { existing.isActive };
             case null        { false };
           }
@@ -2112,7 +2112,7 @@ persistent actor Property {
       };
 
       if (duplicate) {
-        List.add(failed, { index = i; reason = "DuplicateAddress" });
+        failed.add({ index = i; reason = "DuplicateAddress" });
       } else {
         let now   = Time.now();
         let newId = await nextPropertyId();
@@ -2143,25 +2143,25 @@ persistent actor Property {
           conflictWindowEndsAt = null;
         };
         putProperty(prop);
-        Map.add(addressIdx, Text.compare, key, newId);
-        List.add(succeeded, newId);
+        addressIdx.add(key, newId);
+        succeeded.add(newId);
       };
       i += 1;
     };
 
-    { succeeded = List.toArray(succeeded); failed = List.toArray(failed) }
+    { succeeded = succeeded.toArray(); failed = failed.toArray() }
   };
 
   // ─── Room / Fixture CRUD (merged from room canister) ─────────────────────
 
   private func nextRoomId() : Text {
     roomCounter += 1;
-    "ROOM_" # Nat.toText(roomCounter)
+    "ROOM_" # roomCounter.toText()
   };
 
   private func nextFixtureId() : Text {
     fixtureCounter += 1;
-    "FIX_" # Nat.toText(fixtureCounter)
+    "FIX_" # fixtureCounter.toText()
   };
 
   /// Create a new room for a property. Caller becomes the owner.
@@ -2180,7 +2180,7 @@ persistent actor Property {
     if (Text.size(args.notes)      > 2000) return #err(#InvalidInput("notes exceed 2000 characters"));
     // M-5: bound rooms per property.
     if (Index.count(roomsByProperty, args.propertyId) >= MAX_ROOMS_PER_PROPERTY)
-      return #err(#InvalidInput("A property can have at most " # Nat.toText(MAX_ROOMS_PER_PROPERTY) # " rooms"));
+      return #err(#InvalidInput("A property can have at most " # MAX_ROOMS_PER_PROPERTY.toText() # " rooms"));
 
     let now = Time.now();
     let room : RoomRecord = {
@@ -2217,7 +2217,7 @@ persistent actor Property {
 
   /// Fetch a single room by ID.
   public query(msg) func getRoom(id: Text) : async Result.Result<RoomRecord, Error> {
-    switch (Map.get(rooms, Text.compare, id)) {
+    switch (rooms.get(id)) {
       case null  { #err(#NotFound) };
       case (?r)  {
         if (not canReadRooms(r.propertyId, msg.caller)) return #err(#NotAuthorized);
@@ -2229,8 +2229,8 @@ persistent actor Property {
   /// Fetch all rooms for a property ([] for callers without access).
   public query(msg) func getRoomsByProperty(propertyId: Text) : async [RoomRecord] {
     if (not canReadRooms(propertyId, msg.caller)) return [];
-    Iter.toArray(
-      Index.records(roomsByProperty, propertyId, rooms)
+    Index.records(roomsByProperty, propertyId, rooms).toArray(
+      
     )
   };
 
@@ -2238,7 +2238,7 @@ persistent actor Property {
   public shared(msg) func updateRoom(id: Text, args: UpdateRoomArgs) : async Result.Result<RoomRecord, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(rooms, Text.compare, id)) {
+    switch (rooms.get(id)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (not canWriteRoom(existing, msg.caller)) return #err(#NotAuthorized);
@@ -2276,7 +2276,7 @@ persistent actor Property {
   public shared(msg) func deleteRoom(id: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(rooms, Text.compare, id)) {
+    switch (rooms.get(id)) {
       case null    { #err(#NotFound) };
       case (?room) {
         if (not canWriteRoom(room, msg.caller)) return #err(#NotAuthorized);
@@ -2290,7 +2290,7 @@ persistent actor Property {
   public shared(msg) func addFixture(roomId: Text, args: AddFixtureArgs) : async Result.Result<RoomRecord, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(rooms, Text.compare, roomId)) {
+    switch (rooms.get(roomId)) {
       case null    { #err(#NotFound) };
       case (?room) {
         if (not canWriteRoom(room, msg.caller)) return #err(#NotAuthorized);
@@ -2302,7 +2302,7 @@ persistent actor Property {
         if (Text.size(args.notes)          > 1000) return #err(#InvalidInput("notes exceed 1000 characters"));
         // M-5: bound fixtures per room.
         if (room.fixtures.size() >= MAX_FIXTURES_PER_ROOM)
-          return #err(#InvalidInput("A room can have at most " # Nat.toText(MAX_FIXTURES_PER_ROOM) # " fixtures"));
+          return #err(#InvalidInput("A room can have at most " # MAX_FIXTURES_PER_ROOM.toText() # " fixtures"));
 
         let fixture : Fixture = {
           id             = nextFixtureId();
@@ -2324,7 +2324,7 @@ persistent actor Property {
           paintBrand = room.paintBrand;
           paintCode  = room.paintCode;
           notes      = room.notes;
-          fixtures   = Array.concat(room.fixtures, [fixture]);
+          fixtures   = room.fixtures.concat([fixture]);
           createdAt  = room.createdAt;
           updatedAt  = Time.now();
         };
@@ -2338,7 +2338,7 @@ persistent actor Property {
   public shared(msg) func updateFixture(roomId: Text, fixtureId: Text, args: AddFixtureArgs) : async Result.Result<RoomRecord, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(rooms, Text.compare, roomId)) {
+    switch (rooms.get(roomId)) {
       case null    { #err(#NotFound) };
       case (?room) {
         if (not canWriteRoom(room, msg.caller)) return #err(#NotAuthorized);
@@ -2349,13 +2349,13 @@ persistent actor Property {
         if (Text.size(args.warrantyExpiry) > 20)   return #err(#InvalidInput("warrantyExpiry exceeds 20 characters"));
         if (Text.size(args.notes)          > 1000) return #err(#InvalidInput("notes exceed 1000 characters"));
 
-        let found = Array.find<Fixture>(room.fixtures, func(f) { f.id == fixtureId });
+        let found = room.fixtures.find(func(f) { f.id == fixtureId });
         switch (found) {
           case null { return #err(#NotFound) };
           case _    {};
         };
 
-        let updatedFixtures = Array.map<Fixture, Fixture>(room.fixtures, func(f) {
+        let updatedFixtures = room.fixtures.map(func(f) {
           if (f.id != fixtureId) { f } else {
             {
               id             = f.id;
@@ -2393,7 +2393,7 @@ persistent actor Property {
   public shared(msg) func removeFixture(roomId: Text, fixtureId: Text) : async Result.Result<RoomRecord, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(rooms, Text.compare, roomId)) {
+    switch (rooms.get(roomId)) {
       case null    { #err(#NotFound) };
       case (?room) {
         if (not canWriteRoom(room, msg.caller)) return #err(#NotAuthorized);
@@ -2408,7 +2408,7 @@ persistent actor Property {
           paintBrand = room.paintBrand;
           paintCode  = room.paintCode;
           notes      = room.notes;
-          fixtures   = Array.filter<Fixture>(room.fixtures, func(f) { f.id != fixtureId });
+          fixtures   = room.fixtures.filter(func(f) { f.id != fixtureId });
           createdAt  = room.createdAt;
           updatedAt  = Time.now();
         };
@@ -2421,11 +2421,11 @@ persistent actor Property {
   /// Room-level metrics (total rooms and fixtures across all properties).
   public query func getRoomMetrics() : async RoomMetrics {
     var totalFixtures = 0;
-    for (r in Map.values(rooms)) {
+    for (r in rooms.values()) {
       totalFixtures += r.fixtures.size();
     };
     {
-      totalRooms    = Map.size(rooms);
+      totalRooms    = rooms.size();
       totalFixtures;
     }
   };

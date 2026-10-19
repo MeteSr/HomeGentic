@@ -197,17 +197,17 @@ persistent actor Quote {
   /// Requests still taking bids (#Open or #Quoted), all under OPEN_KEY.
   private transient let openRequestIdx      = Index.empty();
   private transient let OPEN_KEY            = "open";
-  private transient let requestIndexes : [Index.Keyed<QuoteRequest>] = Index.indexed<QuoteRequest>(requests, [
-    (requestsByHomeowner, func(r : QuoteRequest) : ?Text { ?Principal.toText(r.homeowner) }),
+  private transient let requestIndexes : [Index.Keyed<QuoteRequest>] = Index.indexed(requests, [
+    (requestsByHomeowner, func(r : QuoteRequest) : ?Text { ?r.homeowner.toText() }),
     (openRequestIdx, func(r : QuoteRequest) : ?Text {
       if (r.status == #Open or r.status == #Quoted) ?OPEN_KEY else null
     }),
   ]);
   private transient let quotesByRequest    = Index.empty();
   private transient let quotesByContractor = Index.empty();
-  private transient let quoteIndexes : [Index.Keyed<Quote>] = Index.indexed<Quote>(quotes, [
+  private transient let quoteIndexes : [Index.Keyed<Quote>] = Index.indexed(quotes, [
     (quotesByRequest,    func(q : Quote) : ?Text { ?q.requestId }),
-    (quotesByContractor, func(q : Quote) : ?Text { ?Principal.toText(q.contractor) }),
+    (quotesByContractor, func(q : Quote) : ?Text { ?q.contractor.toText() }),
   ]);
 
   private func putRequest(r : QuoteRequest) { Index.put(requests, requestIndexes, r.id, r) };
@@ -230,7 +230,7 @@ persistent actor Quote {
   // ─── vetKeys IBE (sealed-bid confidentiality) ─────────────────────────────────
   // Domain separator "hg-bid-v1" — must match the context used by @dfinity/vetkeys
   // on the frontend.  Changing this invalidates all existing ciphertexts.
-  private transient let IBE_CONTEXT : Blob = Blob.fromArray([
+  private transient let IBE_CONTEXT : Blob = Array.toBlob([
     0x68, 0x67, 0x2D, 0x62, 0x69, 0x64, 0x2D, 0x76, 0x31   // "hg-bid-v1"
   ]);
   // "test_key_1" for local/testnet (~10B cycles per derive call).
@@ -248,7 +248,7 @@ persistent actor Quote {
   /// L1: per-request IBE identity. Contractors encrypt to the UTF-8 bytes of
   /// the requestId (not the homeowner principal), so one reveal key opens one
   /// request's bids only — and bidders never need the homeowner's principal.
-  private func bidIdentity(requestId: Text) : Blob { Text.encodeUtf8(requestId) };
+  private func bidIdentity(requestId: Text) : Blob { requestId.encodeUtf8() };
   /// M2: an IBE ciphertext of a 4-byte amount is ~150 bytes.
   private transient let MAX_CIPHERTEXT_BYTES : Nat = 1024;
 
@@ -284,13 +284,13 @@ persistent actor Quote {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(caller: Principal) : Bool {
@@ -306,10 +306,10 @@ persistent actor Quote {
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
@@ -338,7 +338,7 @@ persistent actor Quote {
     else {
       switch (r.zipCode) {
         case null    { true };
-        case (?zip)  { Option.isSome(Array.find<Text>(s.serviceZips, func(z) { z == zip })) };
+        case (?zip)  { Option.isSome(s.serviceZips.find(func(z) { z == zip })) };
       }
     };
     if (not zipOk) return false;
@@ -403,17 +403,17 @@ persistent actor Quote {
 
   private func nextReqId() : Text {
     reqCounter += 1;
-    "REQ_" # Nat.toText(reqCounter)
+    "REQ_" # reqCounter.toText()
   };
 
   private func nextQuoteId() : Text {
     quoteCounter += 1;
-    "QUOTE_" # Nat.toText(quoteCounter)
+    "QUOTE_" # quoteCounter.toText()
   };
 
   private func nextSealedBidId() : Text {
     sealedBidCounter += 1;
-    "SB_" # Nat.toText(sealedBidCounter)
+    "SB_" # sealedBidCounter.toText()
   };
 
   /// Decode little-endian Nat8 bytes back to Nat (mock vetKeys IBE decryption).
@@ -421,8 +421,8 @@ persistent actor Quote {
   private func mockDecryptBytes(ciphertext: [Nat8]) : Nat {
     var result: Nat = 0;
     var multiplier: Nat = 1;
-    for (byte in ciphertext.vals()) {
-      result      := result + Nat8.toNat(byte) * multiplier;
+    for (byte in ciphertext.values()) {
+      result      := result + byte.toNat() * multiplier;
       multiplier  := multiplier * 256;
     };
     result
@@ -434,7 +434,7 @@ persistent actor Quote {
     var n = amount;
     var bytes: [Nat8] = [];
     while (n > 0) {
-      bytes := Array.concat(bytes, [Nat8.fromNat(n % 256)]);
+      bytes := bytes.concat([Nat.toNat8(n % 256)]);
       n     := n / 256;
     };
     bytes
@@ -443,7 +443,7 @@ persistent actor Quote {
   /// Count open requests for a homeowner.
   private func countOpenRequests(homeowner: Principal) : Nat {
     var n = 0;
-    for (r in Index.records(requestsByHomeowner, Principal.toText(homeowner), requests)) {
+    for (r in Index.records(requestsByHomeowner, homeowner.toText(), requests)) {
       if (r.status == #Open) { n += 1 };
     };
     n
@@ -465,20 +465,20 @@ persistent actor Quote {
   /// Resets the window when 24 h have elapsed.
   private func tryConsumeSubmissionSlot(contractor: Principal) : Bool {
     let now = Time.now();
-    switch (Map.get(contractorRateLimits, Principal.compare, contractor)) {
+    switch (contractorRateLimits.get(contractor)) {
       case null {
-        Map.add(contractorRateLimits, Principal.compare, contractor, (1, now));
+        contractorRateLimits.add(contractor, (1, now));
         true
       };
       case (?(count, windowStart)) {
         if (now - windowStart >= oneDayNs) {
           // new day — reset window
-          Map.add(contractorRateLimits, Principal.compare, contractor, (1, now));
+          contractorRateLimits.add(contractor, (1, now));
           true
         } else if (count >= dailyQuoteLimit) {
           false
         } else {
-          Map.add(contractorRateLimits, Principal.compare, contractor, (count + 1, windowStart));
+          contractorRateLimits.add(contractor, (count + 1, windowStart));
           true
         }
       };
@@ -544,7 +544,7 @@ persistent actor Quote {
         "Open request limit reached for your " # (switch callerTier {
           case (#Free) "Free"; case (#Pro) "Pro"; case (#ContractorFree) "ContractorFree";
           case (#ContractorPro) "ContractorPro";
-        }) # " plan (" # Nat.toText(limit) # " max)." # upgradeHint
+        }) # " plan (" # limit.toText() # " max)." # upgradeHint
       ));
     };
 
@@ -573,7 +573,7 @@ persistent actor Quote {
 
   /// Fetch a single quote request by ID.
   public query(msg) func getQuoteRequest(requestId: Text) : async Result.Result<QuoteRequest, Error> {
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { #err(#NotFound) };
       case (?r) { #ok(redactFor(r, msg.caller)) };
     }
@@ -589,8 +589,8 @@ persistent actor Quote {
     // L8: rate-limit — this makes an inter-canister call per invocation.
     switch (requireActive(msg.caller)) { case (#err(_)) return []; case _ {} };
     let caller = msg.caller;
-    let allOpen = Iter.toArray(
-      Iter.map<QuoteRequest, QuoteRequest>(openRequests(), func(r) { redactFor(r, caller) })
+    let allOpen = openRequests().map(func(r) { redactFor(r, caller) }).toArray(
+      
     );
 
     if (Text.size(contrCanisterId) == 0) return allOpen;
@@ -603,7 +603,7 @@ persistent actor Quote {
         allOpen
       };
       case (?s) {
-        Array.filter<QuoteRequest>(allOpen, func(r: QuoteRequest) : Bool { contractorMatches(r, s) })
+        allOpen.filter(func(r: QuoteRequest) : Bool { contractorMatches(r, s) })
       };
     }
   };
@@ -611,34 +611,34 @@ persistent actor Quote {
   /// Fetch all open or quoted requests — unfiltered, visible to any contractor.
   /// Capped at 200 entries; use getOpenRequestsPage for full pagination.
   public query(msg) func getOpenRequests() : async [QuoteRequest] {
-    let open = Iter.toArray(
-      Iter.map<QuoteRequest, QuoteRequest>(openRequests(), func(r) { redactFor(r, msg.caller) })
+    let open = openRequests().map(func(r) { redactFor(r, msg.caller) }).toArray(
+      
     );
     if (open.size() <= 200) open
-    else Array.tabulate<QuoteRequest>(200, func(i) { open[i] })
+    else Array.tabulate(200, func(i) { open[i] })
   };
 
   public query(msg) func getOpenRequestsPage(from : Nat, limit : Nat) : async [QuoteRequest] {
-    let open = Iter.toArray(
-      Iter.map<QuoteRequest, QuoteRequest>(openRequests(), func(r) { redactFor(r, msg.caller) })
+    let open = openRequests().map(func(r) { redactFor(r, msg.caller) }).toArray(
+      
     );
     let total = open.size();
     if (from >= total) return [];
     let bound = Nat.min(from + Nat.min(limit, 100), total);
-    Array.tabulate<QuoteRequest>(bound - from, func(i) { open[from + i] })
+    Array.tabulate((bound - from : Nat), func(i) { open[from + i] })
   };
 
   /// Fetch all requests created by the caller.
   public query(msg) func getMyQuoteRequests() : async [QuoteRequest] {
-    Iter.toArray(
-      Index.records(requestsByHomeowner, Principal.toText(msg.caller), requests)
+    Index.records(requestsByHomeowner, msg.caller.toText(), requests).toArray(
+      
     )
   };
 
   /// Fetch all quotes submitted by the caller (contractor bid history).
   public query(msg) func getMyQuotes() : async [Quote] {
-    Iter.toArray(
-      Index.records(quotesByContractor, Principal.toText(msg.caller), quotes)
+    Index.records(quotesByContractor, msg.caller.toText(), quotes).toArray(
+      
     )
   };
 
@@ -653,13 +653,13 @@ persistent actor Quote {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     // M2: registered contractor the request is visible to (never the homeowner).
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?r0) { if (not (await canBidOn(r0, msg.caller))) return #err(#NotAuthorized) };
     };
 
     // Everything below re-reads state after the await (TOCTOU).
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {
         if (req.status != #Open and req.status != #Quoted)
@@ -668,7 +668,7 @@ persistent actor Quote {
             else "Request is not open for quotes"
           ));
         // M2: one live quote per contractor per request.
-        if (Option.isSome(Iter.find(quotesFor(requestId), func(q: Quote) : Bool {
+        if (Option.isSome(quotesFor(requestId).find(func(q: Quote) : Bool {
           q.contractor == msg.caller and q.status == #Pending
         }))) return #err(#InvalidInput("You already have a pending quote on this request"));
         if (amount == 0)    return #err(#InvalidInput("Amount must be greater than 0"));
@@ -687,7 +687,7 @@ persistent actor Quote {
             };
             if (bidCount >= cap) {
               return #err(#InvalidInput(
-                "This request has reached its maximum number of bids (" # Nat.toText(cap) # ")"
+                "This request has reached its maximum number of bids (" # cap.toText() # ")"
               ));
             };
           };
@@ -741,18 +741,18 @@ persistent actor Quote {
   /// Fetch all quotes for a given request.
   /// M-05: homeowner and admin see all quotes; contractors see only their own quote.
   public query(msg) func getQuotesForRequest(requestId: Text) : async Result.Result<[Quote], Error> {
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
-        let allQuotes = Iter.toArray(
-          quotesFor(requestId)
+        let allQuotes = quotesFor(requestId).toArray(
+          
         );
         if (isAdmin(msg.caller) or req.homeowner == msg.caller) {
           // Admin or homeowner sees all quotes
           #ok(allQuotes)
         } else {
           // Contractor: return only their own quote
-          #ok(Array.filter<Quote>(allQuotes, func(q: Quote) : Bool { q.contractor == msg.caller }))
+          #ok(allQuotes.filter(func(q: Quote) : Bool { q.contractor == msg.caller }))
         }
       };
     }
@@ -763,10 +763,10 @@ persistent actor Quote {
   public shared(msg) func acceptQuote(quoteId: Text) : async Result.Result<Quote, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(quotes, Text.compare, quoteId)) {
+    switch (quotes.get(quoteId)) {
       case null { return #err(#NotFound) };
       case (?q) {
-        switch (Map.get(requests, Text.compare, q.requestId)) {
+        switch (requests.get(q.requestId)) {
           case null { return #err(#NotFound) };
           case (?req) {
             let acceptOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
@@ -778,10 +778,10 @@ persistent actor Quote {
             // was suspended waiting on checkPropertyAuth. Validating against
             // the pre-await `req`/`q` snapshot would let two concurrent
             // accepts on the same request both pass.
-            switch (Map.get(requests, Text.compare, q.requestId)) {
+            switch (requests.get(q.requestId)) {
               case null { return #err(#NotFound) };
               case (?freshReq) {
-                switch (Map.get(quotes, Text.compare, quoteId)) {
+                switch (quotes.get(quoteId)) {
                   case null { return #err(#NotFound) };
                   case (?freshQ) {
                     if (freshReq.status == #Accepted or freshReq.status == #Closed)
@@ -807,7 +807,7 @@ persistent actor Quote {
 
                     // Reject all other pending quotes for the same request
                     // Snapshot first: the loop writes quotes back.
-                    for (other in Iter.toArray(quotesFor(freshQ.requestId)).vals()) {
+                    for (other in quotesFor(freshQ.requestId).toArray().values()) {
                       let otherId = other.id;
                       if (otherId != quoteId and other.status == #Pending) {
                         let rejected: Quote = {
@@ -859,7 +859,7 @@ persistent actor Quote {
   public shared(msg) func closeQuoteRequest(requestId: Text) : async Result.Result<QuoteRequest, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
         let closeOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
@@ -868,7 +868,7 @@ persistent actor Quote {
         // Re-read fresh after the await above — a concurrent call could have
         // already accepted/closed/cancelled this request while this call was
         // suspended waiting on checkPropertyAuth.
-        switch (Map.get(requests, Text.compare, requestId)) {
+        switch (requests.get(requestId)) {
           case null { return #err(#NotFound) };
           case (?freshReq) {
             if (freshReq.status == #Accepted or freshReq.status == #Closed)
@@ -907,7 +907,7 @@ persistent actor Quote {
   public shared(msg) func cancelQuoteRequest(requestId: Text) : async Result.Result<[Principal], Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
         let cancelOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
@@ -916,7 +916,7 @@ persistent actor Quote {
         // Re-read fresh after the await above — a concurrent call could have
         // already accepted/closed/cancelled this request while this call was
         // suspended waiting on checkPropertyAuth.
-        switch (Map.get(requests, Text.compare, requestId)) {
+        switch (requests.get(requestId)) {
           case null { return #err(#NotFound) };
           case (?freshReq) {
             switch (freshReq.status) {
@@ -945,7 +945,7 @@ persistent actor Quote {
             putRequest(updated);
 
             // Collect principals of contractors who bid on this request
-            #ok(Iter.toArray(Iter.map(quotesFor(requestId), func(q : Quote) : Principal { q.contractor })))
+            #ok(quotesFor(requestId).map(func(q : Quote) : Principal { q.contractor }).toArray())
           };
         }
       };
@@ -1036,13 +1036,13 @@ persistent actor Quote {
       return #err(#InvalidInput("ciphertext too large"));
 
     // M2: registered contractor the request is visible to (never the homeowner).
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?r0) { if (not (await canBidOn(r0, msg.caller))) return #err(#NotAuthorized) };
     };
 
     // Everything below re-reads state after the await (TOCTOU).
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {
         if (req.status != #Open and req.status != #Quoted)
@@ -1050,13 +1050,13 @@ persistent actor Quote {
         if (ciphertext.size() == 0)
           return #err(#InvalidInput("ciphertext cannot be empty"));
         // M2: one sealed bid per contractor per request.
-        let contractorKey = Principal.toText(msg.caller) # ":" # requestId;
-        if (Option.isSome(Map.get(sealedBidsByContractor, Text.compare, contractorKey)))
+        let contractorKey = msg.caller.toText() # ":" # requestId;
+        if (Option.isSome(sealedBidsByContractor.get(contractorKey)))
           return #err(#InvalidInput("You already have a sealed bid on this request"));
         // M2: maxBids applies to sealed bids too.
-        let bidCount = switch (Map.get(sealedBidsByRequest, Text.compare, requestId)) { case null 0; case (?xs) xs.size() };
+        let bidCount = switch (sealedBidsByRequest.get(requestId)) { case null 0; case (?xs) xs.size() };
         switch (req.maxBids) {
-          case (?cap) { if (bidCount >= cap) return #err(#InvalidInput("This request has reached its maximum number of bids (" # Nat.toText(cap) # ")")) };
+          case (?cap) { if (bidCount >= cap) return #err(#InvalidInput("This request has reached its maximum number of bids (" # cap.toText() # ")")) };
           case null {};
         };
         if (timelineDays == 0)
@@ -1084,19 +1084,19 @@ persistent actor Quote {
           timelineDays;
           submittedAt = Time.now();
         };
-        Map.add(sealedBids, Text.compare, id, bid);
+        sealedBids.add(id, bid);
         notify("quote_received", ?req.homeowner, requestId, ServiceTypes.toText(req.serviceType));
 
         // Index by request
-        let existing = switch (Map.get(sealedBidsByRequest, Text.compare, requestId)) {
+        let existing = switch (sealedBidsByRequest.get(requestId)) {
           case null  { [] };
           case (?xs) { xs };
         };
-        Map.add(sealedBidsByRequest, Text.compare, requestId, Array.concat(existing, [id]));
+        sealedBidsByRequest.add(requestId, existing.concat([id]));
 
         // Index by contractor (one bid per contractor per request)
-        let key = Principal.toText(msg.caller) # ":" # requestId;
-        Map.add(sealedBidsByContractor, Text.compare, key, id);
+        let key = msg.caller.toText() # ":" # requestId;
+        sealedBidsByContractor.add(key, id);
 
         #ok(bid)
       };
@@ -1106,11 +1106,11 @@ persistent actor Quote {
   /// Returns the caller's own sealed bid for a request (ciphertext only).
   /// Returns #NotFound if the caller has not submitted a bid.
   public query(msg) func getMyBid(requestId: Text) : async Result.Result<SealedBid, Error> {
-    let key = Principal.toText(msg.caller) # ":" # requestId;
-    switch (Map.get(sealedBidsByContractor, Text.compare, key)) {
+    let key = msg.caller.toText() # ":" # requestId;
+    switch (sealedBidsByContractor.get(key)) {
       case null     { #err(#NotFound) };
       case (?bidId) {
-        switch (Map.get(sealedBids, Text.compare, bidId)) {
+        switch (sealedBids.get(bidId)) {
           case null  { #err(#NotFound) };
           case (?b)  { #ok(b) };
         }
@@ -1135,7 +1135,7 @@ persistent actor Quote {
     if (vetkdKeyName != "dfx_test_key")
       return #err(#InvalidInput("Mock reveal is disabled; use revealBidsEncrypted"));
 
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {
         let revealOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
@@ -1153,26 +1153,26 @@ persistent actor Quote {
         };
 
         // Return cached reveal if already done
-        switch (Map.get(revealedBids, Text.compare, requestId)) {
+        switch (revealedBids.get(requestId)) {
           case (?cached) { return #ok(cached) };
           case null {};
         };
 
         // Decrypt all bids and determine winner
-        let bidIds = switch (Map.get(sealedBidsByRequest, Text.compare, requestId)) {
+        let bidIds = switch (sealedBidsByRequest.get(requestId)) {
           case null  { [] };
           case (?xs) { xs };
         };
 
         var decoded: [(SealedBid, Nat)] = [];
-        for (bidId in bidIds.vals()) {
-          switch (Map.get(sealedBids, Text.compare, bidId)) {
+        for (bidId in bidIds.values()) {
+          switch (sealedBids.get(bidId)) {
             case null {};
             case (?b) {
               // In production: call vetkd_derive_key to get IBE private key, then decrypt.
               // Mock: decode little-endian bytes back to Nat.
               let amount = mockDecryptBytes(b.ciphertext);
-              decoded := Array.concat(decoded, [(b, amount)]);
+              decoded := decoded.concat([(b, amount)]);
             };
           };
         };
@@ -1181,12 +1181,11 @@ persistent actor Quote {
 
         // Find minimum amount
         var minAmount: Nat = decoded[0].1;
-        for ((_, amt) in decoded.vals()) {
+        for ((_, amt) in decoded.values()) {
           if (amt < minAmount) { minAmount := amt };
         };
 
-        let revealed: [RevealedBid] = Array.map<(SealedBid, Nat), RevealedBid>(
-          decoded,
+        let revealed: [RevealedBid] = decoded.map(
           func((b, amt)) {
             {
               id          = b.id;
@@ -1200,7 +1199,7 @@ persistent actor Quote {
           }
         );
 
-        Map.add(revealedBids, Text.compare, requestId, revealed);
+        revealedBids.add(requestId, revealed);
         #ok(revealed)
       };
     }
@@ -1210,15 +1209,15 @@ persistent actor Quote {
   /// L2: the homeowner and admins see every revealed bid; a bidder sees only
   /// their own; anyone else gets [].
   public query(msg) func getRevealedBids(requestId: Text) : async [RevealedBid] {
-    let all = switch (Map.get(revealedBids, Text.compare, requestId)) {
+    let all = switch (revealedBids.get(requestId)) {
       case null  { return [] };
       case (?rb) { rb };
     };
-    let full = isAdmin(msg.caller) or (switch (Map.get(requests, Text.compare, requestId)) {
+    let full = isAdmin(msg.caller) or (switch (requests.get(requestId)) {
       case (?r) { r.homeowner == msg.caller };
       case null { false };
     });
-    if (full) all else Array.filter<RevealedBid>(all, func(b) { b.contractor == msg.caller })
+    if (full) all else all.filter(func(b) { b.contractor == msg.caller })
   };
 
   // ─── vetKeys Public Methods ───────────────────────────────────────────────────
@@ -1251,7 +1250,7 @@ persistent actor Quote {
     // Capture caller before any await — required for vetKeys security.
     let caller = msg.caller;
 
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {
         let authOk = await checkPropertyAuth(req.propertyId, req.homeowner, caller, true);
@@ -1280,15 +1279,15 @@ persistent actor Quote {
         });
 
         // Collect all sealed bids for this request
-        let bidIds = switch (Map.get(sealedBidsByRequest, Text.compare, requestId)) {
+        let bidIds = switch (sealedBidsByRequest.get(requestId)) {
           case null  { [] };
           case (?xs) { xs };
         };
         var bidList: [SealedBid] = [];
-        for (bidId in bidIds.vals()) {
-          switch (Map.get(sealedBids, Text.compare, bidId)) {
+        for (bidId in bidIds.values()) {
+          switch (sealedBids.get(bidId)) {
             case null {};
-            case (?b) { bidList := Array.concat(bidList, [b]) };
+            case (?b) { bidList := bidList.concat([b]) };
           };
         };
 
@@ -1325,13 +1324,13 @@ persistent actor Quote {
   };
 
   private func validMonth(m: Text) : Bool {
-    let cs = Text.toArray(m);
+    let cs = m.toArray();
     if (cs.size() != 7 or cs[4] != '-') return false;
-    for (i in [0, 1, 2, 3, 5, 6].vals()) {
+    for (i in [0, 1, 2, 3, 5, 6].values()) {
       if (cs[i] < '0' or cs[i] > '9') return false;
     };
     // Digits checked above, so the wrapping ops can't wrap.
-    let mm = Nat32.toNat((Char.toNat32(cs[5]) -% 48) *% 10 +% (Char.toNat32(cs[6]) -% 48));
+    let mm = Nat32.toNat((cs[5].toNat32() -% 48) *% 10 +% (cs[6].toNat32() -% 48));
     mm >= 1 and mm <= 12
   };
 
@@ -1339,8 +1338,8 @@ persistent actor Quote {
     if (Text.size(u.asOf) != 10) return #err(#InvalidInput("asOf must be YYYY-MM-DD"));
     if (u.series.size() == 0) return #err(#InvalidInput("usage summary has no series"));
     let allowed = relevantUsage(r.serviceType);
-    for ((s, i) in Iter.zip(u.series.vals(), Nat.range(0, u.series.size()))) {
-      if (Option.isNull(Array.find<UsageCategory>(allowed, func(c) { c == s.category })))
+    for ((s, i) in u.series.values().zip(Nat.range(0, u.series.size()))) {
+      if (Option.isNull(allowed.find(func(c) { c == s.category })))
         return #err(#InvalidInput("category not relevant to this service type"));
       for (j in Nat.range(0, i)) {
         if (u.series[j].category == s.category) return #err(#InvalidInput("duplicate category"));
@@ -1348,7 +1347,7 @@ persistent actor Quote {
       if (s.months.size() == 0 or s.months.size() > MAX_USAGE_MONTHS)
         return #err(#InvalidInput("each series needs 1–12 months"));
       switch (s.unit) { case (?unit) { if (Text.size(unit) == 0 or Text.size(unit) > 16) return #err(#InvalidInput("invalid unit")) }; case null {} };
-      for ((m, k) in Iter.zip(s.months.vals(), Nat.range(0, s.months.size()))) {
+      for ((m, k) in s.months.values().zip(Nat.range(0, s.months.size()))) {
         if (not validMonth(m.month)) return #err(#InvalidInput("month must be YYYY-MM"));
         for (l in Nat.range(0, k)) {
           if (s.months[l].month == m.month) return #err(#InvalidInput("duplicate month"));
@@ -1367,14 +1366,14 @@ persistent actor Quote {
   /// Attach (or replace) utility usage on the caller's own open request.
   public shared(msg) func attachUsageSummary(requestId: Text, summary: UsageSummary) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { #err(#NotFound) };
       case (?r) {
         if (r.homeowner != msg.caller) return #err(#NotAuthorized);
         if (r.status != #Open and r.status != #Quoted)
           return #err(#InvalidInput("request is no longer open"));
         switch (validateUsage(r, summary)) { case (#err(e)) return #err(e); case _ {} };
-        Map.add(usageSummaries, Text.compare, requestId, summary);
+        usageSummaries.add(requestId, summary);
         #ok(())
       };
     }
@@ -1383,11 +1382,11 @@ persistent actor Quote {
   /// Stop sharing usage on the caller's request.
   public shared(msg) func removeUsageSummary(requestId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { #err(#NotFound) };
       case (?r) {
         if (r.homeowner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-        Map.remove(usageSummaries, Text.compare, requestId);
+        usageSummaries.remove(requestId);
         #ok(())
       };
     }
@@ -1399,11 +1398,11 @@ persistent actor Quote {
   /// Everyone else gets NotAuthorized; no summary is #ok(null).
   public shared(msg) func getUsageSummary(requestId: Text) : async Result.Result<?UsageSummary, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    let r = switch (Map.get(requests, Text.compare, requestId)) {
+    let r = switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?r) r;
     };
-    let quoted = Option.isSome(Iter.find(quotesFor(requestId), func(q: Quote) : Bool {
+    let quoted = Option.isSome(quotesFor(requestId).find(func(q: Quote) : Bool {
       q.contractor == msg.caller
     }));
     if (r.homeowner != msg.caller and not isAdmin(msg.caller) and not quoted) {
@@ -1415,7 +1414,7 @@ persistent actor Quote {
       };
     };
     // Re-read after the await: the homeowner may have removed it meanwhile.
-    #ok(Map.get(usageSummaries, Text.compare, requestId))
+    #ok(usageSummaries.get(requestId))
   };
 
 
@@ -1434,7 +1433,7 @@ persistent actor Quote {
   /// Must be called once after both canisters are deployed.
   public shared(msg) func setPaymentCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    payCanisterId := Principal.toText(id);
+    payCanisterId := id.toText();
     #ok(())
   };
 
@@ -1442,7 +1441,7 @@ persistent actor Quote {
   /// When set, getOpenRequestsForMe() queries the contractor's serviceZips before filtering.
   public shared(msg) func setContractorCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    contrCanisterId := Principal.toText(id);
+    contrCanisterId := id.toText();
     #ok(())
   };
 
@@ -1451,7 +1450,7 @@ persistent actor Quote {
   /// is a delegated manager.  Must be called once after both canisters are deployed.
   public shared(msg) func setPropertyCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    propCanisterId := Principal.toText(id);
+    propCanisterId := id.toText();
     #ok(())
   };
 
@@ -1525,7 +1524,7 @@ persistent actor Quote {
   public query func getMetrics() : async Metrics {
     var open     = 0;
     var accepted = 0;
-    for (r in Map.values(requests)) {
+    for (r in requests.values()) {
       switch (r.status) {
         case (#Open or #Quoted) { open     += 1 };
         case (#Accepted)        { accepted += 1 };
@@ -1533,10 +1532,10 @@ persistent actor Quote {
       };
     };
     {
-      totalRequests   = Map.size(requests);
+      totalRequests   = requests.size();
       openRequests    = open;
       acceptedRequests = accepted;
-      totalQuotes     = Map.size(quotes);
+      totalQuotes     = quotes.size();
       isPaused;
     }
   };

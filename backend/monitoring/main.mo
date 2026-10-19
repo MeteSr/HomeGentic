@@ -4,6 +4,7 @@
  * Aggregates health data pushed by all other canisters.
  */
 
+import Char "mo:core/Char";
 import Array     "mo:core/Array";
 import Error     "mo:core/Error";
 import Float     "mo:core/Float";
@@ -330,13 +331,13 @@ persistent actor Monitoring {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(p: Principal) : Bool {
@@ -349,7 +350,7 @@ persistent actor Monitoring {
 
   /// M10: admin or registered reporter.
   private func isWriter(p: Principal) : Bool {
-    not Principal.isAnonymous(p) and (isAdmin(p) or isReporter(p))
+    not p.isAnonymous() and (isAdmin(p) or isReporter(p))
   };
 
   private func pausedNow() : Bool {
@@ -371,26 +372,26 @@ persistent actor Monitoring {
   private transient let MAX_TIER_NAME_LEN   : Nat = 32;
 
   private func isTracked(id: Principal) : Bool {
-    Option.isSome(Array.find<TrackedCanister>(trackedCanisterEntries, func(c) { c.id == id }))
+    Option.isSome(trackedCanisterEntries.find(func(c) { c.id == id }))
   };
 
   private func _requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
 
   private func nextAlertId() : Text {
     alertCounter += 1;
-    "ALERT_" # Nat.toText(alertCounter)
+    "ALERT_" # alertCounter.toText()
   };
 
   // Returns true if an unresolved alert of this category already exists for the canister.
   private func alertExists(category: AlertCategory, canisterId: ?Principal) : Bool {
-    for (a in Map.values(alerts)) {
+    for (a in alerts.values()) {
       if (not a.resolved and a.category == category) {
         switch (canisterId, a.canisterId) {
           case (?c1, ?c2) { if (c1 == c2) return true };
@@ -411,9 +412,9 @@ persistent actor Monitoring {
     if (alertExists(category, canisterId)) return;
     // M10: bound the alert store. Drop the oldest resolved alert first; if
     // every stored alert is still active, keep only Critical ones coming in.
-    if (Map.size(alerts) >= MAX_ALERTS) {
+    if (alerts.size() >= MAX_ALERTS) {
       var oldest : ?Alert = null;
-      for (a in Map.values(alerts)) {
+      for (a in alerts.values()) {
         if (a.resolved) {
           switch (oldest) {
             case (?o) { if (a.createdAt < o.createdAt) oldest := ?a };
@@ -422,7 +423,7 @@ persistent actor Monitoring {
         };
       };
       switch (oldest) {
-        case (?o) { Map.remove(alerts, Text.compare, o.id) };
+        case (?o) { alerts.remove(o.id) };
         case null { if (severity != #Critical) return };
       };
     };
@@ -437,15 +438,15 @@ persistent actor Monitoring {
       createdAt  = Time.now();
       resolvedAt = null;
     };
-    Map.add(alerts, Text.compare, id, alert);
+    alerts.add(id, alert);
   };
 
   private func float2(f: Float) : Text {
     let scaled = Float.nearest(f * 100.0);
-    let whole  = Float.toInt(scaled) / 100;
-    let frac   = Int.abs(Float.toInt(scaled) % 100);
+    let whole  = scaled.toInt() / 100;
+    let frac   = Int.abs(scaled.toInt() % 100);
     let fracStr = if (frac < 10) "0" # Int.toText(frac) else Int.toText(frac);
-    Int.toText(whole) # "." # fracStr
+    whole.toText() # "." # fracStr
   };
 
   // Evaluate a single CanisterMetrics record and fire alerts as needed.
@@ -463,7 +464,7 @@ persistent actor Monitoring {
 
     // ── Error-rate alerts ─────────────────────────────────────────────────────
     if (m.requestCount > 0) {
-      let errorRate = Float.fromInt(m.errorCount) / Float.fromInt(m.requestCount) * 100.0;
+      let errorRate = Int.toFloat(m.errorCount) / Int.toFloat(m.requestCount) * 100.0;
       if (errorRate > criticalErrorPct) {
         createAlert(#Critical, #ErrorRate, cid,
           "Error rate critical: " # float2(errorRate) # "% (>" # float2(criticalErrorPct) # "%)");
@@ -476,12 +477,12 @@ persistent actor Monitoring {
     // ── Response-time alert ───────────────────────────────────────────────────
     if (m.avgResponseTimeMs > warningResponseMs) {
       createAlert(#Warning, #ResponseTime, cid,
-        "Slow avg response: " # Nat.toText(m.avgResponseTimeMs) # "ms (>2000ms)");
+        "Slow avg response: " # m.avgResponseTimeMs.toText() # "ms (>2000ms)");
     };
 
     // ── Memory alert ──────────────────────────────────────────────────────────
     if (m.memoryCapacity > 0) {
-      let memPct = Float.fromInt(m.memoryBytes) / Float.fromInt(m.memoryCapacity) * 100.0;
+      let memPct = Int.toFloat(m.memoryBytes) / Int.toFloat(m.memoryCapacity) * 100.0;
       if (memPct > warningMemoryPct) {
         createAlert(#Warning, #Memory, cid,
           "Memory usage high: " # float2(memPct) # "% of capacity");
@@ -517,7 +518,7 @@ persistent actor Monitoring {
       avgResponseTimeMs;
       updatedAt = Time.now();
     };
-    Map.add(canisterMetrics, Principal.compare, canisterId, m);
+    canisterMetrics.add(canisterId, m);
     evaluateAlerts(m);
   };
 
@@ -533,9 +534,9 @@ persistent actor Monitoring {
     // M10: admins and registered reporters only; bounded key size and count.
     if (not canWrite(msg.caller)) return;
     if (Text.size(method) == 0 or Text.size(method) > MAX_METHOD_LEN) return;
-    if (Map.get(cyclesPerCall, Text.compare, method) == null and Map.size(cyclesPerCall) >= MAX_METHODS) return;
+    if (cyclesPerCall.get(method) == null and cyclesPerCall.size() >= MAX_METHODS) return;
     let now = Time.now();
-    let updated : MethodCyclesSummary = switch (Map.get(cyclesPerCall, Text.compare, method)) {
+    let updated : MethodCyclesSummary = switch (cyclesPerCall.get(method)) {
       case null {
         // First observation
         { method; avgCycles = cycles; sampleCount = 1; lastUpdatedAt = now }
@@ -552,7 +553,7 @@ persistent actor Monitoring {
         }
       };
     };
-    Map.add(cyclesPerCall, Text.compare, method, updated);
+    cyclesPerCall.add(method, updated);
   };
 
   /// Aggregate cost breakdown across all reported canisters.
@@ -561,15 +562,15 @@ persistent actor Monitoring {
   public query(msg) func calculateCostMetrics(userCount: Nat) : async CostMetrics {
     var totalBurned : Nat = 0;
     if (isAdmin(msg.caller)) {
-      for (m in Map.values(canisterMetrics)) { totalBurned += m.cyclesBurned };
+      for (m in canisterMetrics.values()) { totalBurned += m.cyclesBurned };
     };
 
-    let totalUsd = Float.fromInt(totalBurned) / cyclesPerTrillion * usdPerTrillion;
+    let totalUsd = Int.toFloat(totalBurned) / cyclesPerTrillion * usdPerTrillion;
 
     // Approximate monthly projection from current snapshot window (assume ~1 day of data)
     let projectedMonthly = totalUsd * 30.0;
 
-    let perUser = if (userCount > 0) totalUsd / Float.fromInt(userCount) else 0.0;
+    let perUser = if (userCount > 0) totalUsd / Int.toFloat(userCount) else 0.0;
 
     {
       totalCyclesBurned       = totalBurned;
@@ -594,21 +595,21 @@ persistent actor Monitoring {
     // Appendix D #9: admin-only; other callers see zero burn.
     var totalBurned : Nat = 0;
     if (isAdmin(msg.caller)) {
-      for (m in Map.values(canisterMetrics)) { totalBurned += m.cyclesBurned };
+      for (m in canisterMetrics.values()) { totalBurned += m.cyclesBurned };
     };
-    let costUsd = Float.fromInt(totalBurned) / cyclesPerTrillion * usdPerTrillion;
+    let costUsd = Int.toFloat(totalBurned) / cyclesPerTrillion * usdPerTrillion;
 
     let profit = revenue - costUsd;
     let margin = if (revenue > 0.0) profit / revenue * 100.0 else 0.0;
 
-    let arpu = if (users > 0) revenue / Float.fromInt(users) else 0.0;
+    let arpu = if (users > 0) revenue / Int.toFloat(users) else 0.0;
     let ltv  = arpu * ltvMonths;
     let ltvCacRatio = if (cacUsd > 0.0) ltv / cacUsd else 0.0;
 
-    let projectedMonthly = Float.fromInt(totalBurned) / cyclesPerTrillion * usdPerTrillion * 30.0;
+    let projectedMonthly = Int.toFloat(totalBurned) / cyclesPerTrillion * usdPerTrillion * 30.0;
     let breakEven : Nat = if (arpu > 0.0) {
       let raw = projectedMonthly / arpu;
-      Int.abs(Float.toInt(Float.ceil(raw)))
+      Int.abs(Float.ceil(raw).toInt())
     } else { 0 };
 
     {
@@ -628,21 +629,21 @@ persistent actor Monitoring {
   /// Return all stored canister metrics snapshots. Admin-only (Appendix D #9).
   public query(msg) func getAllCanisterMetrics() : async [CanisterMetrics] {
     if (not isAdmin(msg.caller)) return [];
-    Iter.toArray(Map.values(canisterMetrics))
+    canisterMetrics.values().toArray()
   };
 
   /// Return all unresolved alerts, sorted Critical → Warning → Info.
   /// Admin-only (Appendix D #9).
   public query(msg) func getActiveAlerts() : async [Alert] {
     if (not isAdmin(msg.caller)) return [];
-    let active = Iter.toArray(
-      Iter.filter(Map.values(alerts), func(a: Alert) : Bool { not a.resolved })
+    let active = alerts.values().filter(func(a: Alert) : Bool { not a.resolved }).toArray(
+      
     );
     // Sort: Critical = 0, Warning = 1, Info = 2
     let rank = func(s: AlertSeverity) : Nat {
       switch s { case (#Critical) 0; case (#Warning) 1; case (#Info) 2 }
     };
-    Array.sort(active, func(a: Alert, b: Alert) : { #less; #equal; #greater } {
+    active.sort(func(a: Alert, b: Alert) : { #less; #equal; #greater } {
       let ra = rank(a.severity);
       let rb = rank(b.severity);
       if      (ra < rb) #less
@@ -653,7 +654,7 @@ persistent actor Monitoring {
 
   /// Mark an alert as resolved. Returns true if the alert was found and updated.
   public shared(msg) func resolveAlert(alertId: Text) : async Bool {
-    switch (Map.get(alerts, Text.compare, alertId)) {
+    switch (alerts.get(alertId)) {
       case null { false };
       case (?existing) {
         if (existing.resolved) return false;
@@ -668,7 +669,7 @@ persistent actor Monitoring {
           createdAt  = existing.createdAt;
           resolvedAt = ?Time.now();
         };
-        Map.add(alerts, Text.compare, alertId, resolved);
+        alerts.add(alertId, resolved);
         true
       };
     }
@@ -694,7 +695,7 @@ persistent actor Monitoring {
       createdAt  = Time.now();
       resolvedAt = null;
     };
-    Map.add(alerts, Text.compare, id, alert);
+    alerts.add(id, alert);
     #ok(alert)
   };
 
@@ -706,25 +707,25 @@ persistent actor Monitoring {
     var totalRequests : Nat = 0;
     var totalErrors : Nat = 0;
     var canisterCount : Nat = 0;
-    for (m in Map.values(canisterMetrics)) {
+    for (m in canisterMetrics.values()) {
       totalBurned   += m.cyclesBurned;
       totalRequests += m.requestCount;
       totalErrors   += m.errorCount;
       canisterCount += 1;
     };
 
-    let totalUsd       = Float.fromInt(totalBurned) / cyclesPerTrillion * usdPerTrillion;
+    let totalUsd       = Int.toFloat(totalBurned) / cyclesPerTrillion * usdPerTrillion;
     let monthlyUsd     = totalUsd * 30.0;
-    let arpu           = if (bm.totalUsers > 0) bm.revenueUsd / Float.fromInt(bm.totalUsers) else 0.0;
+    let arpu           = if (bm.totalUsers > 0) bm.revenueUsd / Int.toFloat(bm.totalUsers) else 0.0;
     let profit         = bm.revenueUsd - totalUsd;
     let margin         = if (bm.revenueUsd > 0.0) profit / bm.revenueUsd * 100.0 else 0.0;
     let ltv            = arpu * ltvMonths;
     let overallErrRate = if (totalRequests > 0)
-      Float.fromInt(totalErrors) / Float.fromInt(totalRequests) * 100.0 else 0.0;
+      Int.toFloat(totalErrors) / Int.toFloat(totalRequests) * 100.0 else 0.0;
 
     var activeAlertCount : Nat = 0;
     var critCount : Nat = 0;
-    for (a in Map.values(alerts)) {
+    for (a in alerts.values()) {
       if (not a.resolved) {
         activeAlertCount += 1;
         switch (a.severity) { case (#Critical) { critCount += 1 }; case _ {} };
@@ -735,13 +736,13 @@ persistent actor Monitoring {
     "  HomeGentic Daily Report — " # Int.toText(Time.now() / 1_000_000_000) # "s\n" #
     "═══════════════════════════════════════════\n" #
     "\n── USERS ──────────────────────────────────\n" #
-    "  Total users      : " # Nat.toText(bm.totalUsers) # "\n" #
-    "  Active (MAU)     : " # Nat.toText(bm.activeUsers) # "\n" #
-    "  New today        : " # Nat.toText(bm.newUsersToday) # "\n" #
-    "  Free             : " # Nat.toText(bm.freeUsers) # "\n" #
-    "  Pro              : " # Nat.toText(bm.proUsers) # "\n" #
-    "  Premium          : " # Nat.toText(bm.premiumUsers) # "\n" #
-    "  ContractorPro    : " # Nat.toText(bm.contractorProUsers) # "\n" #
+    "  Total users      : " # bm.totalUsers.toText() # "\n" #
+    "  Active (MAU)     : " # bm.activeUsers.toText() # "\n" #
+    "  New today        : " # bm.newUsersToday.toText() # "\n" #
+    "  Free             : " # bm.freeUsers.toText() # "\n" #
+    "  Pro              : " # bm.proUsers.toText() # "\n" #
+    "  Premium          : " # bm.premiumUsers.toText() # "\n" #
+    "  ContractorPro    : " # bm.contractorProUsers.toText() # "\n" #
     "\n── FINANCIALS ─────────────────────────────\n" #
     "  Revenue (period) : $" # float2(bm.revenueUsd) # "\n" #
     "  ICP cost (period): $" # float2(totalUsd) # "\n" #
@@ -752,7 +753,7 @@ persistent actor Monitoring {
     "  CAC              : $" # float2(cacUsd) # "\n" #
     "  LTV/CAC          : " # float2(if (cacUsd > 0.0) ltv / cacUsd else 0.0) # "x\n" #
     "\n── INFRASTRUCTURE ─────────────────────────\n" #
-    "  Canisters tracked: " # Nat.toText(canisterCount) # "\n" #
+    "  Canisters tracked: " # canisterCount.toText() # "\n" #
     "  Cycles burned    : " # Nat.toText(totalBurned / 1_000_000_000) # "B\n" #
     "  Cost (today)     : $" # float2(totalUsd) # "\n" #
     "  Cost breakdown   : storage $" # float2(totalUsd * storageSharePct) #
@@ -760,12 +761,12 @@ persistent actor Monitoring {
                          ", network $" # float2(totalUsd * networkSharePct) # "\n" #
     "  Projected/month  : $" # float2(monthlyUsd) # "\n" #
     "\n── REQUESTS ───────────────────────────────\n" #
-    "  Total requests   : " # Nat.toText(totalRequests) # "\n" #
-    "  Total errors     : " # Nat.toText(totalErrors) # "\n" #
+    "  Total requests   : " # totalRequests.toText() # "\n" #
+    "  Total errors     : " # totalErrors.toText() # "\n" #
     "  Error rate       : " # float2(overallErrRate) # "%\n" #
     "\n── ALERTS ─────────────────────────────────\n" #
-    "  Active alerts    : " # Nat.toText(activeAlertCount) # "\n" #
-    "  Critical         : " # Nat.toText(critCount) # "\n" #
+    "  Active alerts    : " # activeAlertCount.toText() # "\n" #
+    "  Critical         : " # critCount.toText() # "\n" #
     "═══════════════════════════════════════════\n"
   };
 
@@ -777,18 +778,18 @@ persistent actor Monitoring {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     if (Text.size(name) == 0)   return #err(#InvalidInput("name cannot be empty"));
     // Remove existing entry for this id if present, then append.
-    let filtered = Array.filter<TrackedCanister>(
-      trackedCanisterEntries, func(c) { c.id != id }
+    let filtered = trackedCanisterEntries.filter(
+      func(c) { c.id != id }
     );
-    trackedCanisterEntries := Array.concat(filtered, [{ id; name }]);
+    trackedCanisterEntries := filtered.concat([{ id; name }]);
     #ok(())
   };
 
   /// Remove a canister from the polling registry. Admin-only.
   public shared(msg) func unregisterCanister(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    trackedCanisterEntries := Array.filter<TrackedCanister>(
-      trackedCanisterEntries, func(c) { c.id != id }
+    trackedCanisterEntries := trackedCanisterEntries.filter(
+      func(c) { c.id != id }
     );
     #ok(())
   };
@@ -822,7 +823,7 @@ persistent actor Monitoring {
     if (not isWriter(msg.caller)) return [];
     switch (_requireActive(msg.caller)) { case (#err _) return []; case _ {} };
     var results : [CycleLevelResult] = [];
-    for (tracked in trackedCanisterEntries.vals()) {
+    for (tracked in trackedCanisterEntries.values()) {
       let result : CycleLevelResult = try {
         let s = await IC.canister_status({ canister_id = tracked.id });
         let bal = s.cycles;
@@ -842,7 +843,7 @@ persistent actor Monitoring {
         { id = tracked.id; name = tracked.name; cycles = bal; status = st; fromCache = false }
       } catch (_) {
         // Not a controller or canister unreachable — fall back to stored metrics.
-        switch (Map.get(canisterMetrics, Principal.compare, tracked.id)) {
+        switch (canisterMetrics.get(tracked.id)) {
           case (?m) {
             let bal = m.cyclesBalance;
             let st  = if (bal < lowCycleThresholdT)          { "critical" }
@@ -855,7 +856,7 @@ persistent actor Monitoring {
           };
         }
       };
-      results := Array.concat(results, [result]);
+      results := results.concat([result]);
     };
     results
   };
@@ -866,9 +867,9 @@ persistent actor Monitoring {
   public query(msg) func getCriticalCycleAlerts() : async [Alert] {
     if (not isWriter(msg.caller)) return [];
     var out : [Alert] = [];
-    for (a in Map.values(alerts)) {
+    for (a in alerts.values()) {
       if (not a.resolved and a.category == #Cycles) {
-        out := Array.concat(out, [a]);
+        out := out.concat([a]);
       };
     };
     out
@@ -881,25 +882,25 @@ persistent actor Monitoring {
     var result = "";
     var index = 0;
     for (char in text.chars()) {
-      if (index < maxLen) { result #= Text.fromChar(char); index += 1 } else return result;
+      if (index < maxLen) { result #= char.toText(); index += 1 } else return result;
     };
     result
   };
 
   private func mergeTierCounts(existing: [(Text, Nat)], incoming: [(Text, Nat)]) : [(Text, Nat)] {
     let merged = Map.empty<Text, Nat>();
-    for ((tier, count) in existing.vals()) { Map.add(merged, Text.compare, tier, count) };
-    for ((tier, count) in incoming.vals()) {
+    for ((tier, count) in existing.values()) { merged.add(tier, count) };
+    for ((tier, count) in incoming.values()) {
       // M10: bounded tier names and number of distinct tiers.
       let t = strTrunc(tier, MAX_TIER_NAME_LEN);
-      switch (Map.get(merged, Text.compare, t)) {
-        case (?prev) { Map.add(merged, Text.compare, t, prev + count) };
+      switch (merged.get(t)) {
+        case (?prev) { merged.add(t, prev + count) };
         case null {
-          if (Map.size(merged) < MAX_TIER_ENTRIES) Map.add(merged, Text.compare, t, count);
+          if (merged.size() < MAX_TIER_ENTRIES) merged.add(t, count);
         };
       };
     };
-    Iter.toArray(Map.entries(merged))
+    merged.entries().toArray()
   };
 
   private func truncRelease(r: ?Text) : ?Text {
@@ -910,7 +911,7 @@ persistent actor Monitoring {
     var oldestKey : ?Text = null;
     var oldestTs  : Int   = 0;
     var first             = true;
-    for (summary in Map.values(frontendErrors)) {
+    for (summary in frontendErrors.values()) {
       if (first or summary.lastSeen < oldestTs) {
         oldestKey := ?summary.fingerprint;
         oldestTs  := summary.lastSeen;
@@ -918,7 +919,7 @@ persistent actor Monitoring {
       };
     };
     switch (oldestKey) {
-      case (?oldestFingerprint) { ignore Map.remove(frontendErrors, Text.compare, oldestFingerprint) };
+      case (?oldestFingerprint) { ignore frontendErrors.remove(oldestFingerprint) };
       case null  {};
     };
   };
@@ -930,7 +931,7 @@ persistent actor Monitoring {
     if (not canWrite(msg.caller)) return;
     let normalizedFingerprint = strTrunc(input.fingerprint, 64);
     if (Text.size(normalizedFingerprint) == 0) return;
-    switch (Map.get(frontendErrors, Text.compare, normalizedFingerprint)) {
+    switch (frontendErrors.get(normalizedFingerprint)) {
       case (?existing) {
         let updated : ErrorSummary = {
           fingerprint = existing.fingerprint;
@@ -943,10 +944,10 @@ persistent actor Monitoring {
           release     = switch (existing.release) { case null { truncRelease(input.release) }; case r { truncRelease(r) } };
           resolved    = existing.resolved;
         };
-        Map.add(frontendErrors, Text.compare, normalizedFingerprint, updated);
+        frontendErrors.add(normalizedFingerprint, updated);
       };
       case null {
-        if (Map.size(frontendErrors) >= MAX_ERROR_SUMMARIES) { evictOldestError() };
+        if (frontendErrors.size() >= MAX_ERROR_SUMMARIES) { evictOldestError() };
         let summary : ErrorSummary = {
           fingerprint = normalizedFingerprint;
           message     = strTrunc(input.message,   120);
@@ -958,15 +959,14 @@ persistent actor Monitoring {
           release     = truncRelease(input.release);
           resolved    = false;
         };
-        Map.add(frontendErrors, Text.compare, normalizedFingerprint, summary);
+        frontendErrors.add(normalizedFingerprint, summary);
       };
     };
   };
 
   public query(msg) func getFrontendErrors(from: Nat, limit: Nat) : async [ErrorSummary] {
     if (not isAdmin(msg.caller)) return [];
-    let all = Array.sort(
-      Iter.toArray(Map.values(frontendErrors)),
+    let all = frontendErrors.values().toArray().sort(
       func(lhs: ErrorSummary, rhs: ErrorSummary) : { #less; #equal; #greater } {
         if      (lhs.lastSeen > rhs.lastSeen) #less
         else if (lhs.lastSeen < rhs.lastSeen) #greater
@@ -975,8 +975,8 @@ persistent actor Monitoring {
     );
     var slice : [ErrorSummary] = [];
     var index = 0;
-    for (item in all.vals()) {
-      if (index >= from and index < from + limit) { slice := Array.concat(slice, [item]) };
+    for (item in all.values()) {
+      if (index >= from and index < from + limit) { slice := slice.concat([item]) };
       index += 1;
     };
     slice
@@ -984,10 +984,10 @@ persistent actor Monitoring {
 
   public shared(msg) func resolveFrontendError(fingerprint: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    switch (Map.get(frontendErrors, Text.compare, fingerprint)) {
+    switch (frontendErrors.get(fingerprint)) {
       case null { #err(#NotFound) };
       case (?existing) {
-        Map.add(frontendErrors, Text.compare, fingerprint, {
+        frontendErrors.add(fingerprint, {
           fingerprint = existing.fingerprint;
           message     = existing.message;
           errorType   = existing.errorType;
@@ -1006,21 +1006,20 @@ persistent actor Monitoring {
   public query(msg) func getFrontendErrorStats() : async FrontendErrorStats {
     if (not isAdmin(msg.caller)) return { total = 0; unresolved = 0; topFingerprints = [] };
     var unresolved : Nat = 0;
-    for (summary in Map.values(frontendErrors)) {
+    for (summary in frontendErrors.values()) {
       if (not summary.resolved) { unresolved += 1 };
     };
-    let sorted = Array.sort(
-      Iter.toArray(Map.values(frontendErrors)),
+    let sorted = frontendErrors.values().toArray().sort(
       func(lhs: ErrorSummary, rhs: ErrorSummary) : { #less; #equal; #greater } {
         if (lhs.count > rhs.count) #less else if (lhs.count < rhs.count) #greater else #equal
       }
     );
     var top : [ErrorSummary] = [];
     var index = 0;
-    for (item in sorted.vals()) {
-      if (index < 10) { top := Array.concat(top, [item]); index += 1 };
+    for (item in sorted.values()) {
+      if (index < 10) { top := top.concat([item]); index += 1 };
     };
-    { total = Map.size(frontendErrors); unresolved; topFingerprints = top }
+    { total = frontendErrors.size(); unresolved; topFingerprints = top }
   };
 
   // ─── Product Metrics (cross-canister pull) ───────────────────────────────────
@@ -1067,15 +1066,15 @@ persistent actor Monitoring {
       let sm = await fPayment;
 
       let verificationRate = if (pm.totalProperties > 0)
-        Float.fromInt(pm.verifiedProperties) / Float.fromInt(pm.totalProperties)
+        Int.toFloat(pm.verifiedProperties) / Int.toFloat(pm.totalProperties)
         else 0.0;
 
       let avgJobsPerProperty = if (pm.totalProperties > 0)
-        Float.fromInt(jm.totalJobs) / Float.fromInt(pm.totalProperties)
+        Int.toFloat(jm.totalJobs) / Int.toFloat(pm.totalProperties)
         else 0.0;
 
       let quoteAcceptanceRate = if (qm.totalRequests > 0)
-        Float.fromInt(qm.acceptedRequests) / Float.fromInt(qm.totalRequests)
+        Int.toFloat(qm.acceptedRequests) / Int.toFloat(qm.totalRequests)
         else 0.0;
 
       #ok({
@@ -1109,7 +1108,7 @@ persistent actor Monitoring {
         snapshotAt = Time.now();
       })
     } catch (e) {
-      #err("Cross-canister call failed: " # Error.message(e))
+      #err("Cross-canister call failed: " # e.message())
     }
   };
 
@@ -1119,10 +1118,10 @@ persistent actor Monitoring {
   /// that may push metrics / frontend errors and poll cycle levels. Admin only.
   public shared(msg) func addReporter(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    if (Principal.isAnonymous(p)) return #err(#InvalidInput("anonymous principal"));
+    if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
     if (not isReporter(p)) {
       if (reporterEntries.size() >= 50) return #err(#InvalidInput("too many reporters"));
-      reporterEntries := Array.concat(reporterEntries, [p]);
+      reporterEntries := reporterEntries.concat([p]);
     };
     #ok(())
   };
@@ -1181,19 +1180,19 @@ persistent actor Monitoring {
   public query(msg) func getMetrics() : async Metrics {
     var active : Nat = 0;
     var critical : Nat = 0;
-    for (a in Map.values(alerts)) {
+    for (a in alerts.values()) {
       if (not a.resolved) {
         active += 1;
         switch (a.severity) { case (#Critical) { critical += 1 }; case _ {} };
       };
     };
     {
-      totalCanisters = Map.size(canisterMetrics);
+      totalCanisters = canisterMetrics.size();
       activeAlerts   = active;
       criticalAlerts = critical;
       isPaused;
       // 13.1.4 — per-method cycle costs are admin-only (Appendix D #9).
-      cyclesPerCall  = if (isAdmin(msg.caller)) Iter.toArray(Map.values(cyclesPerCall)) else [];
+      cyclesPerCall  = if (isAdmin(msg.caller)) cyclesPerCall.values().toArray() else [];
     }
   };
 
@@ -1215,7 +1214,7 @@ persistent actor Monitoring {
 
   private func checkStaleMetrics() : async () {
     let now = Time.now();
-    for (m in Map.values(canisterMetrics)) {
+    for (m in canisterMetrics.values()) {
       if (now - m.updatedAt > STALE_THRESHOLD_NS) {
         createAlert(
           #Warning,

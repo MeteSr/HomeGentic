@@ -228,7 +228,7 @@ persistent actor Report {
   // Secondary indexes over `links` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let linksByProperty = Index.empty();
-  private transient let linksIndexes : [Index.Keyed<ShareLink>] = Index.indexed<ShareLink>(links, [
+  private transient let linksIndexes : [Index.Keyed<ShareLink>] = Index.indexed(links, [
     (linksByProperty, func(r : ShareLink) : ?Text { ?r.propertyId }),
   ]);
   private let certs     = Map.empty<Text, CertRecord>();
@@ -248,13 +248,13 @@ persistent actor Report {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller) or isTrustedCanister(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(p: Principal) : Bool {
@@ -267,10 +267,10 @@ persistent actor Report {
 
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
@@ -278,12 +278,12 @@ persistent actor Report {
   /// Convert a Blob to a lowercase hex string.
   private func blobToHex(b : Blob) : Text {
     let hex  = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'];
-    let bytes = Blob.toArray(b);
+    let bytes = b.toArray();
     var result = "";
-    for (byte in bytes.vals()) {
-      let n = Nat8.toNat(byte);
-      result #= Text.fromChar(hex[n / 16]);
-      result #= Text.fromChar(hex[n % 16]);
+    for (byte in bytes.values()) {
+      let n = byte.toNat();
+      result #= hex[n / 16].toText();
+      result #= hex[n % 16].toText();
     };
     result
   };
@@ -293,8 +293,8 @@ persistent actor Report {
   /// snapshotId reveals nothing about the bearer token.
   private func nextIds() : async (Text, Text) {
     let bytes = Blob.toArray(await Random.blob());
-    let sid = Uuid.fromBlob(Blob.fromArray(Array.sliceToArray<Nat8>(bytes, 0, 16)));
-    let tok = "RPT_" # blobToHex(Blob.fromArray(Array.sliceToArray<Nat8>(bytes, 16, 32)));
+    let sid = Uuid.fromBlob(bytes.sliceToArray(0, 16).toBlob());
+    let tok = "RPT_" # blobToHex(bytes.sliceToArray(16, 32).toBlob());
     (sid, tok)
   };
 
@@ -375,8 +375,8 @@ persistent actor Report {
       let js = switch (await jobActor.getJobsForProperty(propertyId)) { case (#ok(js)) js; case (#err(_)) return null };
       let unattested = await jobActor.getUnattestedJobIds(propertyId);
       if (unattested.size() == 0) return ?js;
-      ?Array.map<JobRec, JobRec>(js, func(j) {
-        if (not j.verified or Option.isNull(Array.find<Text>(unattested, func(id) { id == j.id }))) j
+      ?js.map(func(j) {
+        if (not j.verified or Option.isNull(unattested.find(func(id) { id == j.id }))) j
         else { { j with verified = false } }
       })
     } catch (_) { null }
@@ -393,7 +393,7 @@ persistent actor Report {
     }
   };
 
-  private func pad2(n : Nat) : Text { if (n < 10) "0" # Nat.toText(n) else Nat.toText(n) };
+  private func pad2(n : Nat) : Text { if (n < 10) "0" # n.toText() else n.toText() };
 
   /// Nanosecond timestamp → "YYYY-MM-DD" (UTC; Hinnant's civil_from_days).
   private func isoDate(ns : Int) : Text {
@@ -407,7 +407,7 @@ persistent actor Report {
     let d   : Int = doy - (153 * mp + 2) / 5 + 1;
     let m   : Int = if (mp < 10) mp + 3 else mp - 9;
     let y   : Int = yoe + era * 400 + (if (m <= 2) 1 else 0);
-    Int.toText(y) # "-" # pad2(Int.abs(m)) # "-" # pad2(Int.abs(d))
+    y.toText() # "-" # pad2(Int.abs(m)) # "-" # pad2(Int.abs(d))
   };
 
   private func statusText(j : JobRec) : Text {
@@ -424,10 +424,10 @@ persistent actor Report {
   /// Job record (on-chain) → snapshot JobInput. Proposals the homeowner has not
   /// approved (or rejected) are left out.
   private func jobsToInputs(js : [JobRec]) : [JobInput] {
-    let kept = Array.filter<JobRec>(js, func(j) {
+    let kept = js.filter(func(j) {
       j.status != #PendingHomeownerApproval and j.status != #RejectedByHomeowner
     });
-    Array.map<JobRec, JobInput>(kept, func(j) {
+    kept.map(func(j) {
       {
         serviceType    = serviceLabel(j.serviceType);
         description    = j.description;
@@ -446,12 +446,12 @@ persistent actor Report {
   /// Sliding one-day per-property counter. Returns false when over `max`.
   private func consumePropertySlot(m : Map.Map<Text, (Nat, Int)>, propertyId : Text, max : Nat) : Bool {
     let now = Time.now();
-    switch (Map.get(m, Text.compare, propertyId)) {
-      case null { Map.add(m, Text.compare, propertyId, (1, now)); true };
+    switch (m.get(propertyId)) {
+      case null { m.add(propertyId, (1, now)); true };
       case (?(count, start)) {
-        if (now - start >= DAY_NS) { Map.add(m, Text.compare, propertyId, (1, now)); true }
+        if (now - start >= DAY_NS) { m.add(propertyId, (1, now)); true }
         else if (count >= max) { false }
-        else { Map.add(m, Text.compare, propertyId, (count + 1, start)); true }
+        else { m.add(propertyId, (count + 1, start)); true }
       };
     }
   };
@@ -470,7 +470,7 @@ persistent actor Report {
 
   private func validateSelfReported(rooms : ?[RoomInput], recurring : [RecurringServiceInput]) : ?Text {
     if (recurring.size() > MAX_RECURRING) return ?"too many recurring services";
-    for (r in recurring.vals()) {
+    for (r in recurring.values()) {
       if (Text.size(r.serviceType) > MAX_FIELD_CHARS or Text.size(r.providerName) > MAX_FIELD_CHARS
           or Text.size(r.frequency) > MAX_FIELD_CHARS or Text.size(r.status) > MAX_FIELD_CHARS
           or Text.size(r.startDate) > 10) return ?"recurring service field too long";
@@ -480,7 +480,7 @@ persistent actor Report {
       case null {};
       case (?rs) {
         if (rs.size() > MAX_ROOMS) return ?"too many rooms";
-        for (r in rs.vals()) {
+        for (r in rs.values()) {
           if (Text.size(r.name) > MAX_FIELD_CHARS or Text.size(r.floorType) > MAX_FIELD_CHARS
               or Text.size(r.paintColor) > MAX_FIELD_CHARS or Text.size(r.paintBrand) > MAX_FIELD_CHARS
               or Text.size(r.paintCode) > MAX_FIELD_CHARS) return ?"room field too long";
@@ -499,8 +499,8 @@ persistent actor Report {
       else if (c == '\n') { out #= "\\n" }
       else if (c == '\r') { out #= "\\r" }
       else if (c == '\t') { out #= "\\t" }
-      else if (Char.toNat32(c) < 0x20) { out #= " " }
-      else { out #= Char.toText(c) };
+      else if (c.toNat32() < 0x20) { out #= " " }
+      else { out #= c.toText() };
     };
     out # "\""
   };
@@ -518,10 +518,10 @@ persistent actor Report {
     if (Text.size(s.asOf) != 10) return ?"billsSummary.asOf must be YYYY-MM-DD";
     if (s.lines.size() > 9) return ?"billsSummary has too many lines";
     var seen : [Nat] = [];
-    for (l in s.lines.vals()) {
+    for (l in s.lines.values()) {
       let k = billsCategoryKey(l.category);
-      if (Option.isSome(Array.find<Nat>(seen, func(x) { x == k }))) return ?"billsSummary has a duplicate category";
-      seen := Array.concat(seen, [k]);
+      if (Option.isSome(seen.find(func(x) { x == k }))) return ?"billsSummary has a duplicate category";
+      seen := seen.concat([k]);
       if (l.avgMonthlyCents > MAX_MONTHLY_CENTS) return ?"billsSummary amount out of range";
       switch (l.basis) {
         case (#Statements n) { if (n == 0 or n > 12) return ?"billsSummary months must be 1-12" };
@@ -540,25 +540,25 @@ persistent actor Report {
 
   private func totalAmount(jobs: [JobInput]) : Nat {
     var sum = 0;
-    for (j in jobs.vals()) { sum += j.amountCents };
+    for (j in jobs.values()) { sum += j.amountCents };
     sum
   };
 
   private func countVerified(jobs: [JobInput]) : Nat {
     var n = 0;
-    for (j in jobs.vals()) { if (j.isVerified) { n += 1 } };
+    for (j in jobs.values()) { if (j.isVerified) { n += 1 } };
     n
   };
 
   private func countDiy(jobs: [JobInput]) : Nat {
     var n = 0;
-    for (j in jobs.vals()) { if (j.isDiy) { n += 1 } };
+    for (j in jobs.values()) { if (j.isDiy) { n += 1 } };
     n
   };
 
   private func countPermits(jobs: [JobInput]) : Nat {
     var n = 0;
-    for (j in jobs.vals()) {
+    for (j in jobs.values()) {
       switch (j.permitNumber) {
         case (?_) { n += 1 };
         case null {};
@@ -572,17 +572,17 @@ persistent actor Report {
   /// to the caller, ensuring disclosure is enforced on-chain rather than
   /// relying on the frontend to filter URL params.
   private func applyDisclosure(snap: ReportSnapshot, link: ShareLink) : ReportSnapshot {
-    let doHideAmounts      = Option.get(link.hideAmounts,      false);
-    let doHideContractors  = Option.get(link.hideContractors,  false);
-    let doHidePermits      = Option.get(link.hidePermits,      false);
-    let doHideDescriptions = Option.get(link.hideDescriptions, false);
+    let doHideAmounts      = link.hideAmounts.get(false);
+    let doHideContractors  = link.hideContractors.get(false);
+    let doHidePermits      = link.hidePermits.get(false);
+    let doHideDescriptions = link.hideDescriptions.get(false);
 
     if (not doHideAmounts and not doHideContractors
         and not doHidePermits and not doHideDescriptions) {
       return snap;  // fast-path: nothing to hide
     };
 
-    let filteredJobs : [JobInput] = Array.map<JobInput, JobInput>(snap.jobs, func(j) {
+    let filteredJobs : [JobInput] = snap.jobs.map(func(j) {
       {
         serviceType    = j.serviceType;
         description    = if (doHideDescriptions) { "" }   else { j.description };
@@ -704,7 +704,7 @@ persistent actor Report {
       if (total1 >= MAX_LINKS_PER_PROPERTY or recent1 >= MAX_LINKS_PER_PROPERTY_DAY)
         return #err(#InvalidInput("Report limit reached for this property; try again later"));
     };
-    if (Map.get(links, Text.compare, token) != null or Map.get(snapshots, Text.compare, snapshotId) != null)
+    if (links.get(token) != null or snapshots.get(snapshotId) != null)
       return #err(#InvalidInput("ID collision, retry"));
 
     let snapshot : ReportSnapshot = {
@@ -729,9 +729,9 @@ persistent actor Report {
       generatedAt        = now;
       schemaVersion      = ?SNAPSHOT_SCHEMA_VERSION;
     };
-    Map.add(snapshots, Text.compare, snapshotId, snapshot);
+    snapshots.add(snapshotId, snapshot);
     switch (billsSummary) {
-      case (?b) { if (b.lines.size() > 0) Map.add(billsSummaries, Text.compare, snapshotId, b) };
+      case (?b) { if (b.lines.size() > 0) billsSummaries.add(snapshotId, b) };
       case null {};
     };
 
@@ -766,14 +766,14 @@ persistent actor Report {
   /// L-1: #BuyerOnly links require a signed-in (non-anonymous) caller. There
   /// is no buyer allow-list yet, so this is "authenticated viewers only".
   public shared(msg) func getReport(token: Text) : async Result.Result<(ShareLink, ReportSnapshot), Error> {
-    switch (Map.get(links, Text.compare, token)) {
+    switch (links.get(token)) {
       case null { #err(#NotFound) };
       case (?link) {
         if (not link.isActive) return #err(#Revoked);
         if (isExpired(link))   return #err(#Expired);
-        if (link.visibility == #BuyerOnly and Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+        if (link.visibility == #BuyerOnly and msg.caller.isAnonymous()) return #err(#NotAuthorized);
 
-        switch (Map.get(snapshots, Text.compare, link.snapshotId)) {
+        switch (snapshots.get(link.snapshotId)) {
           case null      { #err(#NotFound) };
           case (?snap)   {
             // Increment view count
@@ -804,13 +804,13 @@ persistent actor Report {
   /// The cost summary attached to a report, if the owner included one. Same
   /// link checks as getReport; withheld when the link hides amounts.
   public query(msg) func getBillsSummary(token: Text) : async ?BillsSummary {
-    switch (Map.get(links, Text.compare, token)) {
+    switch (links.get(token)) {
       case null null;
       case (?link) {
         if (not link.isActive or isExpired(link)) return null;
-        if (link.visibility == #BuyerOnly and Principal.isAnonymous(msg.caller)) return null;
+        if (link.visibility == #BuyerOnly and msg.caller.isAnonymous()) return null;
         if (link.hideAmounts == ?true) return null;
-        Map.get(billsSummaries, Text.compare, link.snapshotId)
+        billsSummaries.get(link.snapshotId)
       };
     }
   };
@@ -836,14 +836,14 @@ persistent actor Report {
 
   /// List all share links the caller created for a property.
   public shared(msg) func listShareLinks(propertyId: Text) : async [ShareLink] {
-    Iter.toArray(Iter.filter(Index.records(linksByProperty, propertyId, links), func(l: ShareLink) : Bool {
+    Iter.toArray(Index.records(linksByProperty, propertyId, links).filter(func(l: ShareLink) : Bool {
       l.createdBy == msg.caller
     }))
   };
 
   /// Revoke a share link. Only the creator or an admin can do this.
   public shared(msg) func revokeShareLink(token: Text) : async Result.Result<(), Error> {
-    switch (Map.get(links, Text.compare, token)) {
+    switch (links.get(token)) {
       case null { #err(#NotFound) };
       case (?link) {
         if (link.createdBy != msg.caller and not isAdmin(msg.caller))
@@ -864,7 +864,7 @@ persistent actor Report {
           hideDescriptions = link.hideDescriptions;
         };
         Index.put(links, linksIndexes, token, revoked);
-        try { ignore await auditLog("ShareLinkRevoked", ?link.createdBy, "token=" # token # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+        try { ignore await auditLog("ShareLinkRevoked", ?link.createdBy, "token=" # token # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
         #ok(())
       };
     }
@@ -902,7 +902,7 @@ persistent actor Report {
     };
     adminListEntries := Admin.add(adminListEntries, newAdmin);
     adminInitialized := true;
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -915,7 +915,7 @@ persistent actor Report {
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };
@@ -929,7 +929,7 @@ persistent actor Report {
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
-    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -949,7 +949,7 @@ persistent actor Report {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
     pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
-    try { ignore await auditLog("CanisterPaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+    try { ignore await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -957,7 +957,7 @@ persistent actor Report {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := false;
     pauseExpiryNs := null;
-    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -1030,7 +1030,7 @@ persistent actor Report {
 
     // −5 per unresolved Critical alert, cap −30
     var critPenalty : Int = 0;
-    for (a in alerts.vals()) {
+    for (a in alerts.values()) {
       if (a.severity == "Critical" and a.resolvedByJobId == null) {
         critPenalty += 5;
       }
@@ -1117,7 +1117,7 @@ persistent actor Report {
       };
 
       let rawDevices = await sensorActor.getDevicesForProperty(propertyId);
-      sensorCoverage := Array.map(rawDevices, func(d: {
+      sensorCoverage := rawDevices.map(func(d: {
         id: Text; name: Text; source: { #Nest; #Ecobee; #MoenFlo; #Manual;
           #RingAlarm; #HoneywellHome; #RheemEcoNet; #Sense;
           #EmporiaVue; #Rachio; #SmartThings; #HomeAssistant;
@@ -1149,7 +1149,7 @@ persistent actor Report {
 
       let rawEvents = await sensorActor.getEventsForProperty(propertyId, 50);
       var alertAcc : [AlertSummary] = [];
-      for (e in rawEvents.vals()) {
+      for (e in rawEvents.values()) {
         let sev = switch (e.severity) {
           case (#Critical) { "Critical" };
           case (#Warning)  { "Warning"  };
@@ -1172,7 +1172,7 @@ persistent actor Report {
             case (#ApplianceFault)       { "ApplianceFault"       };
             case (#ApplianceMaintenance) { "ApplianceMaintenance" };
           };
-          alertAcc := Array.concat(alertAcc, [{
+          alertAcc := alertAcc.concat([{
             alertId = e.id; eventType = evtName; severity = sev;
             timestamp = e.timestamp; resolvedByJobId = e.jobId;
           }]);
@@ -1192,7 +1192,7 @@ persistent actor Report {
       switch (await fetchJobs(propertyId)) {
         case null {};
         case (?allJobs) {
-          for (j in allJobs.vals()) {
+          for (j in allJobs.values()) {
             let isOpen = switch (j.status) {
               case (#Pending)    { true };
               case (#InProgress) { true };
@@ -1252,13 +1252,13 @@ persistent actor Report {
       verifiedJobCount;
       permitCount;
     };
-    Map.add(riskProfiles, Text.compare, token, profile);
+    riskProfiles.add(token, profile);
     #ok(profile)
   };
 
   /// Retrieve a previously generated risk profile by token.
   public query func getRiskProfile(token: Text) : async Result.Result<RiskProfile, RiskProfileError> {
-    switch (Map.get(riskProfiles, Text.compare, token)) {
+    switch (riskProfiles.get(token)) {
       case null { #err(#NotFound) };
       case (?p) {
         switch (p.expiresAt) {
@@ -1342,7 +1342,7 @@ persistent actor Report {
     let certId = Uuid.fromBlob(await Random.blob());
     let now = Time.now();
     // State checks after the awaits (TOCTOU).
-    if (Map.get(certs, Text.compare, certId) != null) return #err(#InvalidInput("ID collision, retry"));
+    if (certs.get(certId) != null) return #err(#InvalidInput("ID collision, retry"));
     if (not isAdmin(msg.caller) and not consumePropertySlot(certWindowByProperty, propertyId, MAX_CERTS_PER_PROPERTY_DAY))
       return #err(#InvalidInput("Certificate limit reached for this property; try again tomorrow"));
 
@@ -1358,10 +1358,10 @@ persistent actor Report {
       # ",\"state\":"             # jsonStr(prop.state)
       # ",\"zipCode\":"           # jsonStr(prop.zipCode)
       # ",\"verificationLevel\":" # jsonStr(levelText(prop.verificationLevel))
-      # ",\"verifiedJobCount\":"  # Nat.toText(cert.verifiedJobCount)
+      # ",\"verifiedJobCount\":"  # cert.verifiedJobCount.toText()
       # ",\"verifiedKeySystems\":[" # systems # "]"
       # ",\"meetsStructural\":"   # (if (cert.meetsStructural) "true" else "false")
-      # ",\"score\":"             # (switch (score) { case (?n) Nat.toText(n); case null "null" })
+      # ",\"score\":"             # (switch (score) { case (?n) n.toText(); case null "null" })
       # ",\"certified\":"         # (if (certified) "true" else "false")
       # ",\"issuedAt\":"          # Int.toText(now / 1_000_000)
       # "}";
@@ -1372,7 +1372,7 @@ persistent actor Report {
       payload    = json;
       issuedAt   = now;
     };
-    Map.add(certs, Text.compare, certId, record);
+    certs.add(certId, record);
     #ok(certId)
   };
 
@@ -1380,7 +1380,7 @@ persistent actor Report {
   /// certificates every field, including the score, was computed on-chain.
   /// Public query — no authentication required; safe for lenders to call.
   public query func verifyCert(certId: Text) : async ?Text {
-    switch (Map.get(certs, Text.compare, certId)) {
+    switch (certs.get(certId)) {
       case null  null;
       case (?r)  ?r.payload;
     }
@@ -1389,13 +1389,13 @@ persistent actor Report {
   public query func getMetrics() : async Metrics {
     var active = 0;
     var views  = 0;
-    for (l in Map.values(links)) {
+    for (l in links.values()) {
       if (l.isActive and not isExpired(l)) { active += 1 };
       views += l.viewCount;
     };
     {
-      totalReports    = Map.size(snapshots);
-      totalShareLinks = Map.size(links);
+      totalReports    = snapshots.size();
+      totalShareLinks = links.size();
       activeLinks     = active;
       totalViews      = views;
       isPaused;

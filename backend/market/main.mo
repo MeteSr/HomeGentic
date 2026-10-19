@@ -172,7 +172,7 @@ persistent actor MarketIntelligence {
 
   // Domain separator — "hg-score-v1" as UTF-8 bytes.
   // Must match the context value used on the frontend with @dfinity/vetkeys.
-  transient let SCORE_CONTEXT : Blob = Blob.fromArray([
+  transient let SCORE_CONTEXT : Blob = Array.toBlob([
     0x68, 0x67, 0x2D, 0x73, 0x63, 0x6F, 0x72, 0x65, 0x2D, 0x76, 0x31
   ]);
 
@@ -267,8 +267,8 @@ persistent actor MarketIntelligence {
   private func stateMultiplier(state: Text) : Nat {
     let hot    = ["CA", "NY", "MA", "WA", "OR", "CO"];
     let warm   = ["TX", "FL", "AZ", "GA", "NC", "TN", "NV"];
-    if (Option.isSome(Array.find<Text>(hot,  func(s) { s == state }))) { 115 }
-    else if (Option.isSome(Array.find<Text>(warm, func(s) { s == state }))) { 108 }
+    if (Option.isSome(hot.find(func(s) { s == state }))) { 115 }
+    else if (Option.isSome(warm.find(func(s) { s == state }))) { 108 }
     else { 100 }
   };
 
@@ -284,13 +284,13 @@ persistent actor MarketIntelligence {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(p: Principal) : Bool {
@@ -298,10 +298,10 @@ persistent actor MarketIntelligence {
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
@@ -342,9 +342,9 @@ persistent actor MarketIntelligence {
 
     var total : Nat = 0;
 
-    for ((sysName, weight) in systems.vals()) {
+    for ((sysName, weight) in systems.values()) {
       // Find best job for this system (prefer verified)
-      let match = Array.find<JobSummary>(jobs, func(j) {
+      let match = jobs.find(func(j) {
         if (sysName == "other") {
           not (j.serviceType == "HVAC"       or
                j.serviceType == "Roofing"    or
@@ -375,12 +375,12 @@ persistent actor MarketIntelligence {
     var weightedSum : Nat = 0;
     var totalWeight : Nat = 0;
 
-    for (sys in SYSTEM_LIFESPANS.vals()) {
+    for (sys in SYSTEM_LIFESPANS.values()) {
       totalWeight += sys.weight;
 
       // Find most recent job year for this system
       let lastYear : Nat = switch (
-        Array.find<JobSummary>(jobs, func(j) { j.serviceType == sys.category })
+        jobs.find(func(j) { j.serviceType == sys.category })
       ) {
         case null    { yearBuilt };   // assume original if never replaced
         case (?job)  { job.completedYear };
@@ -404,7 +404,7 @@ persistent actor MarketIntelligence {
   // Verification depth: % of jobs that are on-chain verified.
   private func verificationDepth(jobs: [JobSummary]) : Nat {
     if (jobs.size() == 0) return 0;
-    let verified = Array.filter<JobSummary>(jobs, func(j) { j.isVerified }).size();
+    let verified = jobs.filter(func(j) { j.isVerified }).size();
     verified * 100 / jobs.size()
   };
 
@@ -433,8 +433,7 @@ persistent actor MarketIntelligence {
 
     // Score each comparison and build ranked list
     type Scored = { id: Text; score: Nat };
-    let allScores : [Scored] = Array.map<PropertyJobSummary, Scored>(
-      comparisons,
+    let allScores : [Scored] = comparisons.map(
       func(c) {
         let cm   = maintenanceScore(c.jobs);
         let cmod = modernizationScore(c.jobs, c.yearBuilt);
@@ -444,21 +443,21 @@ persistent actor MarketIntelligence {
     );
 
     // Count how many comparisons beat the subject
-    let beatenBy = Array.filter<Scored>(allScores, func(s) { s.score > compS }).size();
+    let beatenBy = allScores.filter(func(s) { s.score > compS }).size();
     let rank = beatenBy + 1;   // 1-indexed, lower = better
     let total = comparisons.size() + 1;
 
     // Strengths: dimensions ≥ 70
     var strengths : [Text] = [];
-    if (mS   >= 70) { strengths := Array.concat(strengths, ["Strong documented maintenance history"]) };
-    if (modS >= 70) { strengths := Array.concat(strengths, ["Systems are modern and recently updated"]) };
-    if (vS   >= 70) { strengths := Array.concat(strengths, ["High proportion of blockchain-verified records"]) };
+    if (mS   >= 70) { strengths := strengths.concat(["Strong documented maintenance history"]) };
+    if (modS >= 70) { strengths := strengths.concat(["Systems are modern and recently updated"]) };
+    if (vS   >= 70) { strengths := strengths.concat(["High proportion of blockchain-verified records"]) };
 
     // Improvements: dimensions < 50
     var improvements : [Text] = [];
-    if (mS   < 50) { improvements := Array.concat(improvements, ["Add maintenance records — buyers discount undocumented homes 3-5 %"]) };
-    if (modS < 50) { improvements := Array.concat(improvements, ["Key systems may be near end-of-life — consider targeted upgrades"]) };
-    if (vS   < 50) { improvements := Array.concat(improvements, ["Get existing jobs co-signed to boost buyer confidence"]) };
+    if (mS   < 50) { improvements := improvements.concat(["Add maintenance records — buyers discount undocumented homes 3-5 %"]) };
+    if (modS < 50) { improvements := improvements.concat(["Key systems may be near end-of-life — consider targeted upgrades"]) };
+    if (vS   < 50) { improvements := improvements.concat(["Get existing jobs co-signed to boost buyer confidence"]) };
 
     if (strengths.size() == 0 and improvements.size() == 0) {
       improvements := ["Logging more jobs will increase your competitive score"];
@@ -493,7 +492,7 @@ persistent actor MarketIntelligence {
     let propAgeInt : Int = (year : Int) - (profile.yearBuilt : Int);
     let propAge    : Nat = if (propAgeInt > 0) Int.abs(propAgeInt) else 0;
     let stateMult = stateMultiplier(profile.state);
-    let zipSnap   = Map.get(snapshots, Text.compare, profile.zipCode);
+    let zipSnap   = snapshots.get(profile.zipCode);
 
     // Market premium for zip: if median price > national average ($400K) scale up slightly
     let zipPremium : Nat = switch (zipSnap) {
@@ -507,7 +506,7 @@ persistent actor MarketIntelligence {
 
     let recsBuf = List.empty<ProjectRecommendation>();
 
-    for (tmpl in PROJECT_TEMPLATES.vals()) {
+    for (tmpl in PROJECT_TEMPLATES.values()) {
 
       // 1. Property must be old enough to need this project
       if (propAge < tmpl.minPropertyAge) {
@@ -516,13 +515,13 @@ persistent actor MarketIntelligence {
 
         // 2. Check if it's already been done within its expected lifespan
         let lifespan = switch (
-          Array.find<SystemLifespan>(SYSTEM_LIFESPANS, func(s) { s.category == tmpl.category })
+          SYSTEM_LIFESPANS.find(func(s) { s.category == tmpl.category })
         ) {
           case null    { 999 };   // no lifespan entry = never auto-skip
           case (?sys)  { sys.lifespanYears };
         };
 
-        let alreadyDone = Option.isSome(Array.find<JobSummary>(currentJobs, func(j) {
+        let alreadyDone = Option.isSome(currentJobs.find(func(j) {
           j.serviceType == tmpl.category
           and j.completedYear + lifespan > year   // within remaining lifespan
         }));
@@ -550,16 +549,16 @@ persistent actor MarketIntelligence {
 
             // 5. Generate rationale
             let ageNote = if (propAge > 0)
-              "Your home is " # Nat.toText(propAge) # " years old. "
+              "Your home is " # propAge.toText() # " years old. "
               else "";
-            let roiNote = "National average ROI: " # Nat.toText(adjustedRoi) # " %.";
+            let roiNote = "National average ROI: " # adjustedRoi.toText() # " %.";
             let stateNote = if (stateMult > 100)
               " " # profile.state # " markets typically realize value faster."
               else "";
 
             let rationale = ageNote # roiNote # stateNote;
 
-            List.add(recsBuf, {
+            recsBuf.add({
               name                = tmpl.name;
               category            = tmpl.category;
               estimatedCostCents  = adjustedCost;
@@ -576,8 +575,7 @@ persistent actor MarketIntelligence {
     };
 
     // Sort descending by adjustedRoi (higher ROI first)
-    Array.sort<ProjectRecommendation>(
-      List.toArray(recsBuf),
+    recsBuf.toArray().sort(
       func(a, b) : Order.Order {
         if      (a.estimatedRoiPercent > b.estimatedRoiPercent) #less     // reversed for descending
         else if (a.estimatedRoiPercent < b.estimatedRoiPercent) #greater
@@ -605,7 +603,7 @@ persistent actor MarketIntelligence {
   /// nothing is taken from the caller.
   public shared(msg) func computePropertyScore(propertyId: Text) : async ?Nat {
     if (propCanisterId == "" or jobCanisterId == "") return null;
-    let callerText = Principal.toText(msg.caller);
+    let callerText = msg.caller.toText();
     let trusted = isAdmin(msg.caller)
       or (listingCanisterId != "" and callerText == listingCanisterId)
       or (reportCanisterId  != "" and callerText == reportCanisterId);
@@ -661,13 +659,13 @@ persistent actor MarketIntelligence {
       marketTrend = trend;
       recordedAt  = Time.now();
     };
-    Map.add(snapshots, Text.compare, zipCode, snap);
+    snapshots.add(zipCode, snap);
     #ok(snap)
   };
 
   /// Retrieve the latest market snapshot for a zip code.
   public query func getMarketSnapshot(zipCode: Text) : async Result.Result<MarketSnapshot, Error> {
-    switch (Map.get(snapshots, Text.compare, zipCode)) {
+    switch (snapshots.get(zipCode)) {
       case null    { #err(#NotFound) };
       case (?snap) { #ok(snap) };
     }
@@ -685,7 +683,7 @@ persistent actor MarketIntelligence {
     zipCode:   Text,
   ) : async Result.Result<StoredScore, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
     if (Text.size(zipCode) == 0 or Text.size(zipCode) > 20)
       return #err(#InvalidInput("zipCode must be 1-20 characters"));
     if (jobs.size() > MAX_SCORE_JOBS) return #err(#InvalidInput("too many jobs"));
@@ -693,12 +691,12 @@ persistent actor MarketIntelligence {
     let caller = msg.caller;
 
     // If homeowner previously had a different zip, remove from old zip index.
-    switch (Map.get(scoreStore, Principal.compare, caller)) {
+    switch (scoreStore.get(caller)) {
       case (?old) {
         if (old.zipCode != zipCode) {
-          let oldList = Option.get(Map.get(zipIndex, Text.compare, old.zipCode), []);
-          let trimmed = Array.filter<Principal>(oldList, func(p) { p != caller });
-          Map.add(zipIndex, Text.compare, old.zipCode, trimmed);
+          let oldList = zipIndex.get(old.zipCode).get([]);
+          let trimmed = oldList.filter(func(p) { p != caller });
+          zipIndex.add(old.zipCode, trimmed);
         };
       };
       case null {};
@@ -711,12 +709,12 @@ persistent actor MarketIntelligence {
     );
 
     let stored : StoredScore = { score; zipCode; updatedAt = Time.now() };
-    Map.add(scoreStore, Principal.compare, caller, stored);
+    scoreStore.add(caller, stored);
 
     // Add caller to zip index if not already present.
-    let current = Option.get(Map.get(zipIndex, Text.compare, zipCode), []);
+    let current = zipIndex.get(zipCode).get([]);
     if (not Admin.contains(current, caller)) {
-      Map.add(zipIndex, Text.compare, zipCode, Array.concat(current, [caller]));
+      zipIndex.add(zipCode, current.concat([caller]));
     };
 
     #ok(stored)
@@ -725,23 +723,23 @@ persistent actor MarketIntelligence {
   /// Public zip-level aggregate statistics.
   /// Never exposes individual scores or principals — only mean, median, and sample size.
   public query func getZipStats(zipCode: Text) : async Result.Result<ZipStats, Error> {
-    let principals = Option.get(Map.get(zipIndex, Text.compare, zipCode), []);
+    let principals = zipIndex.get(zipCode).get([]);
     if (principals.size() == 0) return #err(#NotFound);
 
     let scoresBuf = List.empty<Nat>();
-    for (p in principals.vals()) {
-      switch (Map.get(scoreStore, Principal.compare, p)) {
-        case (?s) { List.add(scoresBuf, s.score) };
+    for (p in principals.values()) {
+      switch (scoreStore.get(p)) {
+        case (?s) { scoresBuf.add(s.score) };
         case null {};
       };
     };
-    if (List.size(scoresBuf) < MIN_ZIP_SAMPLE) return #err(#NotFound);  // M12: k-anonymity
+    if (scoresBuf.size() < MIN_ZIP_SAMPLE) return #err(#NotFound);  // M12: k-anonymity
 
     var total : Nat = 0;
-    List.forEach(scoresBuf, func(s : Nat) { total += s });
-    let mean = total / List.size(scoresBuf);
+    scoresBuf.forEach(func(s : Nat) { total += s });
+    let mean = total / scoresBuf.size();
 
-    let sorted = Array.sort<Nat>(List.toArray(scoresBuf), Nat.compare);
+    let sorted = scoresBuf.toArray().sort();
     let n = sorted.size();
     let median = if (n % 2 == 1) {
       sorted[n / 2]
@@ -749,7 +747,7 @@ persistent actor MarketIntelligence {
       (sorted[(n / 2) - 1] + sorted[n / 2]) / 2
     };
 
-    #ok({ zipCode; mean; median; sampleSize = List.size(scoresBuf); grade = scoreGrade(median) })
+    #ok({ zipCode; mean; median; sampleSize = scoresBuf.size(); grade = scoreGrade(median) })
   };
 
   /// Returns the canister's vetKeys public key for the neighbourhood score context.
@@ -774,30 +772,30 @@ persistent actor MarketIntelligence {
   ) : async Result.Result<ScoreEnvelope, Error> {
     // Capture caller before await — required per vetKeys skill guidance.
     let caller = msg.caller;
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     // M12: pause + per-minute limit, then a per-day derive cap.
     switch (requireActive(caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    let stored = switch (Map.get(scoreStore, Principal.compare, caller)) {
+    let stored = switch (scoreStore.get(caller)) {
       case null    { return #err(#NotFound) };
       case (?s)    { s };
     };
 
     if (not isAdmin(caller)) {
       let now = Time.now();
-      switch (Map.get(deriveLimits, Principal.compare, caller)) {
+      switch (deriveLimits.get(caller)) {
         case (?(count, start)) {
           if (now - start < ONE_DAY_NS) {
             if (count >= MAX_DERIVES_PER_DAY) return #err(#InvalidInput("Daily encrypted-score limit reached"));
-            Map.add(deriveLimits, Principal.compare, caller, (count + 1, start));
-          } else { Map.add(deriveLimits, Principal.compare, caller, (1, now)) };
+            deriveLimits.add(caller, (count + 1, start));
+          } else { deriveLimits.add(caller, (1, now)) };
         };
-        case null { Map.add(deriveLimits, Principal.compare, caller, (1, now)) };
+        case null { deriveLimits.add(caller, (1, now)) };
       };
     };
 
     let response = await (with cycles = vetkdDeriveCycles()) managementCanister.vetkd_derive_key({
-      input                = Principal.toBlob(caller);
+      input                = caller.toBlob();
       context              = SCORE_CONTEXT;
       transport_public_key = transportPublicKey;
       key_id               = { curve = #bls12_381_g2; name = vetkdKeyName };
@@ -899,8 +897,8 @@ persistent actor MarketIntelligence {
 
   public query func getMetrics() : async Metrics {
     {
-      marketSnapshotCount = Map.size(snapshots);
-      scoreCount          = Map.size(scoreStore);
+      marketSnapshotCount = snapshots.size();
+      scoreCount          = scoreStore.size();
       isPaused;
     }
   };

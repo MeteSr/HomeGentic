@@ -48,7 +48,7 @@ module {
   /// Whether `caller` may set the one-time bootstrap nonce: only a controller,
   /// only before the first admin exists, and only once.
   public func canSetNonce(caller : Principal, initialized : Bool, current : ?Text) : Bool {
-    Principal.isController(caller) and not initialized and current == null
+    caller.isController() and not initialized and current == null
   };
 
   /// Whether `given` matches the stored nonce. An unset nonce matches nothing.

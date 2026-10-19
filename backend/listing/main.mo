@@ -234,8 +234,8 @@ persistent actor Listing {
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let requestsByHomeowner = Index.empty();
   private transient let openBidRequests = Index.empty();
-  private transient let requestsIndexes : [Index.Keyed<ListingBidRequest>] = Index.indexed<ListingBidRequest>(requests, [
-    (requestsByHomeowner, func(r : ListingBidRequest) : ?Text { ?Principal.toText(r.homeowner) }),
+  private transient let requestsIndexes : [Index.Keyed<ListingBidRequest>] = Index.indexed(requests, [
+    (requestsByHomeowner, func(r : ListingBidRequest) : ?Text { ?r.homeowner.toText() }),
     (openBidRequests, func(r : ListingBidRequest) : ?Text { if (r.status == #Open) ?"open" else null }),
   ]);
   private let proposals      = Map.empty<Text, ListingProposal>();
@@ -244,9 +244,9 @@ persistent actor Listing {
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let proposalsByRequest = Index.empty();
   private transient let proposalsByAgent = Index.empty();
-  private transient let proposalsIndexes : [Index.Keyed<ListingProposal>] = Index.indexed<ListingProposal>(proposals, [
+  private transient let proposalsIndexes : [Index.Keyed<ListingProposal>] = Index.indexed(proposals, [
     (proposalsByRequest, func(r : ListingProposal) : ?Text { ?r.requestId }),
-    (proposalsByAgent, func(r : ListingProposal) : ?Text { ?Principal.toText(r.agentId) }),
+    (proposalsByAgent, func(r : ListingProposal) : ?Text { ?r.agentId.toText() }),
   ]);
   private let threads        = Map.empty<Text, [Message]>();   // proposalId -> messages
   private let compsConfig    = Map.empty<Text, CompsConfig>(); // zipCode -> comps
@@ -292,12 +292,12 @@ persistent actor Listing {
   private var maxUpdatesPerMin : Nat = 30;
 
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(caller: Principal) : Bool {
@@ -305,17 +305,17 @@ persistent actor Listing {
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
 
-  private func nextBidId() : Text { bidCounter += 1; "BID_" # Nat.toText(bidCounter) };
-  private func nextProposalId() : Text { proposalCounter += 1; "PROP_" # Nat.toText(proposalCounter) };
-  private func nextMessageId() : Text { messageCounter += 1; "MSG_" # Nat.toText(messageCounter) };
+  private func nextBidId() : Text { bidCounter += 1; "BID_" # bidCounter.toText() };
+  private func nextProposalId() : Text { proposalCounter += 1; "PROP_" # proposalCounter.toText() };
+  private func nextMessageId() : Text { messageCounter += 1; "MSG_" # messageCounter.toText() };
 
   private func windowDaysToNs(w: WindowDays) : Int {
     let days : Int = switch (w) { case (#Three) { 3 }; case (#Seven) { 7 }; case (#Fourteen) { 14 } };
@@ -323,11 +323,11 @@ persistent actor Listing {
   };
 
   private func proposalsFor(requestId: Text) : [ListingProposal] {
-    Iter.toArray(Index.records(proposalsByRequest, requestId, proposals))
+    Index.records(proposalsByRequest, requestId, proposals).toArray()
   };
 
   private func isWinningAgent(requestId: Text, caller: Principal) : Bool {
-    Option.isSome(Array.find<ListingProposal>(proposalsFor(requestId), func(p) {
+    Option.isSome(proposalsFor(requestId).find(func(p) {
       p.agentId == caller and p.status == #Accepted
     }))
   };
@@ -353,7 +353,7 @@ persistent actor Listing {
       cmaSummary    = if (reveal) { p.cmaSummary } else { scrubbed(p.cmaSummary) };
       marketingPlan = if (reveal) { p.marketingPlan } else { scrubbed(p.marketingPlan) };
       marketingCommitments = if (reveal) { p.marketingCommitments }
-        else { Array.map<Text, Text>(p.marketingCommitments, scrubbed) };
+        else { p.marketingCommitments.map(scrubbed) };
       estimatedDaysOnMarket = p.estimatedDaysOnMarket; status = p.status;
       derived = p.derived;
       agentRecord = if (reveal) { p.agentRecord } else {
@@ -372,12 +372,12 @@ persistent actor Listing {
 
   private func listTooBig(xs: [Text]) : Bool {
     if (xs.size() > MAX_LIST_ENTRIES) return true;
-    for (x in xs.vals()) { if (Text.size(x) > MAX_ENTRY_TEXT) return true };
+    for (x in xs.values()) { if (Text.size(x) > MAX_ENTRY_TEXT) return true };
     false
   };
 
   private func page<T>(it: Iter.Iter<T>, from: Nat, limit: Nat) : [T] {
-    Iter.toArray(Iter.take(Iter.drop(it, from), Nat.min(limit, MAX_FEED_PAGE)))
+    it.drop(from).take(Nat.min(limit, MAX_FEED_PAGE)).toArray()
   };
 
   /// Property-canister ownership: the property's registered owner only.
@@ -449,7 +449,7 @@ persistent actor Listing {
   };
 
   public query(msg) func getMyBidRequests() : async [ListingBidRequest] {
-    Iter.toArray(Index.records(requestsByHomeowner, Principal.toText(msg.caller), requests))
+    Index.records(requestsByHomeowner, msg.caller.toText(), requests).toArray()
   };
 
   /// Redacts address/homeownerEmail, and also propertyId and the homeowner
@@ -458,7 +458,7 @@ persistent actor Listing {
   /// winning agent — invariant 01. The redacted homeowner is the anonymous
   /// principal.
   public query(msg) func getBidRequest(id: Text) : async Result.Result<ListingBidRequest, Error> {
-    switch (Map.get(requests, Text.compare, id)) {
+    switch (requests.get(id)) {
       case null { #err(#NotFound) };
       case (?r) {
         let privileged = isAdmin(msg.caller) or r.homeowner == msg.caller
@@ -472,7 +472,7 @@ persistent actor Listing {
 
   public shared(msg) func cancelBidRequest(id: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(requests, Text.compare, id)) {
+    switch (requests.get(id)) {
       case null    { #err(#NotFound) };
       case (?req) {
         if (req.homeowner != msg.caller) return #err(#NotAuthorized);
@@ -501,11 +501,11 @@ persistent actor Listing {
 
   /// M6: capped at MAX_FEED_PAGE entries; use getOpenBidRequestsPage for the rest.
   public query func getOpenBidRequests() : async [BidRequestSummary] {
-    page(Iter.map<ListingBidRequest, BidRequestSummary>(Index.records(openBidRequests, "open", requests), toSummary), 0, MAX_FEED_PAGE)
+    page(Index.records(openBidRequests, "open", requests).map(toSummary), 0, MAX_FEED_PAGE)
   };
 
   public query func getOpenBidRequestsPage(from: Nat, limit: Nat) : async [BidRequestSummary] {
-    page(Iter.map<ListingBidRequest, BidRequestSummary>(Index.records(openBidRequests, "open", requests), toSummary), from, limit)
+    page(Index.records(openBidRequests, "open", requests).map(toSummary), from, limit)
   };
 
   // ─── Homeowner: Photo review (H1 flagged-tile gate) ─────────────────────────
@@ -516,15 +516,15 @@ persistent actor Listing {
   /// The property whose listing holds this photo (M7). Falls back to a scan
   /// for photos added before listingPhotoProperty existed.
   private func photoPropertyOf(photoId: Text) : ?Text {
-    switch (Map.get(listingPhotoProperty, Text.compare, photoId)) {
+    switch (listingPhotoProperty.get(photoId)) {
       case (?pid) { return ?pid };
       case null {};
     };
-    for ((pid, ids) in Map.entries(listingPhotos)) {
-      if (Option.isSome(Array.find<Text>(ids, func(id) { id == photoId }))) return ?pid;
+    for ((pid, ids) in listingPhotos.entries()) {
+      if (Option.isSome(ids.find(func(id) { id == photoId }))) return ?pid;
     };
-    for ((pid, entries) in Map.entries(listingPanoramas)) {
-      if (Option.isSome(Array.find<PanoramaEntry>(entries, func(e) { e.photoId == photoId }))) return ?pid;
+    for ((pid, entries) in listingPanoramas.entries()) {
+      if (Option.isSome(entries.find(func(e) { e.photoId == photoId }))) return ?pid;
     };
     null
   };
@@ -542,19 +542,19 @@ persistent actor Listing {
   public shared(msg) func flagPhotoForReview(photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (not (await canChangePhotoReview(photoId, msg.caller))) return #err(#NotAuthorized);
-    Map.add(photoReviews, Text.compare, photoId, { flagged = true; reviewed = false });
+    photoReviews.add(photoId, { flagged = true; reviewed = false });
     #ok(())
   };
 
   public shared(msg) func reviewPhoto(photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (not (await canChangePhotoReview(photoId, msg.caller))) return #err(#NotAuthorized);
-    Map.add(photoReviews, Text.compare, photoId, { flagged = true; reviewed = true });
+    photoReviews.add(photoId, { flagged = true; reviewed = true });
     #ok(())
   };
 
   public query func getPhotoReviewState(photoId: Text) : async ?PhotoReviewState {
-    Map.get(photoReviews, Text.compare, photoId)
+    photoReviews.get(photoId)
   };
 
   // ─── Agent: Proposal Lifecycle ────────────────────────────────────────────────
@@ -596,7 +596,7 @@ persistent actor Listing {
     };
     if (not profile.isVerified) return #err(#NotAuthorized);
 
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null    { #err(#NotFound) };
       case (?req) {
         if (req.status != #Open)          return #err(#InvalidInput("Request is not accepting proposals"));
@@ -607,16 +607,16 @@ persistent actor Listing {
 
         let existing = proposalsFor(requestId);
         if (existing.size() >= MAX_PROPOSALS_PER_REQUEST) return #err(#SlotsFull);
-        if (Option.isSome(Array.find<ListingProposal>(existing, func(p) { p.agentId == msg.caller })))
+        if (Option.isSome(existing.find(func(p) { p.agentId == msg.caller })))
           return #err(#InvalidInput("You already have a proposal on this listing"));
 
-        let comps = switch (Map.get(compsConfig, Text.compare, req.zipCode)) {
+        let comps = switch (compsConfig.get(req.zipCode)) {
           case null { { medianCents = 0; saleCount = 0 } };
           case (?c) { c };
         };
         let overCompFlag = comps.medianCents > 0 and suggestedListCents * 100 > comps.medianCents * 104;
         let pctVsCompsBps : Int = if (comps.medianCents == 0) { 0 } else {
-          ((Int.fromNat(suggestedListCents) - Int.fromNat(comps.medianCents)) * 10000) / Int.fromNat(comps.medianCents)
+          ((suggestedListCents.toInt() - comps.medianCents.toInt()) * 10000) / comps.medianCents.toInt()
         };
         let derived : DerivedSignals = {
           estNetToSellerCents = suggestedListCents * (10000 - Nat.min(commissionBps, 10000)) / 10000;
@@ -636,9 +636,9 @@ persistent actor Listing {
           // M5: scrub contact details (phones, emails, URLs, handles, street
           // addresses) from every free-text field before persistence.
           cmaSummary = scrubbed(cmaSummary); marketingPlan = scrubbed(marketingPlan);
-          marketingCommitments = Array.map<Text, Text>(marketingCommitments, scrubbed);
+          marketingCommitments = marketingCommitments.map(scrubbed);
           estimatedDaysOnMarket;
-          includedServices = Array.map<Text, Text>(includedServices, scrubbed); validUntil;
+          includedServices = includedServices.map(scrubbed); validUntil;
           coverLetter = scrubbed(coverLetter); status = #Pending; derived; agentRecord; createdAt = Time.now();
         };
         Index.put(proposals, proposalsIndexes, id, proposal);
@@ -649,7 +649,7 @@ persistent actor Listing {
 
   public shared(msg) func withdrawProposal(proposalId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(proposals, Text.compare, proposalId)) {
+    switch (proposals.get(proposalId)) {
       case null { #err(#NotFound) };
       case (?p) {
         if (p.agentId != msg.caller) return #err(#NotAuthorized);
@@ -665,7 +665,7 @@ persistent actor Listing {
   /// regardless of reveal state. Identity stays masked (letters, not names)
   /// until feePaid — invariant 04.
   public query(msg) func getProposalsForRequest(requestId: Text) : async [MaskedProposal] {
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { [] };
       case (?req) {
         let all = proposalsFor(requestId);
@@ -673,16 +673,16 @@ persistent actor Listing {
         let isHomeowner = req.homeowner == msg.caller;
         let unmasked = req.feePaid; // identity release trigger — settled payment only
 
-        if (admin) { return Iter.toArray(Iter.map<ListingProposal, MaskedProposal>(Iter.fromArray(all), func(p) { toMasked(p, msg.caller, unmasked) })) };
+        if (admin) { return Array.values(all).map(func(p) { toMasked(p, msg.caller, unmasked) }).toArray() };
 
         if (isHomeowner) {
           let sealed = all.size() < SEAL_REVEAL_COUNT and Time.now() < req.bidDeadline;
           if (sealed) { return [] };
-          return Iter.toArray(Iter.map<ListingProposal, MaskedProposal>(Iter.fromArray(all), func(p) { toMasked(p, msg.caller, unmasked) }));
+          return Array.values(all).map(func(p) { toMasked(p, msg.caller, unmasked) }).toArray();
         };
 
         // Any other caller (a bidding agent): only their own proposal, always.
-        switch (Array.find<ListingProposal>(all, func(p) { p.agentId == msg.caller })) {
+        switch (all.find(func(p) { p.agentId == msg.caller })) {
           case null    { [] };
           case (?mine) { [toMasked(mine, msg.caller, unmasked)] };
         }
@@ -693,7 +693,7 @@ persistent actor Listing {
   /// Bid count only, no terms — lets the homeowner render "2 of 5 in" while
   /// still sealed (H2), without leaking anything invariant 02 protects.
   public query(msg) func getBidProgress(requestId: Text) : async Result.Result<{ count: Nat; sealed: Bool }, Error> {
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
         if (not isAdmin(msg.caller) and req.homeowner != msg.caller) return #err(#NotAuthorized);
@@ -704,7 +704,7 @@ persistent actor Listing {
   };
 
   public query(msg) func getMyProposals() : async [ListingProposal] {
-    Iter.toArray(Index.records(proposalsByAgent, Principal.toText(msg.caller), proposals))
+    Index.records(proposalsByAgent, msg.caller.toText(), proposals).toArray()
   };
 
   // ─── Homeowner: Selection & Payment-Gated Award ─────────────────────────────
@@ -718,10 +718,10 @@ persistent actor Listing {
   public shared(msg) func acceptProposal(proposalId: Text) : async Result.Result<Text, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(feeCanisterId) == 0) return #err(#InvalidInput("Fee canister not configured"));
-    switch (Map.get(proposals, Text.compare, proposalId)) {
+    switch (proposals.get(proposalId)) {
       case null { #err(#NotFound) };
       case (?p) {
-        switch (Map.get(requests, Text.compare, p.requestId)) {
+        switch (requests.get(p.requestId)) {
           case null { #err(#NotFound) };
           case (?req) {
             if (req.homeowner != msg.caller) return #err(#NotAuthorized);
@@ -756,7 +756,7 @@ persistent actor Listing {
   /// proposal, and the request/proposal must still be open/pending.
   public shared(msg) func markListingFeePaid(requestId: Text, proposalId: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {
         if (req.status == #Awarded and req.feePaid) {
@@ -781,21 +781,21 @@ persistent actor Listing {
 
     // Re-read after the await (TOCTOU): the request may have been cancelled or
     // awarded, or the proposal withdrawn, while we waited on the fee canister.
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
         if (req.status == #Awarded and req.feePaid) {
           return if (isProposalAccepted(requestId, proposalId)) #ok(()) else #err(#InvalidInput("request already awarded to another proposal"));
         };
         if (req.status != #Open) return #err(#InvalidInput("Request is no longer open"));
-        switch (Map.get(proposals, Text.compare, proposalId)) {
+        switch (proposals.get(proposalId)) {
           case null { #err(#NotFound) };
           case (?winner) {
             if (winner.requestId != requestId) return #err(#InvalidInput("proposal does not belong to this request"));
             if (winner.agentId != fee.agentId) return #err(#InvalidInput("fee was paid for a different agent"));
             if (winner.status != #Pending) return #err(#InvalidInput("proposal is no longer pending"));
             Index.put(proposals, proposalsIndexes, winner.id, { winner with status = #Accepted });
-            for (p in proposalsFor(requestId).vals()) {
+            for (p in proposalsFor(requestId).values()) {
               if (p.id != winner.id and p.status == #Pending) {
                 Index.put(proposals, proposalsIndexes, p.id, { p with status = #Rejected });
               };
@@ -809,7 +809,7 @@ persistent actor Listing {
   };
 
   private func isProposalAccepted(requestId: Text, proposalId: Text) : Bool {
-    switch (Map.get(proposals, Text.compare, proposalId)) {
+    switch (proposals.get(proposalId)) {
       case (?p) { p.requestId == requestId and p.status == #Accepted };
       case null { false };
     }
@@ -821,11 +821,11 @@ persistent actor Listing {
   public query(msg) func getReviewEligibility(proposalId: Text) : async ?{
     agentId: Principal; homeowner: Principal; awarded: Bool;
   } {
-    if (not isAdmin(msg.caller) and Principal.toText(msg.caller) != agentCanisterId) return null;
-    switch (Map.get(proposals, Text.compare, proposalId)) {
+    if (not isAdmin(msg.caller) and msg.caller.toText() != agentCanisterId) return null;
+    switch (proposals.get(proposalId)) {
       case null { null };
       case (?p) {
-        switch (Map.get(requests, Text.compare, p.requestId)) {
+        switch (requests.get(p.requestId)) {
           case null { null };
           case (?req) {
             ?{ agentId = p.agentId; homeowner = req.homeowner;
@@ -840,7 +840,7 @@ persistent actor Listing {
 
   private func canAccessThread(requestId: Text, caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    switch (Map.get(requests, Text.compare, requestId)) {
+    switch (requests.get(requestId)) {
       case null { false };
       case (?req) { req.homeowner == caller };
     }
@@ -850,7 +850,7 @@ persistent actor Listing {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(rawBody) == 0) return #err(#InvalidInput("message cannot be empty"));
     if (Text.size(rawBody) > 2000) return #err(#InvalidInput("message exceeds 2000 characters"));
-    switch (Map.get(proposals, Text.compare, proposalId)) {
+    switch (proposals.get(proposalId)) {
       case null { #err(#NotFound) };
       case (?p) {
         let authorized = switch (authorRole) {
@@ -864,21 +864,21 @@ persistent actor Listing {
           id = nextMessageId(); proposalId; authorRole; scrubbedBody = scrubbed;
           redactions; sentAt = Time.now();
         };
-        let existing = switch (Map.get(threads, Text.compare, proposalId)) { case null { [] }; case (?ms) { ms } };
+        let existing = switch (threads.get(proposalId)) { case null { [] }; case (?ms) { ms } };
         if (existing.size() >= MAX_THREAD_MESSAGES) return #err(#InvalidInput("thread message limit reached"));
-        Map.add(threads, Text.compare, proposalId, Array.concat(existing, [m]));
+        threads.add(proposalId, existing.concat([m]));
         #ok(m)
       };
     }
   };
 
   public query(msg) func getThread(proposalId: Text) : async Result.Result<[Message], Error> {
-    switch (Map.get(proposals, Text.compare, proposalId)) {
+    switch (proposals.get(proposalId)) {
       case null { #err(#NotFound) };
       case (?p) {
         let authorized = isAdmin(msg.caller) or p.agentId == msg.caller or canAccessThread(p.requestId, msg.caller);
         if (not authorized) return #err(#NotAuthorized);
-        #ok(switch (Map.get(threads, Text.compare, proposalId)) { case null { [] }; case (?ms) { ms } })
+        #ok(switch (threads.get(proposalId)) { case null { [] }; case (?ms) { ms } })
       };
     }
   };
@@ -893,7 +893,7 @@ persistent actor Listing {
       "dr","drive","ln","lane","ct","court","way","pl","place"];
     let tlds : [Text] = [".com",".net",".org",".io",".co",".us",".biz",".info",".me",
       ".realty",".realtor",".homes",".house",".properties",".app",".site"];
-    let tokens = Iter.toArray(Text.split(raw, #char ' '));
+    let tokens = raw.split(#char ' ').toArray();
     let redactions = List.empty<Text>();
     let out = List.empty<Text>();
     let n = tokens.size();
@@ -911,13 +911,13 @@ persistent actor Listing {
       };
       digitsIn(t) > 0
     };
-    func redact(kind: Text) { List.add(redactions, kind); List.add(out, "[redacted]") };
+    func redact(kind: Text) { redactions.add(kind); out.add("[redacted]") };
 
     var i = 0;
     while (i < n) {
       let t = tokens[i];
-      let lower = Text.toLower(t);
-      let trimmed = Text.trimEnd(Text.trimEnd(Text.trimEnd(lower, #char ','), #char '.'), #char ')');
+      let lower = t.toLower();
+      let trimmed = lower.trimEnd(#char ',').trimEnd(#char '.').trimEnd(#char ')');
       let digitCount = digitsIn(t);
 
       // Phone numbers split across tokens ("555 123 4567", "(555) 123-4567").
@@ -925,16 +925,16 @@ persistent actor Listing {
       var runDigits = 0;
       while (j < n and phoneish(tokens[j])) { runDigits += digitsIn(tokens[j]); j += 1 };
 
-      if (Text.contains(t, #char '@') and Text.contains(t, #char '.')) {
+      if (t.contains(#char '@') and t.contains(#char '.')) {
         redact("email"); i += 1;
-      } else if (Text.startsWith(t, #char '@')) {
+      } else if (t.startsWith(#char '@')) {
         redact("social-handle"); i += 1;
-      } else if (Text.contains(lower, #text "instagram.com") or Text.contains(lower, #text "facebook.com")
-                 or Text.contains(lower, #text "twitter.com") or Text.contains(lower, #text "tiktok.com")) {
+      } else if (lower.contains(#text "instagram.com") or lower.contains(#text "facebook.com")
+                 or lower.contains(#text "twitter.com") or lower.contains(#text "tiktok.com")) {
         redact("social-handle"); i += 1;
-      } else if (Text.contains(lower, #text "http://") or Text.contains(lower, #text "https://")
-                 or Text.startsWith(lower, #text "www.")
-                 or Option.isSome(Array.find<Text>(tlds, func(d) { Text.endsWith(trimmed, #text d) or Text.contains(trimmed, #text (d # "/")) }))) {
+      } else if (lower.contains(#text "http://") or lower.contains(#text "https://")
+                 or lower.startsWith(#text "www.")
+                 or Option.isSome(tlds.find(func(d) { trimmed.endsWith(#text d) or trimmed.contains(#text (d # "/")) }))) {
         redact("url"); i += 1;
       } else if (digitCount >= 7) {
         redact("phone"); i += 1;
@@ -946,34 +946,34 @@ persistent actor Listing {
         var found = false;
         let lookahead = Nat.min(i + 4, n);
         while (k < lookahead and not found) {
-          let cand = Text.toLower(Text.trimEnd(Text.trimEnd(tokens[k], #char ','), #char '.'));
-          if (Option.isSome(Array.find<Text>(suffixes, func(s) { s == cand }))) { found := true } else { k += 1 };
+          let cand = tokens[k].trimEnd(#char ',').trimEnd(#char '.').toLower();
+          if (Option.isSome(suffixes.find(func(s) { s == cand }))) { found := true } else { k += 1 };
         };
         if (found) {
           redact("address");
           i := k + 1;
         } else {
-          List.add(out, t);
+          out.add(t);
           i += 1;
         };
       } else {
-        List.add(out, t);
+        out.add(t);
         i += 1;
       };
     };
-    (Text.join(List.values(out), " "), List.toArray(redactions))
+    (out.values().join(" "), redactions.toArray())
   };
 
   // ─── Comps & platform-fee configuration (admin) ─────────────────────────────
 
   public shared(msg) func setCompsMedian(zipCode: Text, medianCents: Nat, saleCount: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    Map.add(compsConfig, Text.compare, zipCode, { medianCents; saleCount });
+    compsConfig.add(zipCode, { medianCents; saleCount });
     #ok(())
   };
 
   public query func getCompsMedian(zipCode: Text) : async ?CompsConfig {
-    Map.get(compsConfig, Text.compare, zipCode)
+    compsConfig.get(zipCode)
   };
 
   public shared(msg) func setPlatformFeeCents(cents: Nat) : async Result.Result<(), Error> {
@@ -1002,44 +1002,44 @@ persistent actor Listing {
       case (?pid) { if (pid != propertyId) return #err(#InvalidInput("Photo belongs to another listing")) };
       case null {};
     };
-    if (Option.isNull(Map.get(listingPhotoOwners, Text.compare, propertyId))) {
-      Map.add(listingPhotoOwners, Text.compare, propertyId, msg.caller);
+    if (Option.isNull(listingPhotoOwners.get(propertyId))) {
+      listingPhotoOwners.add(propertyId, msg.caller);
     };
 
-    let existing : [Text] = switch (Map.get(listingPhotos, Text.compare, propertyId)) { case null { [] }; case (?ids) { ids } };
+    let existing : [Text] = switch (listingPhotos.get(propertyId)) { case null { [] }; case (?ids) { ids } };
     if (existing.size() >= MAX_LISTING_PHOTOS)
-      return #err(#InvalidInput("Listing photo limit (" # Nat.toText(MAX_LISTING_PHOTOS) # ") reached"));
-    if (Option.isSome(Array.find<Text>(existing, func(id) { id == photoId })))
+      return #err(#InvalidInput("Listing photo limit (" # MAX_LISTING_PHOTOS.toText() # ") reached"));
+    if (Option.isSome(existing.find(func(id) { id == photoId })))
       return #err(#InvalidInput("Photo already added to this listing"));
 
-    Map.add(listingPhotos, Text.compare, propertyId, Array.concat(existing, [photoId]));
-    Map.add(listingPhotoProperty, Text.compare, photoId, propertyId);
+    listingPhotos.add(propertyId, existing.concat([photoId]));
+    listingPhotoProperty.add(photoId, propertyId);
     #ok(())
   };
 
   public query func getListingPhotos(propertyId: Text) : async [Text] {
-    switch (Map.get(listingPhotos, Text.compare, propertyId)) { case null { [] }; case (?ids) { ids } }
+    switch (listingPhotos.get(propertyId)) { case null { [] }; case (?ids) { ids } }
   };
 
   public shared(msg) func removeListingPhoto(propertyId: Text, photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
-    let existing : [Text] = switch (Map.get(listingPhotos, Text.compare, propertyId)) { case null { return #err(#NotFound) }; case (?ids) { ids } };
-    Map.add(listingPhotos, Text.compare, propertyId, Array.filter<Text>(existing, func(id) { id != photoId }));
+    let existing : [Text] = switch (listingPhotos.get(propertyId)) { case null { return #err(#NotFound) }; case (?ids) { ids } };
+    listingPhotos.add(propertyId, existing.filter(func(id) { id != photoId }));
     #ok(())
   };
 
   public shared(msg) func reorderListingPhotos(propertyId: Text, photoIds: [Text]) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
-    let existing : [Text] = switch (Map.get(listingPhotos, Text.compare, propertyId)) { case null { return #err(#NotFound) }; case (?ids) { ids } };
+    let existing : [Text] = switch (listingPhotos.get(propertyId)) { case null { return #err(#NotFound) }; case (?ids) { ids } };
     if (photoIds.size() != existing.size())
       return #err(#InvalidInput("Reorder list must contain the same number of photos"));
-    for (id in photoIds.vals()) {
-      if (not Option.isSome(Array.find<Text>(existing, func(e) { e == id })))
+    for (id in photoIds.values()) {
+      if (not Option.isSome(existing.find(func(e) { e == id })))
         return #err(#InvalidInput("Unknown photo ID in reorder list: " # id));
     };
-    Map.add(listingPhotos, Text.compare, propertyId, photoIds);
+    listingPhotos.add(propertyId, photoIds);
     #ok(())
   };
 
@@ -1059,31 +1059,31 @@ persistent actor Listing {
       case (?pid) { if (pid != propertyId) return #err(#InvalidInput("Photo belongs to another listing")) };
       case null {};
     };
-    if (Option.isNull(Map.get(listingPanoramaOwners, Text.compare, propertyId))) {
-      Map.add(listingPanoramaOwners, Text.compare, propertyId, msg.caller);
+    if (Option.isNull(listingPanoramaOwners.get(propertyId))) {
+      listingPanoramaOwners.add(propertyId, msg.caller);
     };
 
-    let existing : [PanoramaEntry] = switch (Map.get(listingPanoramas, Text.compare, propertyId)) { case null { [] }; case (?entries) { entries } };
+    let existing : [PanoramaEntry] = switch (listingPanoramas.get(propertyId)) { case null { [] }; case (?entries) { entries } };
     if (existing.size() >= MAX_LISTING_PANORAMAS)
-      return #err(#InvalidInput("Panorama limit (" # Nat.toText(MAX_LISTING_PANORAMAS) # ") reached"));
-    if (Option.isSome(Array.find<PanoramaEntry>(existing, func(e) { e.roomLabel == roomLabel })))
+      return #err(#InvalidInput("Panorama limit (" # MAX_LISTING_PANORAMAS.toText() # ") reached"));
+    if (Option.isSome(existing.find(func(e) { e.roomLabel == roomLabel })))
       return #err(#InvalidInput("Room label \"" # roomLabel # "\" already exists"));
 
-    Map.add(listingPanoramas, Text.compare, propertyId, Array.concat(existing, [{ roomLabel; photoId }]));
-    Map.add(listingPhotoProperty, Text.compare, photoId, propertyId);
+    listingPanoramas.add(propertyId, existing.concat([{ roomLabel; photoId }]));
+    listingPhotoProperty.add(photoId, propertyId);
     #ok(())
   };
 
   public query func getPanoramas(propertyId: Text) : async [PanoramaEntry] {
-    switch (Map.get(listingPanoramas, Text.compare, propertyId)) { case null { [] }; case (?entries) { entries } }
+    switch (listingPanoramas.get(propertyId)) { case null { [] }; case (?entries) { entries } }
   };
 
   public shared(msg) func removePanorama(propertyId: Text, roomLabel: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
-    let existing : [PanoramaEntry] = switch (Map.get(listingPanoramas, Text.compare, propertyId)) { case null { return #err(#NotFound) }; case (?entries) { entries } };
-    if (not Option.isSome(Array.find<PanoramaEntry>(existing, func(e) { e.roomLabel == roomLabel }))) return #err(#NotFound);
-    Map.add(listingPanoramas, Text.compare, propertyId, Array.filter<PanoramaEntry>(existing, func(e) { e.roomLabel != roomLabel }));
+    let existing : [PanoramaEntry] = switch (listingPanoramas.get(propertyId)) { case null { return #err(#NotFound) }; case (?entries) { entries } };
+    if (not Option.isSome(existing.find(func(e) { e.roomLabel == roomLabel }))) return #err(#NotFound);
+    listingPanoramas.add(propertyId, existing.filter(func(e) { e.roomLabel != roomLabel }));
     #ok(())
   };
 
@@ -1150,17 +1150,17 @@ persistent actor Listing {
       verificationLevel = resolvedVerificationLevel; score = resolvedScore;
       verifiedJobCount = resolvedVerifiedJobCount; hasPublicReport = resolvedHasPublicReport;
     };
-    Map.add(fsboListings, Text.compare, listing.propertyId, stamped);
+    fsboListings.add(listing.propertyId, stamped);
     #ok(())
   };
 
   public shared(msg) func deactivateFsboListing(propertyId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(fsboListings, Text.compare, propertyId)) {
+    switch (fsboListings.get(propertyId)) {
       case null { return #err(#NotFound) };
       case (?existing) {
         if (existing.homeowner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-        ignore Map.remove(fsboListings, Text.compare, propertyId);
+        ignore fsboListings.remove(propertyId);
         #ok(())
       };
     }
@@ -1168,11 +1168,11 @@ persistent actor Listing {
 
   /// M6: capped at MAX_FEED_PAGE entries; use listActiveFsboListingsPage for the rest.
   public query func listActiveFsboListings() : async [PublicFsboListing] {
-    page(Map.values(fsboListings), 0, MAX_FEED_PAGE)
+    page(fsboListings.values(), 0, MAX_FEED_PAGE)
   };
 
   public query func listActiveFsboListingsPage(from: Nat, limit: Nat) : async [PublicFsboListing] {
-    page(Map.values(fsboListings), from, limit)
+    page(fsboListings.values(), from, limit)
   };
 
   // ─── Admin Controls ───────────────────────────────────────────────────────────
@@ -1238,10 +1238,10 @@ persistent actor Listing {
   public query func metrics() : async Metrics {
     var open = 0;
     var awarded = 0;
-    for (r in Map.values(requests)) {
+    for (r in requests.values()) {
       if (r.status == #Open)    { open    += 1 };
       if (r.status == #Awarded) { awarded += 1 };
     };
-    { totalRequests = Map.size(requests); openRequests = open; awardedRequests = awarded; totalProposals = Map.size(proposals); isPaused }
+    { totalRequests = requests.size(); openRequests = open; awardedRequests = awarded; totalProposals = proposals.size(); isPaused }
   };
 }

@@ -38,7 +38,7 @@ module {
     switch (audit) {
       case null {};
       case (?id) {
-        let a : Audit = actor (Principal.toText(id));
+        let a : Audit = actor (id.toText());
         try { ignore await a.log(source, action, subject, detail) } catch _ { Debug.print("[" # source # "] fire-and-forget call failed") };
       };
     };

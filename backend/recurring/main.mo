@@ -113,14 +113,14 @@ persistent actor Recurring {
   // Secondary indexes over `visits` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let visitsByService = Index.empty();
-  private transient let visitsIndexes : [Index.Keyed<VisitLog>] = Index.indexed<VisitLog>(visits, [
+  private transient let visitsIndexes : [Index.Keyed<VisitLog>] = Index.indexed(visits, [
     (visitsByService, func(r : VisitLog) : ?Text { ?r.serviceId }),
   ]);
 
   // Secondary indexes over `services` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let servicesByProperty = Index.empty();
-  private transient let servicesIndexes : [Index.Keyed<RecurringService>] = Index.indexed<RecurringService>(services, [
+  private transient let servicesIndexes : [Index.Keyed<RecurringService>] = Index.indexed(services, [
     (servicesByProperty, func(r : RecurringService) : ?Text { ?r.propertyId }),
   ]);
 
@@ -136,13 +136,13 @@ persistent actor Recurring {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(caller: Principal) : Bool {
@@ -150,10 +150,10 @@ persistent actor Recurring {
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
@@ -237,13 +237,13 @@ persistent actor Recurring {
   /// Fetch a single recurring service by ID.
   /// M8: owner/manager of the property (or admin) only.
   public shared(msg) func getRecurringService(serviceId: Text) : async Result.Result<RecurringService, Error> {
-    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
-    switch (Map.get(services, Text.compare, serviceId)) {
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    switch (services.get(serviceId)) {
       case null  { #err(#NotFound) };
       case (?s)  {
         if (not (await checkPropertyAuth(s.propertyId, s.homeowner, msg.caller, false)))
           return #err(#NotAuthorized);
-        switch (Map.get(services, Text.compare, serviceId)) {
+        switch (services.get(serviceId)) {
           case null    { #err(#NotFound) };
           case (?cur)  { #ok(cur) };
         }
@@ -254,17 +254,16 @@ persistent actor Recurring {
   /// Fetch all recurring services for a given property.
   /// M8: owner/manager of the property (or admin) only; others get [].
   public shared(msg) func getByProperty(propertyId: Text) : async [RecurringService] {
-    if (Principal.isAnonymous(msg.caller)) return [];
+    if (msg.caller.isAnonymous()) return [];
     if (Text.size(propCanisterId) == 0 and not isAdmin(msg.caller)) {
       // Local dev: only the caller's own records.
-      return Iter.toArray(Iter.filter<RecurringService>(
-        Index.records(servicesByProperty, propertyId, services),
+      return Iter.toArray(Index.records(servicesByProperty, propertyId, services).filter(
         func(s) { s.homeowner == msg.caller }
       ));
     };
     if (not (await checkPropertyAuth(propertyId, msg.caller, msg.caller, false))) return [];
-    Iter.toArray(
-      Index.records(servicesByProperty, propertyId, services)
+    Index.records(servicesByProperty, propertyId, services).toArray(
+      
     )
   };
 
@@ -277,14 +276,14 @@ persistent actor Recurring {
   ) : async Result.Result<RecurringService, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(services, Text.compare, serviceId)) {
+    switch (services.get(serviceId)) {
       case null { #err(#NotFound) };
       case (?first) {
         // M8: owner/manager of the property, checked live (former owners lose access).
         if (not (await checkPropertyAuth(first.propertyId, first.homeowner, msg.caller, true)))
           return #err(#NotAuthorized);
         // Re-read after the await (TOCTOU).
-        let existing = switch (Map.get(services, Text.compare, serviceId)) {
+        let existing = switch (services.get(serviceId)) {
           case null { return #err(#NotFound) };
           case (?cur) { cur };
         };
@@ -325,14 +324,14 @@ persistent actor Recurring {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(photoId) == 0) return #err(#InvalidInput("photoId cannot be empty"));
 
-    switch (Map.get(services, Text.compare, serviceId)) {
+    switch (services.get(serviceId)) {
       case null { #err(#NotFound) };
       case (?first) {
         // M8: owner/manager of the property, checked live (former owners lose access).
         if (not (await checkPropertyAuth(first.propertyId, first.homeowner, msg.caller, true)))
           return #err(#NotAuthorized);
         // Re-read after the await (TOCTOU).
-        let existing = switch (Map.get(services, Text.compare, serviceId)) {
+        let existing = switch (services.get(serviceId)) {
           case null { return #err(#NotFound) };
           case (?cur) { cur };
         };
@@ -373,14 +372,14 @@ persistent actor Recurring {
     if (Text.size(visitDate) > 10) return #err(#InvalidInput("visitDate exceeds 10 characters"));
     switch (note) { case (?v) { if (Text.size(v) > 2000) return #err(#InvalidInput("note exceeds 2000 characters")) }; case null {} };
 
-    switch (Map.get(services, Text.compare, serviceId)) {
+    switch (services.get(serviceId)) {
       case null { #err(#NotFound) };
       case (?first) {
         // M8: owner/manager of the property, checked live (former owners lose access).
         if (not (await checkPropertyAuth(first.propertyId, first.homeowner, msg.caller, true)))
           return #err(#NotAuthorized);
         // Re-read after the await (TOCTOU).
-        let svc = switch (Map.get(services, Text.compare, serviceId)) {
+        let svc = switch (services.get(serviceId)) {
           case null { return #err(#NotFound) };
           case (?cur) { cur };
         };
@@ -405,18 +404,18 @@ persistent actor Recurring {
   /// Fetch all visit log entries for a recurring service, sorted by visitDate descending.
   /// M8: owner/manager of the service's property (or admin) only; others get [].
   public shared(msg) func getVisitLogs(serviceId: Text) : async [VisitLog] {
-    if (Principal.isAnonymous(msg.caller)) return [];
-    switch (Map.get(services, Text.compare, serviceId)) {
+    if (msg.caller.isAnonymous()) return [];
+    switch (services.get(serviceId)) {
       case null { return [] };
       case (?svc) {
         if (not (await checkPropertyAuth(svc.propertyId, svc.homeowner, msg.caller, false))) return [];
       };
     };
-    let matches = Iter.toArray(
-      Index.records(visitsByService, serviceId, visits)
+    let matches = Index.records(visitsByService, serviceId, visits).toArray(
+      
     );
     // Sort descending by visitDate (lexicographic works for YYYY-MM-DD)
-    Array.sort(matches, func(a: VisitLog, b: VisitLog) : { #less; #equal; #greater } {
+    matches.sort(func(a: VisitLog, b: VisitLog) : { #less; #equal; #greater } {
       if      (a.visitDate > b.visitDate) #less
       else if (a.visitDate < b.visitDate) #greater
       else                                #equal
@@ -428,7 +427,7 @@ persistent actor Recurring {
   /// M8: wire the property canister for live owner/manager checks (admin only).
   public shared(msg) func setPropertyCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    propCanisterId := Principal.toText(id);
+    propCanisterId := id.toText();
     #ok(())
   };
 
@@ -481,7 +480,7 @@ persistent actor Recurring {
     var active  = 0;
     var paused  = 0;
 
-    for (s in Map.values(services)) {
+    for (s in services.values()) {
       switch (s.status) {
         case (#Active)    { active  += 1 };
         case (#Paused)    { paused  += 1 };
@@ -490,10 +489,10 @@ persistent actor Recurring {
     };
 
     {
-      totalServices  = Map.size(services);
+      totalServices  = services.size();
       activeServices = active;
       pausedServices = paused;
-      totalVisitLogs = Map.size(visits);
+      totalVisitLogs = visits.size();
       isPaused;
     }
   };

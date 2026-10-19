@@ -57,17 +57,17 @@ persistent actor Audit {
   private transient let MAX_ENTRIES : Nat = 50_000;
 
   private func append(e : AuditEntry) {
-    Map.add(auditLog, Nat.compare, e.id, e);
-    while (Map.size(auditLog) > MAX_ENTRIES) {
-      switch (Map.minEntry(auditLog)) {
-        case (?(oldest, _)) { Map.remove(auditLog, Nat.compare, oldest) };
+    auditLog.add(e.id, e);
+    while (auditLog.size() > MAX_ENTRIES) {
+      switch (auditLog.minEntry()) {
+        case (?(oldest, _)) { auditLog.remove(oldest) };
         case null {};
       };
     };
   };
 
   system func postupgrade() {
-    for (e in entries.vals()) { append(e) };
+    for (e in entries.values()) { append(e) };
     entries := [];
   };
 
@@ -90,19 +90,19 @@ persistent actor Audit {
 
   private func tryConsumeWrite(p : Principal) : Bool {
     let now = Time.now();
-    switch (Map.get(writerCounts, Principal.compare, p)) {
-      case null { Map.add(writerCounts, Principal.compare, p, (1, now)); true };
+    switch (writerCounts.get(p)) {
+      case null { writerCounts.add(p, (1, now)); true };
       case (?(count, start)) {
-        if (now - start >= ONE_HOUR_NS) { Map.add(writerCounts, Principal.compare, p, (1, now)); true }
+        if (now - start >= ONE_HOUR_NS) { writerCounts.add(p, (1, now)); true }
         else if (count >= MAX_PER_WRITER_PER_HOUR) { false }
-        else { Map.add(writerCounts, Principal.compare, p, (count + 1, start)); true }
+        else { writerCounts.add(p, (count + 1, start)); true }
       };
     }
   };
 
   private func truncate(t : Text, n : Nat) : Text {
     if (Text.size(t) <= n) return t;
-    Text.fromIter(Iter.take(t.chars(), n))
+    Text.fromIter(t.chars().take(n))
   };
 
   // ── Ingress inspection ─────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ persistent actor Audit {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
   // ── Bootstrap ──────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ persistent actor Audit {
   public shared(msg) func removeTrustedCanister(canisterId : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     trustedCanisters := Admin.remove(trustedCanisters, canisterId);
-    Map.remove(trustedNames, Principal.compare, canisterId);
+    trustedNames.remove(canisterId);
     #ok(())
   };
 
@@ -161,7 +161,7 @@ persistent actor Audit {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     if (not isTrusted(canisterId)) return #err(#InvalidInput("not a trusted canister"));
     if (Text.size(name) == 0 or Text.size(name) > MAX_NAME_LEN) return #err(#InvalidInput("name must be 1-64 characters"));
-    Map.add(trustedNames, Principal.compare, canisterId, name);
+    trustedNames.add(canisterId, name);
     #ok(())
   };
 
@@ -184,9 +184,9 @@ persistent actor Audit {
     // A trusted canister without a registered name is recorded by principal;
     // an admin writing directly is recorded as "admin:<claimed name>".
     let source : Text = if (isTrusted(msg.caller)) {
-      switch (Map.get(trustedNames, Principal.compare, msg.caller)) {
+      switch (trustedNames.get(msg.caller)) {
         case (?n) n;
-        case null Principal.toText(msg.caller);
+        case null msg.caller.toText();
       }
     } else {
       "admin:" # truncate(canister, MAX_NAME_LEN)
@@ -214,9 +214,8 @@ persistent actor Audit {
   ) : async Result.Result<[AuditEntry], Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     // `from` is a position among retained entries (0 = oldest), as before.
-    let first = switch (Map.minEntry(auditLog)) { case (?(id, _)) id; case null { return #ok([]) } };
-    #ok(Iter.toArray(Iter.map<(Nat, AuditEntry), AuditEntry>(
-      Iter.take(Map.entriesFrom(auditLog, Nat.compare, first + from), limit),
+    let first = switch (auditLog.minEntry()) { case (?(id, _)) id; case null { return #ok([]) } };
+    #ok(Iter.toArray(auditLog.entriesFrom(first + from).take(limit).map(
       func((_, e)) { e }
     )))
   };
@@ -227,12 +226,12 @@ persistent actor Audit {
     action : Text,
   ) : async Result.Result<[AuditEntry], Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    #ok(Iter.toArray(Iter.filter<AuditEntry>(Map.values(auditLog), func(e) {
+    #ok(Iter.toArray(auditLog.values().filter(func(e) {
       e.caller == target and e.action == action
     })))
   };
 
   public query func metrics() : async { entryCount : Nat } {
-    { entryCount = Map.size(auditLog) }
+    { entryCount = auditLog.size() }
   };
 }

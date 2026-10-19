@@ -142,7 +142,7 @@ persistent actor Maintenance {
   // Secondary indexes over `schedule` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let scheduleByProperty = Index.empty();
-  private transient let scheduleIndexes : [Index.Keyed<ScheduleEntry>] = Index.indexed<ScheduleEntry>(schedule, [
+  private transient let scheduleIndexes : [Index.Keyed<ScheduleEntry>] = Index.indexed(schedule, [
     (scheduleByProperty, func(r : ScheduleEntry) : ?Text { ?r.propertyId }),
   ]);
 
@@ -158,13 +158,13 @@ persistent actor Maintenance {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(p: Principal) : Bool {
@@ -172,10 +172,10 @@ persistent actor Maintenance {
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
@@ -212,7 +212,7 @@ persistent actor Maintenance {
         " and plan replacement immediately."
       };
       case (#Soon) {
-        "📅 " # sys.name # " has roughly " # Int.toText(yearsRemaining) # " year(s) remaining. " #
+        "📅 " # sys.name # " has roughly " # yearsRemaining.toText() # " year(s) remaining. " #
         "Start saving now — typical cost $" # Nat.toText(sys.costLowCents / 100) #
         "–$" # Nat.toText(sys.costHighCents / 100) # "."
       };
@@ -240,10 +240,10 @@ persistent actor Maintenance {
     var budgetLow  : Nat = 0;
     var budgetHigh : Nat = 0;
 
-    for (sys in SYSTEMS.vals()) {
+    for (sys in SYSTEMS.values()) {
       // Find the most recent job year for this system
       var lastYear : Nat = yearBuilt;
-      for (job in jobs.vals()) {
+      for (job in jobs.values()) {
         if (job.serviceType == sys.name and job.completedYear > lastYear) {
           lastYear := job.completedYear;
         };
@@ -265,7 +265,7 @@ persistent actor Maintenance {
         recommendation         = recommendationFor(sys, urgency, remaining);
         diyViable              = sys.diyViable;
       };
-      predictions := Array.concat(predictions, [pred]);
+      predictions := predictions.concat([pred]);
 
       // Accumulate budget for Critical and Soon items only
       switch (urgency) {
@@ -276,8 +276,7 @@ persistent actor Maintenance {
     };
 
     // Sort predictions: Critical first, then Soon, Watch, Good
-    let sorted = Array.sort<SystemPrediction>(
-      predictions,
+    let sorted = predictions.sort(
       func(a, b) {
         let rankA = switch (a.urgency) { case (#Critical) 0; case (#Soon) 1; case (#Watch) 2; case (#Good) 3 };
         let rankB = switch (b.urgency) { case (#Critical) 0; case (#Soon) 1; case (#Watch) 2; case (#Good) 3 };
@@ -321,7 +320,7 @@ persistent actor Maintenance {
     };
 
     scheduleCounter += 1;
-    let id = "SCH_" # Nat.toText(scheduleCounter);
+    let id = "SCH_" # scheduleCounter.toText();
 
     let entry : ScheduleEntry = {
       id;
@@ -343,24 +342,23 @@ persistent actor Maintenance {
   /// An update call (not a query) so the property canister can be asked live;
   /// unauthorized callers get an empty list.
   public shared(msg) func getScheduleByProperty(propertyId: Text) : async [ScheduleEntry] {
-    if (Principal.isAnonymous(msg.caller)) return [];
+    if (msg.caller.isAnonymous()) return [];
     if (not isAdmin(msg.caller)) {
       if (Text.size(propCanisterId) > 0) {
         if (not (await checkPropertyAuth(propertyId, msg.caller, msg.caller, false))) return [];
       } else {
         // Local dev (property canister not wired): only the caller's own entries.
-        return Iter.toArray(Iter.filter<ScheduleEntry>(
-          Index.records(scheduleByProperty, propertyId, schedule),
+        return Iter.toArray(Index.records(scheduleByProperty, propertyId, schedule).filter(
           func(e) { e.createdBy == msg.caller }
         ));
       };
     };
-    Iter.toArray(Index.records(scheduleByProperty, propertyId, schedule))
+    Index.records(scheduleByProperty, propertyId, schedule).toArray()
   };
 
   public shared(msg) func markCompleted(entryId: Text) : async Result.Result<ScheduleEntry, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(schedule, Text.compare, entryId)) {
+    switch (schedule.get(entryId)) {
       case null { #err(#NotFound) };
       case (?first) {
         if (not isAdmin(msg.caller)) {
@@ -368,7 +366,7 @@ persistent actor Maintenance {
           if (not authOk) return #err(#NotAuthorized);
         };
         // Re-read after the await (TOCTOU).
-        let entry = switch (Map.get(schedule, Text.compare, entryId)) {
+        let entry = switch (schedule.get(entryId)) {
           case null { return #err(#NotFound) };
           case (?e) { e };
         };
@@ -396,7 +394,7 @@ persistent actor Maintenance {
   /// Must be called once after deploy by an admin.
   public shared(msg) func setPropertyCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    propCanisterId := Principal.toText(id);
+    propCanisterId := id.toText();
     #ok(())
   };
 
@@ -446,7 +444,7 @@ persistent actor Maintenance {
 
   public query func getMetrics() : async Metrics {
     var completed = 0;
-    for (e in Map.values(schedule)) { if (e.isCompleted) { completed += 1 } };
-    { scheduleEntries = Map.size(schedule); completedEntries = completed; isPaused }
+    for (e in schedule.values()) { if (e.isCompleted) { completed += 1 } };
+    { scheduleEntries = schedule.size(); completedEntries = completed; isPaused }
   };
 }

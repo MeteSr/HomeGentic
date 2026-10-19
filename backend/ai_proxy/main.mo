@@ -125,7 +125,7 @@ persistent actor AiProxy {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
   // ── Rate limiting helpers ──────────────────────────────────────────────────
 
@@ -139,11 +139,11 @@ persistent actor AiProxy {
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller) or isTrustedCanister(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     isPaused := false;  // a timed pause that has lapsed is cleared
     if (not tryConsumeUpdateSlot(caller)) return #err(#RateLimited);
@@ -238,17 +238,17 @@ persistent actor AiProxy {
 
   private func climateZoneFor(state: Text) : Text {
     // STATE_ZONES keys are uppercase — callers pass uppercase state codes
-    switch (Array.find<(Text, Text)>(STATE_ZONES, func(pair) { pair.0 == state })) {
+    switch (STATE_ZONES.find(func(pair) { pair.0 == state })) {
       case (?(_, zone)) { zone };
       case null         { "mixed" };
     }
   };
 
   private func climateMultiplierFor(zone: Text, systemName: Text) : Nat {
-    switch (Array.find<(Text, [ClimateEntry])>(CLIMATE_ZONES, func(z) { z.0 == zone })) {
+    switch (CLIMATE_ZONES.find(func(z) { z.0 == zone })) {
       case null { 1000 };
       case (?(_, entries)) {
-        switch (Array.find<ClimateEntry>(entries, func(e) { e.sys == systemName })) {
+        switch (entries.find(func(e) { e.sys == systemName })) {
           case null      { 1000 };
           case (?entry)  { entry.multNumerator };
         }
@@ -273,7 +273,7 @@ persistent actor AiProxy {
   private func hexDigit(n : Nat8) : Text {
     let digits = "0123456789ABCDEF";
     var i : Nat8 = 0;
-    for (c in digits.chars()) { if (i == n) return Text.fromChar(c); i += 1 };
+    for (c in digits.chars()) { if (i == n) return c.toText(); i += 1 };
     "0"
   };
 
@@ -283,23 +283,23 @@ persistent actor AiProxy {
   private func jsonEscape(v : Text) : Text {
     var out = "";
     for (c in v.chars()) {
-      let n = Char.toNat32(c);
+      let n = c.toNat32();
       if (c == '\"') { out #= "\\\"" }
       else if (c == '\\') { out #= "\\\\" }
       else if (c == '\n') { out #= "\\n" }
       else if (c == '\r') { out #= "\\r" }
       else if (c == '\t') { out #= "\\t" }
       else if (n < 0x20 or n == 0x2028 or n == 0x2029) {
-        let b = Nat8.fromNat(Nat32.toNat(n % 256));
+        let b = Nat32.toNat(n % 256).toNat8();
         out #= "\\u" # (if (n >= 0x2000) (if (n == 0x2028) "2028" else "2029") else "00" # hexDigit(b / 16) # hexDigit(b % 16));
       }
-      else { out #= Text.fromChar(c) };
+      else { out #= c.toText() };
     };
     out
   };
 
   private func jsonStr(k: Text, v: Text) : Text    { "\"" # k # "\":\"" # jsonEscape(v) # "\"" };
-  private func jsonNat(k: Text, v: Nat) : Text      { "\"" # k # "\":" # Nat.toText(v) };
+  private func jsonNat(k: Text, v: Nat) : Text      { "\"" # k # "\":" # v.toText() };
   private func jsonBool(k: Text, v: Bool) : Text    { "\"" # k # "\":" # (if v "true" else "false") };
   private func jsonNull(k: Text) : Text             { "\"" # k # "\":null" };
 
@@ -309,15 +309,15 @@ persistent actor AiProxy {
     service : Text,
     zip     : Text,
   ) : async Result.Result<Text, Text> {
-    switch (Array.find<(Text, BenchmarkSeed)>(PRICE_SEEDS, func(s) { s.0 == service })) {
+    switch (PRICE_SEEDS.find(func(s) { s.0 == service })) {
       case null        { #err("No benchmark data for service: " # service) };
       case (?(_, seed)) {
         // Approximate lastUpdated from Time.now() — YYYY-MM format
         let nowNs  = Time.now();
         let year   = 1970 + Int.abs(nowNs) / 31_557_600_000_000_000;
         let month  = (Int.abs(nowNs) / 2_629_800_000_000_000) % 12 + 1;
-        let mmStr  = if (month < 10) "0" # Nat.toText(month) else Nat.toText(month);
-        let lastUpdated = Nat.toText(year) # "-" # mmStr;
+        let mmStr  = if (month < 10) "0" # month.toText() else month.toText();
+        let lastUpdated = year.toText() # "-" # mmStr;
 
         let json = "{" #
           jsonStr("serviceType", service) # "," #
@@ -343,10 +343,10 @@ persistent actor AiProxy {
     let currentYear = 1970 + Int.abs(nowNs) / 31_557_600_000_000_000;
 
     if (yearBuilt < 1800 or yearBuilt > currentYear) {
-      return #err("yearBuilt must be between 1800 and " # Nat.toText(currentYear));
+      return #err("yearBuilt must be between 1800 and " # currentYear.toText());
     };
 
-    let stateStr  = Option.get(state, "");
+    let stateStr  = state.get("");
     let zoneKey   = if (Text.size(stateStr) > 0) climateZoneFor(stateStr) else "mixed";
 
     // Build system estimates
@@ -358,7 +358,7 @@ persistent actor AiProxy {
     type SE = { name: Text; install: Nat; age: Nat; lifespan: Nat; pct: Int; remaining: Int; urgency: Text; low: Nat; high: Nat };
     let estimatesBuf = List.empty<SE>();
 
-    for (sys in SYSTEMS.vals()) {
+    for (sys in SYSTEMS.values()) {
       let mult        = climateMultiplierFor(zoneKey, sys.name);
       let lifespan    = sys.lifespanYears * mult / 1000;
       let ageInt : Int = (currentYear : Int) - (yearBuilt : Int);
@@ -373,7 +373,7 @@ persistent actor AiProxy {
         tenYearBudget += costLow;
       };
 
-      List.add(estimatesBuf, {
+      estimatesBuf.add({
         name     = sys.name;
         install  = yearBuilt;
         age      = age;
@@ -387,14 +387,14 @@ persistent actor AiProxy {
     };
 
     // Sort by urgency rank
-    let estimates = Array.sort<SE>(List.toArray(estimatesBuf), func(a, b) {
+    let estimates = estimatesBuf.toArray().sort(func(a, b) {
       Nat.compare(urgencyRank(a.urgency), urgencyRank(b.urgency))
     });
 
-    for (e in estimates.vals()) {
+    for (e in estimates.values()) {
       let pctNat  = if (e.pct >= 0) Int.abs(e.pct) else 0;
-      let remText = if (e.remaining < 0) "-" # Nat.toText(Int.abs(e.remaining))
-                    else Nat.toText(Int.abs(e.remaining));
+      let remText = if (e.remaining < 0) "-" # Int.abs(e.remaining).toText()
+                    else Int.abs(e.remaining).toText();
       let entry = "{" #
         jsonStr("systemName", e.name) # "," #
         jsonNat("installYear", e.install) # "," #
@@ -419,7 +419,7 @@ persistent actor AiProxy {
       (if (Text.size(stateStr) > 0) jsonStr("state", stateStr) # "," else jsonNull("state") # ",") #
       "\"systems\":[" # systemsJson # "]," #
       jsonNat("tenYearBudget", tenYearBudget) # "," #
-      "\"generatedAt\":" # Nat.toText(nowMs) #
+      "\"generatedAt\":" # nowMs.toText() #
     "}";
     #ok(json)
   };
@@ -642,7 +642,7 @@ persistent actor AiProxy {
       permitsFetched = permitsFetched;
       adminCount     = adminListEntries.size();
       isPaused       = isPaused;
-      errorsByMethod = Iter.toArray(Map.entries(errsByMethod));
+      errorsByMethod = errsByMethod.entries().toArray();
     }
   };
 }

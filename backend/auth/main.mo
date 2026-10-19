@@ -4,6 +4,7 @@
  * Supports Homeowner, Contractor, Realtor, and Builder roles.
  */
 
+import Char "mo:core/Char";
 import Blob "mo:core/Blob";
 import Debug "mo:core/Debug";
 import Iter "mo:core/Iter";
@@ -118,9 +119,9 @@ persistent actor class Auth(initDeployer : Principal) {
   private var notifierEntries : [Principal] = [];
 
   private func countError(method : Text) {
-    let prev = Option.get(Map.get(errsByMethod, Text.compare, method), 0);
+    let prev = errsByMethod.get(method).get(0);
     if (prev < 999_999) {
-      Map.add(errsByMethod, Text.compare, method, prev + 1);
+      errsByMethod.add(method, prev + 1);
     };
   };
 
@@ -134,7 +135,7 @@ persistent actor class Auth(initDeployer : Principal) {
     // Reject anonymous principals and empty-payload calls from all update paths.
     // Empty payload cannot be valid Candid for any method that takes a struct
     // argument — these are probe / garbage calls that waste cycles.
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
@@ -157,14 +158,14 @@ persistent actor class Auth(initDeployer : Principal) {
   /// Admins are always exempt. Window resets after 60 s.
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
@@ -182,7 +183,7 @@ persistent actor class Auth(initDeployer : Principal) {
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     admins := Admin.add(admins, newAdmin);
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
+    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -190,7 +191,7 @@ persistent actor class Auth(initDeployer : Principal) {
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     admins := Admin.remove(admins, target);
-    try { ignore await auditLog("AdminRemoved", ?target, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
+    try { ignore await auditLog("AdminRemoved", ?target, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -199,7 +200,7 @@ persistent actor class Auth(initDeployer : Principal) {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
     pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
-    try { ignore await auditLog("CanisterPaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
+    try { ignore await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -208,13 +209,13 @@ persistent actor class Auth(initDeployer : Principal) {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := false;
     pauseExpiryNs := null;
-    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
+    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     #ok(())
   };
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
+    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };
@@ -230,9 +231,9 @@ persistent actor class Auth(initDeployer : Principal) {
   private func validateEmail(email: Text) : ?Text {
     if (Text.size(email) > 254)
       return ?"email exceeds 254 characters";
-    if (not Text.contains(email, #text "@"))
+    if (not email.contains(#text "@"))
       return ?"email must contain @";
-    if (Text.contains(email, #text " "))
+    if (email.contains(#text " "))
       return ?"email must not contain spaces";
     null
   };
@@ -245,8 +246,8 @@ persistent actor class Auth(initDeployer : Principal) {
 
     let caller = msg.caller;
 
-    if (Map.get(users, Principal.compare, caller) != null) {
-      Debug.print("auth.register: already exists: " # Principal.toText(caller));
+    if (users.get(caller) != null) {
+      Debug.print("auth.register: already exists: " # caller.toText());
       countError("register");
       return #err(#AlreadyExists);
     };
@@ -272,13 +273,13 @@ persistent actor class Auth(initDeployer : Principal) {
       onboardingComplete = null;
     };
 
-    Map.add(users, Principal.compare, caller, profile);
+    users.add(caller, profile);
     #ok(profile)
   };
 
   /// Get the caller's profile
   public query(msg) func getProfile() : async Result.Result<UserProfile, Error> {
-    switch (Map.get(users, Principal.compare, msg.caller)) {
+    switch (users.get(msg.caller)) {
       case null { #err(#NotFound) };
       case (?p) { #ok(p) };
     }
@@ -288,7 +289,7 @@ persistent actor class Auth(initDeployer : Principal) {
   public shared(msg) func updateProfile(args: UpdateArgs) : async Result.Result<UserProfile, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(users, Principal.compare, msg.caller)) {
+    switch (users.get(msg.caller)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (Text.size(args.phone) > 30) return #err(#InvalidInput("phone exceeds 30 characters"));
@@ -310,7 +311,7 @@ persistent actor class Auth(initDeployer : Principal) {
           lastLoggedIn       = existing.lastLoggedIn;
           onboardingComplete = existing.onboardingComplete;
         };
-        Map.add(users, Principal.compare, msg.caller, updated);
+        users.add(msg.caller, updated);
         #ok(updated)
       };
     }
@@ -320,7 +321,7 @@ persistent actor class Auth(initDeployer : Principal) {
   /// Called by the frontend immediately after reading the profile, so the
   /// profile read returns the *previous* session's timestamp for comparison.
   public shared(msg) func recordLogin() : async () {
-    switch (Map.get(users, Principal.compare, msg.caller)) {
+    switch (users.get(msg.caller)) {
       case null {};  // Not registered yet — ignore
       case (?existing) {
         let updated: UserProfile = {
@@ -334,7 +335,7 @@ persistent actor class Auth(initDeployer : Principal) {
           lastLoggedIn       = ?Time.now();
           onboardingComplete = existing.onboardingComplete;
         };
-        Map.add(users, Principal.compare, msg.caller, updated);
+        users.add(msg.caller, updated);
       };
     }
   };
@@ -342,7 +343,7 @@ persistent actor class Auth(initDeployer : Principal) {
   /// Mark the caller's onboarding as complete so they are not redirected
   /// to the wizard on subsequent logins.
   public shared(msg) func completeOnboarding() : async () {
-    switch (Map.get(users, Principal.compare, msg.caller)) {
+    switch (users.get(msg.caller)) {
       case null {};  // Not registered yet — ignore
       case (?existing) {
         let updated: UserProfile = {
@@ -356,14 +357,14 @@ persistent actor class Auth(initDeployer : Principal) {
           lastLoggedIn       = existing.lastLoggedIn;
           onboardingComplete = ?true;
         };
-        Map.add(users, Principal.compare, msg.caller, updated);
+        users.add(msg.caller, updated);
       };
     }
   };
 
   /// Check if the caller has a specific role
   public query(msg) func hasRole(role: UserRole) : async Bool {
-    switch (Map.get(users, Principal.compare, msg.caller)) {
+    switch (users.get(msg.caller)) {
       case null { false };
       case (?p) {
         switch (role, p.role) {
@@ -384,19 +385,19 @@ persistent actor class Auth(initDeployer : Principal) {
   private func blobToHex(b : Blob) : Text {
     let hex = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'];
     var out = "";
-    for (byte in Blob.toArray(b).vals()) {
-      let n = Nat8.toNat(byte);
-      out := out # Text.fromChar(hex[n / 16]) # Text.fromChar(hex[n % 16]);
+    for (byte in b.toArray().values()) {
+      let n = byte.toNat();
+      out := out # hex[n / 16].toText() # hex[n % 16].toText();
     };
     out
   };
 
   private func dropAgentSession(owner : Principal) {
-    switch (Map.get(agentSessionByOwner, Principal.compare, owner)) {
-      case (?old) { Map.remove(agentSessions, Text.compare, old) };
+    switch (agentSessionByOwner.get(owner)) {
+      case (?old) { agentSessions.remove(old) };
       case null {};
     };
-    Map.remove(agentSessionByOwner, Principal.compare, owner);
+    agentSessionByOwner.remove(owner);
   };
 
   /// Issue a 24-hour voice-agent session token for the caller (registered
@@ -406,19 +407,19 @@ persistent actor class Auth(initDeployer : Principal) {
   /// client merely asserts.
   public shared(msg) func issueAgentSession() : async Result.Result<{ token : Text; expiresAt : Int }, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (Map.get(users, Principal.compare, msg.caller) == null) return #err(#NotFound);
+    if (users.get(msg.caller) == null) return #err(#NotFound);
 
     let token     = "hgs_" # blobToHex(await Random.blob());   // 256 bits of IC randomness
     let expiresAt = Time.now() + AGENT_SESSION_TTL_NS;
     dropAgentSession(msg.caller);
-    Map.add(agentSessions, Text.compare, token, { owner = msg.caller; expiresAt });
-    Map.add(agentSessionByOwner, Principal.compare, msg.caller, token);
+    agentSessions.add(token, { owner = msg.caller; expiresAt });
+    agentSessionByOwner.add(msg.caller, token);
     #ok({ token; expiresAt })
   };
 
   /// Revoke the caller's voice-agent session (e.g. on logout).
   public shared(msg) func revokeAgentSession() : async () {
-    if (Principal.isAnonymous(msg.caller)) return;
+    if (msg.caller.isAnonymous()) return;
     dropAgentSession(msg.caller);
   };
 
@@ -442,7 +443,7 @@ persistent actor class Auth(initDeployer : Principal) {
   /// an unknown principal, an inactive account or an empty address.
   public query(msg) func getNotificationContact(p: Principal) : async Result.Result<?{ email : Text }, Error> {
     if (not isNotifier(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    switch (Map.get(users, Principal.compare, p)) {
+    switch (users.get(p)) {
       case (?u) {
         if (not u.isActive or Text.size(u.email) == 0) #ok(null) else #ok(?{ email = u.email })
       };
@@ -453,7 +454,7 @@ persistent actor class Auth(initDeployer : Principal) {
   /// The principal a live session token belongs to, or null if the token is
   /// unknown or expired. The token itself is the secret, so this is public.
   public query func resolveAgentSession(token : Text) : async ?Principal {
-    switch (Map.get(agentSessions, Text.compare, token)) {
+    switch (agentSessions.get(token)) {
       case (?s) { if (s.expiresAt > Time.now()) ?s.owner else null };
       case null null;
     }
@@ -486,7 +487,7 @@ persistent actor class Auth(initDeployer : Principal) {
     var realtors      = 0;
     var builders      = 0;
 
-    for (profile in Map.values(users)) {
+    for (profile in users.values()) {
       total += 1;
       if (now - profile.createdAt <= dayNs)  { newToday += 1 };
       if (now - profile.createdAt <= weekNs) { newThisWeek += 1 };
@@ -512,7 +513,7 @@ persistent actor class Auth(initDeployer : Principal) {
     var realtors = 0;
     var builders = 0;
 
-    for (profile in Map.values(users)) {
+    for (profile in users.values()) {
       switch (profile.role) {
         case (#Homeowner) { homeowners += 1 };
         case (#Contractor) { contractors += 1 };
@@ -522,13 +523,13 @@ persistent actor class Auth(initDeployer : Principal) {
     };
 
     {
-      totalUsers = Map.size(users);
+      totalUsers = users.size();
       homeowners;
       contractors;
       realtors;
       builders;
       isPaused;
-      errorsByMethod = Iter.toArray(Map.entries(errsByMethod));
+      errorsByMethod = errsByMethod.entries().toArray();
     }
   };
 }

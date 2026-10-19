@@ -6,6 +6,7 @@
  * Contractor jobs require both homeowner AND contractor signatures.
  */
 
+import Char "mo:core/Char";
 import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
 import Debug     "mo:core/Debug";
@@ -171,10 +172,10 @@ persistent actor Job {
   private transient let jobsByProperty   = Index.empty();
   private transient let jobsByHomeowner  = Index.empty();
   private transient let jobsByContractor = Index.empty();
-  private transient let jobIndexes : [Index.Keyed<Job>] = Index.indexed<Job>(jobs, [
+  private transient let jobIndexes : [Index.Keyed<Job>] = Index.indexed(jobs, [
     (jobsByProperty,   func(j : Job) : ?Text { ?j.propertyId }),
-    (jobsByHomeowner,  func(j : Job) : ?Text { ?Principal.toText(j.homeowner) }),
-    (jobsByContractor, func(j : Job) : ?Text { Option.map(j.contractor, Principal.toText) }),
+    (jobsByHomeowner,  func(j : Job) : ?Text { ?j.homeowner.toText() }),
+    (jobsByContractor, func(j : Job) : ?Text { j.contractor.map(Principal.toText) }),
   ]);
 
   private func putJob(j : Job) { Index.put(jobs, jobIndexes, j.id, j) };
@@ -186,8 +187,8 @@ persistent actor Job {
   private var notifierEntries : [Principal] = [];
 
   private func countError(method : Text) {
-    let prev = Option.get(Map.get(errsByMethod, Text.compare, method), 0);
-    Map.add(errsByMethod, Text.compare, method, prev + 1);
+    let prev = errsByMethod.get(method).get(0);
+    errsByMethod.add(method, prev + 1);
   };
 
   // ─── Constants ───────────────────────────────────────────────────────────────
@@ -217,13 +218,13 @@ persistent actor Job {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not Principal.isAnonymous(caller) and arg.size() > 0
+    not caller.isAnonymous() and arg.size() > 0
   };
 
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller) or isTrustedCanister(caller)) return true;
-    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(caller: Principal) : Bool {
@@ -272,10 +273,10 @@ persistent actor Job {
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
-    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
     };
     #ok(())
   };
@@ -312,7 +313,7 @@ persistent actor Job {
   /// Property managers read jobs through getJobsForProperty, which checks the
   /// property canister (a query cannot make that call).
   private func canViewJob(j: Job, caller: Principal) : Bool {
-    if (Principal.isAnonymous(caller)) return false;
+    if (caller.isAnonymous()) return false;
     if (j.homeowner == caller) return true;
     switch (j.contractor) { case (?c) { if (c == caller) return true }; case null {} };
     isAdmin(caller) or isTrustedCanister(caller)
@@ -346,7 +347,7 @@ persistent actor Job {
   private func countsAsVerified(j: Job) : Bool {
     if (not j.verified) return false;
     if (j.isDiy) return true;
-    switch (Map.get(contractorAttest, Text.compare, j.id)) {
+    switch (contractorAttest.get(j.id)) {
       case null   { true };
       case (?ok)  { ok };
     }
@@ -425,7 +426,7 @@ persistent actor Job {
     // State checks after the awaits above (TOCTOU).
     if (Index.count(jobsByProperty, propertyId) >= MAX_JOBS_PER_PROPERTY)
       return #err(#TierLimitReached("This property has reached the maximum number of job records"));
-    if (Map.get(jobs, Text.compare, id) != null) return #err(#InvalidInput("ID collision, retry"));
+    if (jobs.get(id) != null) return #err(#InvalidInput("ID collision, retry"));
 
     let job: Job = {
       id;
@@ -459,7 +460,7 @@ persistent actor Job {
   /// trusted canisters get the record; everyone else gets #NotFound (so the
   /// call does not reveal whether the ID exists).
   public query(msg) func getJob(jobId: Text) : async Result.Result<Job, Error> {
-    switch (Map.get(jobs, Text.compare, jobId)) {
+    switch (jobs.get(jobId)) {
       case null { #err(#NotFound) };
       case (?j) { if (canViewJob(j, msg.caller)) #ok(j) else #err(#NotFound) };
     }
@@ -472,8 +473,8 @@ persistent actor Job {
       let authorized = await checkPropertyAuth(propertyId, msg.caller, msg.caller, false);
       if (not authorized) return #ok([]);  // return empty rather than error for UX
     };
-    let matches = Iter.toArray(
-      Index.records(jobsByProperty, propertyId, jobs)
+    let matches = Index.records(jobsByProperty, propertyId, jobs).toArray(
+      
     );
     #ok(matches)
   };
@@ -482,8 +483,7 @@ persistent actor Job {
   /// cross-canister consumption by the market canister's computePropertyScore.
   public query func getJobSnapshotsForProperty(propertyId: Text) : async [JobSnapshot] {
     let secsPerYear : Nat = 31_536_000;
-    Iter.toArray(Iter.map<Job, JobSnapshot>(
-      Index.records(jobsByProperty, propertyId, jobs),
+    Iter.toArray(Index.records(jobsByProperty, propertyId, jobs).map(
       func(j: Job) : JobSnapshot {
         let secsSince1970 = Int.abs(j.completedDate) / 1_000_000_000;
         {
@@ -502,8 +502,8 @@ persistent actor Job {
   /// scores, certificates and report verified-job counts. Read by the report
   /// canister and by the frontend (to label them).
   public query func getUnattestedJobIds(propertyId: Text) : async [Text] {
-    Iter.toArray(Iter.map<Job, Text>(
-      Iter.filter<Job>(Index.records(jobsByProperty, propertyId, jobs), func(j: Job) : Bool {
+    Iter.toArray(Iter.map(
+      Index.records(jobsByProperty, propertyId, jobs).filter(func(j: Job) : Bool {
         j.verified and not countsAsVerified(j)
       }),
       func(j: Job) : Text { j.id }
@@ -514,16 +514,16 @@ persistent actor Job {
   /// D-1/H-5: caller-scoped — only that principal itself, admins and trusted
   /// canisters get the list; anyone else gets [].
   public query(msg) func getJobsByOwner(owner: Principal) : async [Job] {
-    if (Principal.isAnonymous(msg.caller)) return [];
+    if (msg.caller.isAnonymous()) return [];
     if (msg.caller != owner and not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return [];
-    Iter.toArray(
-      Index.records(jobsByHomeowner, Principal.toText(owner), jobs)
+    Index.records(jobsByHomeowner, owner.toText(), jobs).toArray(
+      
     )
   };
 
   /// Fetch jobs where the caller is the linked contractor and has not yet signed.
   public query(msg) func getJobsPendingMySignature() : async [Job] {
-    Iter.toArray(Iter.filter(Index.records(jobsByContractor, Principal.toText(msg.caller), jobs), func(j: Job) : Bool {
+    Iter.toArray(Index.records(jobsByContractor, msg.caller.toText(), jobs).filter(func(j: Job) : Bool {
       not j.contractorSigned and not j.verified
     }))
   };
@@ -533,7 +533,7 @@ persistent actor Job {
   /// admin-only and returns every contractor's jobs). Backs the Contractor Plan
   /// & Billing fee ledger.
   public query(msg) func getMyReferralJobs() : async [Job] {
-    Iter.toArray(Iter.filter(Index.records(jobsByContractor, Principal.toText(msg.caller), jobs), func(j: Job) : Bool {
+    Iter.toArray(Index.records(jobsByContractor, msg.caller.toText(), jobs).filter(func(j: Job) : Bool {
       switch (j.sourceQuoteId) {
         case (?qid) { Text.size(qid) > 0 };
         case null   { false };
@@ -545,7 +545,7 @@ persistent actor Job {
   public shared(msg) func updateJobStatus(jobId: Text, status: JobStatus) : async Result.Result<Job, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(jobs, Text.compare, jobId)) {
+    switch (jobs.get(jobId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.verified) return #err(#AlreadyVerified);
@@ -557,7 +557,7 @@ persistent actor Job {
         // Re-read fresh after the await above — a concurrent call (verifyJob,
         // linkContractor, another updateJobStatus) could have already mutated
         // this job while this call was suspended waiting on checkPropertyAuth.
-        switch (Map.get(jobs, Text.compare, jobId)) {
+        switch (jobs.get(jobId)) {
           case null { return #err(#NotFound) };
           case (?fresh) {
             if (fresh.verified) return #err(#AlreadyVerified);
@@ -596,14 +596,14 @@ persistent actor Job {
   public shared(msg) func linkContractor(jobId: Text, contractorPrincipal: Principal) : async Result.Result<Job, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(jobs, Text.compare, jobId)) {
+    switch (jobs.get(jobId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.verified) return #err(#AlreadyVerified);
         // M-2: the contractor must be a different party — not the caller, the
         // job's homeowner, or anyone with a role on the property — otherwise
         // the homeowner could complete the "dual" signature alone.
-        if (Principal.isAnonymous(contractorPrincipal) or contractorPrincipal == msg.caller
+        if (contractorPrincipal.isAnonymous() or contractorPrincipal == msg.caller
             or contractorPrincipal == existing.homeowner)
           return #err(#InvalidInput("The contractor must be a different person from the homeowner"));
         let authOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
@@ -621,7 +621,7 @@ persistent actor Job {
         // Re-read fresh after the await above — a concurrent call could have
         // already verified or otherwise mutated this job while this call was
         // suspended waiting on checkPropertyAuth.
-        switch (Map.get(jobs, Text.compare, jobId)) {
+        switch (jobs.get(jobId)) {
           case null { return #err(#NotFound) };
           case (?fresh) {
             if (fresh.verified) return #err(#AlreadyVerified);
@@ -667,7 +667,7 @@ persistent actor Job {
   public shared(msg) func verifyJob(jobId: Text) : async Result.Result<Job, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(jobs, Text.compare, jobId)) {
+    switch (jobs.get(jobId)) {
       case null {
         Debug.print("job.verifyJob: not found: " # jobId);
         countError("verifyJob");
@@ -686,7 +686,7 @@ persistent actor Job {
         };
 
         if (not isHomeowner and not isContractor) {
-          Debug.print("job.verifyJob: unauthorized: " # Principal.toText(caller) # " job=" # jobId);
+          Debug.print("job.verifyJob: unauthorized: " # caller.toText() # " job=" # jobId);
           countError("verifyJob");
           return #err(#NotAuthorized);
         };
@@ -696,7 +696,7 @@ persistent actor Job {
         // homeowner completes a job whose contractor signed before R2.
         let attestNow : ?Bool = if (existing.isDiy) null else {
           let needed = isContractor
-            or Map.get(contractorAttest, Text.compare, jobId) == null;
+            or contractorAttest.get(jobId) == null;
           switch (existing.contractor) {
             case (?con) {
               if (not needed) null else switch (await contractorStatus(con)) {
@@ -714,7 +714,7 @@ persistent actor Job {
         // checkPropertyAuth. Building newHomeownerSigned/newContractorSigned
         // from the stale pre-await snapshot would let this write clobber the
         // other party's signature instead of combining with it.
-        let existing2 = switch (Map.get(jobs, Text.compare, jobId)) {
+        let existing2 = switch (jobs.get(jobId)) {
           case null   { return #err(#NotFound) };
           case (?job) { job };
         };
@@ -757,8 +757,8 @@ persistent actor Job {
         putJob(updated);
         switch (attestNow) {
           case (?ok) {
-            if (isContractor or (fullyVerified and Map.get(contractorAttest, Text.compare, jobId) == null))
-              Map.add(contractorAttest, Text.compare, jobId, ok);
+            if (isContractor or (fullyVerified and contractorAttest.get(jobId) == null))
+              contractorAttest.add(jobId, ok);
           };
           case null {};
         };
@@ -840,7 +840,7 @@ persistent actor Job {
     let id  = await newJobId();
     let now = Time.now();
     if (Index.count(jobsByProperty, propertyId) >= MAX_JOBS_PER_PROPERTY) return #err("Job limit reached for property");
-    if (Map.get(jobs, Text.compare, id) != null) return #err("ID collision, retry");
+    if (jobs.get(id) != null) return #err("ID collision, retry");
 
     let job : Job = {
       id;
@@ -993,14 +993,14 @@ persistent actor Job {
   /// (or stop) counting. Only touches jobs that already have an attestation
   /// entry. Contractor canister or admin only. Returns the entries changed.
   public shared(msg) func refreshContractorAttestation(contractor: Principal, isVerified: Bool) : async Result.Result<Nat, Error> {
-    let fromContr = Text.size(contrCanisterId) > 0 and Principal.toText(msg.caller) == contrCanisterId;
+    let fromContr = Text.size(contrCanisterId) > 0 and msg.caller.toText() == contrCanisterId;
     if (not fromContr and not isAdmin(msg.caller)) return #err(#NotAuthorized);
     var changed : Nat = 0;
-    for (j in Index.records(jobsByContractor, Principal.toText(contractor), jobs)) {
-      switch (Map.get(contractorAttest, Text.compare, j.id)) {
+    for (j in Index.records(jobsByContractor, contractor.toText(), jobs)) {
+      switch (contractorAttest.get(j.id)) {
         case (?cur) {
           if (cur != isVerified) {
-            Map.add(contractorAttest, Text.compare, j.id, isVerified);
+            contractorAttest.add(j.id, isVerified);
             changed += 1;
           };
         };
@@ -1033,8 +1033,8 @@ persistent actor Job {
           case (#Electrical) "Electrical";
           case _             "";
         };
-        if (svcText != "" and Option.isNull(Array.find<Text>(foundSystems, func(s) { s == svcText }))) {
-          foundSystems := Array.concat(foundSystems, [svcText]);
+        if (svcText != "" and Option.isNull(foundSystems.find(func(s) { s == svcText }))) {
+          foundSystems := foundSystems.concat([svcText]);
         };
       };
     };
@@ -1097,7 +1097,7 @@ persistent actor Job {
     let now = Time.now();
     if (Index.count(jobsByProperty, propertyId) >= MAX_JOBS_PER_PROPERTY)
       return #err(#TierLimitReached("This property has reached the maximum number of job records"));
-    if (Map.get(jobs, Text.compare, id) != null) return #err(#InvalidInput("ID collision, retry"));
+    if (jobs.get(id) != null) return #err(#InvalidInput("ID collision, retry"));
 
     let job: Job = {
       id;
@@ -1129,12 +1129,12 @@ persistent actor Job {
 
   private func blobToHex(b : Blob) : Text {
     let hex   = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'];
-    let bytes = Blob.toArray(b);
+    let bytes = b.toArray();
     var result = "";
-    for (byte in bytes.vals()) {
-      let n = Nat8.toNat(byte);
-      result #= Text.fromChar(hex[n / 16]);
-      result #= Text.fromChar(hex[n % 16]);
+    for (byte in bytes.values()) {
+      let n = byte.toNat();
+      result #= hex[n / 16].toText();
+      result #= hex[n % 16].toText();
     };
     result
   };
@@ -1149,7 +1149,7 @@ persistent actor Job {
   ) : async Result.Result<Text, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    let job = switch (Map.get(jobs, Text.compare, jobId)) {
+    let job = switch (jobs.get(jobId)) {
       case null    { return #err(#NotFound) };
       case (?j)    { j };
     };
@@ -1173,18 +1173,18 @@ persistent actor Job {
       // bound to that profile; otherwise it is a bearer link (guest flow).
       contractorPrincipal = job.contractor;
     };
-    Map.add(inviteTokens, Text.compare, token, entry);
+    inviteTokens.add(token, entry);
     #ok(token)
   };
 
   /// Return a safe preview of the job for the public verify page.
   /// No authentication required — the token is the credential.
   public query func getJobByInviteToken(token: Text) : async Result.Result<InvitePreview, Error> {
-    let invite = switch (Map.get(inviteTokens, Text.compare, token)) {
+    let invite = switch (inviteTokens.get(token)) {
       case null    { return #err(#NotFound) };
       case (?i)    { i };
     };
-    let job = switch (Map.get(jobs, Text.compare, invite.jobId)) {
+    let job = switch (jobs.get(invite.jobId)) {
       case null    { return #err(#NotFound) };
       case (?j)    { j };
     };
@@ -1225,7 +1225,7 @@ persistent actor Job {
     // M-2: anonymous / pause / rate-limit checks (inspect is not a boundary).
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(token) > 100) return #err(#NotFound);
-    let invite = switch (Map.get(inviteTokens, Text.compare, token)) {
+    let invite = switch (inviteTokens.get(token)) {
       case null    { return #err(#NotFound) };
       case (?i)    { i };
     };
@@ -1241,7 +1241,7 @@ persistent actor Job {
       case null {}; // bearer link (guest contractor) — the link itself is the credential
     };
 
-    let job = switch (Map.get(jobs, Text.compare, invite.jobId)) {
+    let job = switch (jobs.get(invite.jobId)) {
       case null    { return #err(#NotFound) };
       case (?j)    { j };
     };
@@ -1295,12 +1295,12 @@ persistent actor Job {
     // Re-read fresh after the await above — a concurrent call could have
     // already redeemed this same token (or otherwise mutated the job) while
     // this call was suspended waiting on the contractor canister.
-    let freshInvite = switch (Map.get(inviteTokens, Text.compare, token)) {
+    let freshInvite = switch (inviteTokens.get(token)) {
       case null    { return #err(#NotFound) };
       case (?i)    { i };
     };
     if (freshInvite.usedAt != null)         return #err(#InvalidInput("This invite link has already been used"));
-    let freshJob = switch (Map.get(jobs, Text.compare, freshInvite.jobId)) {
+    let freshJob = switch (jobs.get(freshInvite.jobId)) {
       case null    { return #err(#NotFound) };
       case (?j)    { j };
     };
@@ -1341,7 +1341,7 @@ persistent actor Job {
     };
     putJob(updated);
     switch (attest) {
-      case (?ok) { Map.add(contractorAttest, Text.compare, updated.id, ok) };
+      case (?ok) { contractorAttest.add(updated.id, ok) };
       case null {};
     };
 
@@ -1355,7 +1355,7 @@ persistent actor Job {
       usedAt              = ?Time.now();
       contractorPrincipal = freshInvite.contractorPrincipal;
     };
-    Map.add(inviteTokens, Text.compare, token, usedInvite);
+    inviteTokens.add(token, usedInvite);
 
     if (bothSigned) notifyJobVerified(updated) else notifyAwaitingSignature(updated);
 
@@ -1470,7 +1470,7 @@ persistent actor Job {
       return #err(#TierLimitReached("Too many pending proposals for this property"));
     if (Index.count(jobsByProperty, propertyId) >= MAX_JOBS_PER_PROPERTY)
       return #err(#TierLimitReached("This property has reached the maximum number of job records"));
-    if (Map.get(jobs, Text.compare, id) != null) return #err(#InvalidInput("ID collision, retry"));
+    if (jobs.get(id) != null) return #err(#InvalidInput("ID collision, retry"));
 
     let job : Job = {
       id;
@@ -1496,7 +1496,7 @@ persistent actor Job {
 
     putJob(job);
     switch (attest) {
-      case (?ok) { Map.add(contractorAttest, Text.compare, id, ok) };
+      case (?ok) { contractorAttest.add(id, ok) };
       case null {};
     };
     // M-9: the push text is fixed, not the contractor-supplied title, so a
@@ -1511,7 +1511,7 @@ persistent actor Job {
   /// Return all proposals awaiting the caller's (homeowner's) approval.
   /// Only the property owner sees their own pending proposals.
   public query(msg) func getPendingProposals() : async [Job] {
-    Iter.toArray(Iter.filter(Index.records(jobsByHomeowner, Principal.toText(msg.caller), jobs), func(j: Job) : Bool {
+    Iter.toArray(Index.records(jobsByHomeowner, msg.caller.toText(), jobs).filter(func(j: Job) : Bool {
       j.status == #PendingHomeownerApproval
     }))
   };
@@ -1522,7 +1522,7 @@ persistent actor Job {
   public shared(msg) func approveJobProposal(jobId: Text) : async Result.Result<Job, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    let existing = switch (Map.get(jobs, Text.compare, jobId)) {
+    let existing = switch (jobs.get(jobId)) {
       case null    { return #err(#NotFound) };
       case (?j)    { j };
     };
@@ -1530,7 +1530,7 @@ persistent actor Job {
     let approveOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
     if (not approveOk) return #err(#NotAuthorized);
     // Re-read after the await (TOCTOU): the proposal may have been rejected meanwhile.
-    let existing2 = switch (Map.get(jobs, Text.compare, jobId)) {
+    let existing2 = switch (jobs.get(jobId)) {
       case null    { return #err(#NotFound) };
       case (?j)    { j };
     };
@@ -1566,20 +1566,20 @@ persistent actor Job {
   public shared(msg) func rejectJobProposal(jobId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    let existing = switch (Map.get(jobs, Text.compare, jobId)) {
+    let existing = switch (jobs.get(jobId)) {
       case null    { return #err(#NotFound) };
       case (?j)    { j };
     };
 
     let rejectOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
     if (not rejectOk) return #err(#NotAuthorized);
-    switch (Map.get(jobs, Text.compare, jobId)) {
+    switch (jobs.get(jobId)) {
       case null    { return #err(#NotFound) };
       case (?j)    { if (j.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval")) };
     };
 
     Index.delete(jobs, jobIndexes, jobId);
-    Map.remove(contractorAttest, Text.compare, jobId);
+    contractorAttest.remove(jobId);
     #ok(())
   };
 
@@ -1587,8 +1587,7 @@ persistent actor Job {
   /// H-17: Admin-only — this view exposes quote IDs and referral attribution.
   public shared(msg) func getReferralJobs() : async Result.Result<[Job], Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    let result = Array.filter<Job>(
-      Iter.toArray(Map.values(jobs)),
+    let result = jobs.values().toArray().filter(
       func(j: Job) : Bool {
         switch (j.sourceQuoteId) {
           case null    { false };
@@ -1605,7 +1604,7 @@ persistent actor Job {
     var verified  = 0;
     var diy       = 0;
 
-    for (j in Map.values(jobs)) {
+    for (j in jobs.values()) {
       if (j.isDiy) { diy += 1 };
       switch (j.status) {
         case (#Pending)                   { pending   += 1 };
@@ -1617,13 +1616,13 @@ persistent actor Job {
     };
 
     {
-      totalJobs     = Map.size(jobs);
+      totalJobs     = jobs.size();
       pendingJobs   = pending;
       completedJobs = completed;
       verifiedJobs  = verified;
       diyJobs       = diy;
       isPaused;
-      errorsByMethod = Iter.toArray(Map.entries(errsByMethod));
+      errorsByMethod = errsByMethod.entries().toArray();
     }
   };
 }
