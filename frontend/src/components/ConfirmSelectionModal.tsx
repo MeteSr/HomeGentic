@@ -1,7 +1,7 @@
 /**
  * ConfirmSelectionModal — Bid to List H5
- * The only screen where money moves. Irreversible. Disclosure copy and the
- * checkbox are compliance surface, not decoration — kept verbatim.
+ * Choosing is irreversible. Disclosure copy and the checkbox are compliance
+ * surface, not decoration: keep them in step with what the flow actually does.
  */
 
 import { useState } from "react";
@@ -23,9 +23,9 @@ export interface ConfirmSelectionModalProps {
 }
 
 const CONSEQUENCE_ROWS: { label: string; note: string; ok: boolean }[] = [
-  { label: "Their card is charged", note: "Authorized when they bid. The charge is what performs the introduction.", ok: true },
+  { label: "They're billed the platform fee", note: "They pay it in Bid to List. Nothing is released to either side until it clears.", ok: true },
   { label: "Your name, address and record release to them", note: "Maintenance history, permits and invoiced work, all at once.", ok: true },
-  { label: "Their name, license and contact release to you", note: "Verified against the Florida DBPR before they were allowed to bid.", ok: true },
+  { label: "Their name, license and contact release to you", note: "HomeGentic checked their license before they were allowed to bid.", ok: true },
   { label: "The other four bids close permanently", note: "They cannot be reopened while this selection stands.", ok: false },
 ];
 
