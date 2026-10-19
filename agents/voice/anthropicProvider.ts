@@ -21,8 +21,9 @@ export class AnthropicProvider implements AIProvider {
   private client: Anthropic;
   private model:  string;
 
-  constructor(apiKey: string, model: string) {
-    this.client = new Anthropic({ apiKey });
+  /** `baseURL` points the client at a stand-in API (the k6 load test's mock); unset in production. */
+  constructor(apiKey: string, model: string, baseURL?: string) {
+    this.client = new Anthropic({ apiKey, ...(baseURL && { baseURL }) });
     this.model  = model;
   }
 

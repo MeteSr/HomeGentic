@@ -377,6 +377,7 @@ export default function ListingDetailPage() {
           requestId={id}
           feeCents={feeCents}
           onClose={() => setConfirmProposal(null)}
+          onConfirmed={() => { setConfirmProposal(null); load(); }}
         />
       )}
     </Layout>

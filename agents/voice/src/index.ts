@@ -73,6 +73,7 @@ export interface Env {
   // AI
   ANTHROPIC_API_KEY:   string;
   AI_MODEL?:           string;
+  ANTHROPIC_BASE_URL?: string;   // load tests only: a mock Anthropic API (tests/k6/mock-anthropic.mjs)
   // Auth / routing
   VOICE_AGENT_API_KEY: string;   // public client identifier (ships in the bundle), not a secret
   /** Secret for /admin/* routes (never shipped to the browser). Unset → /admin/* disabled. */
@@ -186,6 +187,9 @@ function sseResponse(
       await run(async (event) => {
         await writer.write(enc.encode(event));
       });
+    } catch (err) {
+      // The 200 is already sent; log so a failed stream isn't a silent empty reply.
+      logger.error("sse", "stream failed", { error: (err as Error)?.message });
     } finally {
       await writer.close().catch(() => {});
     }
@@ -212,7 +216,9 @@ function verifyHmac(key: string, body: object, provided: string): boolean {
 }
 
 function sanitiseContext(ctx: any, principal: string): any {
-  if (!ctx || typeof ctx !== "object") return { properties: [], recentJobs: [], principal };
+  if (!ctx || typeof ctx !== "object") {
+    return { properties: [], recentJobs: [], expiringWarranties: [], pendingSignatureJobIds: [], openQuoteCount: 0, principal };
+  }
 
   const clampStr = (v: unknown, max = 200) => typeof v === "string" ? v.slice(0, max) : "";
   const clampNum = (v: unknown, max = 1e9) => typeof v === "number" ? Math.min(Math.abs(v), max) : 0;
@@ -242,7 +248,15 @@ function sanitiseContext(ctx: any, principal: string): any {
       ? clampNum(j.warrantyMonths, 600) : undefined,
   }));
 
-  return { ...ctx, properties, recentJobs, principal };
+  // buildSystemPrompt reads these unguarded, so a client that omits one must
+  // not crash the stream.
+  return {
+    ...ctx, properties, recentJobs,
+    expiringWarranties:     clampArr(ctx.expiringWarranties, 50),
+    pendingSignatureJobIds: clampArr(ctx.pendingSignatureJobIds, 100),
+    openQuoteCount:         clampNum(ctx.openQuoteCount, 10_000),
+    principal,
+  };
 }
 
 // ── Structured request logging ────────────────────────────────────────────────
@@ -389,6 +403,7 @@ export default {
     const provider = new AnthropicProvider(
       env.ANTHROPIC_API_KEY,
       resolveModel(env.AI_MODEL),
+      env.ANTHROPIC_BASE_URL,
     );
 
     let response: Response;

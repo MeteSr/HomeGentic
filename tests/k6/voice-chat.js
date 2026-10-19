@@ -14,22 +14,17 @@
  *   http_req_duration  p95 < 2000 ms
  *   http_req_failed    rate < 1 %
  *
- * Usage:
- *   cd agents/voice && MOCK_ANTHROPIC=1 npm run dev
+ * Usage (see tests/k6/README.md for the full setup):
+ *   node tests/k6/mock-anthropic.mjs &
+ *   cd agents/voice && npx wrangler dev src/index.ts --var NODE_ENV:development \
+ *     --var ANTHROPIC_API_KEY:mock --var ANTHROPIC_BASE_URL:http://localhost:8788
  *   k6 run tests/k6/voice-chat.js
- *
- * Note: Set MOCK_ANTHROPIC=1 to skip real Anthropic API calls.
- *       A valid VITE_VOICE_AGENT_API_KEY is not required when running against
- *       a local dev server — the dev server accepts unauthenticated requests.
  */
 
 import http from "k6/http";
 import { check, sleep } from "k6";
 import { Counter, Trend } from "k6/metrics";
-
-// ── Configuration ─────────────────────────────────────────────────────────────
-
-const BASE_URL = __ENV.VOICE_AGENT_URL || "http://localhost:8787";
+import { BASE_URL, CONTEXT, voiceHeaders, health } from "./lib/voice.js";
 
 // ── Custom metrics ─────────────────────────────────────────────────────────────
 
@@ -53,29 +48,6 @@ export const options = {
 
 // ── Payloads ──────────────────────────────────────────────────────────────────
 
-const MOCK_CONTEXT = JSON.stringify({
-  properties: [
-    {
-      id: 1,
-      address: "123 Main St",
-      city: "Austin",
-      state: "TX",
-      yearBuilt: 2000,
-      squareFeet: 2000,
-    },
-  ],
-  jobs: [
-    {
-      id: "j1",
-      serviceType: "HVAC",
-      amount: 250000,
-      date: "2022-06-01",
-      isDiy: false,
-      verified: true,
-    },
-  ],
-});
-
 const CHAT_MESSAGES = [
   "What is the maintenance score for my home?",
   "When is my HVAC due for replacement?",
@@ -83,16 +55,14 @@ const CHAT_MESSAGES = [
   "What upgrades would add the most value?",
 ];
 
-const HEADERS = { "Content-Type": "application/json" };
-
 // ── Virtual user logic ─────────────────────────────────────────────────────────
 
 export default function () {
   const message = CHAT_MESSAGES[Math.floor(Math.random() * CHAT_MESSAGES.length)];
-  const payload = JSON.stringify({ message, context: MOCK_CONTEXT });
+  const payload = JSON.stringify({ message, context: CONTEXT });
 
   const res = http.post(`${BASE_URL}/api/chat`, payload, {
-    headers: HEADERS,
+    headers: voiceHeaders(),
     tags:    { endpoint: "chat" },
     timeout: "10s",
   });
@@ -104,6 +74,7 @@ export default function () {
   } else {
     check(res, {
       "chat 200":             (r) => r.status === 200,
+      "chat streams text":    (r) => typeof r.body === "string" && r.body.includes('"text"'),
       "chat no server error": (r) => r.status !== 500,
     });
   }
@@ -117,8 +88,8 @@ export function setup() {
   console.log("[voice-chat] k6 voice chat throughput test");
   console.log(`  Target: ${BASE_URL}`);
 
-  const res = http.get(`${BASE_URL}/health`);
-  if (res.status !== 200) {
+  const res = health();
+  if (res.status !== 200 && res.status !== 503) {
     console.warn(
       `  ⚠ Health check returned ${res.status} — is the voice agent running at ${BASE_URL}?`
     );
