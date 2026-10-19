@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/contractor";
 import { serviceTypeVariant, serviceTypeFromVariant, serviceTypeLabel } from "./serviceTypes";
 export { idlFactory };
@@ -99,15 +98,8 @@ function unwrap(result: any): ContractorProfile {
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createContractorService() {
-  let _actor: any = null;
 
-  async function getActor() {
-    if (!_actor) {
-      const ag = await getAgent();
-      _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: CONTRACTOR_CANISTER_ID });
-    }
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, CONTRACTOR_CANISTER_ID);
 
   return {
   async search(specialty?: string): Promise<ContractorProfile[]> {
@@ -251,7 +243,7 @@ function createContractorService() {
   },
 
   reset() {
-    _actor = null;
+    getActor.reset();
   },
   };
 }

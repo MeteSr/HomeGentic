@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/photo";
 export { idlFactory };
 
@@ -177,16 +176,9 @@ async function withBytes(
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createPhotoService() {
-  let _actor: any = null;
   const store: Photo[] = [];
 
-  async function getActor() {
-    if (!_actor) {
-      const ag = await getAgent();
-      _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: PHOTO_CANISTER_ID });
-    }
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, PHOTO_CANISTER_ID);
 
   return {
   async upload(
@@ -288,7 +280,7 @@ function createPhotoService() {
   },
 
   reset() {
-    _actor = null;
+    getActor.reset();
     store.length = 0;
   },
   };

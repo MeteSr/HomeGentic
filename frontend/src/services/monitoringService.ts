@@ -7,8 +7,7 @@
  * Falls back to mock data when MONITORING_CANISTER_ID is not set.
  */
 
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/monitoring";
 export { idlFactory };
 
@@ -81,15 +80,8 @@ export function canisterLabel(canisterId: string): string {
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 function createMonitoringService() {
-  let _actor: any = null;
 
-  async function getActor() {
-    if (!_actor) {
-      const agent = await getAgent();
-      _actor = Actor.createActor(idlFactory, { agent, canisterId: MONITORING_CANISTER_ID });
-    }
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, MONITORING_CANISTER_ID);
 
   return {
     async getAllCanisterMetrics(): Promise<CanisterMetrics[]> {

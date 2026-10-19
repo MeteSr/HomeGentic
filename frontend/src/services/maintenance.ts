@@ -4,8 +4,7 @@
  * Schedule CRUD is wired to the maintenance canister when MAINTENANCE_CANISTER_ID is set.
  */
 
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import type { Job } from "./job";
 import { idlFactory } from "@/declarations/maintenance";
 export { idlFactory };
@@ -389,16 +388,9 @@ export function predictMaintenance(
 // ─── Service factory ─────────────────────────────────────────────────────────
 
 function createMaintenanceService() {
-  let _actor: any = null;
   const scheduleStore = new Map<string, ScheduleEntry>();
 
-  async function getActor() {
-    if (!_actor) {
-      const ag = await getAgent();
-      _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: MAINTENANCE_CANISTER_ID });
-    }
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, MAINTENANCE_CANISTER_ID);
 
   return {
   predict(yearBuilt: number, jobs: Job[], systemInstallYears?: Partial<Record<string, number>>, state?: string, materialOverrides?: Partial<Record<string, string>>): MaintenanceReport {
@@ -512,7 +504,7 @@ function createMaintenanceService() {
   },
 
   reset() {
-    _actor = null;
+    getActor.reset();
     scheduleStore.clear();
   },
   };

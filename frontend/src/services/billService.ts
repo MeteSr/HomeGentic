@@ -7,8 +7,7 @@
  * endpoint to OCR a utility bill image/PDF via Claude Vision.
  */
 
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/bills";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 export { idlFactory };
@@ -114,15 +113,8 @@ export class TierLimitReachedError extends Error {
 
 // ─── Actor helper ─────────────────────────────────────────────────────────────
 
-let _actor: any = null;
 
-async function getBillsActor() {
-  if (!_actor) {
-    const ag = await getAgent();
-    _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: BILLS_CANISTER_ID });
-  }
-  return _actor;
-}
+const getBillsActor = lazyActor(idlFactory, BILLS_CANISTER_ID);
 
 function fromVariant<T>(v: any): T {
   if ("ok" in v) return v.ok as T;

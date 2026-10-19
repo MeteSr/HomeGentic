@@ -4,8 +4,7 @@
  * REPORT_CANISTER_ID is not set (local dev without dfx).
  */
 
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { Job } from "./job";
 import type { Property } from "./property";
 import type { RecurringServiceSummary } from "./recurringService";
@@ -353,17 +352,10 @@ function fromRiskProfile(raw: any): RiskProfile {
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createReportService() {
-  let _actor: any = null;
   const mockSnapshots = new Map<string, ReportSnapshot>();
   const mockLinks     = new Map<string, ShareLink>();
 
-  async function getActor() {
-    if (!_actor) {
-      const ag = await getAgent();
-      _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: REPORT_CANISTER_ID });
-    }
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, REPORT_CANISTER_ID);
 
   return {
   /**
@@ -550,7 +542,7 @@ function createReportService() {
   },
 
   reset() {
-    _actor = null;
+    getActor.reset();
     mockSnapshots.clear();
     mockLinks.clear();
   },

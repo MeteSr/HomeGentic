@@ -9,8 +9,7 @@
  * The 6 non-deterministic Claude AI endpoints remain in the Node.js relay.
  */
 
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/ai_proxy";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 export { idlFactory };
@@ -35,16 +34,8 @@ const AI_PROXY_CANISTER_ID = (process.env as any).AI_PROXY_CANISTER_ID || "";
 
 // ─── Actor ────────────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _actor: any | null = null;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getActor(): Promise<any | null> {
-  if (_actor) return _actor;
-  const ag = await getAgent();
-  _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: AI_PROXY_CANISTER_ID });
-  return _actor;
-}
+const getActor = lazyActor(idlFactory, AI_PROXY_CANISTER_ID);
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 

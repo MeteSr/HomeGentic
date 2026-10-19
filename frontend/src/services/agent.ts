@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/agent";
 export { idlFactory };
 
@@ -82,17 +81,11 @@ function fromRawReview(raw: any): AgentReview {
 }
 
 function createAgentService() {
-  let _actor: any = null;
 
-  async function getActor() {
-    if (_actor) return _actor;
-    const agent = await getAgent();
-    _actor = Actor.createActor(idlFactory, { agent, canisterId: AGENT_CANISTER_ID });
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, AGENT_CANISTER_ID);
 
   return {
-    reset() { _actor = null; },
+    reset() { getActor.reset(); },
 
     async register(input: RegisterAgentInput): Promise<AgentProfile> {
       const actor = await getActor();

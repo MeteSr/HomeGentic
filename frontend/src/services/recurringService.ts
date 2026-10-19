@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/recurring";
 export { idlFactory };
 
@@ -135,7 +134,6 @@ function unwrapVisit(result: any): VisitLog {
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createRecurringService() {
-  let _actor: any = null;
   // Seed from Playwright test globals if present (window.__e2e_recurring set by addInitScript)
   const mockServices: RecurringService[] =
     typeof window !== "undefined" && (window as any).__e2e_recurring
@@ -143,13 +141,7 @@ function createRecurringService() {
       : [];
   const mockVisits: VisitLog[] = [];
 
-  async function getActor() {
-    if (!_actor) {
-      const ag = await getAgent();
-      _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: RECURRING_CANISTER_ID });
-    }
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, RECURRING_CANISTER_ID);
 
   return {
   async getById(serviceId: string): Promise<RecurringService | null> {
@@ -220,7 +212,7 @@ function createRecurringService() {
   },
 
   reset() {
-    _actor = null;
+    getActor.reset();
     mockServices.length = 0;
     mockVisits.length = 0;
   },

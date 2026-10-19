@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/job";
 import { serviceTypeVariant, serviceTypeFromVariant } from "./serviceTypes";
 export { idlFactory };
@@ -112,15 +111,8 @@ function unwrapJob(result: any): Job {
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createJobService() {
-  let _actor: any = null;
 
-  async function getActor() {
-    if (!_actor) {
-      const ag = await getAgent();
-      _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: JOB_CANISTER_ID });
-    }
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, JOB_CANISTER_ID);
 
   /** R2: flag jobs whose contractor signature came from an unverified
    *  contractor profile (job.getUnattestedJobIds). Best effort: on failure
@@ -388,7 +380,7 @@ function createJobService() {
   },
 
   reset() {
-    _actor = null;
+    getActor.reset();
   },
   };
 }

@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/quote";
 import { serviceTypeVariant, serviceTypeFromVariant } from "./serviceTypes";
 import { ibeEncryptAmount, ibeDecryptBids, sealedBidIdentity, type RevealedBid as SealedRevealedBid } from "./sealedBid";
@@ -153,20 +152,13 @@ function unwrapRequest(result: any): QuoteRequest {
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createQuoteService() {
-  let _actor: any = null;
   // E2E-only mock state — only populated via window.__e2e_* injection from Playwright
   const mockRequests: QuoteRequest[] = [];
   const mockMyBids: Quote[]          = [];
   const mockOpenRequests: QuoteRequest[] = [];
   const mockQuotesByRequest = new Map<string, Quote[]>();
 
-  async function getActor() {
-    if (!_actor) {
-      const ag = await getAgent();
-      _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: QUOTE_CANISTER_ID });
-    }
-    return _actor;
-  }
+  const getActor = lazyActor(idlFactory, QUOTE_CANISTER_ID);
 
   return {
   async createRequest(
@@ -459,7 +451,7 @@ function createQuoteService() {
   },
 
   reset() {
-    _actor = null;
+    getActor.reset();
     mockRequests.length = 0;
     mockMyBids.length = 0;
     mockOpenRequests.length = 0;

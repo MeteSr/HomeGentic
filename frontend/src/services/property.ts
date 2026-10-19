@@ -1,5 +1,4 @@
-import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@/declarations/property";
 export { idlFactory };
 
@@ -138,15 +137,8 @@ export interface RegisterPropertyArgs {
   tier: SubscriptionTier;
 }
 
-let _actor: any = null;
 
-async function getActor() {
-  if (!_actor) {
-    const ag = await getAgent();
-    _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: PROPERTY_CANISTER_ID });
-  }
-  return _actor;
-}
+const getActor = lazyActor(idlFactory, PROPERTY_CANISTER_ID);
 
 function fromProperty(raw: any): Property {
   return {
@@ -677,6 +669,6 @@ export const propertyService = {
   },
 
   reset() {
-    _actor = null;
+    getActor.reset();
   },
 };
