@@ -17,7 +17,13 @@ export function ScoreSparkline({ history, onExpand }: { history: ScoreSnapshot[]
   }).join(" ");
 
   return (
-    <div onClick={onExpand} style={{ cursor: onExpand ? "pointer" : "default", marginTop: "0.5rem" }}>
+    <div
+      onClick={onExpand}
+      role={onExpand ? "button" : undefined}
+      tabIndex={onExpand ? 0 : undefined}
+      aria-label={onExpand ? "Show score history" : undefined}
+      onKeyDown={onExpand ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onExpand(); } } : undefined}
+      style={{ cursor: onExpand ? "pointer" : "default", marginTop: "0.5rem" }}>
       <svg width={W} height={H} style={{ display: "block", opacity: 0.7 }}>
         <polyline points={pts} fill="none" stroke={V2_COLORS.cobalTint} strokeWidth="1.5" strokeLinejoin="round" />
         {scores.map((s, i) => {

@@ -12,6 +12,7 @@
  * MV.4  Plans/Pricing page renders at mobile width
  * MV.5  Maintenance page renders at mobile width
  * MV.6  Account/Settings page renders at mobile width
+ * MV.7  No page scrolls sideways at mobile width (WCAG 1.4.10 reflow)
  */
 
 import { test, expect, Page } from "@playwright/test";
@@ -70,8 +71,7 @@ async function setupMobile(page: Page) {
 
 test("MV.1 — Dashboard loads at mobile viewport", async ({ page }) => {
   await setupMobile(page);
-  await page.goto("/");
-  // The property detail page is the landing spot when there's exactly 1 property
+  await page.goto("/dashboard");
   await expect(page.locator("h1, h2").first()).toBeVisible({ timeout: 10_000 });
   // Viewport should match what we set
   const vp = page.viewportSize();
@@ -90,7 +90,7 @@ test("MV.2 — Jobs page loads at mobile viewport", async ({ page }) => {
 
 test("MV.3 — Property detail page loads at mobile viewport", async ({ page }) => {
   await setupMobile(page);
-  await page.goto("/property/1");
+  await page.goto("/properties/1");
   await expect(page.locator("h1, h2").first()).toBeVisible({ timeout: 10_000 });
 });
 
@@ -118,3 +118,26 @@ test("MV.6 — Account/Settings page loads at mobile viewport", async ({ page })
   await page.goto("/settings");
   await expect(page.locator("h1, h2").first()).toBeVisible({ timeout: 10_000 });
 });
+
+// ── MV.7 — Reflow ────────────────────────────────────────────────────────────
+// A page wider than the phone forces sideways scrolling and hides content off
+// the right edge (that is how /login and the verification steps broke).
+
+const REFLOW_ROUTES = [
+  "/", "/login", "/pricing", "/gift", "/demo", "/for-pros", "/check", "/prices", "/home-systems",
+  "/dashboard", "/properties/1", "/properties/1/verify", "/properties/1/verify/identity",
+  "/properties/1/verify/document", "/jobs", "/jobs/new", "/quotes/new", "/settings", "/maintenance",
+  "/insurance-defense", "/resale-ready", "/recurring/new", "/warranties", "/sensors",
+];
+
+for (const route of REFLOW_ROUTES) {
+  test(`MV.7 — ${route} does not scroll sideways at mobile width`, async ({ page }) => {
+    await setupMobile(page);
+    await page.goto(route);
+    await page.waitForLoadState("networkidle");
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+}

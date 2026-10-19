@@ -8,7 +8,7 @@
   --v2-coral-text:  #C2341A;
   --v2-ink:         #0B0D1A;
   --v2-paper:       #FCFCFD;
-  --v2-muted:       #6B7080;
+  --v2-muted:       #62677A;
   --v2-muted2:      #5A5F70;
   --v2-page:        #EDEEF2;
   --v2-surface:     #F7F8FB;
@@ -113,8 +113,7 @@ a {
 }
 
 .form-input:focus {
-  border-color: var(--plum);
-  box-shadow: 0 0 0 3px rgba(46, 37, 64, 0.08);
+  border-color: var(--v2-blue);
 }
 
 .form-input::placeholder {
@@ -198,6 +197,18 @@ textarea.form-input {
 
 :focus-visible {
   outline: 2px solid var(--v2-blue);
+  outline-offset: 2px;
+}
+
+/* Many inputs set an inline `outline: none` for their resting look, which
+   would otherwise beat the rule above and leave keyboard users with no focus
+   indicator (WCAG 2.4.7). !important is the only way to outrank inline styles.
+   A field whose wrapper draws the focus state itself opts out with
+   data-focus-ring="parent". */
+input:not([data-focus-ring="parent"]):focus-visible,
+select:not([data-focus-ring="parent"]):focus-visible,
+textarea:not([data-focus-ring="parent"]):focus-visible {
+  outline: 2px solid var(--v2-blue) !important;
   outline-offset: 2px;
 }
 
@@ -293,7 +304,7 @@ table { border-collapse: collapse; }
   justify-content: center;
   gap: 4px;
   text-decoration: none;
-  color: #6B7080;
+  color: #62677A;
   padding: 8px 4px;
   transition: color 0.15s;
 }
@@ -349,8 +360,16 @@ table { border-collapse: collapse; }
 
 .rsp-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 
+/* Main column + fixed 320px side panel; the panel drops below on phones. */
+.rsp-grid-sidebar { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 32px; align-items: start; }
+
+/* Four stat cells in a row; two per row on phones. */
+.rsp-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
 @media (max-width: 640px) {
-  .rsp-grid-2 { grid-template-columns: 1fr; }
+  .rsp-grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .rsp-grid-sidebar { grid-template-columns: minmax(0, 1fr); }
+  .rsp-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* ─── Responsive activity row ────────────────────────────────────────────────── */

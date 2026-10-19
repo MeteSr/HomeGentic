@@ -1,17 +1,10 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useVerifyContext } from "./VerifyLayout";
 import { CountdownTimer } from "./components/CountdownTimer";
 import { propertyService } from "@/services/property";
-
-const TWO_COL: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 320px",
-  gap: 32,
-  alignItems: "start",
-};
 
 export default function VerifyIdentityPage() {
   const navigate               = useNavigate();
@@ -44,7 +37,7 @@ export default function VerifyIdentityPage() {
           claimWindowEndsAt={claim.claimWindowEndsAt}
         />
 
-        <div style={TWO_COL}>
+        <div className="rsp-grid-sidebar">
           {/* Main column */}
           <div>
             <div style={{ fontSize: 11, fontFamily: V2_FONTS.mono, color: V2_COLORS.blue, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
@@ -69,7 +62,7 @@ export default function VerifyIdentityPage() {
               </div>
 
               {/* Two placeholders */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+              <div className="rsp-grid-2" style={{ gap: 16, marginBottom: 24 }}>
                 {/* Government ID placeholder */}
                 <div>
                   <div style={{ background: V2_COLORS.lblue, border: `1px solid #D0D3FF`, borderRadius: 10, aspectRatio: "1.6 / 1", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>

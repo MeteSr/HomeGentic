@@ -15,7 +15,7 @@ describe("Badge — defaults", () => {
   it("uses the default variant and md size when none given", () => {
     render(<Badge>Text</Badge>);
     const el = screen.getByText("Text");
-    expect(el).toHaveStyle({ backgroundColor: "rgb(247, 248, 251)", color: "rgb(107, 112, 128)" });
+    expect(el).toHaveStyle({ backgroundColor: "rgb(247, 248, 251)", color: "rgb(98, 103, 122)" });
     expect(el).toHaveStyle({ padding: "0.2rem 0.625rem", fontSize: "0.65rem" });
   });
 });

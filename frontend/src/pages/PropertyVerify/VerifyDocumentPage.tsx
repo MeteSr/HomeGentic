@@ -59,7 +59,7 @@ export default function VerifyDocumentPage() {
           subtitle={isUrgent ? "Less than 12 hours left — act now." : undefined}
         />
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 32, alignItems: "start" }}>
+        <div className="rsp-grid-sidebar">
           {/* Main column */}
           <div>
             <div style={{ fontSize: 11, fontFamily: V2_FONTS.mono, color: V2_COLORS.blue, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
@@ -127,7 +127,7 @@ export default function VerifyDocumentPage() {
               <div style={{ fontSize: 11, fontFamily: V2_FONTS.mono, color: V2_COLORS.muted, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>
                 3 — Name Match
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="rsp-grid-2" style={{ gap: 12 }}>
                 <div style={{ border: `1px solid ${V2_COLORS.border}`, borderRadius: 10, padding: "12px 16px" }}>
                   <div style={{ fontSize: 11, fontFamily: V2_FONTS.mono, color: V2_COLORS.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>Name on ID</div>
                   <div style={{ fontSize: 14, fontFamily: V2_FONTS.body, fontWeight: 600, color: V2_COLORS.ink }}>
