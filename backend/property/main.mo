@@ -46,6 +46,7 @@ import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Index     "../shared/Index";
 import Uuid      "../shared/Uuid";
+import RateLimit "../shared/RateLimit";
 
 persistent actor Property {
 
@@ -572,12 +573,10 @@ persistent actor Property {
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
-  private transient var rateLimitSweepTick : Nat = 0;
   /// In-flight guard for registerProperty: caller principal → true while a registration is live.
   private transient let inFlightRegistrations = Map.empty<Text, Bool>();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct
@@ -586,32 +585,9 @@ persistent actor Property {
     not Principal.isAnonymous(caller) and arg.size() > 0
   };
 
-  private func sweepRateLimits(now: Int) {
-    let stale = Iter.toArray(
-      Iter.filter(Map.keys(updateCallLimits), func(k: Text) : Bool {
-        switch (Map.get(updateCallLimits, Text.compare, k)) {
-          case (?(_, ws)) { now - ws >= ONE_MINUTE_NS };
-          case null       { false };
-        }
-      })
-    );
-    for (k in stale.vals()) { ignore Map.remove(updateCallLimits, Text.compare, k) };
-  };
-
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller) or isTrustedCanister(caller)) return true;
-    let key = Principal.toText(caller);
-    let now = Time.now();
-    rateLimitSweepTick += 1;
-    if (rateLimitSweepTick >= 200) { rateLimitSweepTick := 0; sweepRateLimits(now) };
-    switch (Map.get(updateCallLimits, Text.compare, key)) {
-      case null { Map.add(updateCallLimits, Text.compare, key, (1, now)); true };
-      case (?(count, windowStart)) {
-        if (now - windowStart >= ONE_MINUTE_NS) { Map.add(updateCallLimits, Text.compare, key, (1, now)); true }
-        else if (maxUpdatesPerMin > 0 and count >= maxUpdatesPerMin) { false }
-        else { Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart)); true }
-      };
-    }
+    RateLimit.tryConsume(updateCallLimits, Principal.toText(caller), Time.now(), maxUpdatesPerMin)
   };
 
   private func isAdmin(caller: Principal) : Bool {
