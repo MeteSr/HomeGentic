@@ -28,6 +28,7 @@ const TermsOfServicePage         = React.lazy(() => publicPages().then((m) => ({
 const SupportPage                = React.lazy(() => publicPages().then((m) => ({ default: m.SupportPage })));
 const FAQPage                    = React.lazy(() => publicPages().then((m) => ({ default: m.FAQPage })));
 const GiftPage                   = React.lazy(() => publicPages().then((m) => ({ default: m.GiftPage })));
+const RedeemGiftPage             = React.lazy(() => publicPages().then((m) => ({ default: m.RedeemGiftPage })));
 const ContractorVerifyPage       = React.lazy(() => publicPages().then((m) => ({ default: m.ContractorVerifyPage })));
 const ForProsPage                = React.lazy(() => publicPages().then((m) => ({ default: m.ForProsPage })));
 const PaymentSuccessPage         = React.lazy(() => publicPages().then((m) => ({ default: m.PaymentSuccessPage })));
@@ -173,6 +174,7 @@ export default function App() {
           <Route path="/support"     element={<SupportPage />} />
           <Route path="/faq"         element={<FAQPage />} />
           <Route path="/gift"             element={<GiftPage />} />
+          <Route path="/gift/redeem"      element={<RedeemGiftPage />} />
           <Route path="/for-pros"         element={<ForProsPage />} />
           <Route path="/payment-success" element={<PaymentSuccessPage />} />
           <Route path="/payment-failure" element={<PaymentFailurePage />} />

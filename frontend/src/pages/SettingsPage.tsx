@@ -193,7 +193,6 @@ function SubscriptionTab({ profile }: { profile: any }) {
   const [subLoaded,        setSubLoaded]        = useState(cachedTier !== null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [cancelStep,       setCancelStep]       = useState<"idle" | "confirm" | "loading" | "done">("idle");
-  const [pauseState,       setPauseState]       = useState(paymentService.getPauseState());
 
   useEffect(() => {
     paymentService.getMySubscription().then((sub) => {
@@ -206,18 +205,6 @@ function SubscriptionTab({ profile }: { profile: any }) {
       }
     }).catch((e) => console.error("[SettingsPage] subscription load failed:", e)).finally(() => setSubLoaded(true));
   }, []);
-
-  const handlePause = (months: 1 | 2 | 3) => {
-    paymentService.pause(months);
-    setPauseState(paymentService.getPauseState());
-    toast.success(`Subscription paused for ${months} month${months > 1 ? "s" : ""}`);
-  };
-
-  const handleResume = () => {
-    paymentService.resume();
-    setPauseState(null);
-    toast.success("Subscription resumed");
-  };
 
   const currentPlan = PLANS.find((p) => p.tier === tier) ?? PLANS[0];
   const isPaid      = tier !== "Free" && tier !== "ContractorFree";
@@ -347,25 +334,6 @@ function SubscriptionTab({ profile }: { profile: any }) {
         </>
       )}
 
-      {/* Pause status */}
-      {isPaid && pauseState && (
-        <>
-          <SectionDivider />
-          <SectionHeading>Subscription Paused</SectionHeading>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
-            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted }}>
-              {pauseState.daysLeft} day{pauseState.daysLeft !== 1 ? "s" : ""} remaining — resumes {new Date(pauseState.pausedUntil).toLocaleDateString()}
-            </p>
-            <button
-              onClick={handleResume}
-              style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, padding: "0.4rem 1rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.paper, color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm, whiteSpace: "nowrap" }}
-            >
-              Resume now
-            </button>
-          </div>
-        </>
-      )}
-
       {/* Cancellation */}
       {isPaid && cancelStep !== "done" && (
         <>
@@ -374,25 +342,9 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
           {cancelStep === "idle" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6 }}>
-                Not ready to cancel? You can pause your subscription for up to 3 months — your records and score stay active, billing stops.
-              </p>
-              {!pauseState && (
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {([1, 2, 3] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => handlePause(m)}
-                      style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.4rem 0.875rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.lblue, color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm }}
-                    >
-                      Pause {m} month{m > 1 ? "s" : ""}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div style={{ borderTop: `1px solid ${V2_COLORS.border}`, paddingTop: "0.875rem" }}>
+              <div>
                 <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "0.75rem" }}>
-                  You keep full access until the end of your current billing period{expiresAt ? ` (${new Date(expiresAt).toLocaleDateString()})` : ""}. After that, access to the platform is removed.
+                  Your plan stops renewing and you won't be charged again. You keep full access until the end of your current billing period{expiresAt ? ` (${new Date(expiresAt).toLocaleDateString()})` : ""}, then your account moves to the Free plan.
                 </p>
                 <button
                   onClick={() => setCancelStep("confirm")}
@@ -420,11 +372,11 @@ function SubscriptionTab({ profile }: { profile: any }) {
               </div>
               <div style={{ padding: "0.875rem 1rem", background: V2_COLORS.lblue, borderRadius: V2_RADIUS.sm }}>
                 <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.blue, lineHeight: 1.6 }}>
-                  <strong>Your ICP records are permanent.</strong> All your maintenance history, verified jobs, and blockchain records remain on the Internet Computer after cancellation.
+                  <strong>Your records stay in your account.</strong> Everything you've logged is still there on the Free plan, and you can export it from Settings at any time.
                 </p>
               </div>
               <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted }}>
-                Your access continues until{expiresAt ? ` ${new Date(expiresAt).toLocaleDateString()}` : " the end of your billing period"}, then your account is closed. Or pause instead — keeps your account active without billing.
+                Your access continues until{expiresAt ? ` ${new Date(expiresAt).toLocaleDateString()}` : " the end of your billing period"}, then your account moves to the Free plan. You won't be charged again.
               </p>
               <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                 <button
@@ -433,14 +385,6 @@ function SubscriptionTab({ profile }: { profile: any }) {
                 >
                   Confirm Cancellation
                 </button>
-                {!pauseState && (
-                  <button
-                    onClick={() => { handlePause(1); setCancelStep("idle"); }}
-                    style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.5rem 1.25rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.lblue, color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm }}
-                  >
-                    Pause 1 month instead
-                  </button>
-                )}
                 <button
                   onClick={() => setCancelStep("idle")}
                   style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.5rem 1.25rem", border: `1px solid ${V2_COLORS.border}`, background: "none", color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm }}

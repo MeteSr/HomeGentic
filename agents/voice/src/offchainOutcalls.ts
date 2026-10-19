@@ -347,3 +347,41 @@ export async function sendBrokerLead(
     return { status: 502, body: { error: "Email send failed" } };
   }
 }
+
+/**
+ * Email a paid gift's redeem link to its recipient. Called once the Worker has
+ * confirmed the gift checkout is paid; the Resend idempotency key keeps the
+ * webhook and verify-session paths from sending it twice. Returns false (and
+ * sends nothing) when email isn't configured or the address is invalid — the
+ * giver still sees the gift code on the success page.
+ */
+export async function sendGiftEmail(
+  gift: { giftToken: string; tier: string; recipientEmail: string; recipientName: string; senderName: string; giftMessage: string },
+  env: OutcallEnv,
+  fetchImpl: typeof fetch = fetch,
+): Promise<boolean> {
+  if (!env.RESEND_API_KEY) return false;
+  const to = gift.recipientEmail;
+  if (!to || to.length > 254 || !EMAIL_RE.test(to)) return false;
+  const redeemUrl = `${trimTrailingSlashes(env.FRONTEND_ORIGIN)}/gift/redeem?token=${encodeURIComponent(gift.giftToken)}`;
+  const from = gift.senderName.trim() || "Someone";
+  const html = frame(
+    `<p style="color:#2E2540;">Hi ${escapeHtml(gift.recipientName, 100) || "there"},</p>` +
+    `<p style="color:#2E2540;"><strong>${escapeHtml(from, 100)}</strong> gave you a year of HomeGentic ${escapeHtml(gift.tier, 40)}.</p>` +
+    (gift.giftMessage ? `<blockquote style="margin:1rem 0;padding-left:1rem;border-left:3px solid #C8C3B8;color:#2E2540;">${escapeHtml(gift.giftMessage, 300)}</blockquote>` : "") +
+    `<p><a href="${escapeHtml(redeemUrl, 400)}" style="display:inline-block;background:#2B34FF;color:#fff;padding:0.75rem 1.25rem;text-decoration:none;">Redeem your gift</a></p>` +
+    `<p style="color:#7A7268;font-size:0.8rem;">Sign in or create an account, then the year starts when you redeem. This is a one-time gift; nothing renews.</p>`,
+  );
+  const text =
+    `${from} gave you a year of HomeGentic ${gift.tier}.\n\n` +
+    (gift.giftMessage ? `"${gift.giftMessage.slice(0, 300)}"\n\n` : "") +
+    `Redeem it here: ${redeemUrl}\n\nThis is a one-time gift; nothing renews.`;
+  try {
+    return await sendViaResend(env, {
+      to, subject: subjectText(`${from} sent you a HomeGentic gift`, 120), html, text,
+      idempotencyKey: `gift:${gift.giftToken}`,
+    }, fetchImpl);
+  } catch {
+    return false;
+  }
+}

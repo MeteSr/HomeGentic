@@ -40,13 +40,14 @@ import {
 import type { BuyerTruthKitRequest } from "../buyersTruthKit";
 import type { ChatRequest } from "../types";
 import { logger } from "../../../packages/shared/src/logger";
-import { checkGlobalRateLimit, checkAgentRateLimit, checkChatRateLimit, checkAuxAiRateLimit, getAgentUsage, beginOnce, finishOnce, abortOnce } from "./rateLimiter";
+import { checkGlobalRateLimit, checkAgentRateLimit, checkChatRateLimit, checkAuxAiRateLimit, getAgentUsage, beginOnce, finishOnce, abortOnce, hitCounter } from "./rateLimiter";
 import { resolveSessionPrincipal, SESSION_HEADER } from "./session";
 import { resolveTier } from "./tier";
 import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
-import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead } from "./offchainOutcalls";
+import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead, sendGiftEmail } from "./offchainOutcalls";
 import { getInvitePreview } from "./jobCanister";
+import { markIdentityCleared } from "./propertyCanister";
 export { RateLimiterDO } from "./rateLimiterDO";
 import {
   HttpError,
@@ -97,6 +98,7 @@ export interface Env {
   CANISTER_ID_AUTH?:     string;   // resolves x-agent-session tokens
   CANISTER_ID_MONITORING?: string;
   CANISTER_ID_JOB?:      string;   // invite-token previews for contractor-invite emails
+  CANISTER_ID_PROPERTY?: string;   // records Stripe Identity results (relayMarkIdentityCleared)
 
   // M-6: keys that used to sit in the ai_proxy canister (now Worker secrets only)
   ATTOM_API_KEY?:        string;
@@ -128,6 +130,16 @@ export interface Env {
 }
 
 // ── Credit pack config (mirrors server.ts CREDIT_PACKS) ──────────────────────
+
+/** Property ids: UUIDs for new properties, older numeric/prefixed ids. */
+const PROPERTY_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
+const IDENTITY_SESSIONS_PER_DAY = 3;
+
+/** Subscriptions Stripe may still charge. */
+const LIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due", "incomplete", "unpaid"]);
+
+/** One-time gift prices (cents). Pro is annual-only; gifts are sold as one year. */
+const GIFT_PRICE_CENTS: Record<string, number> = { ProYearly: 5_900 };
 
 const CREDIT_PACKS: Record<number, { envVar: keyof Env; label: string }> = {
   25:  { envVar: "STRIPE_PRICE_CREDITS_25",  label: "25 credits" },
@@ -359,6 +371,7 @@ export default {
     (process.env as any).CANISTER_ID_AUTH        = env.CANISTER_ID_AUTH ?? "";
     (process.env as any).CANISTER_ID_MONITORING  = env.CANISTER_ID_MONITORING ?? "";
     (process.env as any).CANISTER_ID_JOB         = env.CANISTER_ID_JOB ?? "";
+    (process.env as any).CANISTER_ID_PROPERTY    = env.CANISTER_ID_PROPERTY ?? "";
     (process.env as any).AI_MODEL                = env.AI_MODEL ?? "";
 
     // CORS preflight
@@ -1148,23 +1161,35 @@ Rules:
       ContractorProMonthly: env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY?.trim(),
       ContractorProYearly:  env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY?.trim(),
     };
-    const priceId = typeof tier === "string" && typeof billing === "string" ? PRICE_MAP[`${tier}${billing}`] : undefined;
-    if (!priceId) return json({ error: "No price configured for that plan" }, 400, cors);
     const meta = (v: unknown) => (typeof v === "string" ? v.slice(0, 450) : "");
+    // A gift is a one-time payment for one period: it must never renew on the
+    // giver's card (the renewals would benefit nobody).
+    const giftCents = gift ? GIFT_PRICE_CENTS[`${tier}${billing}`] : undefined;
+    const priceId = typeof tier === "string" && typeof billing === "string" ? PRICE_MAP[`${tier}${billing}`] : undefined;
+    if (gift ? !giftCents : !priceId) return json({ error: "No price configured for that plan" }, 400, cors);
     try {
       const stripe  = await stripeClient(sk);
       const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        line_items: [{ price: priceId, quantity: 1 }],
+        ...(gift
+          ? {
+              mode: "payment",
+              line_items: [{
+                quantity: 1,
+                price_data: { currency: "usd", unit_amount: giftCents, product_data: { name: `HomeGentic ${tier} gift (1 year)` } },
+              }],
+            }
+          : {
+              mode: "subscription",
+              line_items: [{ price: priceId, quantity: 1 }],
+              // Subscription metadata is what verify-subscription / the webhook read.
+              subscription_data: { metadata: { icp_principal: principal, tier, billing } },
+            }),
         success_url: successUrl, cancel_url: cancelUrl,
-        // Subscription metadata is what verify-subscription / the webhook read.
-        // (A gift must not activate the purchaser, so its subscription carries no principal.)
-        subscription_data: { metadata: gift ? { tier, billing, is_gift: "true" } : { icp_principal: principal, tier, billing } },
         metadata: {
           principal, icp_principal: principal, tier, billing, is_gift: gift ? "true" : "false",
           ...(gift && typeof gift === "object" && {
             recipient_email: meta(gift.recipientEmail), recipient_name: meta(gift.recipientName),
-            sender_name: meta(gift.senderName), delivery_date: meta(gift.deliveryDate), gift_message: meta(gift.giftMessage),
+            sender_name: meta(gift.senderName), gift_message: meta(gift.giftMessage),
           }),
         },
       });
@@ -1217,6 +1242,73 @@ Rules:
     }
   }
 
+  // ── POST /api/stripe/cancel-subscription ─────────────────────────────────
+  // Settings → Cancel. Sets cancel_at_period_end on every live Stripe
+  // subscription the session principal owns, so Stripe stops renewing it; the
+  // user keeps access until the paid period ends (customer.subscription.deleted
+  // downgrades then). A principal with no Stripe subscription (ICP payment,
+  // gift, admin grant) has nothing to stop: { cancelled: 0 }.
+  if (path === "/api/stripe/cancel-subscription" && method === "POST") {
+    const sk = env.STRIPE_SECRET_KEY;
+    if (!sk) return json({ error: "Payments are not configured" }, 500, cors);
+    const principal = sessionPrincipal!;
+    if (!PRINCIPAL_RE.test(principal)) return json({ error: "Invalid principal" }, 400, cors);
+    try {
+      const stripe = await stripeClient(sk);
+      const found  = await stripe.subscriptions.search({
+        query: `metadata['icp_principal']:'${principal}'`, limit: 20,
+      });
+      let cancelled = 0;
+      let periodEnd: number | null = null;
+      for (const sub of found?.data ?? []) {
+        if ((sub.metadata?.icp_principal ?? "") !== principal) continue;
+        if (!LIVE_SUBSCRIPTION_STATUSES.has(sub.status)) continue;
+        const updated = sub.cancel_at_period_end
+          ? sub
+          : await stripe.subscriptions.update(sub.id, { cancel_at_period_end: true });
+        cancelled++;
+        const end = periodEndSeconds(updated);
+        if (end && (!periodEnd || end > periodEnd)) periodEnd = end;
+      }
+      return json({ cancelled, periodEnd }, 200, cors);
+    } catch (err) {
+      return stripeFailure("cancel-subscription", err, cors);
+    }
+  }
+
+  // ── POST /api/stripe/identity-session ────────────────────────────────────
+  // Property claim step 1: start a Stripe Identity check (ID document + live
+  // selfie) for the session principal. The webhook records a verified result
+  // on the property through property.relayMarkIdentityCleared, which only
+  // accepts it if this principal owns the property. Each check costs money,
+  // so a principal may start IDENTITY_SESSIONS_PER_DAY per day.
+  if (path === "/api/stripe/identity-session" && method === "POST") {
+    const sk = env.STRIPE_SECRET_KEY;
+    if (!sk) return json({ error: "Identity checks are not configured" }, 500, cors);
+    const principal = sessionPrincipal!;
+    const { propertyId, returnUrl } = await readJsonBody<{ propertyId?: string; returnUrl?: string }>(request);
+    if (typeof propertyId !== "string" || !PROPERTY_ID_RE.test(propertyId)) {
+      return json({ error: "valid propertyId required" }, 400, cors);
+    }
+    if (!isAllowedRedirectUrl(returnUrl, allowedOrigins(env))) {
+      return json({ error: "returnUrl must be on the frontend origin" }, 400, cors);
+    }
+    const quota = await hitCounter(env, `idv:${principal}:${new Date().toISOString().slice(0, 10)}`, IDENTITY_SESSIONS_PER_DAY, 86_400);
+    if (!quota.allowed) return json({ error: "Too many identity checks today. Try again tomorrow." }, 429, cors);
+    try {
+      const stripe = await stripeClient(sk);
+      const vs = await stripe.identity.verificationSessions.create({
+        type: "document",
+        options: { document: { require_matching_selfie: true, require_live_capture: true } },
+        metadata: { icp_principal: principal, property_id: propertyId },
+        return_url: returnUrl,
+      });
+      return json({ url: vs.url }, 200, cors);
+    } catch (err) {
+      return stripeFailure("identity-session", err, cors);
+    }
+  }
+
   // ── POST /api/stripe/verify-session ──────────────────────────────────────
   // Legacy Stripe-hosted checkout. Only the session's own principal can
   // verify it, and activation is idempotent with Stripe's period end (F-3).
@@ -1242,7 +1334,7 @@ Rules:
       // idempotent); the recipient redeems it on-chain with redeemGift.
       // Nothing is granted to the purchaser.
       if (isGift) {
-        await registerGift(session);
+        await registerGift(session, env);
         return json({ type: "gift", giftToken: sessionId }, 200, cors);
       }
       const subId = typeof session.subscription === "string" ? session.subscription : (session.subscription as any)?.id;
@@ -1447,6 +1539,18 @@ Rules:
           }
           break;
         }
+        case "identity.verification_session.verified": {
+          const vs    = event.data.object;
+          const owner = (vs.metadata?.icp_principal ?? "") as string;
+          const propertyId = (vs.metadata?.property_id ?? "") as string;
+          if (!owner || !PROPERTY_ID_RE.test(propertyId)) break;
+          // verified_outputs is only returned when expanded.
+          const full: any = await stripe.identity.verificationSessions.retrieve(vs.id, { expand: ["verified_outputs"] });
+          const out  = full?.verified_outputs ?? {};
+          const name = [out.first_name, out.last_name].filter((v: unknown) => typeof v === "string" && v).join(" ").slice(0, 200);
+          await markIdentityCleared(propertyId, owner, vs.id, name);
+          break;
+        }
         case "checkout.session.completed": {
           const session = event.data.object;
           if (session.metadata?.type === "agent_credits" && session.payment_status === "paid") {
@@ -1454,7 +1558,7 @@ Rules:
             const size = Number(session.metadata?.pack_size ?? 0);
             if (p && CREDIT_PACKS[size]) await grantCreditPack(session.id, p, size);
           } else if (session.metadata?.is_gift === "true" && session.payment_status === "paid" && session.status === "complete") {
-            await registerGift(session);
+            await registerGift(session, env);
           }
           break;
         }
@@ -1523,7 +1627,8 @@ const OFFCHAIN_OUTCALL_ROUTES = new Set([
 
 /** Stripe routes that act for a user: the user is the session principal. */
 const STRIPE_SESSION_ROUTES = new Set([
-  "/api/stripe/create-checkout", "/api/stripe/create-subscription-intent",
+  "/api/stripe/create-checkout", "/api/stripe/create-subscription-intent", "/api/stripe/cancel-subscription",
+  "/api/stripe/identity-session",
   "/api/stripe/verify-session", "/api/stripe/verify-subscription",
   "/api/stripe/create-credit-checkout", "/api/stripe/verify-credit-purchase",
 ]);
@@ -1577,7 +1682,7 @@ async function activateFromSubscription(sub: any, principal: string): Promise<vo
  * The gift token is the checkout session id; metadata comes from Stripe (set
  * by create-checkout), not from the caller.
  */
-async function registerGift(session: any): Promise<void> {
+async function registerGift(session: any, env: Env): Promise<void> {
   if (typeof session?.id !== "string" || !CHECKOUT_SESSION_RE.test(session.id)) {
     throw new HttpError(400, "Invalid gift session");
   }
@@ -1589,6 +1694,13 @@ async function registerGift(session: any): Promise<void> {
     recipientEmail: str(m.recipient_email), recipientName: str(m.recipient_name),
     senderName: str(m.sender_name), giftMessage: str(m.gift_message), deliveryDate: str(m.delivery_date),
   });
+  // Email the recipient their redeem link. Resend's idempotency key makes the
+  // webhook and verify-session paths send it once between them.
+  await sendGiftEmail({
+    giftToken: session.id, tier,
+    recipientEmail: str(m.recipient_email), recipientName: str(m.recipient_name),
+    senderName: str(m.sender_name), giftMessage: str(m.gift_message),
+  }, env);
 }
 
 /** Grant a credit pack once per checkout session. Returns false on a replay. */

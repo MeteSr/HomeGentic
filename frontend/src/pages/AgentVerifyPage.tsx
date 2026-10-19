@@ -94,8 +94,9 @@ export default function AgentVerifyPage() {
 
   if (loading) return <Layout><div style={{ padding: "4rem", textAlign: "center", color: UI.muted }}>Loading…</div></Layout>;
 
-  const licensePassed = !!profile?.licenseNumber;
-  const brokeragePassed = !!profile?.brokerage;
+  // Licence and brokerage are reviewed by HomeGentic (agent.verifyAgent, admin);
+  // nothing here checks a state register automatically.
+  const reviewed = !!profile?.isVerified;
   const cardPassed = !!profile?.cardOnFile;
 
   return (
@@ -129,20 +130,13 @@ export default function AgentVerifyPage() {
               </form>
             ) : (
               <>
-                <StepCard n={1} title="License number" note="Checked against the Florida DBPR licence register. Inactive or expired licences cannot bid." state={licensePassed ? "passed" : "progress"}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontFamily: V2_FONTS.mono, fontSize: "0.85rem", color: UI.ink }}>{profile.licenseNumber}</span>
-                    {licensePassed && <span style={{ fontFamily: V2_FONTS.mono, fontSize: "0.6rem", background: UI.vbadge, color: UI.blue, borderRadius: 100, padding: "3px 8px" }}>MATCHED DBPR</span>}
-                  </div>
+                <StepCard n={1} title="License number" note="HomeGentic reviews your licence before you can bid." state={reviewed ? "passed" : "progress"}>
+                  <span style={{ fontFamily: V2_FONTS.mono, fontSize: "0.85rem", color: UI.ink }}>{profile.licenseNumber}</span>
                 </StepCard>
-                <StepCard n={2} title="Brokerage and status" note="We confirm the brokerage of record and that your status is active. Both are re-checked every 90 days." state={brokeragePassed ? "passed" : "progress"}>
+                <StepCard n={2} title="Brokerage" note={reviewed ? "Reviewed by HomeGentic." : "We review your brokerage together with your licence. You'll be able to bid once the review is done."} state={reviewed ? "passed" : "progress"}>
                   <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: UI.ink }}>{profile.brokerage}</span>
                 </StepCard>
-                <StepCard n={3} title="Card on file" note="Authorized for the selection fee. Never charged unless a homeowner chooses you." state={cardPassed ? "passed" : "progress"}>
-                  {!cardPassed && (
-                    <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.85rem", color: UI.ink }}>•••• •••• •••• 4429 <span style={{ color: UI.muted }}>EXP 09/29</span></div>
-                  )}
-                </StepCard>
+                <StepCard n={3} title="Selection fee" note="You pay the fee by card only if a homeowner picks you. Nothing is charged to bid." state={cardPassed ? "passed" : "progress"} />
               </>
             )}
           </div>
@@ -162,7 +156,7 @@ export default function AgentVerifyPage() {
             </div>
             {profile && (
               <Button variant="primary" style={{ minHeight: 48 }} loading={saving} disabled={cardPassed} onClick={handleFinish}>
-                {cardPassed ? "Verified" : "Finish and see listings"}
+                {cardPassed ? (reviewed ? "Verified" : "Awaiting review") : "Accept fee terms and see listings"}
               </Button>
             )}
             {profile && cardPassed && (

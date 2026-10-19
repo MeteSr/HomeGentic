@@ -68,8 +68,8 @@ test.describe("CheckoutPage — /checkout", () => {
       await page.goto("/checkout?tier=Pro&billing=Monthly");
     });
 
-    test("shows 'Identity verified' badge", async ({ page }) => {
-      await expect(page.getByText(/Identity verified/i)).toBeVisible();
+    test("shows the signed-in badge", async ({ page }) => {
+      await expect(page.getByText(/^Signed in$/i)).toBeVisible();
     });
 
     test("shows Card payment toggle button", async ({ page }) => {

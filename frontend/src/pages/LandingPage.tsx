@@ -403,7 +403,7 @@ const PLANS = [
   },
   {
     tier: "Pro", sub: "For every homeowner", price: "$59", period: "/year",
-    features: ["Up to 20 properties", "30 photos per job", "Unlimited quote requests", "Voice AI assistant", "Priority support"],
+    features: ["Up to 20 properties", "30 photos per job", "Unlimited quote requests", "Voice AI assistant", "10 AI agent calls/day"],
     tag: null as string | null, tagBg: YELLOW,
     bg: BLUE, border: BLUE, shadow: "0 20px 60px rgba(43,52,255,0.4)",
     titleColor: PAPER, subColor: PAPER,
@@ -714,8 +714,6 @@ export default function LandingPage() {
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 28, font: `500 13.5px/1 ${BODY}`, color: MUTED }}>
-            <span>30-day money-back guarantee</span>
-            <span aria-hidden="true" style={{ color: "#C9CCD6" }}>·</span>
             <span>Cancel anytime</span>
             <span aria-hidden="true" style={{ color: "#C9CCD6" }}>·</span>
             <span>Your records stay yours if you leave</span>

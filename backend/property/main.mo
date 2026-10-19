@@ -58,8 +58,6 @@ persistent actor Property {
   private transient let SEVEN_DAYS_NS   : Int = 7  * 24 * 3600 * 1_000_000_000;
   /// Nanoseconds in 90 days — the property transfer link expiry window.
   private transient let NINETY_DAYS_NS  : Int = 90 * 24 * 3600 * 1_000_000_000;
-  /// Nanoseconds in 72 hours — the v2 claim submission window.
-  private transient let SEVENTY_TWO_HOURS_NS : Int = 72 * 3600 * 1_000_000_000;
 
   /// M-5: storage caps for caller-supplied collections.
   private transient let MAX_ROOMS_PER_PROPERTY : Nat = 100;
@@ -158,7 +156,7 @@ persistent actor Property {
     state                : Text;
     verificationLevel    : VerificationLevel;
     claimStartedAt       : Int;          // nanoseconds — property.createdAt
-    claimWindowEndsAt    : Int;          // claimStartedAt + SEVENTY_TWO_HOURS_NS
+    claimWindowEndsAt    : Int;          // end of the 7-day window addressConflict enforces
     identityVerified     : Bool;
     identityVerifiedAt   : ?Time.Time;
     identitySessionId    : ?Text;
@@ -356,6 +354,9 @@ persistent actor Property {
   private var admins                   : [Principal] = [];
   private var adminInitialized         : Bool        = false;
   private var trustedCanisterEntries   : [Principal] = [];
+  /// The voice Worker's principal: may only record Stripe Identity results
+  /// (relayMarkIdentityCleared), for the property owner Stripe verified.
+  private var identityRelayEntries     : [Principal] = [];
   /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
   /// first addAdmin() call. Consumed on first successful use.
   private var bootstrapNonce           : ?Text       = null;
@@ -598,6 +599,10 @@ persistent actor Property {
 
   private func isTrustedCanister(p: Principal) : Bool {
     Admin.contains(trustedCanisterEntries, p)
+  };
+
+  private func isIdentityRelay(p: Principal) : Bool {
+    Admin.contains(identityRelayEntries, p)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
@@ -1128,7 +1133,9 @@ persistent actor Property {
           state                = p.state;
           verificationLevel    = p.verificationLevel;
           claimStartedAt       = p.createdAt;
-          claimWindowEndsAt    = p.createdAt + SEVENTY_TWO_HOURS_NS;
+          // The window addressConflict actually enforces: 7 days from when
+          // the address's unverified claims began.
+          claimWindowEndsAt    = claimStart(addressKey(p.address, p.city, p.state, p.zipCode), p.createdAt) + SEVEN_DAYS_NS;
           identityVerified     = switch (p.identityVerified) { case (?v) v; case null false };
           identityVerifiedAt   = p.identityVerifiedAt;
           identitySessionId    = p.identitySessionId;
@@ -1167,6 +1174,57 @@ persistent actor Property {
         #ok(updated)
       };
     }
+  };
+
+  /// Stripe Identity webhook path. The Worker (an identity relay) passes the
+  /// principal Stripe's verification session was created for; the result is
+  /// recorded only if that principal still owns the property, so a relay can
+  /// never clear identity on someone else's claim.
+  public shared(msg) func relayMarkIdentityCleared(
+    propertyId : Text,
+    owner      : Principal,
+    sessionId  : Text,
+    name       : Text
+  ) : async Result.Result<(), Error> {
+    if (not isIdentityRelay(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (not sessionId.startsWith(#text "vs_") or sessionId.size() > 255) return #err(#InvalidInput("invalid verification session id"));
+    if (name.size() > 200) return #err(#InvalidInput("name too long"));
+    switch (properties.get(propertyId)) {
+      case null { #err(#NotFound) };
+      case (?existing) {
+        if (existing.owner != owner) return #err(#NotAuthorized);
+        let now = Time.now();
+        putProperty({
+          existing with
+          identityVerified   = ?true;
+          identityVerifiedAt = ?now;
+          identitySessionId  = ?sessionId;
+          nameOnId           = ?name;
+          updatedAt          = now;
+        });
+        #ok(())
+      };
+    }
+  };
+
+  public shared(msg) func addIdentityRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
+    identityRelayEntries := Admin.add(identityRelayEntries, p);
+    try { ignore await auditLog("IdentityRelayAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    #ok(())
+  };
+
+  public shared(msg) func removeIdentityRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    identityRelayEntries := Admin.remove(identityRelayEntries, p);
+    try { ignore await auditLog("IdentityRelayRemoved", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    #ok(())
+  };
+
+  public query(msg) func listIdentityRelays() : async [Principal] {
+    if (not isAdmin(msg.caller)) return [];
+    identityRelayEntries
   };
 
   // ─── Ownership Transfer (Option B — bearer-token link) ───────────────────
