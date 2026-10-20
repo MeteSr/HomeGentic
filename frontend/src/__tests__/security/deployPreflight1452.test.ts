@@ -61,7 +61,7 @@ Canister Status Report:
 STATUS
   exit 0
 fi
-if [ "$1 $2" = "cycles transfer" ]; then
+if [ "$1 $2" = "canister top-up" ]; then
   echo "$@" >> "${transferLog}"
   exit 0
 fi
@@ -135,24 +135,24 @@ describe("PROD.3 — deploy.sh has cycles balance check for non-local deploys", 
     expect(read("scripts/lib/cycles-balance-check.sh")).toMatch(/icp canister status/);
   });
 
-  it("the cycles balance check calls icp cycles transfer for top-up", () => {
-    expect(read("scripts/lib/cycles-balance-check.sh")).toMatch(/icp cycles transfer/);
+  it("the cycles balance check calls icp canister top-up for top-up", () => {
+    expect(read("scripts/lib/cycles-balance-check.sh")).toMatch(/icp canister top-up/);
   });
 
-  it("does NOT call icp cycles transfer on the local network, even with a low balance", () => {
+  it("does NOT call icp canister top-up on the local network, even with a low balance", () => {
     const { transferCalled, stdout } = runCyclesCheck("local", 100);
     expect(transferCalled).toBe(false);
     expect(stdout).toMatch(/skipped.*local managed network/);
   });
 
-  it("calls icp cycles transfer on a non-local network when the balance is below the warning threshold", () => {
-    // WARNING_CYCLES is 500B in cycles-balance-check.sh; 100 cycles is well under it.
+  it("calls icp canister top-up on a non-local network when the balance is below the top-up threshold", () => {
+    // The top-up floor in scripts/lib/cycles.sh is 2T; 100 cycles is well under it.
     const { transferCalled } = runCyclesCheck("testnet", 100);
     expect(transferCalled).toBe(true);
   });
 
-  it("does NOT call icp cycles transfer on a non-local network when the balance is healthy", () => {
-    // 5T is comfortably above the 500B warning threshold.
+  it("does NOT call icp canister top-up on a non-local network when the balance is healthy", () => {
+    // 5T is above the 2T top-up floor (no idle-burn figure, so the floor applies).
     const { transferCalled } = runCyclesCheck("testnet", 5_000_000_000_000);
     expect(transferCalled).toBe(false);
   });

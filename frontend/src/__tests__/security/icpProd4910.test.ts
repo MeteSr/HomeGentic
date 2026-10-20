@@ -43,11 +43,13 @@ describe("PROD.9 — deploy.sh adds a backup controller when configured", () => 
     expect(deploy()).toMatch(/BACKUP_CONTROLLER_PRINCIPAL/);
   });
 
-  it("deploy.sh calls dfx canister update-settings --add-controller", () => {
-    // The flags may be on separate lines in the shell script
+  it("deploy.sh adds the controller with icp canister settings update --add-controller", () => {
+    // `icp canister update-settings` doesn't exist in icp-cli, which is why
+    // the controller was never added before.
     const src = deploy();
-    expect(src).toMatch(/dfx canister update-settings/);
+    expect(src).toMatch(/icp canister settings update/);
     expect(src).toMatch(/--add-controller/);
+    expect(src).not.toMatch(/icp canister update-settings/);
   });
 
   it("the backup-controller step is conditional on BACKUP_CONTROLLER_PRINCIPAL being set", () => {

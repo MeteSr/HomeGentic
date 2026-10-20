@@ -5,9 +5,28 @@ import { CheckCircle, Gift } from "lucide-react";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { paymentService } from "@/services/payment";
 import { redeemQuorumCoupon } from "@/services/benefit";
+import { errorTracker } from "@/services/errorTracker";
 import { useAuthStore } from "@/store/authStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { voiceAgentFetch } from "@/services/voiceAgentHeaders";
+
+/**
+ * Marks a Quorum HOA coupon as used after a paid checkout. The payment has
+ * already gone through, so a failure must not block the user, but it is
+ * reported (it used to be swallowed) so the coupon can be closed by hand
+ * instead of staying reusable.
+ */
+function redeemCoupon(code: string): void {
+  redeemQuorumCoupon(code)
+    .then((r) => {
+      if ("err" in r && !("AlreadyRedeemed" in r.err)) {
+        errorTracker.captureError(`Quorum coupon not redeemed after checkout: ${Object.keys(r.err)[0]}`,
+          { level: "warning", source: "PaymentSuccessPage.redeemCoupon" });
+      }
+    })
+    .catch((e) => errorTracker.captureError(e instanceof Error ? e : String(e),
+      { level: "warning", source: "PaymentSuccessPage.redeemCoupon" }));
+}
 
 type PageState = "verifying" | "awaiting-login" | "subscription" | "gift" | "error";
 
@@ -42,7 +61,7 @@ export default function PaymentSuccessPage() {
       if (mock.error) throw new Error(mock.error);
       const t = (mock.tier ?? urlTier).replace("Contractor", "Contractor ");
       if (t) setTierName(t);
-      if (quorumCoupon) redeemQuorumCoupon(quorumCoupon).catch(() => {});
+      if (quorumCoupon) redeemCoupon(quorumCoupon);
       setState("subscription");
       setTimeout(() => navigate("/dashboard"), 2500);
       return;
@@ -60,7 +79,7 @@ export default function PaymentSuccessPage() {
     if (data.error) throw new Error(data.error);
     const t = (data.tier ?? urlTier).replace("Contractor", "Contractor ");
     if (t) setTierName(t);
-    if (quorumCoupon) redeemQuorumCoupon(quorumCoupon).catch(() => {});
+    if (quorumCoupon) redeemCoupon(quorumCoupon);
     setState("subscription");
     setTimeout(() => navigate("/dashboard"), 2500);
   }, [subscriptionId, paymentIntentId, urlTier, quorumCoupon, navigate]);
@@ -99,7 +118,7 @@ export default function PaymentSuccessPage() {
         setState("gift");
       } else {
         if (result.tier) setTierName(result.tier.replace("Contractor", "Contractor "));
-        if (quorumCoupon) redeemQuorumCoupon(quorumCoupon).catch(() => {});
+        if (quorumCoupon) redeemCoupon(quorumCoupon);
         setState("subscription");
       }
     }).catch((e) => {
