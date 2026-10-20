@@ -16,7 +16,7 @@ import { shareBillsWithRequest } from "@/services/quoteUsage";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useAddPropertyStore } from "@/store/addPropertyStore";
 import toast from "react-hot-toast";
-import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { BUTTON_RESET, V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -228,9 +228,10 @@ export default function QuoteRequestPage() {
                 <span style={{ color: UI.inkLight, fontWeight: 300, marginLeft: "0.375rem" }}>(optional — refines your price estimate)</span>
               </label>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(10rem, 1fr))", gap: "1rem" }}>
-                <div
+                <button type="button"
                   onClick={() => update("subCategory", "")}
-                  style={{
+                  aria-pressed={!form.subCategory}
+                  style={{ ...BUTTON_RESET, width: "100%",
                     padding: "0.625rem 0.875rem", cursor: "pointer",
                     background: form.subCategory === "" ? V2_COLORS.attentionBg : V2_COLORS.paper,
                     borderRadius: V2_RADIUS.sm, boxShadow: V2_SHADOWS.card,
@@ -239,12 +240,13 @@ export default function QuoteRequestPage() {
                   <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: form.subCategory === "" ? UI.rust : UI.ink }}>
                     General / Not sure
                   </div>
-                </div>
+                </button>
                 {subCategoryOptions.map((opt) => (
-                  <div
+                  <button type="button"
                     key={opt.label}
                     onClick={() => update("subCategory", opt.label)}
-                    style={{
+                    aria-pressed={form.subCategory === opt.label}
+                    style={{ ...BUTTON_RESET, width: "100%",
                       padding: "0.625rem 0.875rem", cursor: "pointer",
                       background: form.subCategory === opt.label ? V2_COLORS.attentionBg : V2_COLORS.paper,
                       borderRadius: V2_RADIUS.sm, boxShadow: V2_SHADOWS.card,
@@ -256,7 +258,7 @@ export default function QuoteRequestPage() {
                     <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight }}>
                       ${Math.round(opt.lowCents / 100).toLocaleString()}–${Math.round(opt.highCents / 100).toLocaleString()}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -300,7 +302,7 @@ export default function QuoteRequestPage() {
             <label className="form-label">Urgency *</label>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
               {URGENCY_OPTIONS.map((opt) => (
-                <div key={opt.value} onClick={() => update("urgency", opt.value)} style={{
+                <button type="button" key={opt.value} aria-pressed={form.urgency === opt.value} onClick={() => update("urgency", opt.value)} style={{ ...BUTTON_RESET, width: "100%",
                   padding: "0.75rem 1rem", cursor: "pointer",
                   background: form.urgency === opt.value ? V2_COLORS.attentionBg : V2_COLORS.paper,
                   borderRadius: V2_RADIUS.sm, boxShadow: V2_SHADOWS.card,
@@ -310,7 +312,7 @@ export default function QuoteRequestPage() {
                     {opt.label}
                   </div>
                   <div style={{ fontSize: "0.75rem", color: UI.inkLight, fontWeight: 300 }}>{opt.desc}</div>
-                </div>
+                </button>
               ))}
             </div>
           </div>

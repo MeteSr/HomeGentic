@@ -120,6 +120,17 @@ test.describe("DashboardPage — /dashboard (v3 left nav)", () => {
     await expect(page.getByText("Most recent first.")).toBeVisible();
   });
 
+  test("rail chips are reachable and usable from the keyboard", async ({ page }) => {
+    const docs = page.getByRole("button", { name: /^DOCS\b/ });
+    for (let i = 0; i < 40; i++) {
+      if (await docs.evaluate((el) => el === document.activeElement)) break;
+      await page.keyboard.press("Tab");
+    }
+    await expect(docs).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("Most recent first.")).toBeVisible();
+  });
+
   test("clicking a panel's close control returns to the resting stage", async ({ page }) => {
     await page.getByText("SPEND", { exact: true }).click();
     await expect(page.getByText("All logged jobs, by trade.")).toBeVisible();

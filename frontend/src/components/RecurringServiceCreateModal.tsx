@@ -213,7 +213,7 @@ export default function RecurringServiceCreateModal({
                 <input className="form-input" placeholder="e.g. Green Lawn Co." value={form.providerName} onChange={(e) => update("providerName", e.target.value)} />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="rsp-grid-2" style={{ gap: "1rem" }}>
                 <div>
                   <label className="form-label">License # <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
                   <input className="form-input" placeholder="e.g. PCO-12345" value={form.providerLicense} onChange={(e) => update("providerLicense", e.target.value)} />
@@ -242,7 +242,7 @@ export default function RecurringServiceCreateModal({
                 </select>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="rsp-grid-2" style={{ gap: "1rem" }}>
                 <div>
                   <label className="form-label">Contract Start *</label>
                   <input className="form-input" type="date" value={form.startDate} onChange={(e) => update("startDate", e.target.value)} />

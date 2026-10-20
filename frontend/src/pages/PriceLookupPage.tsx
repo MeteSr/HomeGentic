@@ -23,7 +23,7 @@ const C = {
   blue:   "#2B34FF",
   ink:    "#0B0D1A",
   paper:  "#FCFCFD",
-  muted:  "#6B7080",
+  muted:  "#62677A",
   border: "#EDEEF2",
   white:  "#FFFFFF",
   blueFg: "#F3F4FF",
@@ -97,8 +97,10 @@ function SearchForm({ defaultService = "", defaultZip = "" }: { defaultService?:
 
           <Link
             to={href}
+            aria-disabled={!zip.trim()}
+            tabIndex={zip.trim() ? undefined : -1}
             style={{
-              padding: "0.875rem", background: zip.trim() ? C.blue : C.border, color: C.white,
+              padding: "0.875rem", background: zip.trim() ? C.blue : C.border, color: zip.trim() ? C.white : C.muted,
               textDecoration: "none", borderRadius: "100px",
               fontFamily: F.body, fontSize: "0.9375rem", fontWeight: 600,
               textAlign: "center", pointerEvents: zip.trim() ? "auto" : "none",

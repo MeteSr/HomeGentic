@@ -24,7 +24,7 @@ const C = {
   coral:  "#FF5C39",
   ink:    "#0B0D1A",
   paper:  "#FCFCFD",
-  muted:  "#6B7080",
+  muted:  "#62677A",
   border: "#EDEEF2",
   white:  "#FFFFFF",
   blueFg: "#F3F4FF",
@@ -131,10 +131,12 @@ function EstimatorForm() {
 
             <Link
               to={href}
+              aria-disabled={!year}
+              tabIndex={year ? undefined : -1}
               style={{
                 display: "block", textAlign: "center",
                 padding: "0.875rem 1.5rem",
-                background: year ? C.blue : C.border, color: C.white,
+                background: year ? C.blue : C.border, color: year ? C.white : C.muted,
                 fontFamily: F.body, fontSize: "0.9375rem", fontWeight: 600,
                 textDecoration: "none", borderRadius: "100px",
                 pointerEvents: year ? "auto" : "none",

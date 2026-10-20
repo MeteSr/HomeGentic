@@ -9,7 +9,7 @@ const C = {
   coral:  "#FF5C39",
   ink:    "#0B0D1A",
   paper:  "#FCFCFD",
-  muted:  "#6B7080",
+  muted:  "#62677A",
   border: "#EDEEF2",
   white:  "#FFFFFF",
   blueFg: "#F3F4FF",

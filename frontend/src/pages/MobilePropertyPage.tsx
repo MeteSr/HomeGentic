@@ -16,7 +16,7 @@ const M = {
   cardBdr:    "#E6E7EE",
   cardShadow: "0 2px 12px rgba(11,13,26,0.06)",
   ink:        "#0B0D1A",
-  muted:      "#6B7080",
+  muted:      "#62677A",
   blue:       "#2B34FF",
   blueLight:  "#E0E2FF",
   blueBdr:    "#B9BDF5",
@@ -93,15 +93,18 @@ function PropertyPicker({ current, all, onSelect }: {
   const [open, setOpen] = useState(false);
   if (all.length <= 1) {
     return (
-      <div style={{ font: `800 27px/1.12 ${F.display}`, color: M.ink, letterSpacing: "-0.03em", marginTop: 9 }}>
+      <h1 style={{ margin: 0, font: `800 27px/1.12 ${F.display}`, color: M.ink, letterSpacing: "-0.03em", marginTop: 9 }}>
         {current}
-      </div>
+      </h1>
     );
   }
   return (
     <div style={{ position: "relative", marginTop: 9 }}>
+      <h1 style={{ margin: 0 }}>
       <button
         onClick={() => setOpen(o => !o)}
+        aria-haspopup="true"
+        aria-expanded={open}
         style={{
           display: "flex", alignItems: "center", gap: 8,
           background: "none", border: "none", cursor: "pointer", padding: 0,
@@ -110,6 +113,7 @@ function PropertyPicker({ current, all, onSelect }: {
         <div style={{ font: `800 27px/1.12 ${F.display}`, color: M.ink, letterSpacing: "-0.03em" }}>{current}</div>
         <ChevronDown size={18} color={M.muted} strokeWidth={2.4} style={{ flexShrink: 0 }} />
       </button>
+      </h1>
       {open && (
         <div style={{
           position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 20,

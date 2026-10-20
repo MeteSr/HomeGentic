@@ -83,7 +83,7 @@ export const V2_COLORS = {
   // ── Neutrals ─────────────────────────────────────────────────────────────
   ink:         "#0B0D1A",   // primary text
   paper:       "#FCFCFD",   // card / popover background
-  muted:       "#6B7080",   // secondary text
+  muted:       "#62677A",   // secondary text
   muted2:      "#5A5F70",   // tertiary / disabled text
   mutedOnDark: "#B8AEC7",   // secondary text on ink backgrounds — 6.8:1, WCAG AA at all sizes
   // ── Surfaces & structure ─────────────────────────────────────────────────
@@ -127,6 +127,12 @@ export const V2_FONTS = {
   body:    "'Hanken Grotesk', sans-serif",
   mono:    "'JetBrains Mono', monospace",
 } as const;
+
+/** Strips the browser's default <button> look so a button can carry a div's inline styles. */
+export const BUTTON_RESET: React.CSSProperties = {
+  appearance: "none", margin: 0, padding: 0, border: "none", background: "transparent",
+  font: "inherit", color: "inherit", textAlign: "inherit",
+};
 
 export const V2_RADIUS = {
   pill:  100,   // buttons, pills

@@ -75,7 +75,7 @@ export default function VerifyContestedPage() {
         </div>
 
         {/* Claimant comparison */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
+        <div className="rsp-grid-2" style={{ gap: 16, marginBottom: 28 }}>
           {/* Yours */}
           <div style={{ border: `2px solid ${V2_COLORS.blue}`, borderRadius: 12, padding: 20, background: V2_COLORS.lblue }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>

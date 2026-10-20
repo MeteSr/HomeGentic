@@ -13,7 +13,7 @@ export const v3 = {
   lineSoft:   "#F0F1F5",   // row dividers, neutral icon tiles
   chipLine:   "#D9DBE4",   // outlined chips and secondary buttons
   ink:        "#0B0D1A",
-  muted:      "#6B7080",
+  muted:      "#62677A",   // ≥ 4.5:1 on bg/lineSoft (WCAG AA)
   blue:       "#2B34FF",
   blueTint:   "#E0E2FF",
   blueLine:   "#B9BDF5",
