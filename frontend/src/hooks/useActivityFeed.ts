@@ -20,7 +20,11 @@ export interface ActivityFeed {
  * so any page can render its own trigger + drawer without Layout's sidebar
  * (e.g. DashboardV3, which hides that sidebar).
  */
-export function useActivityFeed(properties: Property[]): ActivityFeed {
+/**
+ * Pass `jobs` when the page has already loaded the user's jobs, so opening the
+ * feed doesn't fetch them all again.
+ */
+export function useActivityFeed(properties: Property[], jobs?: Job[]): ActivityFeed {
   const [feedOpen, setFeedOpen]     = useState(false);
   const [feedJobs, setFeedJobs]     = useState<Job[]>([]);
   const [feedQuotes, setFeedQuotes] = useState<QuoteRequest[]>([]);
@@ -34,7 +38,7 @@ export function useActivityFeed(properties: Property[]): ActivityFeed {
     if (!feedOpen || feedLoaded) return;
     const propertyIds = properties.map((p) => String(p.id));
     Promise.all([
-      jobService.getAll().catch(() => [] as Job[]),
+      jobs ? Promise.resolve(jobs) : jobService.getAll().catch(() => [] as Job[]),
       quoteService.getRequests().catch(() => [] as QuoteRequest[]),
       Promise.all(
         propertyIds.map((pid) => billService.getBillsForProperty(pid).catch(() => [] as BillRecord[]))

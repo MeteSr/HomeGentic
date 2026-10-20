@@ -25,11 +25,10 @@ export function useMaintenanceSchedule(
 
     async function load() {
       try {
-        const allServices: RecurringService[] = [];
-        for (const p of properties) {
-          const svcs = await recurringService.getByProperty(String(p.id));
-          allServices.push(...svcs);
-        }
+        // One call per property, all in flight at once (each is an update call).
+        const allServices: RecurringService[] = (await Promise.all(
+          properties.map((p) => recurringService.getByProperty(String(p.id)))
+        )).flat();
         if (cancelled) return;
         setRecurringServices(allServices);
 

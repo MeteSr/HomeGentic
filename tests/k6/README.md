@@ -78,13 +78,15 @@ k6 run tests/k6/voice-agent-load.js
 ### Start the gateway
 ```bash
 cd agents/iot-gateway
-SENSOR_CANISTER_ID=dummy npm run dev
+SENSOR_CANISTER_ID=dummy IOT_GATEWAY_DRY_RUN=1 \
+  NEST_WEBHOOK_SECRET=k6-nest ECOBEE_WEBHOOK_SECRET=k6-ecobee \
+  MOEN_FLO_WEBHOOK_SECRET=k6-moen npm run dev
 # Express starts on :3002
 ```
 
-`SENSOR_CANISTER_ID=dummy` lets the gateway exercise the full request path (parsing, HMAC skip, handler dispatch) without reaching the ICP network.  The gateway will log canister errors — that is expected.
+The gateway rejects unsigned webhooks, so it needs secrets. k6 signs each request with the same values (the defaults above, or pass `NEST_WEBHOOK_SECRET` etc. to k6 with `--env`). `IOT_GATEWAY_DRY_RUN=1` makes the gateway skip the sensor-canister call (it's ignored when `NODE_ENV=production`), so the test measures the gateway itself: auth, validation, replay checks and dispatch.
 
-No `*_WEBHOOK_SECRET` env vars are needed.  Signature verification is skipped when secrets are absent.
+All VUs share one IP, so the per-IP webhook limiters return 429 for most requests once warmed up. The script counts 429 as expected and reports the total in `rate_limit_429`.
 
 ### Run the test
 ```bash
@@ -96,6 +98,7 @@ k6 run tests/k6/iot-gateway-load.js
 | Variable | Default | Description |
 |---|---|---|
 | `IOT_GATEWAY_URL` | `http://localhost:3002` | Base URL of the IoT gateway |
+| `NEST_WEBHOOK_SECRET` / `ECOBEE_WEBHOOK_SECRET` / `MOEN_FLO_WEBHOOK_SECRET` | `k6-nest` / `k6-ecobee` / `k6-moen` | Must match the gateway's secrets |
 | `CI` | unset | Set to `true` to shorten `polling_steady` (2 min) and cap spike at 100 VU |
 
 **Scenarios**

@@ -226,7 +226,7 @@ export function DashboardV3() {
   }, [isPro, activePropertyId]);
 
   const voice = useVoiceAgent();
-  const feed = useActivityFeed(properties);
+  const feed = useActivityFeed(properties, jobSummary.loading ? undefined : allJobs);
 
   // System ages and bill patterns feed both the home brief and answer cards.
   const systems = useMemo(
