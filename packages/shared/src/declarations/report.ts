@@ -167,6 +167,7 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     generateRiskProfile: IDL.Func(
       [IDL.Text, IDL.Opt(IDL.Nat), IDL.Text],
       [IDL.Variant({ ok: RiskProfile, err: RiskProfileError })],

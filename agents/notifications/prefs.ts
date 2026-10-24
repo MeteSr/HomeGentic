@@ -103,6 +103,13 @@ export function clearPhone(principal: string): void {
   save();
 }
 
+/** Account deletion: forget all of `principal`'s preferences and phone number. */
+export function forgetPrefs(principal: string): void {
+  if (!(principal in stored)) return;
+  delete stored[principal];
+  save();
+}
+
 /** Whether `principal` wants `kind` pushed. Kinds without a preference always push. */
 export function wantsPush(principal: string, kind: string): boolean {
   if (!PUSH_KINDS.includes(kind as never)) return false;

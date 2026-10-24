@@ -68,8 +68,8 @@ test.describe("CheckoutPage — /checkout", () => {
       await page.goto("/checkout?tier=Pro&billing=Monthly");
     });
 
-    test("shows 'Identity verified' badge", async ({ page }) => {
-      await expect(page.getByText(/Identity verified/i)).toBeVisible();
+    test("shows the signed-in badge", async ({ page }) => {
+      await expect(page.getByText(/^Signed in$/i)).toBeVisible();
     });
 
     test("shows Card payment toggle button", async ({ page }) => {
@@ -106,7 +106,7 @@ test.describe("CheckoutPage — /checkout", () => {
 
     test("shows plan features in summary card", async ({ page }) => {
       await expect(page.getByText(/20 properties/i)).toBeVisible();
-      await expect(page.getByText(/verified badge/i)).toBeVisible();
+      await expect(page.getByText(/10 agent calls a day/i)).toBeVisible();
     });
 
     test("shows 'Cancel anytime' trust signal", async ({ page }) => {
@@ -124,7 +124,7 @@ test.describe("CheckoutPage — /checkout", () => {
     await injectTestAuth(page);
     await mockStripeIntent(page);
     await page.goto("/checkout?tier=Pro&billing=Yearly");
-    await expect(page.getByText("$59/yr")).toBeVisible();
+    await expect(page.getByText("$59/yr").first()).toBeVisible();
     await expect(page.getByText(/2 months free/i)).not.toBeVisible();
   });
 

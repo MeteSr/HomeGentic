@@ -18,6 +18,7 @@ export const idlFactory = ({ IDL }: any) => {
     InvalidInput: IDL.Text,
   });
   return IDL.Service({
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     createScheduleEntry: IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],
       [IDL.Variant({ ok: ScheduleEntry, err: Error })],

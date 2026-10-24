@@ -423,6 +423,45 @@ persistent actor class Auth(initDeployer : Principal) {
     dropAgentSession(msg.caller);
   };
 
+  // ─── Account deletion ───────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller —
+  /// the user profile, every voice-agent session token they own, and their
+  /// rate-limit counter. Admin / notifier lists are left alone.
+  /// Returns how many records were removed.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+    var removed = 0;
+
+    if (users.get(caller) != null) {
+      users.remove(caller);
+      removed += 1;
+    };
+
+    // The owner index holds at most one token, but sweep the token map too in
+    // case an older token for this owner was ever left behind.
+    let tokens = agentSessions.entries()
+      .filter(func((_, s) : (Text, AgentSession)) : Bool { Principal.equal(s.owner, caller) })
+      .map(func((t, _) : (Text, AgentSession)) : Text { t })
+      .toArray();
+    for (t in tokens.values()) {
+      agentSessions.remove(t);
+      removed += 1;
+    };
+    switch (agentSessionByOwner.get(caller)) {
+      case (?t) {
+        if (agentSessions.get(t) != null) { agentSessions.remove(t); removed += 1 };
+        agentSessionByOwner.remove(caller);
+      };
+      case null {};
+    };
+
+    updateCallLimits.remove(caller.toText());
+    #ok(removed)
+  };
+
   // ─── Notification contact ───────────────────────────────────────────────────
 
   /// Allow a principal (the notification relay's identity) to look up emails.

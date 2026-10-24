@@ -55,3 +55,8 @@ export function removeToken(token: string): void {
   }
   if (changed) save();
 }
+
+/** Account deletion: drop every device token registered to `principal`. */
+export function forgetPrincipalTokens(principal: string): void {
+  if (registry.delete(principal)) save();
+}

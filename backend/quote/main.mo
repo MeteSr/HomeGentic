@@ -16,6 +16,7 @@ import Nat32    "mo:core/Nat32";
 import Option   "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
+import Set      "mo:core/Set";
 import Text     "mo:core/Text";
 import Time     "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
@@ -1415,6 +1416,121 @@ persistent actor Quote {
     };
     // Re-read after the await: the homeowner may have removed it meanwhile.
     #ok(usageSummaries.get(requestId))
+  };
+
+  // ─── Account Deletion ────────────────────────────────────────────────────────
+
+  /// Removes one sealed bid and its by-request / by-contractor index entries.
+  private func deleteSealedBid(bidId: Text) {
+    switch (sealedBids.get(bidId)) {
+      case null {};
+      case (?b) {
+        sealedBids.remove(bidId);
+        sealedBidsByContractor.remove(b.contractor.toText() # ":" # b.requestId);
+        switch (sealedBidsByRequest.get(b.requestId)) {
+          case null {};
+          case (?xs) {
+            let rest = xs.filter(func(x) { x != bidId });
+            if (rest.size() == 0) sealedBidsByRequest.remove(b.requestId)
+            else sealedBidsByRequest.add(b.requestId, rest);
+          };
+        };
+      };
+    };
+  };
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Returns how many records were removed.
+  ///
+  ///   - Quote requests the caller made as homeowner, with every quote, sealed
+  ///     bid, revealed-bid snapshot and usage summary on them.
+  ///   - Quotes and sealed bids the caller placed as a contractor, but only on
+  ///     requests still taking bids (#Open/#Quoted, sealed-bid window not
+  ///     closed, not yet revealed). Bids on accepted/closed/cancelled or
+  ///     revealed requests are kept: they are the other homeowner's record of
+  ///     who bid what.
+  ///   - Push-outbox events addressed to the caller or about deleted records.
+  ///
+  /// Kept on purpose: the caller's entries in contractorRateLimits /
+  /// updateCallLimits (rate-limit windows; deleting them would reset limits).
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+    let now = Time.now();
+    var removed = 0;
+    let deletedRefs = Set.empty<Text>();
+
+    // 1. The caller's own requests and everything on them.
+    let myRequestIds = Index.ids(requestsByHomeowner, caller.toText()).toArray();
+    for (reqId in myRequestIds.values()) {
+      let quoteIds = quotesFor(reqId).map(func(q) { q.id }).toArray();
+      for (qid in quoteIds.values()) {
+        Index.delete(quotes, quoteIndexes, qid);
+        deletedRefs.add(qid);
+        removed += 1;
+      };
+      let bidIds = switch (sealedBidsByRequest.get(reqId)) { case null []; case (?xs) xs };
+      for (bidId in bidIds.values()) { deleteSealedBid(bidId); removed += 1 };
+      sealedBidsByRequest.remove(reqId);
+      revealedBids.remove(reqId);
+      usageSummaries.remove(reqId);
+      Index.delete(requests, requestIndexes, reqId);
+      deletedRefs.add(reqId);
+      removed += 1;
+    };
+
+    // 2. Bids the caller placed on other homeowners' requests that are still open.
+    func stillOpen(reqId: Text) : Bool {
+      switch (requests.get(reqId)) {
+        case null { false };
+        case (?r) { r.status == #Open or r.status == #Quoted };
+      }
+    };
+    let myQuoteIds = Index.records(quotesByContractor, caller.toText(), quotes)
+      .filter(func(q) { stillOpen(q.requestId) and q.status == #Pending })
+      .map(func(q) { q.id })
+      .toArray();
+    for (qid in myQuoteIds.values()) {
+      switch (quotes.get(qid)) {
+        case null {};
+        case (?q) {
+          Index.delete(quotes, quoteIndexes, qid);
+          deletedRefs.add(qid);
+          removed += 1;
+          // A #Quoted request with no quotes left goes back to #Open.
+          switch (requests.get(q.requestId)) {
+            case (?r) {
+              if (r.status == #Quoted and Option.isNull(quotesFor(r.id).next())) {
+                putRequest({ r with status = #Open });
+              };
+            };
+            case null {};
+          };
+        };
+      };
+    };
+    let mySealedBidIds = sealedBids.values()
+      .filter(func(b) {
+        b.contractor == caller and stillOpen(b.requestId)
+          and Option.isNull(revealedBids.get(b.requestId))
+          and (switch (requests.get(b.requestId)) {
+                 case (?r) { switch (r.closeAt) { case (?c) now < c; case null true } };
+                 case null false;
+               })
+      })
+      .map(func(b) { b.id })
+      .toArray();
+    for (bidId in mySealedBidIds.values()) { deleteSealedBid(bidId); removed += 1 };
+
+    // 3. Outbox events addressed to the caller or about deleted records.
+    let eventSeqs = notifyLog.values()
+      .filter(func(e) { e.recipient == ?caller or deletedRefs.contains(e.refId) })
+      .map(func(e) { e.seq })
+      .toArray();
+    for (seq in eventSeqs.values()) { notifyLog.remove(seq) };
+
+    #ok(removed)
   };
 
 

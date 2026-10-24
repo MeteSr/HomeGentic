@@ -169,6 +169,13 @@ app.use(
   })
 );
 
+// Express 5 leaves req.body undefined when no parser ran (e.g. a non-JSON
+// POST); keep Express 4's empty object so handlers answer 400, not 500.
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  if (req.body === undefined) req.body = {};
+  next();
+});
+
 // ── Signature helpers ────────────────────────────────────────────────────────
 
 function hmacSha256(secret: string, payload: Buffer): string {
@@ -907,7 +914,7 @@ app.post("/oauth/device/link", deviceOAuthLimiter, async (req: Request, res: Res
 // M9 / F-14: requires a ticket from POST /oauth/device/link, so the OAuth state
 // is bound to the HomeGentic principal that will own the device.
 app.get("/oauth/device/start/:platform", deviceOAuthLimiter, (req: Request, res: Response): void => {
-  const { platform } = req.params;
+  const platform = req.params.platform as string;
   if (!isLinkPlatform(platform)) { res.status(400).send("Unknown platform"); return; }
   const intent = consumeTicket(req.query.ticket, platform);
   if (!intent) {
@@ -952,7 +959,7 @@ app.get("/oauth/device/start/:platform", deviceOAuthLimiter, (req: Request, res:
 // Tier B device picker: exchanges the auth code, fetches device list, sends
 // postMessage to the opener popup, then closes itself.
 app.get("/oauth/device/callback/:platform", deviceOAuthLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { platform } = req.params;
+  const platform = req.params.platform as string;
   const code         = req.query.code  as string | undefined;
   const state        = req.query.state as string | undefined;
 

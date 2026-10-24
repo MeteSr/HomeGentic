@@ -10,7 +10,7 @@ import { HOMEGENTIC_WEB_URL } from "../../services/reportService";
 import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import { PlanCard } from "../../components/PlanCard";
 import { PageHeader, TabScroll } from "../../components/ui";
-import { SettingsCard, useNotificationsSetting, useSignOut } from "./AccountScreen";
+import { SettingsCard, accountLegalRows, useNotificationsSetting, useSignOut } from "./AccountScreen";
 import { v3 } from "../../theme";
 
 export default function ContractorAccountScreen() {
@@ -35,6 +35,7 @@ export default function ContractorAccountScreen() {
           { label: "Offline queue", value: queued ? `${queued} WAITING` : "EMPTY", valueColor: queued ? v3.red : v3.muted, onPress: () => navigation.navigate("QueueStatus") },
           { label: "Trades", value: trades, onPress: () => WebBrowser.openBrowserAsync(`${HOMEGENTIC_WEB_URL.replace(/\/$/, "")}/contractor-dashboard`) },
           { label: "Notifications", value: notifications, onPress: () => Linking.openSettings() },
+          ...accountLegalRows(),
           { label: "Sign out", value: "", color: v3.red, onPress: signOut },
         ]}
       />

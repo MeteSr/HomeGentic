@@ -23,6 +23,7 @@ import request from "supertest";
 import { buildApp } from "../server";
 import { requestPrincipal } from "../session";
 import * as sms from "../sms";
+import { getTokensForPrincipal, registerToken } from "../store";
 
 const mockPrincipal = requestPrincipal as jest.MockedFunction<typeof requestPrincipal>;
 const smsMock = sms as jest.Mocked<typeof sms>;
@@ -131,5 +132,23 @@ describe("SMS confirmation", () => {
     mockPrincipal.mockResolvedValue("sms-user");
     smsMock.smsConfigured.mockReturnValue(false);
     expect((await request(app).post("/api/sms/start").send({ phone: PHONE })).status).toBe(503);
+  });
+});
+
+describe("DELETE /api/account", () => {
+  it("returns 401 without a session", async () => {
+    mockPrincipal.mockResolvedValue(null);
+    expect((await request(app).delete("/api/account")).status).toBe(401);
+  });
+
+  it("forgets the caller's tokens, preferences and phone number", async () => {
+    mockPrincipal.mockResolvedValue("leaving-user");
+    await request(app).post("/api/sms/confirm").send({ phone: "+15125550142", code: "123456" });
+    registerToken("leaving-user", "ExponentPushToken[leaving]", "ios");
+
+    const res = await request(app).delete("/api/account");
+    expect(res.status).toBe(200);
+    expect(getTokensForPrincipal("leaving-user")).toEqual([]);
+    expect((await request(app).get("/api/prefs")).body.prefs.sms).toEqual({ enabled: false, phone: null });
   });
 });

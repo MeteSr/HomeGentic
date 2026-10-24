@@ -619,6 +619,27 @@ persistent actor Bills {
     #ok(())
   };
 
+  // ─── Account deletion ─────────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Deletes every bill and recurring expense whose `homeowner` (the principal
+  /// who entered it) is the caller. Returns how many records were removed.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+
+    let billIds = Index.ids(billsByHomeowner, msg.caller.toText()).toArray();
+    for (id in billIds.values()) { Index.delete(bills, billIndexes, id) };
+
+    let expenseIds = recurringExpenses.entries()
+      .filter(func((_, e)) = Principal.equal(e.homeowner, msg.caller))
+      .map(func((id, _)) = id)
+      .toArray();
+    for (id in expenseIds.values()) { Index.delete(recurringExpenses, expenseIndexes, id) };
+
+    #ok(billIds.size() + expenseIds.size())
+  };
+
   // ─── Admin ────────────────────────────────────────────────────────────────────
 
   public shared(msg) func setPropertyCanisterId(id: Text) : async Result.Result<(), Error> {

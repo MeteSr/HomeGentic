@@ -117,3 +117,9 @@ export function confirmSms(phone: string, code: string): Promise<PrefsState> {
 export function removeSmsPhone(): Promise<PrefsState> {
   return call<PrefsState>("/api/sms", { method: "DELETE" }, "Couldn't remove that number");
 }
+
+/** Account deletion: the relay forgets this user's devices, preferences and phone number. */
+export async function forgetNotificationAccount(): Promise<void> {
+  if (!RELAY_URL) return;
+  await call<{ ok: true }>("/api/account", { method: "DELETE" }, "Couldn't remove your notification settings");
+}

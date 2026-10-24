@@ -6,7 +6,7 @@ Thank you for your interest in contributing to HomeGentic!
 
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/your-username/homegentic.git`
-3. Install Node.js 20+
+3. Install Node.js 22+
 4. Install the canister tooling: `npm install -g @icp-sdk/icp-cli` and [mops](https://mops.one) (plus [dfx](https://internetcomputer.org/docs/current/developer-docs/setup/install/) if you'll run the bash canister tests or regenerate declarations)
 5. Start the local network: `make start`
 6. Deploy canisters: `make deploy`

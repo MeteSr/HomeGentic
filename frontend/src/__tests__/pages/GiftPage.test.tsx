@@ -26,7 +26,6 @@ function fillRecipientStep() {
   fireEvent.change(screen.getByPlaceholderText("Alex Johnson"), { target: { value: "Alex Johnson" } });
   fireEvent.change(screen.getByPlaceholderText("alex@email.com"), { target: { value: "alex@email.com" } });
   fireEvent.change(screen.getByPlaceholderText("Sarah Miller"), { target: { value: "Sarah Miller" } });
-  fireEvent.change(screen.getByPlaceholderText("sarah@realty.com"), { target: { value: "sarah@realty.com" } });
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -47,7 +46,6 @@ describe("GiftPage — recipient step validation", () => {
     fireEvent.change(screen.getByPlaceholderText("Alex Johnson"), { target: { value: "Alex Johnson" } });
     fireEvent.change(screen.getByPlaceholderText("alex@email.com"), { target: { value: "not-an-email" } });
     fireEvent.change(screen.getByPlaceholderText("Sarah Miller"), { target: { value: "Sarah Miller" } });
-    fireEvent.change(screen.getByPlaceholderText("sarah@realty.com"), { target: { value: "sarah@realty.com" } });
     fireEvent.click(screen.getByText("Continue"));
     expect(screen.getByText("Enter a valid email")).toBeInTheDocument();
   });

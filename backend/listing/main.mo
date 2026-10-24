@@ -1175,6 +1175,151 @@ persistent actor Listing {
     page(fsboListings.values(), from, limit)
   };
 
+  // ─── Account Deletion ────────────────────────────────────────────────────────
+
+  /// Removes a proposal, its index entries and its message thread.
+  private func deleteProposal(proposalId: Text) {
+    Index.delete(proposals, proposalsIndexes, proposalId);
+    threads.remove(proposalId);
+  };
+
+  /// Account deletion: removes what this canister holds for the caller.
+  /// Returns how many records were removed.
+  ///
+  ///   - Bid requests the caller made as homeowner, with all their proposals
+  ///     and message threads — EXCEPT requests where an agent was selected:
+  ///     #Awarded / feePaid, or a fee record exists in the fee canister
+  ///     (acceptProposal). Those are financial records held with the fee
+  ///     canister and are kept unchanged, proposals included.
+  ///   - Proposals the caller made as an agent on requests still #Open whose
+  ///     selected proposal (if any) isn't theirs. #Accepted or selected
+  ///     proposals are kept for the same reason.
+  ///   - The caller's public FSBO listings, and the listing photo / panorama
+  ///     lists (plus their photo review state) whose owner lock is the caller.
+  ///
+  /// When the fee canister can't be reached for a request, that request (and
+  /// the caller's proposals on it) is kept — fail closed. When no fee canister
+  /// is wired, acceptProposal can't have recorded a fee, so only the local
+  /// awarded/feePaid flags decide.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+
+    func awardedLocally(r: ListingBidRequest) : Bool { r.status == #Awarded or r.feePaid };
+
+    // 1. Candidates (read before any await).
+    let myRequestIds = Index.records(requestsByHomeowner, caller.toText(), requests)
+      .filter(func(r) { not awardedLocally(r) })
+      .map(func(r) { r.id })
+      .toArray();
+    let myProposalIds = Index.records(proposalsByAgent, caller.toText(), proposals)
+      .filter(func(p) {
+        p.status != #Accepted and (switch (requests.get(p.requestId)) {
+          case (?r) { r.status == #Open and not awardedLocally(r) };
+          case null { true };   // orphan proposal: nothing to protect
+        })
+      })
+      .map(func(p) { p.id })
+      .toArray();
+
+    // 2. Ask the fee canister which of those requests have a selection.
+    //    requestId → ?proposalId selected (null = no fee record).
+    let feeSelection = Map.empty<Text, ?Text>();
+    let unknown = Map.empty<Text, Bool>();   // fee canister unreachable → keep
+    if (Text.size(feeCanisterId) > 0) {
+      let feeActor = actor(feeCanisterId) : actor {
+        getFeeForRequest : query (Text) -> async ?{ proposalId: Text };
+      };
+      let reqIds = Map.empty<Text, Bool>();
+      for (id in myRequestIds.values()) { reqIds.add(id, true) };
+      for (pid in myProposalIds.values()) {
+        switch (proposals.get(pid)) { case (?p) { reqIds.add(p.requestId, true) }; case null {} };
+      };
+      for (reqId in reqIds.keys()) {
+        try {
+          switch (await feeActor.getFeeForRequest(reqId)) {
+            case null    { feeSelection.add(reqId, null) };
+            case (?fee)  { feeSelection.add(reqId, ?fee.proposalId) };
+          };
+        } catch (_) { unknown.add(reqId, true) };
+      };
+    };
+    func feeRecorded(reqId: Text) : Bool {
+      Option.isSome(unknown.get(reqId)) or (switch (feeSelection.get(reqId)) { case (??_) true; case _ false })
+    };
+    func selectedProposal(reqId: Text) : ?Text {
+      switch (feeSelection.get(reqId)) { case (??pid) ?pid; case _ null }
+    };
+
+    // 3. Delete, re-reading state after the awaits.
+    var removed = 0;
+    for (reqId in myRequestIds.values()) {
+      switch (requests.get(reqId)) {
+        case (?r) {
+          if (r.homeowner == caller and not awardedLocally(r) and not feeRecorded(reqId)) {
+            for (p in proposalsFor(reqId).values()) { deleteProposal(p.id); removed += 1 };
+            Index.delete(requests, requestsIndexes, reqId);
+            removed += 1;
+          };
+        };
+        case null {};
+      };
+    };
+    for (pid in myProposalIds.values()) {
+      switch (proposals.get(pid)) {
+        case (?p) {
+          let deletable = p.agentId == caller and p.status != #Accepted and (switch (requests.get(p.requestId)) {
+            case (?r) {
+              r.status == #Open and not awardedLocally(r)
+                and Option.isNull(unknown.get(p.requestId))
+                and selectedProposal(p.requestId) != ?pid
+            };
+            case null { true };
+          });
+          if (deletable) { deleteProposal(pid); removed += 1 };
+        };
+        case null {};
+      };
+    };
+
+    // 4. FSBO listing, listing photos and panoramas.
+    let fsboIds = fsboListings.values()
+      .filter(func(l) { l.homeowner == caller })
+      .map(func(l) { l.propertyId })
+      .toArray();
+    for (pid in fsboIds.values()) { fsboListings.remove(pid); removed += 1 };
+
+    func dropPhoto(photoId: Text) {
+      listingPhotoProperty.remove(photoId);
+      photoReviews.remove(photoId);
+    };
+    let photoProps = listingPhotoOwners.entries()
+      .filter(func((_, owner)) { owner == caller })
+      .map(func((pid, _)) { pid })
+      .toArray();
+    for (pid in photoProps.values()) {
+      switch (listingPhotos.get(pid)) {
+        case (?ids) { for (id in ids.values()) { dropPhoto(id) }; listingPhotos.remove(pid); removed += 1 };
+        case null {};
+      };
+      listingPhotoOwners.remove(pid);
+    };
+    let panoProps = listingPanoramaOwners.entries()
+      .filter(func((_, owner)) { owner == caller })
+      .map(func((pid, _)) { pid })
+      .toArray();
+    for (pid in panoProps.values()) {
+      switch (listingPanoramas.get(pid)) {
+        case (?entries) { for (e in entries.values()) { dropPhoto(e.photoId) }; listingPanoramas.remove(pid); removed += 1 };
+        case null {};
+      };
+      listingPanoramaOwners.remove(pid);
+    };
+
+    #ok(removed)
+  };
+
   // ─── Admin Controls ───────────────────────────────────────────────────────────
 
   public shared(msg) func setPropertyCanisterId(id: Text) : async Result.Result<(), Error> {

@@ -55,3 +55,8 @@ export function removeSubscription(endpoint: string): void {
   }
   if (changed) save();
 }
+
+/** Account deletion: drop every browser subscription registered to `principal`. */
+export function forgetPrincipalSubscriptions(principal: string): void {
+  if (registry.delete(principal)) save();
+}

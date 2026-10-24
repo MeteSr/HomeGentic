@@ -42,7 +42,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -53,7 +53,7 @@ jobs:
         # Pinned to the same version as deploy-mainnet.yml — this job later
         # holds DFX_IDENTITY_PEM, so an unpinned global install would let a
         # compromised release run with the deploy identity in scope.
-        run: npm install -g @icp-sdk/icp-cli@1.5.0
+        run: npm install -g @icp-sdk/icp-cli@1.7.0
 
       - name: Cache mops packages
         uses: actions/cache@v6
@@ -62,12 +62,13 @@ jobs:
           key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
 
       - name: Install mops
-        run: npm install -g ic-mops@3.2.2
+        run: npm install -g ic-mops@3.5.1
 
       - name: Install dfx
         run: |
-          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xz
+          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz"
+          echo "d8701438d05d9da0da0c90ab9342ac9ba6b0371ae9f5d1a943e94600fd674498  /tmp/dfx.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/dfx.tar.gz
           DFX_BIN=$(find . -name "dfx*" -type f -perm /111 | head -1)
           sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
           dfx --version
