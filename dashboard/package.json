@@ -9,13 +9,13 @@
   "dependencies": {
     "@icp-sdk/auth": "^7.0.0",
     "@icp-sdk/core": "^5.2.1",
-    "lucide-react": "^0.309.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "lucide-react": "^1.59.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
-    "@types/react": "^18.2.43",
-    "@types/react-dom": "^18.2.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.0.1",
     "vite": "^8.0.5"
   }

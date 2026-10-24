@@ -1,21 +1,42 @@
-MIT License
+HomeGentic Source-Available License
 
-Copyright (c) 2026 HomeGentic
+Copyright (c) 2026 HomeGentic. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+The source code in this repository is published so that it can be read,
+reviewed and audited. Publishing it does not make it open source, and no
+license to use it is granted except as stated below.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+You may:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  1. View and read the source code, including through the hosting service's
+     normal features (for example, viewing it in a browser or forking it on
+     the hosting service in order to propose a change back to this
+     repository).
+  2. Inspect and verify the code that runs HomeGentic's deployed services.
+  3. Build and run the code on your own machine solely to develop and test
+     a contribution to this repository.
+
+You may not, without prior written permission from HomeGentic:
+
+  1. Copy, modify, merge, publish, distribute, sublicense or sell the code
+     or any part of it, except as needed for the uses allowed above.
+  2. Deploy, host or otherwise run the code, or any work derived from it,
+     for any other purpose, commercial or otherwise.
+  3. Use the code, or any part of it, to build or train a competing product
+     or service.
+  4. Remove or alter this notice or any copyright notice.
+
+Contributions. If you submit a contribution (for example, a pull request),
+you agree that HomeGentic may use, modify and relicense it under any terms,
+and you confirm that you have the right to grant that permission.
+
+Third-party components. Packages installed from npm, mops or other
+registries keep their own licenses. This notice does not change them.
+
+THE CODE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+HOMEGENTIC BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE CODE OR ITS USE.
+
+For permission requests, contact HomeGentic.

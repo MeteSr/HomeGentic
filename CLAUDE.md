@@ -161,7 +161,7 @@ Agent calls (agentic tool-use loop) are counted separately from chat calls. Limi
 
 ### Frontend Service Layer
 
-`frontend/src/services/actor.ts` creates the ICP `HttpAgent`. In local dev it uses a fixed-seed Ed25519 identity to survive hot-reloads without re-authenticating. In production it uses `@dfinity/auth-client` (Internet Identity).
+`frontend/src/services/actor.ts` creates the ICP `HttpAgent`. In local dev it uses a fixed-seed Ed25519 identity to survive hot-reloads without re-authenticating. In production it uses `@icp-sdk/auth` (Internet Identity).
 
 Each service file (e.g. `job.ts`, `property.ts`) imports its canister's IDL from `@homegentic/shared/declarations/<canister>` (`packages/shared/src/declarations/`) and follows a mock-fallback pattern:
 ```typescript

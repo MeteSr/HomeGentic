@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -42,7 +42,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -50,7 +50,7 @@ jobs:
         run: npm ci
 
       - name: Install icp-cli
-        run: npm install -g @icp-sdk/icp-cli
+        run: npm install -g @icp-sdk/icp-cli@1.7.0
 
       - name: Cache mops packages
         uses: actions/cache@v6
@@ -59,7 +59,7 @@ jobs:
           key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
 
       - name: Install mops
-        run: npm install -g ic-mops
+        run: npm install -g ic-mops@3.5.1
 
       - name: Start local network
         run: icp network start -d

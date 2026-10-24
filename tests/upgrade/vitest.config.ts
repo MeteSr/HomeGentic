@@ -11,6 +11,7 @@ export default defineConfig({
     // Run upgrade tests sequentially — each spins up its own PocketIC instance
     // but parallel instances can exhaust the pocket-ic server port range
     pool: "forks",
-    poolOptions: { forks: { singleFork: true } },
+    maxWorkers: 1,
+    fileParallelism: false,
   },
 });

@@ -13,8 +13,6 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
-import OutCall   "mo:caffeineai-http-outcalls/outcall";
-import IC        "ic:aaaaa-aa";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
@@ -186,13 +184,6 @@ persistent actor Payment {
   transient let icpLedger : actor {
     icrc2_transfer_from : shared (TransferFromArgs) -> async { #Ok: Nat; #Err: TransferFromError };
   } = actor "ryjl3-tyaaa-aaaaa-aaaba-cai";
-
-  // ─── IC Management Canister (HTTP outcalls for Stripe) ───────────────────────
-
-  /// Transform function required by caffeineai-http-outcalls for subnet consensus.
-  public query func transform(args: OutCall.TransformationInput) : async OutCall.TransformationOutput {
-    OutCall.transform(args)
-  };
 
   // ─── Price helpers ───────────────────────────────────────────────────────────
 
