@@ -365,6 +365,8 @@ persistent actor Photo {
   /// Checks shared by uploadPhoto and beginUpload: input limits, rate limit,
   /// duplicate, property write access and tier quotas. `size` is the byte
   /// count of the photo being added. Returns the error to send, or null.
+  /// async* so it runs inline in the caller's message, as these checks did
+  /// before they were shared, instead of costing a self-call per upload.
   private func admitUpload(
     caller: Principal,
     jobId: Text,
@@ -372,7 +374,7 @@ persistent actor Photo {
     description: Text,
     hash: Text,
     size: Nat
-  ) : async ?Error {
+  ) : async* ?Error {
     if (Text.size(jobId) == 0)      return ?#InvalidInput("jobId cannot be empty");
     if (Text.size(propertyId) == 0) return ?#InvalidInput("propertyId cannot be empty");
     if (Text.size(hash) == 0)       return ?#InvalidInput("hash cannot be empty");
@@ -508,7 +510,7 @@ persistent actor Photo {
     data: Blob
   ) : async Result.Result<PhotoMeta, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (await admitUpload(msg.caller, jobId, propertyId, description, hash, data.size())) {
+    switch (await* admitUpload(msg.caller, jobId, propertyId, description, hash, data.size())) {
       case (?e) return #err(e);
       case null {};
     };
@@ -528,7 +530,7 @@ persistent actor Photo {
     size: Nat
   ) : async Result.Result<PhotoMeta, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (await admitUpload(msg.caller, jobId, propertyId, description, hash, size)) {
+    switch (await* admitUpload(msg.caller, jobId, propertyId, description, hash, size)) {
       case (?e) return #err(e);
       case null {};
     };
