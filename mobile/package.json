@@ -53,7 +53,7 @@
     "text-encoding": "^0.7.0"
   },
   "devDependencies": {
-    "@babel/plugin-transform-class-static-block": "^7.29.7",
+    "@babel/plugin-transform-class-static-block": "^8.0.5",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^29.5.14",
     "@types/react": "~19.1.0",
