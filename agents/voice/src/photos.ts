@@ -1,5 +1,5 @@
 /**
- * Off-chain photo bytes, stored in the PHOTOS R2 bucket.
+ * Off-chain photo bytes, kept in a PhotoStore (R2 in production).
  *
  * The photo canister keeps each photo's record, its SHA-256 and the access
  * rules; only the bytes live here. Flow:
@@ -14,18 +14,18 @@
  *
  * These routes sit outside /api/, so the 30/min global limit (a gallery
  * loads dozens of photos) and the x-api-key check don't apply; they have
- * their own per-IP and per-principal limits. Without the PHOTOS binding
- * every route answers 503.
+ * their own per-IP and per-principal limits. Bytes go through the injected
+ * PhotoStore (photoStore.ts), so nothing here depends on R2; with no store
+ * configured every route answers 503.
  */
 
 import { hitCounter, type KVEnv } from "./rateLimiter";
 import type { PhotoAccess } from "../photoCanister";
-
-export interface PhotoEnv extends KVEnv {
-  PHOTOS?: R2Bucket;
-}
+import type { PhotoStore } from "./photoStore";
 
 export interface PhotoDeps {
+  /** Byte storage; null when none is configured. */
+  store: PhotoStore | null;
   /** The verified caller from x-agent-session, "anon"/null when none. */
   principal: () => Promise<string | null>;
   /** photo.photoAccess (null = no such photo). */
@@ -53,7 +53,7 @@ async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
 }
 
 /** photoAccess for a read, cached briefly per (photo, reader) so a gallery costs one query per photo. */
-async function cachedAccess(env: PhotoEnv, deps: PhotoDeps, id: string, reader: string): Promise<PhotoAccess | null> {
+async function cachedAccess(env: KVEnv, deps: PhotoDeps, id: string, reader: string): Promise<PhotoAccess | null> {
   const key = `pacc:${id}:${reader}`;
   const hit = await env.RATE_LIMIT.get(key);
   if (hit) return hit === "none" ? null : JSON.parse(hit) as PhotoAccess;
@@ -62,17 +62,18 @@ async function cachedAccess(env: PhotoEnv, deps: PhotoDeps, id: string, reader: 
   return access;
 }
 
-export async function handlePhotos(request: Request, path: string, env: PhotoEnv, deps: PhotoDeps): Promise<Response> {
+export async function handlePhotos(request: Request, path: string, env: KVEnv, deps: PhotoDeps): Promise<Response> {
   const id = path.slice("/photos/".length);
   if (!PHOTO_ID_RE.test(id)) return reply(404, { error: "not_found" });
-  if (!env.PHOTOS) return reply(503, { error: "photo_storage_not_configured" });
+  const store = deps.store;
+  if (!store) return reply(503, { error: "photo_storage_not_configured" });
 
   const minute = Math.floor(Date.now() / 60_000);
   try {
     switch (request.method) {
-      case "GET":    return await getPhoto(request, id, env, deps, minute);
-      case "PUT":    return await putPhoto(request, id, env, deps, minute);
-      case "DELETE": return await deletePhoto(id, env, deps, minute);
+      case "GET":    return await getPhoto(request, id, env, deps, store, minute);
+      case "PUT":    return await putPhoto(request, id, env, deps, store, minute);
+      case "DELETE": return await deletePhoto(id, env, deps, store, minute);
       default:       return reply(405, { error: "method_not_allowed" }, { Allow: "GET, PUT, DELETE" });
     }
   } catch {
@@ -81,7 +82,7 @@ export async function handlePhotos(request: Request, path: string, env: PhotoEnv
   }
 }
 
-async function getPhoto(request: Request, id: string, env: PhotoEnv, deps: PhotoDeps, minute: number): Promise<Response> {
+async function getPhoto(request: Request, id: string, env: KVEnv, deps: PhotoDeps, store: PhotoStore, minute: number): Promise<Response> {
   const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
   if (!(await hitCounter(env, `photo-read:${ip}:${minute}`, READS_PER_MINUTE_PER_IP, 60)).allowed) {
     return reply(429, { error: "too_many_requests" });
@@ -99,11 +100,11 @@ async function getPhoto(request: Request, id: string, env: PhotoEnv, deps: Photo
   if (request.headers.get("If-None-Match") === etag) {
     return new Response(null, { status: 304, headers: { ETag: etag, "Cache-Control": cacheControl } });
   }
-  const obj = await env.PHOTOS!.get(objectKey(id));
+  const obj = await store.get(objectKey(id));
   if (!obj) return reply(404, { error: "not_uploaded" });
   return new Response(obj.body, {
     headers: {
-      "Content-Type": obj.httpMetadata?.contentType ?? "application/octet-stream",
+      "Content-Type": obj.contentType ?? "application/octet-stream",
       "Cache-Control": cacheControl,
       ETag: etag,
       "X-Content-Type-Options": "nosniff",
@@ -111,7 +112,7 @@ async function getPhoto(request: Request, id: string, env: PhotoEnv, deps: Photo
   });
 }
 
-async function putPhoto(request: Request, id: string, env: PhotoEnv, deps: PhotoDeps, minute: number): Promise<Response> {
+async function putPhoto(request: Request, id: string, env: KVEnv, deps: PhotoDeps, store: PhotoStore, minute: number): Promise<Response> {
   const caller = await deps.principal();
   if (!caller || caller === "anon") return reply(401, { error: "session_required" });
   if (!(await hitCounter(env, `photo-write:${caller}:${minute}`, WRITES_PER_MINUTE_PER_PRINCIPAL, 60)).allowed) {
@@ -133,14 +134,11 @@ async function putPhoto(request: Request, id: string, env: PhotoEnv, deps: Photo
   if ((await sha256Hex(bytes)) !== access.hash) return reply(400, { error: "hash_mismatch" });
 
   // The same id always holds the same bytes, so a retried PUT is harmless.
-  await env.PHOTOS!.put(objectKey(id), bytes, {
-    httpMetadata: { contentType },
-    customMetadata: { sha256: access.hash, uploader: caller },
-  });
+  await store.put(objectKey(id), bytes, { contentType, sha256: access.hash, uploader: caller });
   return reply(201, { ok: true });
 }
 
-async function deletePhoto(id: string, env: PhotoEnv, deps: PhotoDeps, minute: number): Promise<Response> {
+async function deletePhoto(id: string, env: KVEnv, deps: PhotoDeps, store: PhotoStore, minute: number): Promise<Response> {
   const caller = await deps.principal();
   if (!caller || caller === "anon") return reply(401, { error: "session_required" });
   if (!(await hitCounter(env, `photo-write:${caller}:${minute}`, WRITES_PER_MINUTE_PER_PRINCIPAL, 60)).allowed) {
@@ -149,6 +147,6 @@ async function deletePhoto(id: string, env: PhotoEnv, deps: PhotoDeps, minute: n
   // Only bytes whose record is gone may be dropped, so anyone can clean up
   // after a delete but nobody can remove a live photo.
   if (await deps.access(id, caller)) return reply(409, { error: "photo_exists" });
-  await env.PHOTOS!.delete(objectKey(id));
+  await store.delete(objectKey(id));
   return new Response(null, { status: 204 });
 }

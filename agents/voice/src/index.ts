@@ -48,6 +48,7 @@ import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
 import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead, sendGiftEmail } from "./offchainOutcalls";
 import { getInvitePreview } from "./jobCanister";
 import { handlePhotos } from "./photos";
+import { r2PhotoStore } from "./photoStore";
 import { fetchPhotoAccess } from "../photoCanister";
 import { markIdentityCleared } from "./propertyCanister";
 export { RateLimiterDO } from "./rateLimiterDO";
@@ -130,7 +131,7 @@ export interface Env {
   RATE_LIMIT: KVNamespace;
   /** RateLimiterDO namespace (atomic counters); KV is the fallback when unbound. */
   RATE_LIMITER?: DurableObjectNamespace;
-  // R2: off-chain photo bytes (/photos/*). Unbound → those routes answer 503.
+  // R2: off-chain photo bytes (/photos/*), wrapped by r2PhotoStore. Unbound → 503.
   PHOTOS?: R2Bucket;
 }
 
@@ -474,6 +475,7 @@ async function route(
   // ── Off-chain photo bytes (R2) ────────────────────────────────────────────
   if (path.startsWith("/photos/")) {
     return withCors(await handlePhotos(request, path, env, {
+      store:     env.PHOTOS ? r2PhotoStore(env.PHOTOS) : null,
       principal: () => callerPrincipal(request, env),
       access:    fetchPhotoAccess,
     }), cors);
