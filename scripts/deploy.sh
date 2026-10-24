@@ -831,6 +831,7 @@ fi
 #                             addresses (auth).
 #   VOICE_WORKER_PRINCIPAL  — the voice Worker's DFX_IDENTITY_PEM. Made a payment
 #                             Stripe relay so it can activate subscriptions after checkout.
+#                             Also a photo relay, for photoAccess checks on /photos/*.
 grant() {  # grant <canister> <method> <principal> <description>
   local out
   echo "  $4 on $1..."
@@ -853,6 +854,7 @@ if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
   grant payment addStripeRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker activate Stripe-paid subscriptions and credits"
   grant monitoring addReporter "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker report errors and cycle checks"
   grant agent addContactReader "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker read agent emails for Bid to List mail"
+  grant photo addPhotoRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker check who may read off-chain photos"
 fi
 if [ -n "${IOT_GATEWAY_PRINCIPAL:-}" ]; then
   # Once a gateway is registered, sensor refuses self-asserted registerDevice

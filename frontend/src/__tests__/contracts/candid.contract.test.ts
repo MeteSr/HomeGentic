@@ -578,6 +578,8 @@ describe("photo IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(photoIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "addPhotoRelay",
+      "beginUpload",
       "deleteMyData",
       "deletePhoto",
       "getListingPhotoDataBatch",
@@ -586,6 +588,8 @@ describe("photo IDL factory", () => {
       "getPhotosByProperty",
       "getPhotosByRoom",
       "getPublicListingPhotos",
+      "photoAccess",
+      "removePhotoRelay",
       "setPropertyCanisterId",
       "uploadPhoto",
     ]);

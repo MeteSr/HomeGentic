@@ -147,6 +147,12 @@ persistent actor Photo {
   /// written before that change are keyed by the bare sha256 (see dupOf).
   private let hashIndex   = Map.empty<Text, Text>();
   private let photoRateLimits = Map.empty<Text, (Nat, Int)>();
+  /// Photos whose bytes live in off-chain storage (the voice Worker's R2
+  /// bucket) instead of `data`, which stays empty for them. Created by
+  /// beginUpload; the Worker only accepts bytes that hash to `Photo.hash`.
+  private let offChainIds = Map.empty<Text, ()>();
+  /// Principals (the voice Worker) allowed to call photoAccess.
+  private var photoRelays : [Principal] = [];
 
   // Secondary indexes (photo ids by jobId / propertyId), rebuilt on every upgrade.
   private transient let photosByJob      = Index.build(photoStore, func(p) { ?p.jobId });
@@ -189,6 +195,7 @@ persistent actor Photo {
 
   private func deletePhotoRecord(p: Photo) {
     photoStore.remove(p.id);
+    offChainIds.remove(p.id);
     Index.remove(photosByJob, p.jobId, p.id);
     Index.remove(photosByProperty, p.propertyId, p.id);
     addUsage(p.owner, -1, -p.size);
@@ -355,41 +362,41 @@ persistent actor Photo {
 
   // ─── Core Functions ───────────────────────────────────────────────────────────
 
-  /// Upload a photo. Enforces duplicate (hash) and tier quota checks.
-  /// Tier is looked up from the admin-managed grant table — callers cannot
-  /// supply or spoof their own tier.
-  public shared(msg) func uploadPhoto(
+  /// Checks shared by uploadPhoto and beginUpload: input limits, rate limit,
+  /// duplicate, property write access and tier quotas. `size` is the byte
+  /// count of the photo being added. Returns the error to send, or null.
+  /// async* so it runs inline in the caller's message, as these checks did
+  /// before they were shared, instead of costing a self-call per upload.
+  private func admitUpload(
+    caller: Principal,
     jobId: Text,
     propertyId: Text,
-    phase: ConstructionPhase,
     description: Text,
     hash: Text,
-    data: Blob
-  ) : async Result.Result<PhotoMeta, Error> {
-    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-
-    if (Text.size(jobId) == 0)      return #err(#InvalidInput("jobId cannot be empty"));
-    if (Text.size(propertyId) == 0) return #err(#InvalidInput("propertyId cannot be empty"));
-    if (Text.size(hash) == 0)       return #err(#InvalidInput("hash cannot be empty"));
-    if (Text.size(hash) != 64)         return #err(#InvalidInput("hash must be a 64-character hex string (SHA-256)"));
-    if (data.size() == 0)           return #err(#InvalidInput("data cannot be empty"));
-    if (data.size() > MAX_PHOTO_BYTES)
-      return #err(#InvalidInput("photo exceeds " # MAX_PHOTO_BYTES.toText() # " bytes"));
+    size: Nat
+  ) : async* ?Error {
+    if (Text.size(jobId) == 0)      return ?#InvalidInput("jobId cannot be empty");
+    if (Text.size(propertyId) == 0) return ?#InvalidInput("propertyId cannot be empty");
+    if (Text.size(hash) == 0)       return ?#InvalidInput("hash cannot be empty");
+    if (Text.size(hash) != 64)         return ?#InvalidInput("hash must be a 64-character hex string (SHA-256)");
+    if (size == 0)                  return ?#InvalidInput("data cannot be empty");
+    if (size > MAX_PHOTO_BYTES)
+      return ?#InvalidInput("photo exceeds " # MAX_PHOTO_BYTES.toText() # " bytes");
     if (Text.size(description) > MAX_DESCRIPTION_CHARS)
-      return #err(#InvalidInput("description exceeds " # MAX_DESCRIPTION_CHARS.toText() # " characters"));
+      return ?#InvalidInput("description exceeds " # MAX_DESCRIPTION_CHARS.toText() # " characters");
     if (Text.size(jobId) > MAX_ID_CHARS or Text.size(propertyId) > MAX_ID_CHARS)
-      return #err(#InvalidInput("jobId/propertyId too long"));
+      return ?#InvalidInput("jobId/propertyId too long");
 
     // Per-minute rate limit: 10 uploads/min regardless of tier
-    if (not tryConsumePhotoSlot(msg.caller)) {
-      return #err(#InvalidInput(
+    if (not tryConsumePhotoSlot(caller)) {
+      return ?#InvalidInput(
         "Upload rate limit reached (10/minute). Please wait before uploading more photos."
-      ));
+      );
     };
 
     // Duplicate check — O(1) via hash index, scoped to the uploader (L-6)
-    switch (dupOf(msg.caller, hash)) {
-      case (?existingId) { return #err(#Duplicate(existingId)) };
+    switch (dupOf(caller, hash)) {
+      case (?existingId) { return ?#Duplicate(existingId) };
       case null          {};
     };
 
@@ -400,10 +407,10 @@ persistent actor Photo {
     let effectivePrincipal : Principal = if (propCanisterId != "") {
       let propActor = Canisters.property(propCanisterId);
       switch (await propActor.getPropertyOwner(propertyId)) {
-        case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
-        case null     { msg.caller };
+        case (?owner) { if (owner != caller) { owner } else { caller } };
+        case null     { caller };
       }
-    } else { msg.caller };
+    } else { caller };
     let callerTierRaw : SubscriptionTier = if (payCanisterId != "") {
       let payActor = Canisters.payment(payCanisterId);
       await payActor.getTierForPrincipal(effectivePrincipal)
@@ -422,62 +429,160 @@ persistent actor Photo {
     };
 
     // H-11: Verify caller is authorized for this property before storing the photo.
-    if (not isAdmin(msg.caller)) {
-      let authorized = await checkPropertyAuth(propertyId, effectivePrincipal, msg.caller, true);
-      if (not authorized) return #err(#NotAuthorized);
+    if (not isAdmin(caller)) {
+      let authorized = await checkPropertyAuth(propertyId, effectivePrincipal, caller, true);
+      if (not authorized) return ?#NotAuthorized;
     };
 
     if (quota.maxPerJob > 0 and countByJob(jobId) >= quota.maxPerJob) {
-      return #err(#QuotaExceeded(
+      return ?#QuotaExceeded(
         "Job photo limit (" # quota.maxPerJob.toText() # ") reached for your plan." # upgradeHint
-      ));
+      );
     };
 
     if (quota.maxPerProperty > 0 and countByProperty(propertyId) >= quota.maxPerProperty) {
-      return #err(#QuotaExceeded(
+      return ?#QuotaExceeded(
         "Property photo limit (" # quota.maxPerProperty.toText() # ") reached for your plan." # upgradeHint
-      ));
+      );
     };
 
     // M-5: per-uploader totals. Read after the awaits above, so concurrent
     // uploads from one principal can't all pass on a stale count.
-    if (not isAdmin(msg.caller)) {
+    if (not isAdmin(caller)) {
       let (maxCount, maxBytes) = ownerCapFor(callerTier);
-      let (usedCount, usedBytes) = usageOf(msg.caller);
-      if (usedCount >= maxCount or usedBytes + data.size() > maxBytes) {
-        return #err(#QuotaExceeded(
+      let (usedCount, usedBytes) = usageOf(caller);
+      if (usedCount >= maxCount or usedBytes + size > maxBytes) {
+        return ?#QuotaExceeded(
           "Account photo storage limit (" # maxCount.toText() # " photos / " #
           Nat.toText(maxBytes / 1_000_000) # " MB) reached for your plan." # upgradeHint
-        ));
+        );
       };
     };
 
     // Re-check the duplicate after the awaits (a concurrent upload of the
     // same image by this caller may have landed meanwhile).
-    switch (dupOf(msg.caller, hash)) {
-      case (?existingId) { return #err(#Duplicate(existingId)) };
+    switch (dupOf(caller, hash)) {
+      case (?existingId) { return ?#Duplicate(existingId) };
       case null          {};
     };
+    null
+  };
 
+  private func addPhoto(
+    caller: Principal,
+    jobId: Text,
+    propertyId: Text,
+    phase: ConstructionPhase,
+    description: Text,
+    hash: Text,
+    data: Blob,
+    size: Nat
+  ) : Photo {
     let id = nextPhotoId();
     let photo: Photo = {
       id;
       jobId;
       propertyId;
-      owner       = msg.caller;
+      owner       = caller;
       phase;
       description;
       hash;
       data;
-      size        = data.size();
+      size;
       verified    = false;
       approvals   = [];
       createdAt   = Time.now();
     };
-
     putPhoto(photo);
-    hashIndex.add(hashKey(msg.caller, hash), id);
+    hashIndex.add(hashKey(caller, hash), id);
+    photo
+  };
+
+  /// Upload a photo. Enforces duplicate (hash) and tier quota checks.
+  /// Tier is looked up from the admin-managed grant table — callers cannot
+  /// supply or spoof their own tier.
+  public shared(msg) func uploadPhoto(
+    jobId: Text,
+    propertyId: Text,
+    phase: ConstructionPhase,
+    description: Text,
+    hash: Text,
+    data: Blob
+  ) : async Result.Result<PhotoMeta, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (await* admitUpload(msg.caller, jobId, propertyId, description, hash, data.size())) {
+      case (?e) return #err(e);
+      case null {};
+    };
+    #ok(meta(addPhoto(msg.caller, jobId, propertyId, phase, description, hash, data, data.size())))
+  };
+
+  /// Register a photo whose bytes go to off-chain storage. Runs every
+  /// uploadPhoto check against `size`, creates the record with empty `data`,
+  /// and returns it; the client then sends the bytes to the voice Worker,
+  /// which stores them only if they are `size` bytes hashing to `hash`.
+  public shared(msg) func beginUpload(
+    jobId: Text,
+    propertyId: Text,
+    phase: ConstructionPhase,
+    description: Text,
+    hash: Text,
+    size: Nat
+  ) : async Result.Result<PhotoMeta, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (await* admitUpload(msg.caller, jobId, propertyId, description, hash, size)) {
+      case (?e) return #err(e);
+      case null {};
+    };
+    let photo = addPhoto(msg.caller, jobId, propertyId, phase, description, hash, "", size);
+    offChainIds.add(photo.id, ());
     #ok(meta(photo))
+  };
+
+  public type PhotoAccess = {
+    owner: Principal;
+    hash: Text;
+    size: Nat;
+    offChain: Bool;   // bytes live in off-chain storage, not in `data`
+    isPublic: Bool;   // FSBO listing photo: anyone may read it
+    canRead: Bool;    // `reader` may read it
+  };
+
+  /// For the voice Worker (a registered photo relay): what it needs to accept
+  /// an upload or serve a photo. Null when the photo doesn't exist, which
+  /// tells the Worker to drop any stored bytes for it, and for other callers.
+  /// A composite query so property access is checked live.
+  public composite query(msg) func photoAccess(photoId: Text, reader: Principal) : async ?PhotoAccess {
+    if (not Admin.contains(photoRelays, msg.caller) and not isAdmin(msg.caller)) return null;
+    switch (photoStore.get(photoId)) {
+      case null { null };
+      case (?p) {
+        let isPublic = isListingPhoto(p);
+        let canRead = if (isPublic or reader == p.owner or isAdmin(reader)) { true }
+          else if (reader.isAnonymous() or Text.size(propCanisterId) == 0) { false }
+          else {
+            let propActor = Canisters.property(propCanisterId);
+            try { await propActor.isAuthorized(p.propertyId, reader, false) } catch (_) { false }
+          };
+        ?{ owner = p.owner; hash = p.hash; size = p.size; offChain = offChainIds.containsKey(p.id); isPublic; canRead }
+      };
+    }
+  };
+
+  /// Register a principal (the voice Worker) that may call photoAccess.
+  public shared(msg) func addPhotoRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
+    photoRelays := Admin.add(photoRelays, p);
+    try { ignore await auditLog("PhotoRelayAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    #ok(())
+  };
+
+  public shared(msg) func removePhotoRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    photoRelays := Admin.remove(photoRelays, p);
+    try { ignore await auditLog("PhotoRelayRemoved", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    #ok(())
   };
 
   /// Fetch the full photo record (including raw bytes).
