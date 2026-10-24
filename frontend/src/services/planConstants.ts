@@ -31,7 +31,6 @@ export interface GiftMeta {
   recipientName:  string;
   senderName:     string;
   giftMessage:    string;
-  deliveryDate:   string;
 }
 
 export interface Plan {

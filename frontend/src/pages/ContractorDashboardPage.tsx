@@ -487,7 +487,7 @@ export default function ContractorDashboardPage() {
             const isHighlight = !!(stat as any).highlight;
             const hint        = (stat as any).hint as string | undefined;
             const bg    = isAccent ? UI.ink : isAlert ? V2_COLORS.attentionBg : isHighlight ? V2_COLORS.lblue : V2_COLORS.paper;
-            const color = isAccent ? V2_COLORS.muted : isAlert ? UI.rust : isHighlight ? UI.sage : UI.inkLight;
+            const color = isAccent ? "#9CA0AE" : isAlert ? UI.rust : isHighlight ? UI.sage : UI.inkLight;
             const valColor = isAccent ? V2_COLORS.paper : isAlert ? UI.rust : isHighlight ? UI.sage : UI.ink;
             return (
               <div key={stat.label} style={{ padding: "1.5rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, background: bg, position: "relative" }}>

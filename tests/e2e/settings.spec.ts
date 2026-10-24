@@ -68,4 +68,15 @@ test.describe("SettingsPage — /settings", () => {
     // "Save Privacy Settings" button is unique to the PrivacyTab content area
     await expect(page.getByRole("button", { name: /save privacy settings/i })).toBeVisible();
   });
+
+  test("Delete My Account needs the confirmation word before it can run", async ({ page }) => {
+    await page.getByRole("button", { name: /privacy/i }).click();
+    await page.getByRole("button", { name: /delete my account/i }).click();
+    const confirm = page.getByRole("button", { name: /permanently delete/i });
+    await expect(confirm).toBeDisabled();
+    await page.getByLabel(/type delete to confirm/i).fill("DELETE");
+    await expect(confirm).toBeEnabled();
+    await page.getByRole("button", { name: /keep my account/i }).click();
+    await expect(confirm).not.toBeVisible();
+  });
 });

@@ -44,7 +44,7 @@ export default function VerifyRepresentativePage() {
   return (
     <Layout>
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "32px 24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 32, alignItems: "start" }}>
+        <div className="rsp-grid-sidebar">
           {/* Main column */}
           <div>
             {/* Warning banner */}
@@ -131,14 +131,14 @@ export default function VerifyRepresentativePage() {
           {/* Right sidebar */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ background: V2_COLORS.ink, borderRadius: 12, padding: "20px 20px" }}>
-              <div style={{ fontSize: 10, fontFamily: V2_FONTS.mono, color: "#6B7280", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontFamily: V2_FONTS.mono, color: "#9CA0AE", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>
                 The Clock Pauses
               </div>
               <div style={{ fontSize: 16, fontFamily: V2_FONTS.display, fontWeight: 700, color: "#fff", marginBottom: 10 }}>
                 Review holds your place.
               </div>
               <p style={{ fontSize: 13, fontFamily: V2_FONTS.body, color: "#9CA3AF", lineHeight: 1.6, margin: 0 }}>
-                Once you send for review, the 72-hour window is paused. No other claimant can take the address while your review is in progress.
+                Send your documents within the 7-day window. Your claim stays open while HomeGentic reviews it, and the first owner verified at an address keeps it.
               </p>
             </div>
 

@@ -10,7 +10,7 @@ const C = {
   coral:  "#FF5C39",
   ink:    "#0B0D1A",
   paper:  "#FCFCFD",
-  muted:  "#6B7080",
+  muted:  "#62677A",
   border: "#EDEEF2",
   white:  "#FFFFFF",
   blueFg: "#F3F4FF",
@@ -36,7 +36,7 @@ const FAQS: FaqItem[] = [
     q: "What happens to my data after I cancel?",
     a: (
       <>
-        Your property records and maintenance history on the Internet Computer Protocol (ICP) blockchain remain readable and downloadable — they're yours forever. Tier-gated features (additional properties, extra photos, more quote slots) revert to Free limits. If you later resubscribe, your full history is waiting for you exactly as you left it.
+        Your property records and maintenance history stay in your account, and you can still export them from Settings → Privacy. Tier-gated features (additional properties, extra photos, more quote slots) revert to Free limits. If you later resubscribe, your full history is waiting for you exactly as you left it.
       </>
     ),
   },
@@ -72,7 +72,7 @@ const FAQS: FaqItem[] = [
     q: "How do I delete my account?",
     a: (
       <>
-        Email <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a> with the subject "Account Deletion Request". We'll remove your profile and application-layer data within 30 days. Note that records already written to the ICP blockchain cannot be fully erased from the protocol's history — see our <Link to="/privacy#icp-blockchain" style={{ color: C.blue }}>Privacy Policy</Link> for details.
+        Go to Settings → Privacy and choose Delete My Account (on the mobile app, Account → Delete account opens it). It stops your subscription from renewing and deletes your records straight away. You can also email <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a> and we'll do it for you within 30 days. Our <Link to="/privacy#data-retention" style={{ color: C.blue }}>Privacy Policy</Link> lists the billing records we keep.
       </>
     ),
   },

@@ -643,6 +643,53 @@ persistent actor Contractor {
     )
   };
 
+  // ─── Account Deletion ──────────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller —
+  /// their contractor profile, reviews about them, reviews they wrote and
+  /// their job credentials. Returns how many records were removed.
+  ///
+  /// Kept on purpose: the "reviewer|jobId" dedupe keys in `reviewKeys` and the
+  /// caller's daily window in `reviewRateLimits`. Dropping them would let a
+  /// reviewer delete their account and re-review the same job, or reset the
+  /// 10/day review limit. They hold only principal text + job id, no content.
+  /// Credentials where the caller was only the homeowner belong to the
+  /// contractor who earned them and are kept.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+    var removed = 0;
+
+    // Reviews about the caller and reviews written by the caller.
+    let reviewIds = reviews.values()
+      .filter(func(r) { r.contractor == caller or r.reviewer == caller })
+      .map(func(r) { r.id })
+      .toArray();
+    for (id in reviewIds.values()) {
+      switch (reviews.get(id)) {
+        case (?r) {
+          Index.remove(reviewsByContractor, r.contractor.toText(), id);
+          reviews.remove(id);
+          removed += 1;
+        };
+        case null {};
+      };
+    };
+
+    // Job credentials minted for the caller as contractor.
+    let credIds = credentials.values()
+      .filter(func(c) { c.contractorId == caller })
+      .map(func(c) { c.id })
+      .toArray();
+    for (id in credIds.values()) { credentials.remove(id); removed += 1 };
+
+    // Profile.
+    if (contractors.get(caller) != null) { contractors.remove(caller); removed += 1 };
+
+    #ok(removed)
+  };
+
   // ─── Admin Functions ───────────────────────────────────────────────────────────
 
   /// Wire the contractor canister to the job canister so recordJobVerified()

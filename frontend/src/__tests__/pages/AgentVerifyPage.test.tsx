@@ -2,8 +2,8 @@
  * AgentVerifyPage — real logic worth locking down:
  *   - registration form transforms the comma-separated cities into a
  *     trimmed, lowercased, filtered array before calling agentService.register
- *   - step-card "passed" states derive from real profile fields
- *   - finish-setup marks the card on file and navigates to the listings feed
+ *   - step-card "passed" states derive from isVerified (admin review) and cardOnFile
+ *   - accepting fee terms records it and navigates to the listings feed
  */
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -92,17 +92,36 @@ describe("AgentVerifyPage — registration form", () => {
 });
 
 describe("AgentVerifyPage — verification steps", () => {
-  it("marks license and brokerage steps passed but card step in-progress", async () => {
-    mockGetMyProfile.mockResolvedValue(makeProfile({ licenseNumber: "FL999", brokerage: "XYZ Realty", cardOnFile: false }));
+  it("leaves every step in progress until HomeGentic reviews the agent and fee terms are accepted", async () => {
+    mockGetMyProfile.mockResolvedValue(makeProfile({ isVerified: false, cardOnFile: false }));
+    renderPage();
+
+    await waitFor(() => expect(screen.getAllByText("IN PROGRESS").length).toBe(3));
+    expect(screen.queryByText("PASSED")).not.toBeInTheDocument();
+    expect(screen.getByText("Selection fee")).toBeInTheDocument();
+    expect(screen.getByText("Accept fee terms and see listings")).toBeInTheDocument();
+  });
+
+  it("marks licence and brokerage passed once the admin review sets isVerified", async () => {
+    mockGetMyProfile.mockResolvedValue(makeProfile({ isVerified: true, cardOnFile: false }));
     renderPage();
 
     await waitFor(() => expect(screen.getAllByText("PASSED").length).toBe(2));
     expect(screen.getByText("IN PROGRESS")).toBeInTheDocument();
-    expect(screen.getByText("Finish and see listings")).toBeInTheDocument();
+    expect(screen.getByText("Accept fee terms and see listings")).toBeInTheDocument();
   });
 
-  it("shows all steps passed and a Browse listings link once the card is on file", async () => {
-    mockGetMyProfile.mockResolvedValue(makeProfile({ cardOnFile: true }));
+  it("shows Awaiting review after fee terms are accepted but before admin review", async () => {
+    mockGetMyProfile.mockResolvedValue(makeProfile({ isVerified: false, cardOnFile: true }));
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText("Awaiting review")).toBeInTheDocument());
+    expect(screen.getAllByText("PASSED").length).toBe(1);
+    expect(screen.getByText("Browse listings →")).toBeInTheDocument();
+  });
+
+  it("shows all steps passed and Verified once reviewed and fee terms accepted", async () => {
+    mockGetMyProfile.mockResolvedValue(makeProfile({ isVerified: true, cardOnFile: true }));
     renderPage();
 
     await waitFor(() => expect(screen.getAllByText("PASSED").length).toBe(3));
@@ -111,28 +130,28 @@ describe("AgentVerifyPage — verification steps", () => {
   });
 });
 
-describe("AgentVerifyPage — finish setup", () => {
-  it("marks the card on file and navigates to the listings feed", async () => {
+describe("AgentVerifyPage — accept fee terms", () => {
+  it("records fee-terms acceptance and navigates to the listings feed", async () => {
     mockGetMyProfile.mockResolvedValue(makeProfile({ cardOnFile: false }));
     mockSetCardOnFile.mockResolvedValue(undefined);
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("Finish and see listings")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Finish and see listings"));
+    await waitFor(() => expect(screen.getByText("Accept fee terms and see listings")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Accept fee terms and see listings"));
 
     await waitFor(() => expect(mockSetCardOnFile).toHaveBeenCalledWith(true));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/agents/browse"));
   });
 
-  it("shows an error toast when finishing setup fails", async () => {
+  it("shows an error toast when accepting fee terms fails", async () => {
     mockGetMyProfile.mockResolvedValue(makeProfile({ cardOnFile: false }));
-    mockSetCardOnFile.mockRejectedValue(new Error("Card declined"));
+    mockSetCardOnFile.mockRejectedValue(new Error("Network down"));
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("Finish and see listings")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Finish and see listings"));
+    await waitFor(() => expect(screen.getByText("Accept fee terms and see listings")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Accept fee terms and see listings"));
 
-    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("Card declined"));
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("Network down"));
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

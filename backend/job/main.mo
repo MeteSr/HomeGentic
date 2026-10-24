@@ -1583,6 +1583,39 @@ persistent actor Job {
     #ok(())
   };
 
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Deletes every job whose homeowner is the caller, plus the invite tokens,
+  /// contractor attestations and push-outbox events tied to those jobs, and
+  /// any queued push addressed to the caller. Jobs where the caller is only
+  /// the linked contractor belong to the homeowner's record and are kept.
+  /// Returns how many jobs were removed. Synchronous, so nothing interleaves.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+
+    let ids = Index.ids(jobsByHomeowner, msg.caller.toText()).toArray();
+    let idSet = Map.empty<Text, ()>();
+    for (id in ids.values()) {
+      Index.delete(jobs, jobIndexes, id);
+      contractorAttest.remove(id);
+      idSet.add(id, ());
+    };
+
+    let tokens = inviteTokens.entries()
+      .filter(func((_, t)) = idSet.containsKey(t.jobId))
+      .map(func((k, _)) = k)
+      .toArray();
+    for (k in tokens.values()) { inviteTokens.remove(k) };
+
+    let events = notifyLog.entries()
+      .filter(func((_, e)) = idSet.containsKey(e.refId) or e.recipient == ?msg.caller)
+      .map(func((seq, _)) = seq)
+      .toArray();
+    for (seq in events.values()) { notifyLog.remove(seq) };
+
+    #ok(ids.size())
+  };
+
   /// Returns all jobs that were sourced via a HomeGentic quote request.
   /// H-17: Admin-only — this view exposes quote IDs and referral attribution.
   public shared(msg) func getReferralJobs() : async Result.Result<[Job], Error> {

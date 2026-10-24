@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { V2_COLORS, V2_FONTS } from "@/theme";
+import { BUTTON_RESET, V2_COLORS, V2_FONTS } from "@/theme";
 import { useAddPropertyStore } from "@/store/addPropertyStore";
 
 interface Property {
@@ -51,7 +51,7 @@ export function PropertyAddressBar({ activeProperty, properties, onSelect, certB
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
       {/* Pill */}
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, border: `1.5px solid ${V2_COLORS.border}`, borderRadius: 100, padding: "6px 14px 6px 10px", background: "#fff", cursor: "pointer" }} onClick={() => setOpen(o => !o)}>
+      <button type="button" style={{ ...BUTTON_RESET, display: "inline-flex", alignItems: "center", gap: 8, border: `1.5px solid ${V2_COLORS.border}`, borderRadius: 100, padding: "6px 14px 6px 10px", background: "#fff", cursor: "pointer" }} onClick={() => setOpen(o => !o)} aria-haspopup="true" aria-expanded={open}>
         <span style={{ fontSize: 13 }}>🏠</span>
         <span style={{ fontFamily: V2_FONTS.mono, fontSize: 11, fontWeight: 600, color: V2_COLORS.ink, letterSpacing: "0.06em" }}>
           {addressLabel}
@@ -63,7 +63,7 @@ export function PropertyAddressBar({ activeProperty, properties, onSelect, certB
         <svg width="10" height="10" viewBox="0 0 10 10" style={{ color: V2_COLORS.blue, transform: open ? "rotate(180deg)" : undefined, transition: "transform 0.15s" }}>
           <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-      </div>
+      </button>
 
       {certBadge && (
         <span style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4, fontFamily: V2_FONTS.mono, fontSize: 10, fontWeight: 700, color: "#16A34A", letterSpacing: "0.08em", border: "1.5px solid #BBF7D0", borderRadius: 100, padding: "4px 10px", background: "#F0FDF4" }}>
@@ -88,12 +88,12 @@ export function PropertyAddressBar({ activeProperty, properties, onSelect, certB
             const typeLabel  = prop.type ?? (i === 0 ? "Primary residence" : "Property");
             const yearLabel  = prop.yearBuilt ? `built ${prop.yearBuilt}` : "";
             return (
-              <div
+              <button type="button"
                 key={String(prop.id)}
                 onClick={() => { onSelect(String(prop.id)); setOpen(false); }}
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", cursor: "pointer", background: isActive ? V2_COLORS.lblue : "transparent", borderBottom: `1px solid ${V2_COLORS.border}`, transition: "background 0.1s" }}
-                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = V2_COLORS.lblue; }}
-                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+                style={{ ...BUTTON_RESET, width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", cursor: "pointer", background: isActive ? V2_COLORS.lblue : "transparent", borderBottom: `1px solid ${V2_COLORS.border}`, transition: "background 0.1s" }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = V2_COLORS.lblue; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
               >
                 <div style={{ width: 32, height: 32, borderRadius: "50%", background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <span style={{ fontFamily: V2_FONTS.mono, fontSize: 13, fontWeight: 700, color: fg }}>{getInitial(prop.address)}</span>
@@ -109,16 +109,16 @@ export function PropertyAddressBar({ activeProperty, properties, onSelect, certB
                     <path d="M3 8l4 4 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 )}
-              </div>
+              </button>
             );
           })}
 
           {/* Add property footer */}
-          <div
+          <button type="button"
             onClick={() => { setOpen(false); openAddProp(); }}
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", background: "transparent" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = V2_COLORS.lblue; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+            style={{ ...BUTTON_RESET, width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", background: "transparent" }}
+            onMouseEnter={e => { e.currentTarget.style.background = V2_COLORS.lblue; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 32, height: 32, borderRadius: "50%", border: `1.5px dashed ${V2_COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -127,7 +127,7 @@ export function PropertyAddressBar({ activeProperty, properties, onSelect, certB
               <span style={{ fontFamily: V2_FONTS.body, fontSize: 14, fontWeight: 500, color: V2_COLORS.ink }}>Add property</span>
             </div>
             <span style={{ fontFamily: V2_FONTS.mono, fontSize: 10, color: V2_COLORS.muted }}>{properties.length} USED</span>
-          </div>
+          </button>
         </div>
       )}
     </div>

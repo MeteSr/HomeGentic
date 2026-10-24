@@ -29,6 +29,7 @@ export const idlFactory = ({ IDL }: any) => {
     InvalidInput:  IDL.Text,
   });
   return IDL.Service({
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     uploadPhoto: IDL.Func(
       [IDL.Text, IDL.Text, ConstructionPhase, IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8)],
       [IDL.Variant({ ok: Photo, err: Error })],

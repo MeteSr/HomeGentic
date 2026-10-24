@@ -18,7 +18,7 @@ const M = {
   cardBdr:  "#E6E7EE",
   cardShadow: "0 2px 12px rgba(11,13,26,0.06)",
   ink:      "#0B0D1A",
-  muted:    "#6B7080",
+  muted:    "#62677A",
   blue:     "#2B34FF",
   blueLight: "#E0E2FF",
   blueBdr:  "#B9BDF5",
@@ -234,8 +234,11 @@ export function MobileHomeDashboard() {
           </div>
 
           {/* Property name + picker */}
+          <h1 style={{ margin: 0 }}>
           <button
             onClick={() => setPropPickerOpen(v => !v)}
+            aria-haspopup="true"
+            aria-expanded={propPickerOpen}
             style={{
               display: "flex", alignItems: "center", gap: 8, marginTop: 9,
               background: "none", border: "none", cursor: "pointer", padding: 0,
@@ -246,6 +249,7 @@ export function MobileHomeDashboard() {
             </span>
             <ChevronDown size={18} color={M.muted} strokeWidth={2.4} style={{ flexShrink: 0 }} />
           </button>
+          </h1>
           <div style={{ fontFamily: F.mono, fontSize: 11.5, color: M.muted, marginTop: 7, lineHeight: 1.4 }}>
             {activeProperty ? `${activeProperty.city}, ${activeProperty.state}` : ""}
           </div>

@@ -96,9 +96,7 @@ const PLAN_META: Record<string, { label: string; monthly: number; yearly: number
       "20 properties",
       "30 photos per job",
       "Unlimited quote requests",
-      "All services included",
-      "Contractor marketplace access",
-      "Verified badge",
+      "Voice assistant with 10 agent calls a day",
     ],
   },
   ContractorPro: {
@@ -108,7 +106,6 @@ const PLAN_META: Record<string, { label: string; monthly: number; yearly: number
     features: [
       "Unlimited properties",
       "50 photos per job",
-      "Verified contractor badge",
       "Lead generation tools",
       "Business analytics",
     ],
@@ -121,11 +118,10 @@ interface PaymentFormProps {
   tier: string;
   billing: string;
   subscriptionId: string;
-  couponCode: string;
   onError: (msg: string) => void;
 }
 
-function PaymentForm({ tier, billing, subscriptionId, couponCode, onError }: PaymentFormProps) {
+function PaymentForm({ tier, billing, subscriptionId, onError }: PaymentFormProps) {
   const stripe   = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
@@ -136,8 +132,7 @@ function PaymentForm({ tier, billing, subscriptionId, couponCode, onError }: Pay
     if (!stripe || !elements) return;
     setSubmitting(true);
 
-    const couponParam = couponCode.trim() ? `&quorum_coupon=${encodeURIComponent(couponCode.trim())}` : "";
-    const successUrl = `/payment-success?subscription_id=${subscriptionId}&tier=${encodeURIComponent(tier)}&billing=${encodeURIComponent(billing)}${couponParam}`;
+    const successUrl = `/payment-success?subscription_id=${subscriptionId}&tier=${encodeURIComponent(tier)}&billing=${encodeURIComponent(billing)}`;
 
     try {
       const { error, paymentIntent } = await stripe.confirmPayment({
@@ -279,11 +274,10 @@ const ICP_STEP_LABEL: Record<IcpStep, string> = {
 interface IcpPayButtonProps {
   tier:       string;
   billing:    string;
-  couponCode: string;
   onError:    (msg: string) => void;
 }
 
-function IcpPayButton({ tier, billing, couponCode, onError }: IcpPayButtonProps) {
+function IcpPayButton({ tier, billing, onError }: IcpPayButtonProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<IcpStep | null>(null);
 
@@ -294,8 +288,7 @@ function IcpPayButton({ tier, billing, couponCode, onError }: IcpPayButtonProps)
       } else {
         await paymentService.subscribe(tier as PlanTier, (s) => setStep(s as IcpStep));
       }
-      const couponParam = couponCode.trim() ? `&quorum_coupon=${encodeURIComponent(couponCode.trim())}` : "";
-      navigate(`/payment-success?tier=${encodeURIComponent(tier)}&billing=${encodeURIComponent(billing)}&type=subscription${couponParam}`);
+      navigate(`/payment-success?tier=${encodeURIComponent(tier)}&billing=${encodeURIComponent(billing)}&type=subscription`);
     } catch (err: any) {
       onError(icpUserMessage(err));
     } finally {
@@ -352,7 +345,6 @@ export default function CheckoutPage() {
   const [subscriptionId, setSubscriptionId] = useState<string>("");
   const [loadError,      setLoadError]      = useState<string | null>(null);
   const [payError,       setPayError]       = useState<string | null>(null);
-  const [couponCode,     setCouponCode]     = useState(searchParams.get("quorum_coupon") ?? "");
 
   const price = plan
     ? billing === "Yearly" ? `$${plan.yearly}/yr` : `$${plan.monthly}/mo`
@@ -458,7 +450,7 @@ export default function CheckoutPage() {
             <div style={{ marginBottom: "32px" }}>
               <span style={{
                 fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.5rem",
-                color: V2_COLORS.blue,
+                color: "#8C93FF", // light cobalt: plain cobalt is 2.8:1 on this ink panel
               }}>
                 {price}
               </span>
@@ -508,7 +500,7 @@ export default function CheckoutPage() {
                 <div key={t} style={{
                   display: "flex", alignItems: "center", gap: "8px",
                   fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.06em",
-                  color: "rgba(252,252,253,0.4)", textTransform: "uppercase",
+                  color: "rgba(252,252,253,0.65)", textTransform: "uppercase",
                 }}>
                   <span style={{ color: V2_COLORS.blue, fontSize: "0.5rem" }}>✦</span>
                   {t}
@@ -544,7 +536,7 @@ export default function CheckoutPage() {
                       textTransform: "uppercase", letterSpacing: "0.08em",
                       color: V2_COLORS.blue, margin: 0,
                     }}>
-                      Identity verified
+                      Signed in
                     </p>
                     {profile?.email && (
                       <p style={{
@@ -593,40 +585,20 @@ export default function CheckoutPage() {
                   Payment details
                 </p>
 
-                {/* Quorum member coupon */}
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={{
-                    display: "block", fontFamily: V2_FONTS.body, fontSize: "0.6rem", fontWeight: 700,
-                    textTransform: "uppercase", letterSpacing: "0.08em",
-                    color: V2_COLORS.muted, marginBottom: "6px",
+                {price && (
+                  <p data-testid="renewal-terms" style={{
+                    fontFamily: V2_FONTS.body, fontSize: "0.8rem", color: V2_COLORS.muted,
+                    lineHeight: 1.6, margin: "0 0 16px",
                   }}>
-                    Quorum HOA member code (optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    placeholder="QUORUM-000000"
-                    style={{
-                      width: "100%", boxSizing: "border-box",
-                      padding: "10px 12px", border: `1px solid ${V2_COLORS.border}`,
-                      borderRadius: V2_RADIUS.input, fontFamily: V2_FONTS.mono,
-                      fontSize: "0.85rem", letterSpacing: "0.08em",
-                      color: V2_COLORS.ink, background: V2_COLORS.paper,
-                      outline: "none",
-                    }}
-                  />
-                  <p style={{
-                    fontFamily: V2_FONTS.body, fontSize: "0.7rem", color: V2_COLORS.muted,
-                    margin: "4px 0 0",
-                  }}>
-                    Quorum HOA members get 10% off. Enter your code from the Benefits page.
+                    {payMethod === "icp"
+                      ? `One-time ICP payment of ${price} for one ${billing === "Yearly" ? "year" : "month"}. It does not renew automatically.`
+                      : `Your plan renews automatically at ${price} until you cancel. Cancel any time in Settings → Subscription and you won't be charged again.`}
                   </p>
-                </div>
+                )}
 
                 {payMethod === "icp" ? (
                   <>
-                    <IcpPayButton tier={tier} billing={billing} couponCode={couponCode} onError={setPayError} />
+                    <IcpPayButton tier={tier} billing={billing} onError={setPayError} />
                     {payError && (
                       <div style={{
                         marginTop: "12px", padding: "12px 14px",
@@ -665,7 +637,6 @@ export default function CheckoutPage() {
                           tier={tier}
                           billing={billing}
                           subscriptionId={subscriptionId}
-                          couponCode={couponCode}
                           onError={setPayError}
                         />
                       </Elements>

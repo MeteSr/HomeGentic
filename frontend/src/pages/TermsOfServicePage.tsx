@@ -9,7 +9,7 @@ const C = {
   coral:  "#FF5C39",
   ink:    "#0B0D1A",
   paper:  "#FCFCFD",
-  muted:  "#6B7080",
+  muted:  "#62677A",
   border: "#EDEEF2",
   white:  "#FFFFFF",
   blueFg: "#F3F4FF",
@@ -97,7 +97,7 @@ const SECTIONS: Section[] = [
       <>
         <p>You retain ownership of property records, photos, job logs, and other content you upload to HomeGentic ("Your Content"). By uploading content, you grant HomeGentic a limited, non-exclusive license to store, display, and process Your Content solely to provide the service to you.</p>
         <p>You represent that you have the right to upload Your Content and that it does not violate any law or third-party rights. You are solely responsible for the accuracy of property records and maintenance histories you create.</p>
-        <p>Because Your Content is stored on the Internet Computer Protocol blockchain, it is replicated across decentralized nodes and cannot be fully erased from the protocol's history. See our <Link to="/privacy" style={{ color: C.blue }}>Privacy Policy</Link> for details.</p>
+        <p>Your Content is stored in HomeGentic's canisters on the Internet Computer. You can export it at any time, and deleting your account removes it, except for the records described in our <Link to="/privacy#data-retention" style={{ color: C.blue }}>Privacy Policy</Link>.</p>
       </>
     ),
   },

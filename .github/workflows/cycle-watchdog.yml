@@ -1,12 +1,16 @@
 name: Cycle Watchdog
 
-# Runs every 6 hours to check canister cycle balances and top up any that
-# are below the trigger threshold. Also runs on manual dispatch for ad-hoc checks.
-# Issue #55: Canister Cycle Top-Up Automation & Alerting
+# Every hour: checks that the app answers (frontend canister + voice Worker
+# /health), reads every canister's cycle balance, tops up the ones near their
+# freezing threshold, and emails OPS_ALERT_EMAIL when anything is wrong.
+# Thresholds live in scripts/lib/cycles.sh. Issue #55.
+#
+# Scheduled runs check mainnet (`ic`). Run it by hand with env=testnet to
+# rehearse against testnet; that run uses the testnet environment's secrets.
 
 on:
   schedule:
-    - cron: '0 */6 * * *'   # every 6 hours at :00
+    - cron: '17 * * * *'   # hourly, off the top of the hour
   workflow_dispatch:
     inputs:
       dry_run:
@@ -14,12 +18,12 @@ on:
         required: false
         default: false
         type: boolean
-      network:
-        description: 'Target network'
+      env:
+        description: 'Canister environment to check'
         required: false
         default: 'ic'
         type: choice
-        options: [ic, local]
+        options: [ic, testnet]
 
 permissions:
   contents: read
@@ -27,11 +31,17 @@ permissions:
 jobs:
   cycle-watchdog:
     runs-on: ubuntu-latest
-    environment: production
-    # Holds MAINNET_IDENTITY_PEM and runs the ref's own scripts/ — only ever
+    environment: ${{ inputs.env == 'testnet' && 'testnet' || 'production' }}
+    # Holds a controller identity and runs the ref's own scripts/ — only ever
     # from main (schedule runs use the default branch; a manual dispatch on
     # another branch is refused). Security audit finding 5.
     if: github.ref == 'refs/heads/main'
+    env:
+      ICP_ENV: ${{ inputs.env || 'ic' }}
+      # Job-level so the alert step's `if:` can see whether they are set
+      # (a step's own `env:` is not visible to its `if:`).
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      ALERT_EMAIL: ${{ vars.OPS_ALERT_EMAIL }}
 
     steps:
       - uses: actions/checkout@v7
@@ -41,14 +51,12 @@ jobs:
           node-version: '22'
 
       - name: Install icp-cli
-        # Pinned — this job later loads DFX_IDENTITY_PEM (MAINNET_IDENTITY_PEM)
-        # from secrets; an unpinned `npm install -g` here would let a compromised
-        # package release run with that mainnet identity in scope.
+        # Pinned — this job loads a controller identity; an unpinned
+        # `npm install -g` would let a compromised release run with it in scope.
         run: npm install -g @icp-sdk/icp-cli@1.7.0
 
-      # dfx is still required for `dfx canister status` (cycle balance parsing)
-      # and `dfx canister deposit-cycles` — icp-cli does not yet expose these
-      # subcommands. See deploy.sh:889 for the same note on update-settings.
+      # dfx is only used to move cycles from the cycles wallet into the
+      # identity's cycles ledger account (top-up-canisters.sh), as deploy.sh does.
       - name: Install dfx
         run: |
           mkdir -p /tmp/dfx-install
@@ -57,48 +65,71 @@ jobs:
           tar -xzf /tmp/dfx.tar.gz -C /tmp/dfx-install
           DFX_BIN=$(find /tmp/dfx-install -name "dfx" -type f -perm /111 | head -1)
           sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
-          dfx --version
 
-      - name: Set ICP identity from secret
-        # Use icp-cli for identity management (project standard — see deploy.sh).
-        # dfx reads from the same ~/.config/dfx/identity/ store, so canister ops
-        # in check-cycle-health.sh and top-up-canisters.sh will use this identity.
+      - name: Load the controller identity
+        # icp-cli and dfx keep separate identity stores, so the PEM is imported
+        # into both. (Importing only into icp-cli left dfx on a fresh identity
+        # that controls nothing, and every balance read "unknown".)
         run: |
           IDENTITY_FILE=$(mktemp /tmp/icp-identity-XXXXXX.pem)
-          printf '%s' "$DFX_IDENTITY_PEM" > "$IDENTITY_FILE"
+          trap 'rm -f "$IDENTITY_FILE"' EXIT
+          printf '%s' "$IDENTITY_PEM" > "$IDENTITY_FILE"
           icp identity import ci-watchdog --from-pem "$IDENTITY_FILE" --storage plaintext
           icp identity default ci-watchdog
-          # Also set dfx active identity in case the two CLIs use separate stores.
-          dfx identity use ci-watchdog 2>/dev/null || true
-          rm -f "$IDENTITY_FILE"
+          dfx identity import --storage-mode=plaintext ci-watchdog "$IDENTITY_FILE"
+          dfx identity use ci-watchdog
+          if [ -n "$WALLET_ID" ]; then dfx identity set-wallet "$WALLET_ID" --network ic; fi
+          echo "Identity: $(icp identity principal)"
         env:
-          DFX_IDENTITY_PEM: ${{ secrets.MAINNET_IDENTITY_PEM }}
+          IDENTITY_PEM: ${{ inputs.env == 'testnet' && secrets.DFX_IDENTITY_PEM || secrets.MAINNET_IDENTITY_PEM }}
+          WALLET_ID: ${{ inputs.env == 'testnet' && secrets.DFX_WALLET_ID || secrets.MAINNET_WALLET_ID }}
 
-      - name: Run cycle health check
-        id: health
-        run: |
-          bash scripts/check-cycle-health.sh 2>&1 | tee cycle-health.log
-          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
-        env:
-          DFX_NETWORK: ${{ inputs.network || 'ic' }}
-          CRITICAL_CYCLES: '500000000'
-          WARNING_CYCLES:  '1000000000000'
+      - name: Check the app answers
+        id: uptime
         continue-on-error: true
+        run: |
+          set -uo pipefail
+          FAILED=0
+          FRONTEND_ID=$(python3 -c "import json; print(json.load(open('canister_ids.json')).get('frontend',{}).get('$ICP_ENV',''))")
+          if [ -n "$FRONTEND_ID" ]; then
+            URL="https://$FRONTEND_ID.icp0.io/"
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$URL" || echo 000)
+            echo "Frontend $URL → $CODE"
+            [ "$CODE" = "200" ] || FAILED=1
+          else
+            echo "No frontend ID for $ICP_ENV — skipping"
+          fi
+          if [ -n "$VOICE_URL" ]; then
+            BODY=$(curl -s --max-time 30 -w '\n%{http_code}' "${VOICE_URL%/}/health" || echo 000)
+            CODE=$(printf '%s' "$BODY" | tail -1)
+            echo "Voice Worker /health → $CODE $(printf '%s' "$BODY" | head -1)"
+            [ "$CODE" = "200" ] || FAILED=1
+          else
+            echo "VITE_VOICE_AGENT_URL not set — skipping the Worker check"
+          fi
+          exit "$FAILED"
+        env:
+          VOICE_URL: ${{ secrets.VITE_VOICE_AGENT_URL }}
+
+      - name: Check cycle balances
+        id: health
+        continue-on-error: true
+        run: |
+          set -o pipefail   # without it, tee's exit status hides a failed check
+          bash scripts/check-cycle-health.sh 2>&1 | tee cycle-health.log
 
       - name: Top up low canisters
-        if: ${{ inputs.dry_run != 'true' }}
+        id: topup
+        continue-on-error: true
         run: |
+          set -o pipefail
           DRY_FLAG=""
           if [ "${{ inputs.dry_run }}" = "true" ]; then DRY_FLAG="--dry-run"; fi
           bash scripts/top-up-canisters.sh $DRY_FLAG 2>&1 | tee top-up.log
         env:
-          DFX_NETWORK:         ${{ inputs.network || 'ic' }}
-          TOP_UP_TRIGGER_T:    '2'
-          TOP_UP_TARGET_T:     '5'
-          WARNING_MULTIPLIER:  '2'
-          MONITORING_CANISTER: ${{ vars.MONITORING_CANISTER_ID || 'monitoring' }}
+          DFX_WALLET_ID: ${{ inputs.env == 'testnet' && secrets.DFX_WALLET_ID || secrets.MAINNET_WALLET_ID }}
 
-      - name: Upload cycle health report
+      - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -111,36 +142,38 @@ jobs:
       - name: Post summary
         if: always()
         run: |
-          echo "## Cycle Watchdog Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat cycle-health.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Cycle Watchdog ($ICP_ENV)"
+            echo "Uptime: ${{ steps.uptime.outcome }} · Cycles: ${{ steps.health.outcome }} · Top-up: ${{ steps.topup.outcome }}"
+            echo '```'
+            cat cycle-health.log 2>/dev/null || true
+            cat top-up.log 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Email alert on critical cycles
-        if: ${{ steps.health.outputs.exit_code != '0' && env.RESEND_API_KEY != '' }}
+      - name: Email alert
+        if: >-
+          (steps.uptime.outcome == 'failure' || steps.health.outcome == 'failure' || steps.topup.outcome == 'failure') &&
+          env.RESEND_API_KEY != '' && env.ALERT_EMAIL != ''
         env:
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          RESEND_FROM:    ${{ vars.RESEND_FROM_ADDRESS || 'noreply@homegentic.app' }}
-          ALERT_EMAIL:    ${{ vars.OPS_ALERT_EMAIL }}
+          RESEND_FROM: ${{ vars.RESEND_FROM_ADDRESS || 'noreply@homegentic.app' }}
         run: |
-          if [ -z "$ALERT_EMAIL" ]; then
-            echo "OPS_ALERT_EMAIL not set — skipping email alert"
-            exit 0
-          fi
-          SUMMARY=$(cat cycle-health.log 2>/dev/null | tail -20 || echo "See workflow logs")
-          curl -s -X POST https://api.resend.com/emails \
+          SUMMARY=$( (cat cycle-health.log top-up.log 2>/dev/null || true) | tail -40)
+          BODY=$(printf 'HomeGentic watchdog (%s) found a problem.\n\nUptime: %s\nCycles: %s\nTop-up: %s\n\n%s\n\nRun: %s/%s/actions/runs/%s\n' \
+            "$ICP_ENV" "${{ steps.uptime.outcome }}" "${{ steps.health.outcome }}" "${{ steps.topup.outcome }}" \
+            "$SUMMARY" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+          curl -sf -X POST https://api.resend.com/emails \
             -H "Authorization: Bearer $RESEND_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg from    "$RESEND_FROM" \
-              --arg to      "$ALERT_EMAIL" \
-              --arg subject "🔴 HomeGentic: Critical canister cycle balance detected" \
-              --arg body    "Critical cycle alert fired in CI cycle-watchdog run $GITHUB_RUN_ID.\n\n$SUMMARY\n\nRun: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-              '{from: $from, to: [$to], subject: $subject, text: $body}')"
+            -d "$(jq -n --arg from "$RESEND_FROM" --arg to "$ALERT_EMAIL" \
+                  --arg subject "🔴 HomeGentic ($ICP_ENV): watchdog alert" --arg body "$BODY" \
+                  '{from: $from, to: [$to], subject: $subject, text: $body}')"
           echo "Alert email sent to $ALERT_EMAIL"
 
-      - name: Fail if critical canisters found
-        if: ${{ steps.health.outputs.exit_code != '0' }}
+      - name: Fail the run when anything is wrong
+        # A failed scheduled run also shows up in GitHub's own notifications,
+        # which is the fallback when OPS_ALERT_EMAIL or RESEND_API_KEY is unset.
+        if: steps.uptime.outcome == 'failure' || steps.health.outcome == 'failure' || steps.topup.outcome == 'failure'
         run: |
-          echo "❌ Critical cycle balance detected — see cycle-health.log"
+          echo "::error::Watchdog: uptime=${{ steps.uptime.outcome }} cycles=${{ steps.health.outcome }} top-up=${{ steps.topup.outcome }}"
           exit 1

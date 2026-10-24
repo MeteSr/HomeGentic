@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import toast from "react-hot-toast";
 import { quoteService, type Quote, type QuoteRequest } from "@/services/quote";
-import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { BUTTON_RESET, V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 interface AwardBidModalProps {
   open:       boolean;
@@ -70,7 +70,7 @@ export function AwardBidModal({ open, requestId, onClose, onAwarded }: AwardBidM
           {quotes.filter((q) => q.status === "pending").map((q) => {
             const on = picked === q.id;
             return (
-              <div key={q.id} onClick={() => setPicked(q.id)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "0.9rem 1rem", borderRadius: "0.9rem", border: `1.5px solid ${on ? V2_COLORS.blue : V2_COLORS.border}`, background: on ? V2_COLORS.lblue : "transparent", cursor: "pointer" }}>
+              <button type="button" key={q.id} aria-pressed={on} onClick={() => setPicked(q.id)} style={{ ...BUTTON_RESET, width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "0.9rem 1rem", borderRadius: "0.9rem", border: `1.5px solid ${on ? V2_COLORS.blue : V2_COLORS.border}`, background: on ? V2_COLORS.lblue : "transparent", cursor: "pointer" }}>
                 <div>
                   <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.9rem", fontWeight: 700, color: V2_COLORS.ink }}>Bid #{q.id.slice(0, 8)}</div>
                   <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.7rem", color: V2_COLORS.muted, marginTop: 2 }}>
@@ -80,7 +80,7 @@ export function AwardBidModal({ open, requestId, onClose, onAwarded }: AwardBidM
                 <div style={{ fontFamily: V2_FONTS.body, fontSize: "1rem", fontWeight: 700, color: V2_COLORS.ink }}>
                   ${(q.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

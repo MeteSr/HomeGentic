@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useAuthStore } from "@/store/authStore";
 
 // ─── Tokens ────────────────────────────────────────────────────────────────────
@@ -11,7 +12,7 @@ const C = {
   coral:     "#FF5C39",
   ink:       "#0B0D1A",
   paper:     "#FCFCFD",
-  muted:     "#6B7080",
+  muted:     "#62677A",
   border:    "#EDEEF2",
   white:     "#FFFFFF",
   blueFg:    "#F3F4FF",
@@ -108,19 +109,20 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const role = searchParams.get("role") ?? "";
   const ctx = ROLE_CONTEXT[role];
+  const { isMobile } = useBreakpoint();
 
   return (
     <div style={{ minHeight: "100vh", background: C.paper, fontFamily: F.body, display: "flex", flexDirection: "column" }}>
 
       {/* ── Full-viewport split ── */}
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: "100vh" }}>
+      <div style={{ flex: 1, display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "1fr 1fr", minHeight: "100vh" }}>
 
         {/* ── Left: blue hero panel ── */}
         <div style={{
           background: C.blue,
           display: "flex",
           flexDirection: "column",
-          padding: "3.5rem 3rem",
+          padding: isMobile ? "2rem 1.5rem" : "3.5rem 3rem",
           overflow: "hidden",
         }}>
           <Link to="/" style={{ display: "flex", alignItems: "center", textDecoration: "none", marginBottom: "4rem" }}>
@@ -177,13 +179,14 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* ── Right: card panel ── */}
+        {/* ── Right: card panel (first on phones, so sign-in isn't below the hero) ── */}
         <div style={{
+          order: isMobile ? -1 : 0,
           background: C.paper,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "3rem 2.5rem",
+          padding: isMobile ? "2rem 1.5rem" : "3rem 2.5rem",
         }}>
           <div style={{ width: "100%", maxWidth: "460px" }}>
             <div style={{
@@ -275,12 +278,12 @@ export default function LoginPage() {
       </div>
 
       {/* ── Trust section ── */}
-      <div style={{ background: C.ink, padding: "4rem 3rem" }}>
+      <div style={{ background: C.ink, padding: isMobile ? "3rem 1.5rem" : "4rem 3rem" }}>
         <h3 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "1.75rem", color: C.white, textAlign: "center", marginBottom: "2.5rem" }}>
           Your trust is our foundation
         </h3>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem", maxWidth: "900px", margin: "0 auto 2.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "repeat(3, 1fr)", gap: "1.5rem", maxWidth: "900px", margin: "0 auto 2.5rem" }}>
           {[
             { kicker: "INFRASTRUCTURE", title: "Built on ICP",        sub: "Decentralized. Scalable. Unstoppable." },
             { kicker: "OWNERSHIP",      title: "Your Data, Yours",     sub: "You own your data. Always." },
@@ -318,14 +321,7 @@ export default function LoginPage() {
             <IcpLogoIcon size={28} />
             <div>
               <div style={{ color: C.white, fontWeight: 600, fontSize: "0.9375rem" }}>Built on the Internet Computer Protocol (ICP)</div>
-              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.8125rem" }}>Your data is yours. Permanently stored. Tamper-proof. Future-proof.</div>
-            </div>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ color: C.white, fontWeight: 600, fontSize: "0.9375rem" }}>Quorum HOA members save 10%</div>
-            <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.8125rem" }}>
-              Use code:{" "}
-              <span style={{ color: C.yellow, fontWeight: 700, letterSpacing: "0.05em" }}>QUORUM10</span>
+              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.8125rem" }}>Your records are yours, and you can export them at any time.</div>
             </div>
           </div>
           <button

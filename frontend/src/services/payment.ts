@@ -127,6 +127,16 @@ export const paymentService = {
   },
 
   async cancel(): Promise<{ expiresAt: number | null }> {
+    // Stop Stripe from renewing first (the Worker sets cancel_at_period_end on
+    // the caller's subscriptions); only then mark the canister record, so a
+    // failure here never shows "cancelled" while the card keeps being charged.
+    const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/cancel-subscription`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      throw new Error(data.error ?? "Could not cancel the subscription");
+    }
     const a = await getActor();
     const result = await a.cancelSubscription();
     if ("err" in result) {
@@ -160,27 +170,6 @@ export const paymentService = {
     const raw = localStorage.getItem("homegentic_cancelled_at");
     if (!raw) return null;
     return { cancelledAt: Number(raw) };
-  },
-
-  pause(months: 1 | 2 | 3): void {
-    const resumeAt = Date.now() + months * 30 * 24 * 60 * 60 * 1000;
-    localStorage.setItem("homegentic_sub_paused_until", String(resumeAt));
-  },
-
-  resume(): void {
-    localStorage.removeItem("homegentic_sub_paused_until");
-  },
-
-  getPauseState(): { pausedUntil: number; daysLeft: number } | null {
-    const raw = localStorage.getItem("homegentic_sub_paused_until");
-    if (!raw) return null;
-    const pausedUntil = Number(raw);
-    if (Date.now() >= pausedUntil) {
-      localStorage.removeItem("homegentic_sub_paused_until");
-      return null;
-    }
-    const daysLeft = Math.ceil((pausedUntil - Date.now()) / (24 * 60 * 60 * 1000));
-    return { pausedUntil, daysLeft };
   },
 
   async hasPaidFor(_feature: string): Promise<boolean> {

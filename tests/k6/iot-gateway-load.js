@@ -6,13 +6,22 @@
  *   polling_steady  — 10 VU constant for 10 min             (Ecobee-style background polling)
  *   spike           — 0→500 VU in 10 s, hold 30 s          (worst-case flood alert broadcast)
  *
- * HMAC signature verification is skipped when *_WEBHOOK_SECRET env vars are
- * absent — no secrets needed for load testing.  Set SENSOR_CANISTER_ID to any
- * dummy value so the gateway exercises the full request path without reaching
- * the ICP network.
+ * The gateway rejects unsigned webhooks, so start it with test secrets and
+ * pass the same values to k6, which signs every request: Nest gets the secret
+ * as a bearer token, Ecobee and Moen Flo get an HMAC-SHA256 of the body.
+ * IOT_GATEWAY_DRY_RUN=1 makes the gateway skip the sensor-canister call, so
+ * this measures the gateway (auth, validation, replay checks, dispatch), not
+ * the canister.
+ *
+ * Every VU sends from one IP, so the per-IP webhook limiters (60/min Nest and
+ * Ecobee, 100/15 min Moen Flo) answer most requests with 429 once warmed up.
+ * 429 counts as an expected response; the rate_limit_429 counter reports how
+ * many there were.
  *
  * Usage:
- *   cd agents/iot-gateway && SENSOR_CANISTER_ID=dummy npm run dev
+ *   cd agents/iot-gateway && SENSOR_CANISTER_ID=dummy IOT_GATEWAY_DRY_RUN=1 \
+ *     NEST_WEBHOOK_SECRET=k6-nest ECOBEE_WEBHOOK_SECRET=k6-ecobee \
+ *     MOEN_FLO_WEBHOOK_SECRET=k6-moen npm run dev
  *   k6 run tests/k6/iot-gateway-load.js
  *   k6 run --env IOT_GATEWAY_URL=http://staging:3002 tests/k6/iot-gateway-load.js
  *
@@ -22,6 +31,7 @@
  */
 
 import http from "k6/http";
+import crypto from "k6/crypto";
 import { check, sleep } from "k6";
 import { Counter, Trend } from "k6/metrics";
 
@@ -29,6 +39,14 @@ import { Counter, Trend } from "k6/metrics";
 
 const BASE_URL = __ENV.IOT_GATEWAY_URL || "http://localhost:3002";
 const IS_CI    = !!__ENV.CI;
+
+// Must match the gateway's *_WEBHOOK_SECRET values (defaults match the README).
+const NEST_SECRET   = __ENV.NEST_WEBHOOK_SECRET     || "k6-nest";
+const ECOBEE_SECRET = __ENV.ECOBEE_WEBHOOK_SECRET   || "k6-ecobee";
+const MOEN_SECRET   = __ENV.MOEN_FLO_WEBHOOK_SECRET || "k6-moen";
+
+// Rate-limited requests are the gateway working as designed, not failures.
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 299 }, 429));
 
 // ── Custom metrics ─────────────────────────────────────────────────────────────
 
@@ -98,9 +116,13 @@ export const options = {
 // ── Minimal valid payloads ─────────────────────────────────────────────────────
 //
 // These mirror the shapes expected by handlers.ts.  Fields are present but
-// minimal — the goal is exercising parsing, HMAC skip, and handler dispatch.
+// minimal — the goal is exercising parsing, signature checks, and handler dispatch.
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
+
+function signed(header, secret, body) {
+  return { ...JSON_HEADERS, [header]: `sha256=${crypto.hmac("sha256", secret, body, "hex")}` };
+}
 
 function nestPayload() {
   return JSON.stringify({
@@ -108,11 +130,9 @@ function nestPayload() {
     timestamp: new Date().toISOString(),
     resourceUpdate: {
       name: `enterprises/load-test-project/devices/load-device-${__VU}`,
-    },
-    events: {
-      "sdm.devices.events.DoorbellChime.Chime": {
-        eventSessionId: `session-${__VU}`,
-        eventId:        `load-${__VU}-${__ITER}`,
+      // Below the pipe-freeze threshold, so the gateway records a LowTemperature event.
+      traits: {
+        "sdm.devices.traits.Temperature": { ambientTemperatureCelsius: 2 },
       },
     },
   });
@@ -123,10 +143,10 @@ function ecobeePayload() {
     thermostatId: `load-thermo-${__VU}`,
     alerts: [
       {
-        alertType: "hvacServiceAlert",
+        alertType: "hvacError",
         severity:  "WARNING",
-        message:   "Load test maintenance alert",
-        value:     "1",
+        message:   `Load test maintenance alert ${__VU}-${__ITER}`,
+        value:     1,
       },
     ],
     runtime: {
@@ -140,7 +160,7 @@ function moenFloPayload() {
   return JSON.stringify({
     deviceId:  `load-device-${__VU}`,
     alertType: "LEAK",
-    severity:  "CRITICAL",
+    severity:  "critical",
     timestamp: new Date().toISOString(),
   });
 }
@@ -165,21 +185,23 @@ export default function () {
     res = http.post(
       `${BASE_URL}/webhooks/nest`,
       nestPayload(),
-      { headers: JSON_HEADERS, tags: { endpoint: "nest" } }
+      { headers: { ...JSON_HEADERS, Authorization: `Bearer ${NEST_SECRET}` }, tags: { endpoint: "nest" } }
     );
     nestDuration.add(res.timings.duration);
   } else if (r < 0.7) {
+    const body = ecobeePayload();
     res = http.post(
       `${BASE_URL}/webhooks/ecobee`,
-      ecobeePayload(),
-      { headers: JSON_HEADERS, tags: { endpoint: "ecobee" } }
+      body,
+      { headers: signed("X-Ecobee-Signature", ECOBEE_SECRET, body), tags: { endpoint: "ecobee" } }
     );
     ecobeeDuration.add(res.timings.duration);
   } else {
+    const body = moenFloPayload();
     res = http.post(
       `${BASE_URL}/webhooks/moen-flo`,
-      moenFloPayload(),
-      { headers: JSON_HEADERS, tags: { endpoint: "moen-flo" } }
+      body,
+      { headers: signed("X-Moen-Signature", MOEN_SECRET, body), tags: { endpoint: "moen-flo" } }
     );
     moenFloDuration.add(res.timings.duration);
   }

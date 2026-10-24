@@ -2,6 +2,10 @@ name = "homegentic-email-relay"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
 
+# Persisted Workers Logs (otherwise logs exist only in a live `wrangler tail`).
+[observability]
+enabled = true
+
 # ── Secrets — never stored here, set via `wrangler secret put <NAME>` ─────────
 #
 # Required:
@@ -10,3 +14,10 @@ compatibility_date = "2024-11-01"
 #
 # After setting secrets, deploy with: wrangler deploy
 # The Worker URL will be: https://homegentic-email-relay.<account>.workers.dev
+
+# ── Testnet ──────────────────────────────────────────────────────────────────
+# Separate Worker so deploy-testnet.yml never overwrites the production relay.
+# Deployed with `wrangler deploy --env testnet`; set its secrets once with
+# `npx wrangler secret put <NAME> --env testnet` (same names as above).
+[env.testnet]
+name = "homegentic-email-relay-testnet"

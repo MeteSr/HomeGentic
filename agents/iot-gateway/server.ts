@@ -38,7 +38,7 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { logger } from "../../packages/shared/src/logger";
 import { handleNestEvent, handleEcobeeEvent, handleMoenFloEvent, handleHoneywellHomeEvent, handleSmartThingsEvent, handleLGThinQEvent } from "./handlers";
-import { recordSensorEvent, getGatewayPrincipal, registerVerifiedDevice } from "./icp";
+import { recordSensorEvent, getGatewayPrincipal, registerVerifiedDevice, isDryRun } from "./icp";
 import { requestPrincipal } from "./session";
 import {
   PLATFORM_SOURCE, isLinkPlatform, issueTicket, consumeTicket, bindState,
@@ -1182,6 +1182,9 @@ app.get("/health", (_req: Request, res: Response) => {
 app.listen(port, () => {
   if (!process.env.ADMIN_TOKEN) {
     logger.warn("gateway", "ADMIN_TOKEN not set — POST /accounts/:platform is disabled");
+  }
+  if (isDryRun()) {
+    logger.warn("gateway", "IOT_GATEWAY_DRY_RUN — sensor events are NOT sent to the canister (load testing only)");
   }
 
   logger.info("gateway", `listening on :${port}`, {

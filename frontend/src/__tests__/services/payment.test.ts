@@ -11,6 +11,13 @@ vi.mock("@/services/actor", () => ({
   resetAgent:   vi.fn(),
 }));
 
+// voiceAgentFetch adds the x-agent-session header; here it's a plain fetch so
+// tests can stub the Worker with a spy on global.fetch.
+vi.mock("@/services/voiceAgentHeaders", () => ({
+  voiceAgentFetch:   (url: string, init?: RequestInit) => (global.fetch as any)(url, init),
+  voiceAgentHeaders: () => ({ "Content-Type": "application/json" }),
+}));
+
 vi.mock("@/services/icpLedger", () => ({
   icpLedgerService: {
     approve:    vi.fn().mockResolvedValue(undefined),
@@ -348,9 +355,38 @@ describe("paymentService.grantSubscription", () => {
 });
 
 describe("paymentService.cancel", () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     paymentService.reset();
+    // The Worker stops Stripe renewal before the canister record is marked.
+    fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue({
+      ok:   true,
+      json: async () => ({}),
+    } as Response);
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it("asks the Worker to cancel the Stripe subscription before calling the canister", async () => {
+    await paymentService.cancel();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/api/stripe/cancel-subscription"),
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(mockCancelSubscription).toHaveBeenCalledOnce();
+  });
+
+  it("throws and does not call the canister when the Worker cancel fails", async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok:   false,
+      json: async () => ({ error: "Stripe unavailable" }),
+    } as Response);
+    await expect(paymentService.cancel()).rejects.toThrow("Stripe unavailable");
+    expect(mockCancelSubscription).not.toHaveBeenCalled();
   });
 
   it("returns { expiresAt: null } when expiresAt is 0", async () => {
@@ -400,45 +436,6 @@ describe("paymentService.recordCancellation / getCancellationInfo", () => {
   });
 });
 
-// ─── pause / resume / getPauseState ──────────────────────────────────────────
-
-describe("paymentService pause/resume", () => {
-  beforeEach(() => {
-    localStorage.clear();
-  });
-
-  it("getPauseState returns null when not paused", () => {
-    expect(paymentService.getPauseState()).toBeNull();
-  });
-
-  it("pause stores a future resumeAt timestamp", () => {
-    paymentService.pause(1);
-    const state = paymentService.getPauseState();
-    expect(state).not.toBeNull();
-    expect(state!.pausedUntil).toBeGreaterThan(Date.now());
-    expect(state!.daysLeft).toBe(30);
-  });
-
-  it("pause(2) gives roughly 60 daysLeft", () => {
-    paymentService.pause(2);
-    const state = paymentService.getPauseState();
-    expect(state!.daysLeft).toBe(60);
-  });
-
-  it("resume clears the pause and getPauseState returns null", () => {
-    paymentService.pause(1);
-    paymentService.resume();
-    expect(paymentService.getPauseState()).toBeNull();
-  });
-
-  it("getPauseState returns null and clears storage when pause has expired", () => {
-    // Simulate a past timestamp
-    localStorage.setItem("homegentic_sub_paused_until", String(Date.now() - 1000));
-    expect(paymentService.getPauseState()).toBeNull();
-    expect(localStorage.getItem("homegentic_sub_paused_until")).toBeNull();
-  });
-});
-
 // ─── startStripeCheckout — dev/Express path (USE_EXPRESS_CHECKOUT=true in test) ─
 
 describe("paymentService.startStripeCheckout — dev/Express path", () => {
@@ -480,7 +477,7 @@ describe("paymentService.startStripeCheckout — dev/Express path", () => {
     } as Response);
     await paymentService.startStripeCheckout("Pro", "Monthly", {
       recipientEmail: "alice@example.com", recipientName: "Alice",
-      senderName: "Bob", giftMessage: "Happy home!", deliveryDate: "2025-12-25",
+      senderName: "Bob", giftMessage: "Happy home!",
     });
     const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
     expect(body.gift.recipientEmail).toBe("alice@example.com");

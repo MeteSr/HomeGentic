@@ -275,6 +275,13 @@ exports[`auth IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [],
   },
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists}}",
+    ],
+  },
   "getMetrics": {
     "args": [],
     "mode": [
@@ -414,6 +421,13 @@ exports[`bills IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized; TierLimitReached:text}}",
     ],
   },
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {InvalidInput:text; NotFound; NotAuthorized; TierLimitReached:text}}",
+    ],
+  },
   "deleteRecurringExpense": {
     "args": [
       "text",
@@ -489,6 +503,13 @@ exports[`contractor IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
     ],
   },
   "getAll": {
@@ -652,6 +673,13 @@ exports[`contractor IDL factory — notification preferences (#279) > Contractor
     "mode": [],
     "rets": [
       "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
     ],
   },
   "getAll": {
@@ -855,6 +883,13 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
+    ],
+  },
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
     ],
   },
   "getCertificationData": {
@@ -1105,6 +1140,13 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
   "flagPhotoForReview": {
@@ -1453,6 +1495,13 @@ exports[`maintenance IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; plannedYear:nat; isCompleted:bool; plannedMonth:opt nat; createdAt:int; createdBy:principal; taskDescription:text; propertyId:text; estimatedCostCents:opt nat; systemName:text}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
     ],
   },
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
+    ],
+  },
   "getScheduleByProperty": {
     "args": [
       "text",
@@ -1739,6 +1788,13 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
 
 exports[`photo IDL factory > full signature snapshot 1`] = `
 {
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; QuotaExceeded:text}}",
+    ],
+  },
   "deletePhoto": {
     "args": [
       "text",
@@ -1869,6 +1925,13 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; verificationMethod:opt text; contestedWithId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
   "dismissNotifications": {
@@ -2188,6 +2251,18 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; verificationMethod:opt text; contestedWithId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
+  "relayMarkIdentityCleared": {
+    "args": [
+      "text",
+      "principal",
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
   "removeManager": {
     "args": [
       "text",
@@ -2339,6 +2414,13 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; minTrustScore:opt nat; description:text; propertyId:text; zipCode:opt text; closeAt:opt int; maxBids:opt nat; homeowner:principal; minReviews:opt nat; minJobsCompleted:opt nat}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
+    ],
+  },
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
     ],
   },
   "getIbePublicKey": {
@@ -2512,6 +2594,13 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
 
 exports[`report IDL factory > full signature snapshot 1`] = `
 {
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {UnverifiedProperty; InvalidInput:text; NotFound; NotAuthorized; Revoked; Expired}}",
+    ],
+  },
   "generateReport": {
     "args": [
       "text",
@@ -2615,6 +2704,13 @@ exports[`sensor IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyExists}}",
+    ],
+  },
+  "deleteMyData": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyExists}}",
     ],
   },
   "getDevicesForProperty": {

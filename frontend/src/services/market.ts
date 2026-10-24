@@ -17,7 +17,7 @@ const MARKET_CANISTER_ID = (process.env as any).MARKET_CANISTER_ID || "";
 
 // ─── Neighbourhood Score IDL ──────────────────────────────────────────────────
 
-const neighbourhoodIdlFactory = ({ IDL }: any) => {
+export const neighbourhoodIdlFactory = ({ IDL }: any) => {
   const JobSummary = IDL.Record({
     serviceType:   IDL.Text,
     completedYear: IDL.Nat,
@@ -59,6 +59,7 @@ const neighbourhoodIdlFactory = ({ IDL }: any) => {
     computePropertyScore:     IDL.Func([IDL.Text],                               [IDL.Opt(IDL.Nat)],    []),
     setPropertyCanisterId:    IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     setJobCanisterId:         IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    deleteMyData:             IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
   });
 };
 

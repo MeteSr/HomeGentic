@@ -88,6 +88,7 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     recordEvent: IDL.Func(
       [IDL.Text, SensorEventType, IDL.Float64, IDL.Text, IDL.Text],
       [IDL.Variant({ ok: SensorEvent, err: Error })],

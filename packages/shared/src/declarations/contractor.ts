@@ -74,6 +74,7 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: ContractorProfile, err: Error })],
       []
     ),
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     getMyProfile: IDL.Func(
       [],
       [IDL.Variant({ ok: ContractorProfile, err: Error })],

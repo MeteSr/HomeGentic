@@ -1,17 +1,9 @@
-import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useVerifyContext } from "./VerifyLayout";
 import { CountdownTimer } from "./components/CountdownTimer";
 import { PropertyStatusCard } from "./components/PropertyStatusCard";
-
-const TWO_COL: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 320px",
-  gap: 32,
-  alignItems: "start",
-};
 
 interface ProofCardProps {
   icon         : string;
@@ -89,14 +81,14 @@ export default function VerifyClaimPage() {
           Claim Opened · {claim.address}
         </div>
 
-        <div style={TWO_COL}>
+        <div className="rsp-grid-sidebar">
           {/* Main column */}
           <div>
             <h1 style={{ fontFamily: V2_FONTS.display, fontSize: 36, fontWeight: 900, color: V2_COLORS.ink, marginBottom: 12, lineHeight: 1.1 }}>
-              Two proofs, three days.
+              Two proofs, one week.
             </h1>
             <p style={{ fontFamily: V2_FONTS.body, fontSize: 15, color: V2_COLORS.muted, lineHeight: 1.6, marginBottom: 32, maxWidth: 540 }}>
-              Verify who you are and that the address is yours. Both are due within 72 hours of adding the property, and until they clear the record is marked unverified.
+              Verify who you are and that the address is yours. Finish both within 7 days of the first claim on this address. Until they clear, the record is marked unverified, and after 7 days someone else can register the address too.
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 32 }}>
@@ -104,7 +96,7 @@ export default function VerifyClaimPage() {
                 icon="🪪"
                 title="Photo identity"
                 badge="REQUIRED"
-                badgeColor="#C94C2E"
+                badgeColor="#A8381C"
                 badgeBg="#FFE8E5"
                 desc="A government ID scan and a selfie liveness check. Handled by Stripe Identity in about 2 minutes."
                 status="NOT STARTED · ABOUT 2 MINUTES"
@@ -117,7 +109,7 @@ export default function VerifyClaimPage() {
                 icon="📄"
                 title="Ownership document"
                 badge="REQUIRED"
-                badgeColor="#C94C2E"
+                badgeColor="#A8381C"
                 badgeBg="#FFE8E5"
                 desc="A deed, utility bill, or tax record with your name and this address. We only store the hash."
                 status={claim.verificationDocHash ? "SUBMITTED" : "NOT STARTED · NAME MUST MATCH YOUR ID"}
@@ -152,7 +144,7 @@ export default function VerifyClaimPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Dark warning panel */}
             <div style={{ background: V2_COLORS.ink, borderRadius: 12, padding: "20px 20px" }}>
-              <div style={{ fontSize: 10, fontFamily: V2_FONTS.mono, color: "#6B7280", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontFamily: V2_FONTS.mono, color: "#9CA0AE", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>
                 If the clock runs out
               </div>
               <div style={{ fontSize: 18, fontFamily: V2_FONTS.display, fontWeight: 700, color: "#fff", marginBottom: 10, lineHeight: 1.25 }}>

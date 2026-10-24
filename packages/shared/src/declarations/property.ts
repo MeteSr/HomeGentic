@@ -184,6 +184,11 @@ export const idlFactory = ({ IDL }: any) => {
     getVerificationLevel: IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ["query"]),
     getPendingVerifications: IDL.Func([], [IDL.Variant({ ok: IDL.Vec(Property), err: Error })], []),  // admin only
     isAdminPrincipal: IDL.Func([IDL.Principal], [IDL.Bool], ["query"]),
+    relayMarkIdentityCleared: IDL.Func(
+      [IDL.Text, IDL.Principal, IDL.Text, IDL.Text],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
     verifyProperty: IDL.Func(
       [IDL.Text, IDL.Variant({ Unverified: IDL.Null, PendingReview: IDL.Null, Basic: IDL.Null, Premium: IDL.Null }), IDL.Opt(IDL.Text)],
       [IDL.Variant({ ok: Property, err: Error })],
@@ -217,6 +222,7 @@ export const idlFactory = ({ IDL }: any) => {
     ),
     removeManager: IDL.Func([IDL.Text, IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     resignAsManager: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     getMyManagedProperties: IDL.Func([], [IDL.Vec(ManagedProperty)], ["query"]),
     getPropertyManagers: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(PropertyManager), err: Error })], ["query"]),
     getManagerInviteByToken: IDL.Func([IDL.Text], [IDL.Opt(ManagerInvite)], ["query"]),

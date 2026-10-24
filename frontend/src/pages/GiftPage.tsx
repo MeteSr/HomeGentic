@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { paymentService } from "@/services/payment";
 import { PageHead } from "@/components/PageHead";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { CheckCircle } from "lucide-react";
 
 const C = {
@@ -11,7 +12,7 @@ const C = {
   coral:  "#FF5C39",
   ink:    "#0B0D1A",
   paper:  "#FCFCFD",
-  muted:  "#6B7080",
+  muted:  "#62677A",
   muted2: "#5A5F70",
   border: "#EDEEF2",
   white:  "#FFFFFF",
@@ -36,9 +37,7 @@ interface GiftFormData {
   recipientName:  string;
   recipientEmail: string;
   senderName:     string;
-  senderEmail:    string;
   giftMessage:    string;
-  deliveryDate:   "now" | string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -51,8 +50,8 @@ const GIFT_PLANS: Record<GiftTier, { monthlyPrice: number; annualPrice: number; 
     bullets: [
       "20 properties, 30 photos per job",
       "Unlimited quote requests",
-      "Verified badge + Priority support",
-      "Blockchain-backed maintenance record",
+      "Voice assistant with 10 agent calls a day",
+      "Exportable maintenance record",
     ],
   },
 };
@@ -66,7 +65,6 @@ const STEP_LABELS: { key: GiftStep; label: string }[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const today = () => new Date().toISOString().split("T")[0];
 
 function isValidEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -214,10 +212,10 @@ function StepSelect({ setData, onNext }: {
               ${price}
             </span>
             <span style={{ fontFamily: F.body, fontSize: "0.65rem", color: "rgba(255,255,255,0.85)" }}>
-              /yr
+              {" "}for one year
             </span>
             <div style={{ fontFamily: F.body, fontSize: "0.6rem", color: C.yellow, marginTop: "0.25rem" }}>
-              ${(price / 12).toFixed(2)}/mo billed annually
+              One-time payment. Nothing renews.
             </div>
           </div>
 
@@ -261,7 +259,6 @@ function StepRecipient({ data, setData, onNext, onBack }: {
     if (!data.recipientName.trim())            e.recipientName  = "Required";
     if (!isValidEmail(data.recipientEmail))    e.recipientEmail = "Enter a valid email";
     if (!data.senderName.trim())               e.senderName     = "Required";
-    if (!isValidEmail(data.senderEmail))       e.senderEmail    = "Enter a valid email";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -290,14 +287,6 @@ function StepRecipient({ data, setData, onNext, onBack }: {
           onChange={(v) => setData((d) => ({ ...d, senderName: v }))}
           placeholder="Sarah Miller"
           error={errors.senderName}
-        />
-        <InputField
-          label="Your email (for receipt)"
-          type="email"
-          value={data.senderEmail}
-          onChange={(v) => setData((d) => ({ ...d, senderEmail: v }))}
-          placeholder="sarah@realty.com"
-          error={errors.senderEmail}
         />
       </div>
       <NavButtons onBack={onBack} onNext={() => validate() && onNext()} />
@@ -341,39 +330,9 @@ function StepMessage({ data, setData, onNext, onBack }: {
         </span>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <label style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.muted }}>
-          Delivery
-        </label>
-        {[
-          { value: "now",   label: "Send immediately" },
-          { value: "later", label: "Schedule for a date" },
-        ].map((opt) => (
-          <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: F.body, fontSize: 15, color: C.ink }}>
-            <input
-              type="radio"
-              name="delivery"
-              checked={opt.value === "now" ? data.deliveryDate === "now" : data.deliveryDate !== "now"}
-              onChange={() => setData((d) => ({ ...d, deliveryDate: opt.value === "now" ? "now" : today() }))}
-              style={{ accentColor: C.blue, width: 16, height: 16 }}
-            />
-            {opt.label}
-          </label>
-        ))}
-        {data.deliveryDate !== "now" && (
-          <input
-            type="date"
-            value={data.deliveryDate}
-            min={today()}
-            onChange={(e) => setData((d) => ({ ...d, deliveryDate: e.target.value }))}
-            style={{
-              padding: "10px 14px", borderRadius: "10px", maxWidth: 220,
-              border: `1.5px solid ${C.border}`, fontFamily: F.body, fontSize: "0.9rem",
-              color: C.ink, background: C.white, outline: "none",
-            }}
-          />
-        )}
-      </div>
+      <p style={{ fontFamily: F.body, fontSize: 14, color: C.muted, lineHeight: 1.6, margin: 0 }}>
+        We email {data.recipientName.split(" ")[0] || "your recipient"} a link to redeem the gift as soon as your payment goes through.
+      </p>
 
       <NavButtons onBack={onBack} onNext={onNext} />
     </div>
@@ -389,7 +348,7 @@ function StepReview({ data, onSubmit, onBack, loading, error }: {
 }) {
   const plan   = GIFT_PLANS[data.tier];
   const price  = plan.annualPrice;  // Pro is annual-only
-  const period = "/yr";
+  const period = " one-time";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
@@ -407,8 +366,8 @@ function StepReview({ data, onSubmit, onBack, loading, error }: {
         <div style={{ padding: "20px 28px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, background: C.white }}>
           {[
             { label: "To",      value: `${data.recipientName} · ${data.recipientEmail}` },
-            { label: "From",    value: `${data.senderName} · ${data.senderEmail}` },
-            { label: "Deliver", value: data.deliveryDate === "now" ? "Immediately" : data.deliveryDate },
+            { label: "From",    value: data.senderName },
+            { label: "Deliver", value: "Emailed right after payment" },
           ].map(({ label, value }) => (
             <div key={label}>
               <div style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4, letterSpacing: "0.08em", textTransform: "uppercase" }}>{label}</div>
@@ -446,7 +405,7 @@ function StepDone({ data }: { data: GiftFormData }) {
         Your gift is on its way.
       </h2>
       <p style={{ fontFamily: F.body, fontSize: 17, color: C.muted, lineHeight: 1.7, maxWidth: 520, margin: "0 auto 32px" }}>
-        We'll send <strong style={{ color: C.ink }}>{data.recipientName}</strong> an email at <strong style={{ color: C.ink }}>{data.recipientEmail}</strong> with instructions to activate their {data.tier} subscription. A receipt will go to <strong style={{ color: C.ink }}>{data.senderEmail}</strong>.
+        We'll send <strong style={{ color: C.ink }}>{data.recipientName}</strong> an email at <strong style={{ color: C.ink }}>{data.recipientEmail}</strong> with a link to redeem their year of {data.tier}.
       </p>
 
       <div style={{
@@ -455,7 +414,7 @@ function StepDone({ data }: { data: GiftFormData }) {
         fontFamily: F.body, fontSize: 14, color: C.ink, lineHeight: 1.65,
         border: `1px solid ${C.yellow}44`,
       }}>
-        🎁 The subscription activates when {data.recipientName.split(" ")[0]} signs in and accepts the gift. They'll have 30 days to redeem.
+        🎁 The year starts when {data.recipientName.split(" ")[0]} signs in and redeems the gift. It's a one-time payment; nothing renews.
       </div>
 
       <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
@@ -516,9 +475,10 @@ function NavButtons({ onBack, onNext, nextLabel = "Continue", disabled = false }
 }
 
 function Footer() {
+  const { isMobile } = useBreakpoint();
   return (
-    <footer style={{ background: C.ink, padding: "64px 56px 32px", fontFamily: F.body }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", gap: 48, marginBottom: 52 }}>
+    <footer style={{ background: C.ink, padding: isMobile ? "48px 20px 24px" : "64px 56px 32px", fontFamily: F.body }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "1.6fr 1fr 1fr 1fr", gap: isMobile ? 32 : 48, marginBottom: 52 }}>
         <div>
           <span style={{ fontFamily: F.display, fontSize: 24, fontWeight: 800, color: C.white, marginBottom: 14, display: "block" }}>
             Home<span style={{ color: C.yellow }}>Gentic</span>
@@ -552,7 +512,7 @@ function Footer() {
           </ul>
         </div>
       </div>
-      <div style={{ borderTop: "1px solid rgba(252,252,253,0.08)", paddingTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: F.body, fontSize: 13, color: "rgba(252,252,253,0.5)" }}>
+      <div style={{ borderTop: "1px solid rgba(252,252,253,0.08)", paddingTop: 24, display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center", justifyContent: "space-between", fontFamily: F.body, fontSize: 13, color: "rgba(252,252,253,0.5)" }}>
         <span>© 2026 HomeGentic Inc.</span>
         <div style={{ display: "flex", gap: 24 }}>
           <Link to="/privacy" style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Privacy</Link>
@@ -572,9 +532,7 @@ const DEFAULT_FORM: GiftFormData = {
   recipientName:  "",
   recipientEmail: "",
   senderName:     "",
-  senderEmail:    "",
   giftMessage:    "",
-  deliveryDate:   "now",
 };
 
 export default function GiftPage() {
@@ -595,7 +553,6 @@ export default function GiftPage() {
           recipientName:  form.recipientName,
           senderName:     form.senderName,
           giftMessage:    form.giftMessage,
-          deliveryDate:   form.deliveryDate,
         },
       );
       // startStripeCheckout redirects — code below only runs if canister isn't deployed

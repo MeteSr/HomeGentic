@@ -239,10 +239,47 @@ fi
 #   non-local — three-phase: create (sequential) → build (sequential) → install
 #               (sequential). Sequential builds avoid concurrent writes to local.ids.json.
 
-CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent fee recurring bills ai_proxy audit referrals)
+# Install order matters on upgrades: report calls new job and market methods,
+# so both go before it.
+CANISTERS=(auth property job contractor quote payment photo market report maintenance sensor monitoring listing agent fee recurring bills ai_proxy audit referrals)
 LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
-trap 'rm -rf "$LOG_DIR"' EXIT
+BG_LOG_DIR=$(mktemp -d /tmp/icp-deploy-bg-XXXXXX)
+trap 'rm -rf "$LOG_DIR" "$BG_LOG_DIR"' EXIT
 DEPLOY_PRINCIPAL=$(icp identity principal)
+
+# ── Background canister calls ────────────────────────────────────────────────
+# The wiring calls run in parallel. A bare `wait` returns 0 whatever they
+# returned, so a failed call (say property.setPaymentCanisterId, which leaves
+# every paying user on Free) used to pass silently. bg_call records each PID
+# and wait_for_background fails the deploy if any of them failed.
+BG_PIDS=()
+BG_LOGS=()
+bg_call() {
+  local log="$BG_LOG_DIR/$1.$2.${#BG_PIDS[@]}.log"
+  icp canister call "$@" >"$log" 2>&1 &
+  BG_PIDS+=($!)
+  BG_LOGS+=("$log")
+}
+wait_for_background() {
+  local failed=() i call
+  for i in "${!BG_PIDS[@]}"; do
+    call=$(basename "${BG_LOGS[$i]}" .log); call="${call%.*}"
+    if ! wait "${BG_PIDS[$i]}"; then
+      failed+=("$call")
+      echo "  ✗ $call failed:"
+      sed 's/^/      /' "${BG_LOGS[$i]}"
+    elif grep -q "variant { err" "${BG_LOGS[$i]}"; then
+      echo "  ⚠️  $call returned: $(tr -s '[:space:]' ' ' < "${BG_LOGS[$i]}")"
+    fi
+  done
+  BG_PIDS=()
+  BG_LOGS=()
+  if [ ${#failed[@]} -gt 0 ]; then
+    echo "❌ $1: ${#failed[@]} call(s) failed: ${failed[*]}"
+    exit 1
+  fi
+  echo "  ✓ $1 done"
+}
 
 # ── Seed icp-cli state from canister_ids.json ────────────────────────────────
 # icp canister install resolves names via .icp/data/mappings/<env>.ids.json.
@@ -439,23 +476,6 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
     fi
   done
 
-  # ── Set backup controller on every slot (idempotent) ─────────────────────────
-  # Ensures a second principal can always recover canisters if CI PEM is lost.
-  if [ -n "${BACKUP_CONTROLLER_PRINCIPAL:-}" ]; then
-    echo ""
-    echo "▶ Setting backup controller ($BACKUP_CONTROLLER_PRINCIPAL)..."
-    for canister in "${CANISTERS[@]}"; do
-      echo -n "  $canister... "
-      if icp canister update-settings "$canister" \
-          --add-controller "$BACKUP_CONTROLLER_PRINCIPAL" \
-          -e "$ENV" >/dev/null 2>&1; then
-        echo "✓"
-      else
-        echo "⚠ (may already be set or not yet deployed)"
-      fi
-    done
-  fi
-
   # Phase 2: Build all canisters sequentially
   echo ""
   echo "▶ Phase 2/3 — Compiling all canisters..."
@@ -485,9 +505,39 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
   # Phase 3: Install canisters sequentially
   echo ""
   echo "▶ Phase 3/3 — Installing canisters..."
+  # Every canister that already existed is stopped, snapshotted, upgraded and
+  # started again. The snapshot is the rollback for an upgrade that installs
+  # cleanly but damages data (a logic bug in a postupgrade move, a bad admin
+  # path): `icp canister stop X -e $ENV && icp canister snapshot restore X <id>
+  # -e $ENV && icp canister start X -e $ENV` — see docs/UPGRADE_RUNBOOK.md.
+  # One rolling pre-deploy snapshot per canister; it counts toward the
+  # canister's storage cost. No canister is upgraded without one.
   INSTALL_FAILED=()
+  SNAPSHOTS=()
   for canister in "${CANISTERS[@]}"; do
     echo -n "  $canister... "
+    _existed=1
+    for _c in "${CANISTERS_TO_CREATE[@]+"${CANISTERS_TO_CREATE[@]}"}"; do
+      [ "$_c" = "$canister" ] && _existed=0
+    done
+    if [ "$_existed" = 1 ]; then
+      : >"$LOG_DIR/$canister.snapshot.log"
+      _old_snap=$(icp canister snapshot list "$canister" -q -e "$ENV" 2>>"$LOG_DIR/$canister.snapshot.log" | head -1 || true)
+      _snap=""
+      if icp canister stop "$canister" -e "$ENV" >>"$LOG_DIR/$canister.snapshot.log" 2>&1; then
+        _snap=$(icp canister snapshot create "$canister" -q ${_old_snap:+--replace "$_old_snap"} \
+                  -e "$ENV" 2>>"$LOG_DIR/$canister.snapshot.log" | tail -1 || true)
+      fi
+      if [ -z "$_snap" ]; then
+        icp canister start "$canister" -e "$ENV" >>"$LOG_DIR/$canister.snapshot.log" 2>&1 || true
+        echo "✗ (no pre-upgrade snapshot — not upgraded)"
+        cat "$LOG_DIR/$canister.snapshot.log" >"$LOG_DIR/$canister.install.log"
+        INSTALL_FAILED+=("$canister")
+        continue
+      fi
+      SNAPSHOTS+=("$canister $_snap")
+      echo -n "snapshot $_snap, "
+    fi
     # auth takes the deployer principal as its init argument. It must go
     # through the same upgrade-then-guarded-reinstall path as every other
     # canister (a separate auth branch once skipped the reinstall guard), so
@@ -543,7 +593,17 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
       echo "✗"
       INSTALL_FAILED+=("$canister")
     fi
+    if [ "$_existed" = 1 ] && ! icp canister start "$canister" -e "$ENV" >>"$LOG_DIR/$canister.install.log" 2>&1; then
+      echo "  ✗ $canister did not start again after the upgrade"
+      INSTALL_FAILED+=("$canister")
+    fi
   done
+
+  if [ ${#SNAPSHOTS[@]} -gt 0 ]; then
+    echo ""
+    echo "  Pre-upgrade snapshots (canister id):"
+    printf '    %s\n' "${SNAPSHOTS[@]}"
+  fi
 
   if [ ${#INSTALL_FAILED[@]} -gt 0 ]; then
     echo ""
@@ -703,64 +763,64 @@ MONITORING_ID=$(icp canister status monitoring -e "$ENV" --id-only 2>/dev/null |
 
 if [ -n "$JOB_ID" ]      && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> job..."
-  icp canister call job      setPaymentCanisterId    "(\"$PAYMENT_ID\")"          -e "$ENV" &
+  bg_call job      setPaymentCanisterId    "(\"$PAYMENT_ID\")"          -e "$ENV"
 fi
 if [ -n "$PROPERTY_ID" ] && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> property..."
-  icp canister call property setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
+  bg_call property setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV"
 fi
 if [ -n "$PHOTO_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> photo..."
-  icp canister call photo    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
+  bg_call photo    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV"
 fi
 if [ -n "$QUOTE_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> quote..."
-  icp canister call quote    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
+  bg_call quote    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV"
 fi
 
 if [ -n "$BILLS_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> bills..."
-  icp canister call bills    setPaymentCanisterId    "(\"$PAYMENT_ID\")"          -e "$ENV" &
+  bg_call bills    setPaymentCanisterId    "(\"$PAYMENT_ID\")"          -e "$ENV"
 fi
 if [ -n "$BILLS_ID" ]    && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> bills..."
-  icp canister call bills    setPropertyCanisterId   "(\"$PROPERTY_ID\")"         -e "$ENV" &
+  bg_call bills    setPropertyCanisterId   "(\"$PROPERTY_ID\")"         -e "$ENV"
 fi
 REFERRALS_ID=$(icp canister status referrals -e "$ENV" --id-only 2>/dev/null || echo "")
 if [ -n "$REFERRALS_ID" ] && [ -n "$PAYMENT_ID" ]; then
   echo "  Wiring payment <-> referrals..."
-  icp canister call referrals setPaymentCanisterId  "(\"$PAYMENT_ID\")"   -e "$ENV" &
-  icp canister call payment   setReferralsCanisterId "(\"$REFERRALS_ID\")" -e "$ENV" &
+  bg_call referrals setPaymentCanisterId  "(\"$PAYMENT_ID\")"   -e "$ENV"
+  bg_call payment   setReferralsCanisterId "(\"$REFERRALS_ID\")" -e "$ENV"
 fi
 if [ -n "$JOB_ID" ]      && [ -n "$CONTRACTOR_ID" ]; then
   echo "  Wiring contractor -> job..."
-  icp canister call job      setContractorCanisterId "(\"$CONTRACTOR_ID\")"       -e "$ENV" &
+  bg_call job      setContractorCanisterId "(\"$CONTRACTOR_ID\")"       -e "$ENV"
 fi
 if [ -n "$JOB_ID" ]      && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> job..."
-  icp canister call job      setPropertyCanisterId   "(\"$PROPERTY_ID\")"         -e "$ENV" &
+  bg_call job      setPropertyCanisterId   "(\"$PROPERTY_ID\")"         -e "$ENV"
 fi
 if [ -n "$PHOTO_ID" ]    && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> photo..."
-  icp canister call photo    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" -e "$ENV" &
+  bg_call photo    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" -e "$ENV"
 fi
 if [ -n "$QUOTE_ID" ]    && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> quote..."
-  icp canister call quote    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" -e "$ENV" &
+  bg_call quote    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" -e "$ENV"
 fi
 if [ -n "$QUOTE_ID" ]    && [ -n "$CONTRACTOR_ID" ]; then
   echo "  Wiring contractor -> quote..."
-  icp canister call quote    setContractorCanisterId "(principal \"$CONTRACTOR_ID\")" -e "$ENV" &
+  bg_call quote    setContractorCanisterId "(principal \"$CONTRACTOR_ID\")" -e "$ENV"
 fi
 MAINTENANCE_ID=$(icp canister status maintenance -e "$ENV" --id-only 2>/dev/null || echo "")
 if [ -n "$MAINTENANCE_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> maintenance..."
-  icp canister call maintenance setPropertyCanisterId "(principal \"$PROPERTY_ID\")" -e "$ENV" &
+  bg_call maintenance setPropertyCanisterId "(principal \"$PROPERTY_ID\")" -e "$ENV"
 fi
 RECURRING_ID=$(icp canister status recurring -e "$ENV" --id-only 2>/dev/null || echo "")
 if [ -n "$RECURRING_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> recurring (owner/manager checks)..."
-  icp canister call recurring setPropertyCanisterId "(principal \"$PROPERTY_ID\")" -e "$ENV" &
+  bg_call recurring setPropertyCanisterId "(principal \"$PROPERTY_ID\")" -e "$ENV"
 fi
 # Grants for the off-chain services. Both calls are idempotent, so they run on
 # every deploy; they run in the foreground so a failure is reported, but it
@@ -803,89 +863,89 @@ else
 fi
 if [ -n "$CONTRACTOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> contractor..."
-  icp canister call contractor setJobCanisterId        "(\"$JOB_ID\")"               -e "$ENV" &
+  bg_call contractor setJobCanisterId        "(\"$JOB_ID\")"               -e "$ENV"
 fi
 if [ -n "$SENSOR_ID" ]     && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> sensor..."
-  icp canister call sensor     setJobCanisterId        "(\"$JOB_ID\")"               -e "$ENV" &
+  bg_call sensor     setJobCanisterId        "(\"$JOB_ID\")"               -e "$ENV"
 fi
 if [ -n "$SENSOR_ID" ]     && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> sensor (H-15: ownership check on registerDevice)..."
-  icp canister call sensor     setPropertyCanisterId   "(\"$PROPERTY_ID\")"          -e "$ENV" &
+  bg_call sensor     setPropertyCanisterId   "(\"$PROPERTY_ID\")"          -e "$ENV"
 fi
 if [ -n "$REPORT_ID" ]     && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> report..."
-  icp canister call report     setPropertyCanisterId   "(\"$PROPERTY_ID\")"          -e "$ENV" &
+  bg_call report     setPropertyCanisterId   "(\"$PROPERTY_ID\")"          -e "$ENV"
 fi
 if [ -n "$REPORT_ID" ]     && [ -n "$SENSOR_ID" ]; then
   echo "  Wiring sensor -> report..."
-  icp canister call report     setSensorCanisterId     "(\"$SENSOR_ID\")"            -e "$ENV" &
+  bg_call report     setSensorCanisterId     "(\"$SENSOR_ID\")"            -e "$ENV"
 fi
 if [ -n "$REPORT_ID" ]     && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> report..."
-  icp canister call report     setRiskJobCanisterId    "(\"$JOB_ID\")"              -e "$ENV" &
+  bg_call report     setRiskJobCanisterId    "(\"$JOB_ID\")"              -e "$ENV"
 fi
 if [ -n "$LISTING_ID" ]    && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> listing (trust signals)..."
-  icp canister call listing    setPropertyCanisterId   "(\"$PROPERTY_ID\")"         -e "$ENV" &
+  bg_call listing    setPropertyCanisterId   "(\"$PROPERTY_ID\")"         -e "$ENV"
 fi
 if [ -n "$LISTING_ID" ]    && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> listing (trust signals)..."
-  icp canister call listing    setJobCanisterId        "(\"$JOB_ID\")"              -e "$ENV" &
+  bg_call listing    setJobCanisterId        "(\"$JOB_ID\")"              -e "$ENV"
 fi
 if [ -n "$LISTING_ID" ]    && [ -n "$REPORT_ID" ]; then
   echo "  Wiring report -> listing (trust signals)..."
-  icp canister call listing    setReportCanisterId     "(\"$REPORT_ID\")"           -e "$ENV" &
+  bg_call listing    setReportCanisterId     "(\"$REPORT_ID\")"           -e "$ENV"
 fi
 if [ -n "$LISTING_ID" ]    && [ -n "$MARKET_ID" ]; then
   echo "  Wiring market -> listing (on-chain score)..."
-  icp canister call listing    setMarketCanisterId     "(\"$MARKET_ID\")"           -e "$ENV" &
+  bg_call listing    setMarketCanisterId     "(\"$MARKET_ID\")"           -e "$ENV"
 fi
 if [ -n "$LISTING_ID" ]    && [ -n "$AGENT_ID" ]; then
   echo "  Wiring agent -> listing (bid-to-list licence check)..."
-  icp canister call listing    setAgentCanisterId      "(\"$AGENT_ID\")"            -e "$ENV" &
+  bg_call listing    setAgentCanisterId      "(\"$AGENT_ID\")"            -e "$ENV"
 fi
 if [ -n "$LISTING_ID" ]    && [ -n "$FEE_ID" ]; then
   echo "  Wiring fee -> listing (bid-to-list fee record)..."
-  icp canister call listing    setFeeCanisterId        "(\"$FEE_ID\")"              -e "$ENV" &
+  bg_call listing    setFeeCanisterId        "(\"$FEE_ID\")"              -e "$ENV"
 fi
 if [ -n "$AGENT_ID" ]      && [ -n "$LISTING_ID" ]; then
   echo "  Wiring listing -> agent (recordListingClose trust)..."
-  icp canister call agent      setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV" &
+  bg_call agent      setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV"
 fi
 if [ -n "$FEE_ID" ]        && [ -n "$LISTING_ID" ]; then
   echo "  Wiring listing -> fee (recordFeeOwed trust)..."
-  icp canister call fee        setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV" &
+  bg_call fee        setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV"
 fi
 if [ -n "$MARKET_ID" ]     && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> market (score computation)..."
-  icp canister call market     setPropertyCanisterId   "(\"$PROPERTY_ID\")"         -e "$ENV" &
+  bg_call market     setPropertyCanisterId   "(\"$PROPERTY_ID\")"         -e "$ENV"
 fi
 if [ -n "$MARKET_ID" ]     && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> market (score computation)..."
-  icp canister call market     setJobCanisterId        "(\"$JOB_ID\")"              -e "$ENV" &
+  bg_call market     setJobCanisterId        "(\"$JOB_ID\")"              -e "$ENV"
 fi
 if [ -n "$MARKET_ID" ]     && [ -n "$REPORT_ID" ]; then
   echo "  Wiring market <-> report (on-chain certificate score)..."
-  icp canister call market     setReportCanisterId     "(\"$REPORT_ID\")"           -e "$ENV" &
-  icp canister call report     setMarketCanisterId     "(\"$MARKET_ID\")"           -e "$ENV" &
+  bg_call market     setReportCanisterId     "(\"$REPORT_ID\")"           -e "$ENV"
+  bg_call report     setMarketCanisterId     "(\"$MARKET_ID\")"           -e "$ENV"
 fi
 if [ -n "$PROPERTY_ID" ]   && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> property (contractor job addresses)..."
-  icp canister call property   setJobCanisterId        "(principal \"$JOB_ID\")"   -e "$ENV" &
+  bg_call property   setJobCanisterId        "(principal \"$JOB_ID\")"   -e "$ENV"
 fi
 if [ -n "$MARKET_ID" ]     && [ -n "$LISTING_ID" ]; then
   echo "  Wiring listing -> market (FSBO score lookups)..."
-  icp canister call market     setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV" &
+  bg_call market     setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV"
 fi
 if [ -n "$MONITORING_ID" ] && [ -n "$PROPERTY_ID" ] && [ -n "$JOB_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PAYMENT_ID" ]; then
   echo "  Wiring product metrics -> monitoring..."
-  icp canister call monitoring setProductCanisterIds \
+  bg_call monitoring setProductCanisterIds \
     "(\"$PROPERTY_ID\", \"$JOB_ID\", \"$QUOTE_ID\", \"$PAYMENT_ID\")" \
-    -e "$ENV" 2>/dev/null &
+    -e "$ENV"
 fi
 
-wait
+wait_for_background "Inter-canister wiring"
 
 echo ""
 echo "============================================"
@@ -894,83 +954,83 @@ echo "============================================"
 
 if [ -n "$JOB_ID" ]      && [ -n "$PAYMENT_ID" ]; then
   echo "  payment: trusting job ($JOB_ID)..."
-  icp canister call payment addTrustedCanister "(principal \"$JOB_ID\")"      -e "$ENV" 2>/dev/null &
+  bg_call payment addTrustedCanister "(principal \"$JOB_ID\")"      -e "$ENV"
 fi
 if [ -n "$PROPERTY_ID" ] && [ -n "$PAYMENT_ID" ]; then
   echo "  payment: trusting property ($PROPERTY_ID)..."
-  icp canister call payment addTrustedCanister "(principal \"$PROPERTY_ID\")" -e "$ENV" 2>/dev/null &
+  bg_call payment addTrustedCanister "(principal \"$PROPERTY_ID\")" -e "$ENV"
 fi
 if [ -n "$PHOTO_ID" ]    && [ -n "$PAYMENT_ID" ]; then
   echo "  payment: trusting photo ($PHOTO_ID)..."
-  icp canister call payment addTrustedCanister "(principal \"$PHOTO_ID\")"    -e "$ENV" 2>/dev/null &
+  bg_call payment addTrustedCanister "(principal \"$PHOTO_ID\")"    -e "$ENV"
 fi
 if [ -n "$QUOTE_ID" ]    && [ -n "$PAYMENT_ID" ]; then
   echo "  payment: trusting quote ($QUOTE_ID)..."
-  icp canister call payment addTrustedCanister "(principal \"$QUOTE_ID\")"    -e "$ENV" 2>/dev/null &
+  bg_call payment addTrustedCanister "(principal \"$QUOTE_ID\")"    -e "$ENV"
 fi
 if [ -n "$JOB_ID" ] && [ -n "$CONTRACTOR_ID" ]; then
   echo "  contractor: trusting job ($JOB_ID)..."
-  icp canister call contractor addTrustedCanister "(principal \"$JOB_ID\")"   -e "$ENV" 2>/dev/null &
+  bg_call contractor addTrustedCanister "(principal \"$JOB_ID\")"   -e "$ENV"
 fi
 if [ -n "$JOB_ID" ]    && [ -n "$PROPERTY_ID" ]; then
   echo "  property: trusting job ($JOB_ID)..."
-  icp canister call property addTrustedCanister "(principal \"$JOB_ID\")"     -e "$ENV" 2>/dev/null &
+  bg_call property addTrustedCanister "(principal \"$JOB_ID\")"     -e "$ENV"
 fi
 if [ -n "$PHOTO_ID" ]  && [ -n "$PROPERTY_ID" ]; then
   echo "  property: trusting photo ($PHOTO_ID)..."
-  icp canister call property addTrustedCanister "(principal \"$PHOTO_ID\")"   -e "$ENV" 2>/dev/null &
+  bg_call property addTrustedCanister "(principal \"$PHOTO_ID\")"   -e "$ENV"
 fi
 if [ -n "$QUOTE_ID" ]  && [ -n "$PROPERTY_ID" ]; then
   echo "  property: trusting quote ($QUOTE_ID)..."
-  icp canister call property addTrustedCanister "(principal \"$QUOTE_ID\")"   -e "$ENV" 2>/dev/null &
+  bg_call property addTrustedCanister "(principal \"$QUOTE_ID\")"   -e "$ENV"
 fi
 if [ -n "$REPORT_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  property: trusting report ($REPORT_ID)..."
-  icp canister call property addTrustedCanister "(principal \"$REPORT_ID\")"  -e "$ENV" 2>/dev/null &
+  bg_call property addTrustedCanister "(principal \"$REPORT_ID\")"  -e "$ENV"
 fi
 if [ -n "$SENSOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting sensor ($SENSOR_ID)..."
-  icp canister call job addTrustedCanister "(principal \"$SENSOR_ID\")"       -e "$ENV" 2>/dev/null &
+  bg_call job addTrustedCanister "(principal \"$SENSOR_ID\")"       -e "$ENV"
 fi
 if [ -n "$REPORT_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting report ($REPORT_ID) (reports read jobs from the job canister)..."
-  icp canister call job addTrustedCanister "(principal \"$REPORT_ID\")"       -e "$ENV" 2>/dev/null &
+  bg_call job addTrustedCanister "(principal \"$REPORT_ID\")"       -e "$ENV"
 fi
 if [ -n "$CONTRACTOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting contractor ($CONTRACTOR_ID) (review cross-check)..."
-  icp canister call job addTrustedCanister "(principal \"$CONTRACTOR_ID\")"   -e "$ENV" 2>/dev/null &
+  bg_call job addTrustedCanister "(principal \"$CONTRACTOR_ID\")"   -e "$ENV"
 fi
 if [ -n "$JOB_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  job: trusting property ($PROPERTY_ID) (contractor job addresses)..."
-  icp canister call job addTrustedCanister "(principal \"$PROPERTY_ID\")"    -e "$ENV" 2>/dev/null &
+  bg_call job addTrustedCanister "(principal \"$PROPERTY_ID\")"    -e "$ENV"
 fi
 
 # Wire audit canister: register source canisters as trusted writers, then give
 # each source canister the audit canister ID so it can call log().
 if [ -n "$AUDIT_ID" ]; then
-  [ -n "$AUTH_ID" ]     && icp canister call audit addTrustedCanister "(principal \"$AUTH_ID\")"     -e "$ENV" 2>/dev/null &
-  [ -n "$PAYMENT_ID" ]  && icp canister call audit addTrustedCanister "(principal \"$PAYMENT_ID\")"  -e "$ENV" 2>/dev/null &
-  [ -n "$PROPERTY_ID" ] && icp canister call audit addTrustedCanister "(principal \"$PROPERTY_ID\")" -e "$ENV" 2>/dev/null &
-  [ -n "$REPORT_ID" ]   && icp canister call audit addTrustedCanister "(principal \"$REPORT_ID\")"   -e "$ENV" 2>/dev/null &
-  [ -n "$PHOTO_ID" ]    && icp canister call audit addTrustedCanister "(principal \"$PHOTO_ID\")"    -e "$ENV" 2>/dev/null &
+  [ -n "$AUTH_ID" ]     && bg_call audit addTrustedCanister "(principal \"$AUTH_ID\")"     -e "$ENV" || true
+  [ -n "$PAYMENT_ID" ]  && bg_call audit addTrustedCanister "(principal \"$PAYMENT_ID\")"  -e "$ENV" || true
+  [ -n "$PROPERTY_ID" ] && bg_call audit addTrustedCanister "(principal \"$PROPERTY_ID\")" -e "$ENV" || true
+  [ -n "$REPORT_ID" ]   && bg_call audit addTrustedCanister "(principal \"$REPORT_ID\")"   -e "$ENV" || true
+  [ -n "$PHOTO_ID" ]    && bg_call audit addTrustedCanister "(principal \"$PHOTO_ID\")"    -e "$ENV" || true
 
-  [ -n "$AUTH_ID" ]     && icp canister call auth     setAuditCanisterId "(principal \"$AUDIT_ID\")" -e "$ENV" 2>/dev/null &
-  [ -n "$PAYMENT_ID" ]  && icp canister call payment  setAuditCanisterId "(principal \"$AUDIT_ID\")" -e "$ENV" 2>/dev/null &
-  [ -n "$PROPERTY_ID" ] && icp canister call property setAuditCanisterId "(principal \"$AUDIT_ID\")" -e "$ENV" 2>/dev/null &
-  [ -n "$REPORT_ID" ]   && icp canister call report   setAuditCanisterId "(principal \"$AUDIT_ID\")" -e "$ENV" 2>/dev/null &
-  [ -n "$PHOTO_ID" ]    && icp canister call photo    setAuditCanisterId "(principal \"$AUDIT_ID\")" -e "$ENV" 2>/dev/null &
+  [ -n "$AUTH_ID" ]     && bg_call auth     setAuditCanisterId "(principal \"$AUDIT_ID\")" -e "$ENV" || true
+  [ -n "$PAYMENT_ID" ]  && bg_call payment  setAuditCanisterId "(principal \"$AUDIT_ID\")" -e "$ENV" || true
+  [ -n "$PROPERTY_ID" ] && bg_call property setAuditCanisterId "(principal \"$AUDIT_ID\")" -e "$ENV" || true
+  [ -n "$REPORT_ID" ]   && bg_call report   setAuditCanisterId "(principal \"$AUDIT_ID\")" -e "$ENV" || true
+  [ -n "$PHOTO_ID" ]    && bg_call photo    setAuditCanisterId "(principal \"$AUDIT_ID\")" -e "$ENV" || true
 fi
 
-wait
+wait_for_background "Trusted canister lists"
 
 # The audit log names each writer from this registry, not from what the caller
 # claims; it must run after the addTrustedCanister calls above have landed.
 if [ -n "$AUDIT_ID" ]; then
   for pair in "auth:$AUTH_ID" "payment:$PAYMENT_ID" "property:$PROPERTY_ID" "report:$REPORT_ID" "photo:$PHOTO_ID"; do
     name="${pair%%:*}"; id="${pair#*:}"
-    [ -n "$id" ] && icp canister call audit setTrustedCanisterName "(principal \"$id\", \"$name\")" -e "$ENV" 2>/dev/null &
+    [ -n "$id" ] && bg_call audit setTrustedCanisterName "(principal \"$id\", \"$name\")" -e "$ENV" || true
   done
-  wait
+  wait_for_background "Audit writer names"
 fi
 
 # ── vetKD master key ─────────────────────────────────────────────────────────
@@ -1006,53 +1066,6 @@ if [ -n "$AI_PROXY_ID" ]; then
     fi
   done
 fi
-
-echo ""
-echo "============================================"
-echo "  Controller Hardening"
-echo "============================================"
-# TODO: icp-cli equivalent of `dfx canister update-settings --add-controller` is
-# not yet documented in the migration guide. Re-enable once confirmed.
-# Tracking: MeteSr/HomeGentic#174
-if [ "$ENV" != "local" ]; then
-  if [ -n "${BACKUP_CONTROLLER_PRINCIPAL:-}" ]; then
-    echo "  ⚠️  Controller hardening skipped — icp canister settings --add-controller"
-    echo "     not yet confirmed. Set manually via dfx until icp-cli documents this."
-    echo "     BACKUP_CONTROLLER_PRINCIPAL=${BACKUP_CONTROLLER_PRINCIPAL}"
-  else
-    echo "  ⚠️  BACKUP_CONTROLLER_PRINCIPAL is not set."
-    echo "     All canisters are controlled only by the deploying identity."
-  fi
-else
-  echo "  (skipped — local network)"
-fi
-
-# ── Freezing threshold (cycle safety net) ────────────────────────────────────
-# Sets freezing_threshold to 90 days on every canister so the IC will reject
-# new calls before cycles hit zero, giving a 90-day window for the cycle-watchdog
-# to top up before an outage.
-echo ""
-echo "============================================"
-echo "  Freezing Threshold (90-day safety net)"
-echo "============================================"
-FREEZE_CANISTERS=(
-  auth property job contractor quote payment photo
-  report maintenance market sensor monitoring listing
-  agent fee recurring bills ai_proxy audit referrals
-)
-FREEZE_THRESHOLD=7776000  # 90 days in seconds
-FREEZE_OK=0
-FREEZE_SKIP=0
-for CANISTER in "${FREEZE_CANISTERS[@]}"; do
-  if icp canister update-settings "$CANISTER" \
-       --freezing-threshold "$FREEZE_THRESHOLD" \
-       -e "$ENV" >/dev/null 2>&1; then
-    FREEZE_OK=$(( FREEZE_OK + 1 ))
-  else
-    FREEZE_SKIP=$(( FREEZE_SKIP + 1 ))
-  fi
-done
-echo "  ✓ Freezing threshold set (${FREEZE_OK} ok, ${FREEZE_SKIP} skipped — not yet deployed)"
 
 # Internet Identity is managed by icp-cli via ii: true in icp.yaml.
 # icp network start -d deploys it automatically. Local URL: http://id.ai.localhost:8000
@@ -1107,7 +1120,12 @@ if [ "$ENV" != "local" ]; then
       ;;
   esac
 fi
-echo "▶ npm run build (frontend)..."
+# Error reports carry the release; on a real network the build refuses to
+# produce a bundle with an empty canister ID (it would quietly show mock or
+# empty data instead of failing).
+export VITE_APP_VERSION="${VITE_APP_VERSION:-$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD 2>/dev/null || echo unknown)}"
+if [ "$ENV" != "local" ]; then export REQUIRE_CANISTER_IDS=1; fi
+echo "▶ npm run build (frontend, release $VITE_APP_VERSION)..."
 if (cd "$REPO_ROOT/frontend" && npm run build); then
   echo "  ✓ Frontend built (dist/ + .ic-assets.json5 ready)"
 else
@@ -1135,6 +1153,50 @@ PYEOF
   fi
 else
   echo "  ✗ Frontend canister deploy failed"
+  exit 1
+fi
+
+# ── Canister settings: backup controller + freezing threshold ───────────────
+# Runs after the frontend deploy so the frontend canister gets them too. Both
+# used to call an `update-settings` subcommand that icp-cli doesn't have, and
+# counted the error as "skipped", so neither was ever applied (testnet log,
+# 2026-10-07: "0 ok, 20 skipped"). Now a failure stops the deploy.
+#   Backup controller — a second principal that can recover every canister if
+#     the CI identity PEM is lost.
+#   Freezing threshold (90 days) — the IC rejects new calls once a canister
+#     has less than 90 days of idle burn left, which keeps its code and data
+#     from being deleted while the cycle watchdog tops it up.
+if [ "$ENV" != "local" ]; then
+  echo ""
+  echo "============================================"
+  echo "  Canister Settings"
+  echo "============================================"
+  SETTINGS_FAILED=()
+  for canister in "${CANISTERS[@]}" frontend; do
+    echo -n "  $canister... "
+    _args=(--freezing-threshold 90d)
+    if [ -n "${BACKUP_CONTROLLER_PRINCIPAL:-}" ] \
+       && ! icp canister settings show "$canister" -e "$ENV" 2>/dev/null | grep -q "$BACKUP_CONTROLLER_PRINCIPAL"; then
+      _args+=(--add-controller "$BACKUP_CONTROLLER_PRINCIPAL")
+    fi
+    if _out=$(icp canister settings update "$canister" "${_args[@]}" --force -e "$ENV" 2>&1); then
+      echo "✓ (${_args[*]})"
+    else
+      echo "✗"
+      printf '%s\n' "$_out" | sed 's/^/      /'
+      SETTINGS_FAILED+=("$canister")
+    fi
+  done
+  if [ ${#SETTINGS_FAILED[@]} -gt 0 ]; then
+    echo "❌ Canister settings failed for: ${SETTINGS_FAILED[*]}"
+    exit 1
+  fi
+fi
+
+if [ -n "${CYCLES_TOPUP_FAILED:-}" ]; then
+  echo ""
+  echo "❌ Deployed, but cycle top-up failed for:${CYCLES_TOPUP_FAILED}"
+  echo "   Fund the deploy identity's cycles ledger and run: ICP_ENV=$ENV bash scripts/top-up-canisters.sh"
   exit 1
 fi
 

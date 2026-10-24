@@ -680,6 +680,24 @@ persistent actor Photo {
     }
   };
 
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Deletes every photo the caller uploaded (owner == caller) through
+  /// deletePhotoRecord, so the job/property indexes and the per-owner usage
+  /// quota stay right, and drops their dedup hash entries. Approvals live on
+  /// the photo record and go with it. Returns how many photos were removed.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+
+    let mine = photoStore.values().filter(func(p) = p.owner == msg.caller).toArray();
+    for (p in mine.values()) {
+      deletePhotoRecord(p);
+      dropHash(p);
+    };
+    usageByOwner.remove(msg.caller.toText());
+    #ok(mine.size())
+  };
+
   // ─── Admin Functions ──────────────────────────────────────────────────────────
 
 

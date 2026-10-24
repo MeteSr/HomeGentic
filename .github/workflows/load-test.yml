@@ -64,6 +64,12 @@ jobs:
         env:
           SENSOR_CANISTER_ID: dummy
           IOT_GATEWAY_PORT: "3002"
+          # Skip the canister call; see tests/k6/iot-gateway-load.js.
+          IOT_GATEWAY_DRY_RUN: "1"
+          # Test-only secrets; k6 signs with the same defaults.
+          NEST_WEBHOOK_SECRET: k6-nest
+          ECOBEE_WEBHOOK_SECRET: k6-ecobee
+          MOEN_FLO_WEBHOOK_SECRET: k6-moen
         run: |
           cd agents/iot-gateway && npm run dev &
           npx --yes wait-on@latest http://localhost:3002/health --timeout 30000

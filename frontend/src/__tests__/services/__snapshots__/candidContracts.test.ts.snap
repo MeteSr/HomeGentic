@@ -31,6 +31,7 @@ unpause(0) -> (1)"
 
 exports[`Candid contract snapshots — method arity > auth 1`] = `
 "completeOnboarding(0) -> (0)
+deleteMyData(0) -> (1)
 getMetrics(0) -> (1) [query]
 getNotificationContact(1) -> (1) [query]
 getProfile(0) -> (1) [query]
@@ -49,6 +50,7 @@ exports[`Candid contract snapshots — method arity > bills 1`] = `
 "addBill(1) -> (1)
 addRecurringExpense(2) -> (1)
 deleteBill(1) -> (1)
+deleteMyData(0) -> (1)
 deleteRecurringExpense(1) -> (1)
 getBillsForProperty(1) -> (1)
 getRecurringExpensesForProperty(1) -> (1)
@@ -59,6 +61,7 @@ updateRecurringExpense(2) -> (1)"
 
 exports[`Candid contract snapshots — method arity > contractor 1`] = `
 "createOrLinkGuestProfile(7) -> (1)
+deleteMyData(0) -> (1)
 getAll(0) -> (1) [query]
 getBySpecialty(1) -> (1) [query]
 getContractor(1) -> (1) [query]
@@ -80,6 +83,7 @@ exports[`Candid contract snapshots — method arity > job 1`] = `
 createInviteToken(2) -> (1)
 createJob(11) -> (1)
 createJobProposal(9) -> (1)
+deleteMyData(0) -> (1)
 getCertificationData(1) -> (1) [query]
 getJob(1) -> (1) [query]
 getJobByInviteToken(1) -> (1) [query]
@@ -107,6 +111,7 @@ addPanorama(3) -> (1)
 cancelBidRequest(1) -> (1)
 createBidRequest(13) -> (1)
 deactivateFsboListing(1) -> (1)
+deleteMyData(0) -> (1)
 flagPhotoForReview(1) -> (1)
 getBidProgress(1) -> (1) [query]
 getBidRequest(1) -> (1) [query]
@@ -143,6 +148,7 @@ withdrawProposal(1) -> (1)"
 
 exports[`Candid contract snapshots — method arity > maintenance 1`] = `
 "createScheduleEntry(6) -> (1)
+deleteMyData(0) -> (1)
 getScheduleByProperty(1) -> (1)
 markCompleted(1) -> (1)"
 `;
@@ -196,7 +202,8 @@ verifyStripeSession(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > photo 1`] = `
-"deletePhoto(1) -> (1)
+"deleteMyData(0) -> (1)
+deletePhoto(1) -> (1)
 getListingPhotoDataBatch(1) -> (1) [query]
 getPhotoDataBatch(1) -> (1)
 getPhotosByJob(1) -> (1)
@@ -212,6 +219,7 @@ exports[`Candid contract snapshots — method arity > property 1`] = `
 cancelTransfer(1) -> (1)
 claimManagerRole(1) -> (1)
 claimTransfer(1) -> (1)
+deleteMyData(0) -> (1)
 dismissNotifications(1) -> (1)
 getAccessRole(2) -> (1) [query]
 getApprovals(1) -> (1) [query]
@@ -242,6 +250,7 @@ isAuthorized(3) -> (1) [query]
 markIdentityCleared(3) -> (1)
 recordManagerActivity(2) -> (1)
 registerProperty(1) -> (1)
+relayMarkIdentityCleared(4) -> (1)
 removeManager(2) -> (1)
 requestApproval(3) -> (1)
 resignAsManager(1) -> (1)
@@ -258,6 +267,7 @@ cancelQuoteRequest(1) -> (1)
 closeQuoteRequest(1) -> (1)
 createQuoteRequest(9) -> (1)
 createSealedBidRequest(10) -> (1)
+deleteMyData(0) -> (1)
 getIbePublicKey(0) -> (1)
 getMyBid(1) -> (1) [query]
 getMyQuoteRequests(0) -> (1) [query]
@@ -281,6 +291,7 @@ exports[`Candid contract snapshots — method arity > recurring 1`] = `
 "addVisitLog(3) -> (1)
 attachContractDoc(2) -> (1)
 createRecurringService(9) -> (1)
+deleteMyData(0) -> (1)
 getByProperty(1) -> (1)
 getMetrics(0) -> (1) [query]
 getRecurringService(1) -> (1)
@@ -289,7 +300,8 @@ updateStatus(2) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > report 1`] = `
-"generateReport(12) -> (1)
+"deleteMyData(0) -> (1)
+generateReport(12) -> (1)
 generateRiskProfile(3) -> (1)
 getBillsSummary(1) -> (1) [query]
 getReport(1) -> (1)
@@ -301,6 +313,7 @@ revokeShareLink(1) -> (1)"
 
 exports[`Candid contract snapshots — method arity > sensor 1`] = `
 "deactivateDevice(1) -> (1)
+deleteMyData(0) -> (1)
 getDevicesForProperty(1) -> (1) [composite_query]
 getEventsForProperty(2) -> (1)
 getPendingAlerts(1) -> (1)

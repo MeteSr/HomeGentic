@@ -72,15 +72,17 @@ describe("14.4.3: upgrade runbook documentation", () => {
 
   it("runbook describes the rollback procedure", () => {
     expect(runbook).toMatch(/[Rr]ollback/);
-    // Rolling back = redeploying the previous commit's Wasm.
-    expect(runbook).toMatch(/git checkout <sha> && icp deploy/);
+    // Either restore the pre-upgrade snapshot or redeploy the last tagged release.
+    expect(runbook).toMatch(/icp canister snapshot restore/);
+    expect(runbook).toMatch(/git checkout <last mainnet-\* tag>/);
   });
 
   it("runbook warns against removing stable variables", () => {
     expect(runbook).toMatch(/[Nn]ever remove|[Nn]ever rename/i);
   });
 
-  it("runbook explains the ?T rule for new fields", () => {
-    expect(runbook).toMatch(/\?T|optional.*field|new fields.*\?/i);
+  it("runbook says new data goes in a new stable var, not a new record field", () => {
+    expect(runbook).toMatch(/not even to add an optional `\?T` field/);
+    expect(runbook).toMatch(/new stable var/);
   });
 });

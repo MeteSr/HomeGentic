@@ -1,28 +1,39 @@
-import React, { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useVerifyContext } from "./VerifyLayout";
 import { CountdownTimer } from "./components/CountdownTimer";
 import { propertyService } from "@/services/property";
 
-const TWO_COL: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 320px",
-  gap: 32,
-  alignItems: "start",
-};
-
 export default function VerifyIdentityPage() {
   const navigate               = useNavigate();
   const { id }                 = useParams<{ id: string }>();
   const { claim, refresh }     = useVerifyContext();
-  const [localPending, setPending] = useState(false);
+  const [params]               = useSearchParams();
+  // Stripe sends the user back with ?submitted=1; the webhook records the
+  // result a few seconds later, so poll until the claim shows it.
+  const [localPending, setPending] = useState(params.has("submitted"));
+  const [startError, setStartError] = useState<string | null>(null);
 
-  const handleStart = () => {
-    // In production, this would open a Stripe Identity session.
-    // For now, we simulate a pending state.
+  useEffect(() => {
+    if (!localPending) return;
+    if (claim.identityVerified) { navigate(`/properties/${id}/verify`); return; }
+    const t = setInterval(() => { refresh().catch(() => {}); }, 5000);
+    return () => clearInterval(t);
+  }, [localPending, claim.identityVerified, id, navigate, refresh]);
+
+  const handleStart = async () => {
+    if (!id) return;
+    setStartError(null);
     setPending(true);
+    try {
+      const returnUrl = `${window.location.origin}/properties/${id}/verify/identity?submitted=1`;
+      window.location.href = await propertyService.startIdentityCheck(id, returnUrl);
+    } catch (e: any) {
+      setPending(false);
+      setStartError(e?.message ?? "Could not start the identity check");
+    }
   };
 
   const handleDevClear = async () => {
@@ -44,7 +55,7 @@ export default function VerifyIdentityPage() {
           claimWindowEndsAt={claim.claimWindowEndsAt}
         />
 
-        <div style={TWO_COL}>
+        <div className="rsp-grid-sidebar">
           {/* Main column */}
           <div>
             <div style={{ fontSize: 11, fontFamily: V2_FONTS.mono, color: V2_COLORS.blue, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
@@ -54,7 +65,7 @@ export default function VerifyIdentityPage() {
               Scan your ID, then take a selfie.
             </h1>
             <p style={{ fontFamily: V2_FONTS.body, fontSize: 14, color: V2_COLORS.muted, lineHeight: 1.6, marginBottom: 28 }}>
-              We use Stripe Identity to verify government-issued photo ID. The check takes about 2 minutes and the result is recorded on-chain without storing your photo.
+              Stripe Identity checks your government-issued photo ID and a live selfie. It usually takes a couple of minutes. Stripe keeps the ID images under its own privacy policy; HomeGentic stores only the result and the name on the ID.
             </p>
 
             {/* Identity check card */}
@@ -69,7 +80,7 @@ export default function VerifyIdentityPage() {
               </div>
 
               {/* Two placeholders */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+              <div className="rsp-grid-2" style={{ gap: 16, marginBottom: 24 }}>
                 {/* Government ID placeholder */}
                 <div>
                   <div style={{ background: V2_COLORS.lblue, border: `1px solid #D0D3FF`, borderRadius: 10, aspectRatio: "1.6 / 1", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
@@ -94,11 +105,16 @@ export default function VerifyIdentityPage() {
                     Check in progress…
                   </div>
                   <div style={{ fontSize: 12, fontFamily: V2_FONTS.body, color: V2_COLORS.muted }}>
-                    Stripe will redirect you back when complete.
+                    {params.has("submitted")
+                      ? "Waiting for Stripe to confirm your check. This page updates on its own."
+                      : "Opening Stripe…"}
                   </div>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {startError && (
+                    <div role="alert" style={{ fontSize: 13, fontFamily: V2_FONTS.body, color: V2_COLORS.coralText }}>{startError}</div>
+                  )}
                   <button
                     onClick={handleStart}
                     style={{ background: V2_COLORS.ink, color: "#fff", border: "none", borderRadius: 100, padding: "12px 24px", fontFamily: V2_FONTS.body, fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%" }}

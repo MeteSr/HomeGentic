@@ -161,6 +161,7 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: ListingBidRequest, err: Error })],
       []
     ),
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     getMyBidRequests: IDL.Func([], [IDL.Vec(ListingBidRequest)], ["query"]),
     getBidRequest: IDL.Func([IDL.Text], [IDL.Variant({ ok: ListingBidRequest, err: Error })], ["query"]),
     cancelBidRequest: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
