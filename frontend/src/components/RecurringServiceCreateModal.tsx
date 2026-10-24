@@ -6,6 +6,7 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { isValidPhone } from "@/utils/validators";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -73,6 +74,9 @@ export default function RecurringServiceCreateModal({
     }
   }, [properties]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // handleClose is declared below the early return; Escape only fires after render.
+  const dialog = useDialog(open, () => handleClose(), { label: "Add Recurring Service" });
+
   if (!open) return null;
 
   const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
@@ -117,9 +121,6 @@ export default function RecurringServiceCreateModal({
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Add Recurring Service"
       style={{
         position: "fixed", inset: 0, zIndex: 1000,
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -128,7 +129,7 @@ export default function RecurringServiceCreateModal({
       }}
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
-      <div style={{
+      <div {...dialog} style={{
         background:   V2_COLORS.paper,
         border:       `1px solid ${V2_COLORS.border}`,
         borderRadius: V2_RADIUS.card,

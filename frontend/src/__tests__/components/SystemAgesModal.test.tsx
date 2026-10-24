@@ -143,7 +143,7 @@ describe("SystemAgesModal — dismissal", () => {
     fireEvent.click(screen.getByText("System Ages")); // inner content
     expect(onClose).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("dialog")); // role="dialog" is the backdrop itself here
+    fireEvent.click(screen.getByRole("dialog").parentElement!); // backdrop wraps the dialog panel
     expect(onClose).toHaveBeenCalled();
   });
 

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X } from "lucide-react";
 import { aiProxyService } from "@/services/aiProxy";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 import toast from "react-hot-toast";
 
 const DAYTONA_CITIES = new Set([
@@ -31,6 +32,7 @@ export default function LocalBrokerModal({ propertyAddress, onClose }: Props) {
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const dialog = useDialog(true, dismiss, { label: "Local broker" });
 
   function dismiss() {
     try { localStorage.setItem(DISMISS_KEY, "1"); } catch {}
@@ -85,7 +87,7 @@ export default function LocalBrokerModal({ propertyAddress, onClose }: Props) {
       display: "flex", alignItems: "center", justifyContent: "center",
       zIndex: 200, padding: "1rem",
     }}>
-      <div style={{
+      <div {...dialog} style={{
         background: "#fff", maxWidth: 480, width: "100%",
         border: `1px solid ${UI.rule}`, position: "relative",
       }}>
@@ -94,7 +96,7 @@ export default function LocalBrokerModal({ propertyAddress, onClose }: Props) {
           <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
             Local Broker — Daytona Area
           </p>
-          <button onClick={dismiss} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, display: "flex" }}>
+          <button onClick={dismiss} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, display: "flex" }}>
             <X size={16} />
           </button>
         </div>

@@ -15,6 +15,7 @@ import toast from "react-hot-toast";
 import { jobService, type Job } from "@/services/job";
 import { contractorService, type ContractorProfile } from "@/services/contractor";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 interface ChaseSignatureModalProps {
   open:    boolean;
@@ -33,6 +34,8 @@ export function ChaseSignatureModal({ open, jobId, jobs, onClose, onSent }: Chas
     if (!open || !job?.contractor) { setContact(null); return; }
     contractorService.getContractor(job.contractor).then(setContact).catch(() => setContact(null));
   }, [open, job?.contractor]);
+
+  const dialog = useDialog(open && !!job, onClose, { label: "Chase signature" });
 
   if (!open || !job) return null;
 
@@ -53,7 +56,7 @@ export function ChaseSignatureModal({ open, jobId, jobs, onClose, onSent }: Chas
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(11,13,26,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: V2_COLORS.paper, borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal, width: "100%", maxWidth: "30rem", display: "flex", flexDirection: "column" }}>
+      <div {...dialog} onClick={(e) => e.stopPropagation()} style={{ background: V2_COLORS.paper, borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal, width: "100%", maxWidth: "30rem", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1.25rem 1.5rem", borderBottom: `1px solid ${V2_COLORS.border}` }}>
           <div>
             <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 600, color: V2_COLORS.blue, margin: "0 0 0.2rem" }}>Outstanding signature</p>

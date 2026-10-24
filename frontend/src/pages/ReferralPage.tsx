@@ -68,15 +68,16 @@ export default function ReferralPage() {
         borderRadius: V2_RADIUS.card, padding: "1.5rem",
         boxShadow: V2_SHADOWS.card, marginBottom: "1.5rem",
       }}>
-        <p style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.625rem" }}>
+        <label htmlFor="referral-link" style={{ display: "block", fontFamily: V2_FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.625rem" }}>
           Your referral link
-        </p>
+        </label>
 
         {loading ? (
           <div style={{ height: 44, background: V2_COLORS.lblue, borderRadius: V2_RADIUS.input, animation: "pulse 1.5s ease infinite" }} />
         ) : (
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <input
+              id="referral-link"
               readOnly
               value={shareUrl}
               style={{

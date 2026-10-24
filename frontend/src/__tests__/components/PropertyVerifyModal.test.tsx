@@ -48,7 +48,7 @@ describe("PropertyVerifyModal — dismissal", () => {
     fireEvent.click(screen.getByText("Verify your ownership")); // inner content
     expect(onClose).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("dialog")); // backdrop
+    fireEvent.click(screen.getByRole("dialog").parentElement!); // backdrop wraps the dialog panel
     expect(onClose).toHaveBeenCalled();
   });
 

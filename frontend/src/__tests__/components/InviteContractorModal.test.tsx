@@ -265,9 +265,8 @@ describe("InviteContractorModal — close", () => {
 
   it("calls onClose when the backdrop overlay is clicked", async () => {
     const { onClose } = renderModal();
-    // The backdrop is the role="dialog" wrapper element
-    const dialog = screen.getByRole("dialog");
-    fireEvent.click(dialog);
+    // The backdrop wraps the role="dialog" panel
+    fireEvent.click(screen.getByRole("dialog").parentElement!);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

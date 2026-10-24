@@ -183,11 +183,11 @@ export default function BillUploadScreen({ route, navigation }: Props) {
           Photograph or select a bill — HomeGentic will read the provider, period, and amount.
         </Text>
 
-        <TouchableOpacity style={styles.primaryBtn} onPress={() => handlePickSource("camera")}>
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => handlePickSource("camera")} accessibilityRole="button" accessibilityLabel="Take a photo of a bill">
           <Text style={styles.primaryBtnText}>📷  Take a Photo</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryBtn} onPress={() => handlePickSource("library")}>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={() => handlePickSource("library")} accessibilityRole="button" accessibilityLabel="Choose a bill from your library">
           <Text style={styles.secondaryBtnText}>🖼  Choose from Library</Text>
         </TouchableOpacity>
 
@@ -199,8 +199,8 @@ export default function BillUploadScreen({ route, navigation }: Props) {
   if (step === "saving" && !extraction) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={colors.rust} />
-        <Text style={styles.extractingLabel}>Reading bill…</Text>
+        <ActivityIndicator size="large" color={colors.rust} accessibilityLabel="Reading bill" />
+        <Text style={styles.extractingLabel} accessibilityLiveRegion="polite">Reading bill…</Text>
       </View>
     );
   }
@@ -208,8 +208,8 @@ export default function BillUploadScreen({ route, navigation }: Props) {
   if (step === "saving" && extraction) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={colors.rust} />
-        <Text style={styles.extractingLabel}>Saving…</Text>
+        <ActivityIndicator size="large" color={colors.rust} accessibilityLabel="Saving bill" />
+        <Text style={styles.extractingLabel} accessibilityLiveRegion="polite">Saving…</Text>
       </View>
     );
   }
@@ -232,6 +232,9 @@ export default function BillUploadScreen({ route, navigation }: Props) {
             key={t}
             style={[styles.chip, form.billType === t && styles.chipActive]}
             onPress={() => setForm((p) => ({ ...p, billType: t }))}
+            accessibilityRole="radio"
+            accessibilityLabel={`Bill type ${t}`}
+            accessibilityState={{ selected: form.billType === t }}
           >
             <Text style={[styles.chipText, form.billType === t && styles.chipTextActive]}>
               {t}
@@ -244,6 +247,7 @@ export default function BillUploadScreen({ route, navigation }: Props) {
       <Text style={styles.label}>PROVIDER</Text>
       <TextInput
         style={styles.input}
+        accessibilityLabel="Provider"
         placeholder="e.g. FPL, TECO, Duke Energy"
         placeholderTextColor={colors.inkLight}
         value={form.provider ?? ""}
@@ -256,6 +260,8 @@ export default function BillUploadScreen({ route, navigation }: Props) {
           <Text style={styles.label}>PERIOD START</Text>
           <TextInput
             style={styles.input}
+            accessibilityLabel="Period start"
+            accessibilityHint="Date as year, month, day"
             placeholder="YYYY-MM-DD"
             placeholderTextColor={colors.inkLight}
             value={form.periodStart ?? ""}
@@ -267,6 +273,8 @@ export default function BillUploadScreen({ route, navigation }: Props) {
           <Text style={styles.label}>PERIOD END</Text>
           <TextInput
             style={styles.input}
+            accessibilityLabel="Period end"
+            accessibilityHint="Date as year, month, day"
             placeholder="YYYY-MM-DD"
             placeholderTextColor={colors.inkLight}
             value={form.periodEnd ?? ""}
@@ -280,6 +288,7 @@ export default function BillUploadScreen({ route, navigation }: Props) {
       <Text style={styles.label}>AMOUNT ($)</Text>
       <TextInput
         style={styles.input}
+        accessibilityLabel="Amount in dollars"
         placeholder="0.00"
         placeholderTextColor={colors.inkLight}
         value={form.amountCents != null ? (form.amountCents / 100).toFixed(2) : ""}
@@ -292,6 +301,7 @@ export default function BillUploadScreen({ route, navigation }: Props) {
       <View style={styles.row}>
         <TextInput
           style={[styles.input, { flex: 1, marginRight: spacing.sm }]}
+          accessibilityLabel="Usage amount, optional"
           placeholder="842"
           placeholderTextColor={colors.inkLight}
           value={form.usageAmount != null ? String(form.usageAmount) : ""}
@@ -304,6 +314,9 @@ export default function BillUploadScreen({ route, navigation }: Props) {
               key={u}
               style={[styles.chip, form.usageUnit === u && styles.chipActive]}
               onPress={() => setForm((p) => ({ ...p, usageUnit: u }))}
+              accessibilityRole="radio"
+              accessibilityLabel={`Usage unit ${u}`}
+              accessibilityState={{ selected: form.usageUnit === u }}
             >
               <Text style={[styles.chipText, form.usageUnit === u && styles.chipTextActive]}>{u}</Text>
             </TouchableOpacity>
@@ -311,11 +324,11 @@ export default function BillUploadScreen({ route, navigation }: Props) {
         </ScrollView>
       </View>
 
-      <TouchableOpacity style={[styles.primaryBtn, { marginTop: spacing.lg }]} onPress={handleSave}>
+      <TouchableOpacity style={[styles.primaryBtn, { marginTop: spacing.lg }]} onPress={handleSave} accessibilityRole="button">
         <Text style={styles.primaryBtnText}>Save Bill</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("pick")}>
+      <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("pick")} accessibilityRole="button">
         <Text style={styles.secondaryBtnText}>Cancel</Text>
       </TouchableOpacity>
     </ScrollView>

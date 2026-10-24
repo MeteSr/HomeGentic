@@ -4,6 +4,7 @@ import { Settings, ArrowUpCircle, CreditCard, Paperclip, LogOut, Gift } from "lu
 import { useAuth } from "@/contexts/AuthContext";
 import { voiceAgentFileInputRef } from "./VoiceAgent";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 interface UserMenuPopoverProps {
   displayName: string;
@@ -16,6 +17,7 @@ interface UserMenuPopoverProps {
 export function UserMenuPopover({ displayName, onClose, onUpgrade, anchor = "bottom-left" }: UserMenuPopoverProps) {
   const navigate   = useNavigate();
   const { logout } = useAuth();
+  const dialog     = useDialog(true, onClose, { label: "Account menu" });
 
   const menuItemStyle: React.CSSProperties = {
     display:     "flex",
@@ -44,7 +46,7 @@ export function UserMenuPopover({ displayName, onClose, onUpgrade, anchor = "bot
       />
 
       {/* Popover */}
-      <div style={{
+      <div {...dialog} style={{
         position:      "fixed",
         ...(anchor === "top-right" ? { top: "3.75rem", right: "1rem" } : { bottom: "1rem", left: "1rem" }),
         width:         "280px",

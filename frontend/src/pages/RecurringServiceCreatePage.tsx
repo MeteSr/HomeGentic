@@ -153,8 +153,8 @@ export default function RecurringServiceCreatePage() {
           {/* Property selector */}
           {properties.length > 0 && (
             <div>
-              <label className="form-label">Property *</label>
-              <select className="form-input" value={form.propertyId} onChange={(e) => update("propertyId", e.target.value)}>
+              <label className="form-label" htmlFor="rs-property">Property *</label>
+              <select id="rs-property" className="form-input" value={form.propertyId} onChange={(e) => update("propertyId", e.target.value)}>
                 {properties.map((p) => (
                   <option key={String(p.id)} value={String(p.id)}>{p.address}, {p.city}</option>
                 ))}
@@ -164,8 +164,8 @@ export default function RecurringServiceCreatePage() {
 
           {/* Service type */}
           <div>
-            <label className="form-label">Service Type *</label>
-            <select className="form-input" value={form.serviceType} onChange={(e) => update("serviceType", e.target.value)}>
+            <label className="form-label" htmlFor="rs-service-type">Service Type *</label>
+            <select id="rs-service-type" className="form-input" value={form.serviceType} onChange={(e) => update("serviceType", e.target.value)}>
               {SERVICE_TYPES.map((t) => (
                 <option key={t} value={t}>{SERVICE_TYPE_LABELS[t]}</option>
               ))}
@@ -174,33 +174,35 @@ export default function RecurringServiceCreatePage() {
 
           {/* Provider name */}
           <div>
-            <label className="form-label">Provider / Company Name *</label>
-            <input className="form-input" placeholder="e.g. Green Lawn Co." value={form.providerName} onChange={(e) => update("providerName", e.target.value)} />
+            <label className="form-label" htmlFor="rs-provider">Provider / Company Name *</label>
+            <input id="rs-provider" className="form-input" placeholder="e.g. Green Lawn Co." value={form.providerName} onChange={(e) => update("providerName", e.target.value)} />
           </div>
 
           <div className="rsp-grid-2" style={{ gap: "1rem" }}>
             <div>
-              <label className="form-label">License # <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
-              <input className="form-input" placeholder="e.g. PCO-12345" value={form.providerLicense} onChange={(e) => update("providerLicense", e.target.value)} />
+              <label className="form-label" htmlFor="rs-license">License # <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
+              <input id="rs-license" className="form-input" placeholder="e.g. PCO-12345" value={form.providerLicense} onChange={(e) => update("providerLicense", e.target.value)} />
             </div>
             <div>
-              <label className="form-label">Phone <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
-              <input
+              <label className="form-label" htmlFor="rs-phone">Phone <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
+              <input id="rs-phone" autoComplete="tel"
                 className="form-input" type="tel" placeholder="e.g. (555) 000-0000"
                 value={form.providerPhone}
                 onChange={(e) => update("providerPhone", e.target.value)}
+                aria-invalid={form.providerPhone && !isValidPhone(form.providerPhone) ? true : undefined}
+                aria-describedby={form.providerPhone && !isValidPhone(form.providerPhone) ? "rs-phone-error" : undefined}
                 style={form.providerPhone && !isValidPhone(form.providerPhone) ? { borderColor: V2_COLORS.coral } : undefined}
               />
               {form.providerPhone && !isValidPhone(form.providerPhone) && (
-                <p style={{ color: V2_COLORS.coralText, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: UI.mono }}>Enter a valid phone number</p>
+                <p id="rs-phone-error" style={{ color: V2_COLORS.coralText, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: UI.mono }}>Enter a valid phone number</p>
               )}
             </div>
           </div>
 
           {/* Frequency */}
           <div>
-            <label className="form-label">Frequency *</label>
-            <select className="form-input" value={form.frequency} onChange={(e) => update("frequency", e.target.value)}>
+            <label className="form-label" htmlFor="rs-frequency">Frequency *</label>
+            <select id="rs-frequency" className="form-input" value={form.frequency} onChange={(e) => update("frequency", e.target.value)}>
               {FREQUENCIES.map((f) => (
                 <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
               ))}
@@ -209,19 +211,19 @@ export default function RecurringServiceCreatePage() {
 
           <div className="rsp-grid-2" style={{ gap: "1rem" }}>
             <div>
-              <label className="form-label">Contract Start *</label>
-              <input className="form-input" type="date" value={form.startDate} onChange={(e) => update("startDate", e.target.value)} />
+              <label className="form-label" htmlFor="rs-start">Contract Start *</label>
+              <input id="rs-start" className="form-input" type="date" value={form.startDate} onChange={(e) => update("startDate", e.target.value)} />
             </div>
             <div>
-              <label className="form-label">Contract End <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
-              <input className="form-input" type="date" value={form.contractEndDate} onChange={(e) => update("contractEndDate", e.target.value)} />
+              <label className="form-label" htmlFor="rs-end">Contract End <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
+              <input id="rs-end" className="form-input" type="date" value={form.contractEndDate} onChange={(e) => update("contractEndDate", e.target.value)} />
             </div>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="form-label">Notes <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
-            <textarea className="form-input" rows={2} placeholder="e.g. Monthly treatment, includes interior" value={form.notes} onChange={(e) => update("notes", e.target.value)} style={{ resize: "vertical" }} />
+            <label className="form-label" htmlFor="rs-notes">Notes <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
+            <textarea id="rs-notes" className="form-input" rows={2} placeholder="e.g. Monthly treatment, includes interior" value={form.notes} onChange={(e) => update("notes", e.target.value)} style={{ resize: "vertical" }} />
           </div>
 
           <Button loading={loading} onClick={handleSubmit} icon={<CheckCircle size={14} />} size="lg" style={{ width: "100%" }}>

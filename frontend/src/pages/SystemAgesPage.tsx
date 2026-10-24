@@ -147,6 +147,7 @@ export default function SystemAgesPage() {
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.2rem" }}>
                     <input
                       type="number"
+                      aria-label={`${sys} install year`}
                       min={1900}
                       max={CURRENT_YEAR}
                       value={ages[sys]}

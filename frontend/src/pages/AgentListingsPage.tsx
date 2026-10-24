@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
+import { LoadError } from "@/components/LoadError";
 import { listingService, type BidRequestSummary } from "@/services/listing";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 
@@ -27,10 +28,17 @@ export default function AgentListingsPage() {
   const [listings, setListings] = useState<BidRequestSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [countyFilter, setCountyFilter] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    listingService.getOpenBidRequests().then((l) => { setListings(l); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    setLoadFailed(false);
+    listingService.getOpenBidRequests()
+      .then(setListings)
+      .catch(() => setLoadFailed(true))
+      .finally(() => setLoading(false));
+  }, [attempt]);
 
   const counties = useMemo(() => Array.from(new Set(listings.map((l) => l.county).filter(Boolean))), [listings]);
   const filtered = countyFilter ? listings.filter((l) => l.county === countyFilter) : listings;
@@ -39,7 +47,7 @@ export default function AgentListingsPage() {
     <Layout>
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "2rem 1.5rem 4rem" }}>
         <h1 style={{ fontFamily: V2_FONTS.display, fontWeight: 800, fontSize: "clamp(22px,2.4vw,28px)", color: UI.ink, margin: "0 0 12px" }}>
-          {listings.length} home{listings.length === 1 ? "" : "s"} taking bids
+          {loadFailed ? "Homes taking bids" : `${listings.length} home${listings.length === 1 ? "" : "s"} taking bids`}
         </h1>
 
         {counties.length > 0 && (
@@ -61,6 +69,8 @@ export default function AgentListingsPage() {
 
         {loading ? (
           <div style={{ padding: "3rem", textAlign: "center", color: UI.muted }}>Loading…</div>
+        ) : loadFailed ? (
+          <LoadError what="open listings" onRetry={() => setAttempt((a) => a + 1)} />
         ) : filtered.length === 0 ? (
           <div style={{ padding: "3rem", textAlign: "center", color: UI.muted, fontFamily: V2_FONTS.body }}>No open listings right now.</div>
         ) : (

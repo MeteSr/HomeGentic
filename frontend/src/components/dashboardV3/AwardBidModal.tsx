@@ -12,6 +12,7 @@ import { X } from "lucide-react";
 import toast from "react-hot-toast";
 import { quoteService, type Quote, type QuoteRequest } from "@/services/quote";
 import { BUTTON_RESET, V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 interface AwardBidModalProps {
   open:       boolean;
@@ -37,6 +38,8 @@ export function AwardBidModal({ open, requestId, onClose, onAwarded }: AwardBidM
       .finally(() => setLoading(false));
   }, [open, requestId]);
 
+  const dialog = useDialog(open && !!requestId, awarding ? undefined : onClose, { labelledBy: "award-bid-title" });
+
   if (!open || !requestId) return null;
 
   async function handleAward() {
@@ -55,11 +58,11 @@ export function AwardBidModal({ open, requestId, onClose, onAwarded }: AwardBidM
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(11,13,26,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: V2_COLORS.paper, borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal, width: "100%", maxWidth: "34rem", maxHeight: "88vh", overflowY: "auto", display: "flex", flexDirection: "column" }}>
+      <div {...dialog} onClick={(e) => e.stopPropagation()} style={{ background: V2_COLORS.paper, borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal, width: "100%", maxWidth: "34rem", maxHeight: "88vh", overflowY: "auto", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1.25rem 1.5rem", borderBottom: `1px solid ${V2_COLORS.border}` }}>
           <div>
             <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 600, color: V2_COLORS.blue, margin: "0 0 0.2rem" }}>Review the bids</p>
-            <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.25rem", color: V2_COLORS.ink, margin: 0 }}>{request?.serviceType ?? "Open job"}</h2>
+            <h2 id="award-bid-title" style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.25rem", color: V2_COLORS.ink, margin: 0 }}>{request?.serviceType ?? "Open job"}</h2>
           </div>
           <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted }}><X size={18} /></button>
         </div>

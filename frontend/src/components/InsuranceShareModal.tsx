@@ -5,6 +5,7 @@ import { reportService, type RiskProfile } from "@/services/report";
 import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -41,6 +42,7 @@ export function InsuranceShareModal({ property, onClose }: InsuranceShareModalPr
   const [generating, setGenerating] = useState(false);
   const [copied,     setCopied]     = useState(false);
   const [expiryDays, setExpiryDays] = useState<number | null>(90);
+  const dialog = useDialog(true, onClose, { label: `Share risk profile for ${property.address}` });
 
   const propertyId       = String(property.id);
   const verificationLevel = property.verificationLevel ?? "Unverified";
@@ -103,7 +105,7 @@ export function InsuranceShareModal({ property, onClose }: InsuranceShareModalPr
       display: "flex", alignItems: "center", justifyContent: "center",
       zIndex: 1000, padding: "1rem",
     }}>
-      <div data-testid="insurance-modal" style={{
+      <div {...dialog} data-testid="insurance-modal" style={{
         background: UI.paper, border: `1px solid ${UI.rule}`,
         maxWidth: 540, width: "100%", padding: "2rem",
         boxShadow: "0 8px 32px rgba(14,14,12,0.18)",
@@ -126,7 +128,7 @@ export function InsuranceShareModal({ property, onClose }: InsuranceShareModalPr
               {property.address}
             </p>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, padding: "0.25rem" }}>
+          <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, padding: "0.25rem" }}>
             <X size={20} />
           </button>
         </div>

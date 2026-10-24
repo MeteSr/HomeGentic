@@ -5,6 +5,8 @@ import toast from "react-hot-toast";
 export interface PropertyJobs {
   jobs: Job[];
   loading: boolean;
+  /** The last load failed — show a retry rather than an empty history. */
+  error: boolean;
   reload(): Promise<void>;
   verifyJob(jobId: string): Promise<void>;
 }
@@ -12,20 +14,31 @@ export interface PropertyJobs {
 export function usePropertyJobs(propertyId: string | undefined): PropertyJobs {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!propertyId) { setLoading(false); return; }
     let cancelled = false;
+    setError(false);
     jobService.getByProperty(propertyId)
       .then((list) => { if (!cancelled) setJobs(list); })
-      .catch((e) => console.error("[usePropertyJobs] initial load failed:", e))
+      .catch((e) => {
+        console.error("[usePropertyJobs] initial load failed:", e);
+        if (!cancelled) setError(true);
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [propertyId]);
 
   async function reload() {
     if (!propertyId) return;
-    jobService.getByProperty(propertyId).then(setJobs).catch((e) => console.error("[usePropertyJobs] reload failed:", e));
+    try {
+      setJobs(await jobService.getByProperty(propertyId));
+      setError(false);
+    } catch (e) {
+      console.error("[usePropertyJobs] reload failed:", e);
+      setError(true);
+    }
   }
 
   async function verifyJob(jobId: string) {
@@ -37,5 +50,5 @@ export function usePropertyJobs(propertyId: string | undefined): PropertyJobs {
     }
   }
 
-  return { jobs, loading, reload, verifyJob };
+  return { jobs, loading, error, reload, verifyJob };
 }

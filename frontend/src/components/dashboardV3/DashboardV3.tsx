@@ -210,11 +210,23 @@ export function DashboardV3() {
 
   const [sensorDevices, setSensorDevices] = useState<SensorDevice[]>([]);
   const [sensorAlerts, setSensorAlerts] = useState<SensorEvent[]>([]);
+  // A failed load must not read as "0 devices": the panel offers a retry instead.
+  const [sensorsFailed, setSensorsFailed] = useState(false);
+  const [sensorAttempt, setSensorAttempt] = useState(0);
   React.useEffect(() => {
+    setSensorsFailed(false);
     if (!activePropertyId) return;
-    sensorService.getDevicesForProperty(activePropertyId).then(setSensorDevices).catch(() => {});
-    sensorService.getPendingAlerts(activePropertyId).then(setSensorAlerts).catch(() => {});
-  }, [activePropertyId]);
+    let cancelled = false;
+    Promise.all([
+      sensorService.getDevicesForProperty(activePropertyId),
+      sensorService.getPendingAlerts(activePropertyId),
+    ]).then(([devices, alerts]) => {
+      if (cancelled) return;
+      setSensorDevices(devices);
+      setSensorAlerts(alerts);
+    }).catch(() => { if (!cancelled) setSensorsFailed(true); });
+    return () => { cancelled = true; };
+  }, [activePropertyId, sensorAttempt]);
 
   // Shared access is Pro-only (PeoplePage.tsx's own UpgradeGate, and the
   // tier check in inviteManager() on the backend) — only load it for
@@ -334,7 +346,7 @@ export function DashboardV3() {
   const ctx: PanelCtx = {
     score, grade, breakdown, premium, zipCode: activeProperty?.zipCode ?? "",
     activeProperty, properties, jobs, pendingProposals, decayEvents, atRiskWarnings, scoreEvents,
-    quoteRequests, bidCountMap, recurringServices, visitLogMap, rooms, sensorDevices, sensorAlerts,
+    quoteRequests, bidCountMap, recurringServices, visitLogMap, rooms, sensorDevices, sensorAlerts, sensorsFailed,
     systemAges, people,
     planTier: userTier, subExpiresAt, subCancelledAt,
     agentCreditsLeft: voice.creditBalance, agentQuotaExhausted: voice.quotaExhausted,
@@ -346,7 +358,7 @@ export function DashboardV3() {
   const panels = useMemo(() => buildPanels(ctx), [
     score, grade, breakdown, premium, activeProperty, properties, jobs, pendingProposals,
     decayEvents, atRiskWarnings, scoreEvents, quoteRequests, bidCountMap, recurringServices,
-    visitLogMap, rooms, sensorDevices, sensorAlerts, systemAges, people,
+    visitLogMap, rooms, sensorDevices, sensorAlerts, sensorsFailed, systemAges, people,
     userTier, subExpiresAt, subCancelledAt, voice.creditBalance, voice.quotaExhausted,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -384,6 +396,8 @@ export function DashboardV3() {
 
   return (
     <div className="hg-v3 hg-v3-viewport" data-theme={theme} style={{ display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+      {/* The layout has no visible page title; this names the page for screen readers. */}
+      <h1 className="sr-only">Dashboard</h1>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 16, padding: "14px 24px", flexWrap: "wrap" }}>
@@ -719,6 +733,7 @@ export function DashboardV3() {
                       if (activeKey === "billing" && isPro) { navigate("/settings"); return; }
                       if (activeKey === "market") { navigate("/resale-ready"); return; }
                       if (activeKey === "sensors") {
+                        if (sensorsFailed) { setSensorAttempt((n) => n + 1); return; }
                         if (sensorDevices.length === 0) { navigate("/sensors"); return; }
                         openFlow("quote");
                         return;

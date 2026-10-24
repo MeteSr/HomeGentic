@@ -12,6 +12,7 @@ import type { UsageSummary } from "@/services/quoteUsage";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -40,6 +41,8 @@ export default function QuoteDetailPage() {
   const [cancelling,         setCancelling]         = useState(false);
   const [usage,              setUsage]              = useState<UsageSummary | null>(null);
   const [stoppingUsage,      setStoppingUsage]      = useState(false);
+  const cancelDialog = useDialog(showCancelModal, cancelling ? undefined : () => setShowCancelModal(false), { label: "Cancel quote request", role: "alertdialog" });
+  const acceptDialog = useDialog(!!pendingAccept, accepting ? undefined : () => setPendingAccept(null), { label: "Confirm acceptance", role: "alertdialog" });
   const { principal } = useAuthStore();
 
   useEffect(() => {
@@ -394,6 +397,7 @@ export default function QuoteDetailPage() {
           style={{ position: "fixed", inset: 0, background: `rgba(46,37,64,0.6)`, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "1.5rem" }}
         >
           <div
+            {...cancelDialog}
             onClick={(e) => e.stopPropagation()}
             style={{ background: V2_COLORS.paper, border: `1px solid #C94C2E40`, maxWidth: "28rem", width: "100%", padding: "0", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal }}
           >
@@ -434,6 +438,7 @@ export default function QuoteDetailPage() {
           style={{ position: "fixed", inset: 0, background: `rgba(46,37,64,0.6)`, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "1.5rem" }}
         >
           <div
+            {...acceptDialog}
             onClick={(e) => e.stopPropagation()}
             style={{ background: V2_COLORS.paper, border: `1px solid ${UI.rule}`, maxWidth: "28rem", width: "100%", padding: "0", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal }}
           >

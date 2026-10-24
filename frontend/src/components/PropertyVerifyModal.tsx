@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Shield, X } from "lucide-react";
 import { Button } from "@/components/Button";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 export interface PropertyVerifyModalProps {
   open:        boolean;
@@ -13,6 +14,7 @@ export interface PropertyVerifyModalProps {
 
 export default function PropertyVerifyModal({ open, onClose, propertyId }: PropertyVerifyModalProps) {
   const navigate = useNavigate();
+  const dialog = useDialog(open, onClose, { label: "Verify Property Ownership" });
 
   if (!open) return null;
 
@@ -23,9 +25,6 @@ export default function PropertyVerifyModal({ open, onClose, propertyId }: Prope
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Verify Property Ownership"
       style={{
         position: "fixed", inset: 0, zIndex: 1000,
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -34,7 +33,7 @@ export default function PropertyVerifyModal({ open, onClose, propertyId }: Prope
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{
+      <div {...dialog} style={{
         background:   V2_COLORS.paper,
         border:       `1px solid ${V2_COLORS.border}`,
         borderRadius: V2_RADIUS.card,

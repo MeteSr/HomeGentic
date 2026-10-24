@@ -9,6 +9,7 @@ import { X, Send } from "lucide-react";
 import { Button } from "@/components/Button";
 import { listingService, type MaskedProposal, type ThreadMessage } from "@/services/listing";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 import toast from "react-hot-toast";
 import { formatCents } from "@/utils/format";
 
@@ -24,6 +25,7 @@ export function BidDetailDrawer({ proposal, onClose, onChoose }: BidDetailDrawer
   const [thread, setThread] = useState<ThreadMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const dialog = useDialog(true, onClose, { label: `Bid ${proposal.letter}` });
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +61,7 @@ export function BidDetailDrawer({ proposal, onClose, onChoose }: BidDetailDrawer
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", justifyContent: "flex-end" }}>
       <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(11,13,26,0.5)" }} />
-      <div style={{
+      <div {...dialog} style={{
         position: "relative", width: "min(620px, 100vw)", height: "100%", background: UI.paper,
         display: "flex", flexDirection: "column", overflowY: "auto",
         boxShadow: "-8px 0 32px rgba(11,13,26,0.2)",
@@ -77,7 +79,7 @@ export function BidDetailDrawer({ proposal, onClose, onChoose }: BidDetailDrawer
               </div>
             </div>
           </div>
-          <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: V2_RADIUS.sm + 4, background: UI.neutralSurface, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button onClick={onClose} aria-label="Close" style={{ width: 34, height: 34, borderRadius: V2_RADIUS.sm + 4, background: UI.neutralSurface, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <X size={16} color={UI.muted} />
           </button>
         </div>
