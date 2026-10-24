@@ -8,6 +8,7 @@ import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
 import { type Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 const SERVICE_TYPES = SERVICE_TYPE_LABELS;
 
@@ -50,18 +51,15 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
     setShareUsage(false);
   }, [isOpen, prefill, properties]);
 
-  // Scroll lock + Escape
+  // Scroll lock
   useEffect(() => {
     if (!isOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [isOpen, onClose]);
+    return () => { document.body.style.overflow = prev; };
+  }, [isOpen]);
+
+  const dialog = useDialog(isOpen, onClose, { labelledBy: "request-quote-title" });
 
   if (!isOpen) return null;
 
@@ -108,6 +106,7 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
       }}
     >
       <div
+        {...dialog}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: V2_COLORS.paper,
@@ -132,7 +131,7 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
             <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 600, color: V2_COLORS.blue, marginBottom: "0.2rem" }}>
               Contractor Network
             </p>
-            <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: V2_COLORS.ink }}>
+            <h2 id="request-quote-title" style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: V2_COLORS.ink }}>
               Request a Quote
             </h2>
           </div>

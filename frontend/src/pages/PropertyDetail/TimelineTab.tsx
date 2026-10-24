@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useDialog } from "@/hooks/useDialog";
 import { useNavigate } from "react-router-dom";
 import { Calendar, Star } from "lucide-react";
 import { photoService, type Photo } from "@/services/photo";
@@ -55,6 +56,7 @@ export function PhotoStrip({ photos, jobId, onUpload }: { photos: Photo[]; jobId
   }, [lightboxIdx, photos.length]);
 
   const activePh = lightboxIdx !== null ? photos[lightboxIdx] : null;
+  const dialog   = useDialog(!!activePh, closeLightbox, { label: "Photo viewer" });
 
   return (
     <>
@@ -80,8 +82,8 @@ export function PhotoStrip({ photos, jobId, onUpload }: { photos: Photo[]; jobId
       </div>
 
       {activePh && (
-        <div onClick={closeLightbox} style={{ position: "fixed", inset: 0, background: "rgba(11,13,26,0.94)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "2rem" }}>
-          <button onClick={prev} disabled={lightboxIdx === 0} style={{ position: "absolute", left: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, color: "#FCFCFD", padding: "0.75rem", cursor: lightboxIdx === 0 ? "default" : "pointer", opacity: lightboxIdx === 0 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>‹</button>
+        <div {...dialog} onClick={closeLightbox} style={{ position: "fixed", inset: 0, background: "rgba(11,13,26,0.94)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "2rem" }}>
+          <button onClick={prev} aria-label="Previous photo" disabled={lightboxIdx === 0} style={{ position: "absolute", left: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, color: "#FCFCFD", padding: "0.75rem", cursor: lightboxIdx === 0 ? "default" : "pointer", opacity: lightboxIdx === 0 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>‹</button>
           <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", alignItems: "center", maxWidth: "80vw", maxHeight: "80vh" }}>
             <img src={activePh.url} alt={activePh.description} style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8 }} />
             <div style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: "1rem" }}>
@@ -89,7 +91,7 @@ export function PhotoStrip({ photos, jobId, onUpload }: { photos: Photo[]; jobId
               <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: "0.55rem", color: "rgba(255,255,255,0.4)" }}>{(lightboxIdx ?? 0) + 1} / {photos.length}</span>
             </div>
           </div>
-          <button onClick={next} disabled={lightboxIdx === photos.length - 1} style={{ position: "absolute", right: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, color: "#FCFCFD", padding: "0.75rem", cursor: lightboxIdx === photos.length - 1 ? "default" : "pointer", opacity: lightboxIdx === photos.length - 1 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>›</button>
+          <button onClick={next} aria-label="Next photo" disabled={lightboxIdx === photos.length - 1} style={{ position: "absolute", right: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, color: "#FCFCFD", padding: "0.75rem", cursor: lightboxIdx === photos.length - 1 ? "default" : "pointer", opacity: lightboxIdx === photos.length - 1 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>›</button>
           <button onClick={closeLightbox} style={{ position: "absolute", top: "1.25rem", right: "1.25rem", background: "none", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, color: "#FCFCFD", padding: "0.375rem 0.75rem", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>Close</button>
         </div>
       )}

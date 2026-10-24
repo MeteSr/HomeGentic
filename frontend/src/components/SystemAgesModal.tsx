@@ -4,6 +4,7 @@ import { Button } from "@/components/Button";
 import { systemAgesService, TRACKED_SYSTEMS, type SystemName, type SystemAges } from "@/services/systemAges";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -59,6 +60,8 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
     }
   }, [propertyId, yearBuilt, open]);
 
+  const dialog = useDialog(open, onClose, { label: "Set System Ages" });
+
   if (!open) return null;
 
   const handleChange = (sys: SystemName, value: string) => {
@@ -95,9 +98,6 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Set System Ages"
       style={{
         position: "fixed", inset: 0, zIndex: 1000,
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -106,7 +106,7 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{
+      <div {...dialog} style={{
         background:   V2_COLORS.paper,
         border:       `1px solid ${V2_COLORS.border}`,
         borderRadius: V2_RADIUS.card,

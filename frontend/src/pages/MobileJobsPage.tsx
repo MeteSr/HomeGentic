@@ -4,6 +4,7 @@ import { jobService, type Job } from "@/services/job";
 import { quoteService, type QuoteRequest, type Quote } from "@/services/quote";
 import { usePropertyStore } from "@/store/propertyStore";
 import { V2_FONTS } from "@/theme";
+import { LoadError } from "@/components/LoadError";
 
 const F = V2_FONTS;
 
@@ -211,11 +212,15 @@ export function MobileJobsPage() {
   const [requests,  setRequests] = useState<QuoteRequest[]>([]);
   const [bidsMap,   setBidsMap]  = useState<Record<string, Quote[]>>({});
   const [loading,   setLoading]  = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt,   setAttempt]  = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setLoadFailed(false);
     Promise.all([
-      jobService.getAll().catch(() => [] as Job[]),
-      quoteService.getRequests().catch(() => [] as QuoteRequest[]),
+      jobService.getAll(),
+      quoteService.getRequests(),
     ]).then(async ([js, reqs]) => {
       setJobs(js);
       setRequests(reqs);
@@ -226,8 +231,9 @@ export function MobileJobsPage() {
           .map(async r => { map[r.id] = await quoteService.getQuotesForRequest(r.id).catch(() => []); })
       );
       setBidsMap(map);
-    }).finally(() => setLoading(false));
-  }, []);
+    }).catch(() => setLoadFailed(true))
+      .finally(() => setLoading(false));
+  }, [attempt]);
 
   const propMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -275,6 +281,15 @@ export function MobileJobsPage() {
     return (
       <div style={{ background: M.bg, minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "4rem" }}>
         <div className="spinner-lg" />
+      </div>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <div style={{ background: M.bg, minHeight: "100%", padding: "0 16px 24px" }}>
+        <h1 style={{ font: `800 27px/1.12 ${F.display}`, color: M.ink, letterSpacing: "-0.03em", margin: "19px 2px 0" }}>Jobs</h1>
+        <LoadError what="your jobs" onRetry={() => setAttempt(a => a + 1)} />
       </div>
     );
   }

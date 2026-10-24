@@ -12,6 +12,7 @@ import { Check, X, CreditCard, Coins } from "lucide-react";
 import { PLANS, type PlanTier } from "@/services/planConstants";
 import { paymentService } from "@/services/payment";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 export interface UpgradeModalProps {
   open:    boolean;
@@ -34,6 +35,7 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
   const [loadingTier, setLoading] = useState<PlanTier | null>(null);
   const [icpStep, setIcpStep]     = useState<IcpStep | null>(null);
   const [error, setError]         = useState<string | null>(null);
+  const dialog = useDialog(open, loadingTier ? undefined : onClose, { label: "Upgrade Your Plan" });
 
   if (!open) return null;
 
@@ -73,16 +75,13 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Upgrade Your Plan"
       style={{
         position: "fixed", inset: 0, zIndex: 1000,
         display: "flex", alignItems: "center", justifyContent: "center",
         background: "rgba(14,14,12,0.55)",
       }}
     >
-      <div style={{
+      <div {...dialog} style={{
         background:   V2_COLORS.paper,
         border:       `1px solid ${V2_COLORS.border}`,
         borderRadius: V2_RADIUS.card,

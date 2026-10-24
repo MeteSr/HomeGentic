@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { errorTracker } from "@/services/errorTracker";
+import { RouteAnnouncer } from "@/components/RouteAnnouncer";
 
 /** Records route changes as navigation breadcrumbs in the error tracker. */
 function NavigationTracker() {
@@ -163,6 +164,7 @@ export default function App() {
           }}
         />
         <NavigationTracker />
+        <RouteAnnouncer />
         <Suspense fallback={<PageLoader />}>
           <RouteErrorBoundary>
             <Routes>

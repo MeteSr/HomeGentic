@@ -10,6 +10,7 @@ import { listingService, type MaskedProposal } from "@/services/listing";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
 import { formatCents } from "@/utils/format";
+import { useDialog } from "@/hooks/useDialog";
 
 const UI = V2_COLORS;
 
@@ -32,6 +33,7 @@ const CONSEQUENCE_ROWS: { label: string; note: string; ok: boolean }[] = [
 export function ConfirmSelectionModal({ proposal, feeCents, onClose, onConfirmed }: ConfirmSelectionModalProps) {
   const [acknowledged, setAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const dialog = useDialog(true, submitting ? undefined : onClose, { label: `Choose bid ${proposal.letter}`, role: "alertdialog" });
 
   async function handleConfirm() {
     if (!acknowledged || submitting) return;
@@ -53,7 +55,7 @@ export function ConfirmSelectionModal({ proposal, feeCents, onClose, onConfirmed
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(11,13,26,0.62)" }} onClick={submitting ? undefined : onClose} />
-      <div style={{
+      <div {...dialog} style={{
         position: "relative", width: "min(560px, 100%)", background: UI.paper, borderRadius: V2_RADIUS.card + 6,
         boxShadow: "0 24px 60px rgba(11,13,26,0.4)", padding: 28, maxHeight: "90vh", overflowY: "auto",
       }}>

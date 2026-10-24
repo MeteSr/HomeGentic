@@ -34,6 +34,7 @@ import { usePropertyRooms }          from "@/hooks/usePropertyRooms";
 import { usePropertyMaintenance }    from "@/hooks/usePropertyMaintenance";
 import { usePropertyScore }          from "@/hooks/usePropertyScore";
 import { TimelineTab }  from "./PropertyDetail/TimelineTab";
+import { LoadError }    from "@/components/LoadError";
 import { JobsTab }      from "./PropertyDetail/JobsTab";
 import { DocumentsTab } from "./PropertyDetail/DocumentsTab";
 import { SettingsTab }  from "./PropertyDetail/SettingsTab";
@@ -189,7 +190,7 @@ export default function PropertyDetailPage() {
   const { principal } = useAuthStore();
 
   const { property, loading: propLoading } = usePropertyDetail(id);
-  const { jobs, loading: jobsLoading, reload: reloadJobs, verifyJob } = usePropertyJobs(id);
+  const { jobs, loading: jobsLoading, error: jobsFailed, reload: reloadJobs, verifyJob } = usePropertyJobs(id);
   const { photosByJob, uploadPhoto, uploadRoomPhoto } = usePropertyPhotos(id);
   const { rooms, setRooms } = usePropertyRooms(id);
   const { recurringServices, visitLogMap, systemAges } = usePropertyMaintenance(id);
@@ -689,6 +690,9 @@ export default function PropertyDetailPage() {
               </button>
             ))}
           </div>
+          {jobsFailed && (tab === "timeline" || tab === "jobs") && (
+            <LoadError compact what="this home's job history" onRetry={reloadJobs} />
+          )}
           {tab === "timeline"  && <TimelineTab property={property} jobs={jobs} onVerify={verifyJob} currentPrincipal={principal} photosByJob={photosByJob} onPhotoUpload={(jobId, file) => uploadPhoto(jobId, file, id!)} onInviteContractor={job => setModals(m => ({ ...m, inviteJob: job }))} />}
           {tab === "jobs"      && <JobsTab jobs={jobs} />}
           {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} photosByJob={photosByJob} onRoomPhotoUpload={(roomId, file) => uploadRoomPhoto(roomId, file, id!)} />}
