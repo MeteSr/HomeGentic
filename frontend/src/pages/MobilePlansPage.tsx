@@ -14,7 +14,7 @@ const M = {
   cardBdr:    "#E6E7EE",
   cardShadow: "0 2px 12px rgba(11,13,26,0.06)",
   ink:        "#0B0D1A",
-  muted:      "#6B7080",
+  muted:      "#62677A",
   blue:       "#2B34FF",
   blueLight:  "#E0E2FF",
   blueBdr:    "#B9BDF5",
@@ -311,7 +311,7 @@ function ConfirmStep({
           disabled={loading}
           style={{
             width: "100%", minHeight: 52, borderRadius: 100,
-            background: loading ? "#6B7080" : M.blue, border: "none",
+            background: loading ? "#62677A" : M.blue, border: "none",
             cursor: loading ? "not-allowed" : "pointer",
             font: `600 15px/1 ${F.body}`, color: "#FCFCFD",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 10,

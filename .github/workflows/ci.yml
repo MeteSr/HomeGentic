@@ -343,6 +343,10 @@ jobs:
 
       - run: npm ci
 
+      # The bundle-size budgets read frontend/dist and skip themselves without it.
+      - name: Build
+        run: cd frontend && npm run build
+
       - name: Performance tests
         run: cd frontend && npm run test:perf
 

@@ -154,6 +154,7 @@ function createRecurringService() {
 
   async getByProperty(propertyId: string): Promise<RecurringService[]> {
     if (mockServices.length > 0) return mockServices.filter((s) => s.propertyId === propertyId);
+    if (!RECURRING_CANISTER_ID) return [];
     const a = await getActor();
     return (await a.getByProperty(propertyId) as any[]).map(fromService);
   },
@@ -193,6 +194,7 @@ function createRecurringService() {
   },
 
   async getVisitLogs(serviceId: string): Promise<VisitLog[]> {
+    if (!RECURRING_CANISTER_ID) return [];
     const a = await getActor();
     return (await a.getVisitLogs(serviceId) as any[]).map(fromVisitLog);
   },

@@ -357,14 +357,14 @@ export default function InsuranceDefensePage() {
         ) : (
           <>
             {/* Summary stats */}
-            <div style={{ display: "flex", gap: "0", marginBottom: "2rem", border: `1px solid ${UI.rule}` }}>
+            <div className="rsp-grid-4" style={{ marginBottom: "2rem", border: `1px solid ${UI.rule}` }}>
               {[
                 { label: "Insurance-Relevant Records", value: String(insuranceJobs.length) },
                 { label: "Blockchain Verified",        value: String(verifiedCount) },
                 { label: "Total Documented Value",     value: formatCents(totalValue) },
                 { label: "Properties Covered",         value: String(byProperty.length) },
               ].map((stat, i, arr) => (
-                <div key={stat.label} style={{ flex: 1, padding: "1.25rem", borderRight: i < arr.length - 1 ? `1px solid ${UI.rule}` : "none", textAlign: "center", background: V2_COLORS.paper }}>
+                <div key={stat.label} style={{ padding: "1.25rem", borderRight: i < arr.length - 1 ? `1px solid ${UI.rule}` : "none", textAlign: "center", background: V2_COLORS.paper }}>
                   <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, marginBottom: "0.25rem" }}>{stat.value}</p>
                   <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>{stat.label}</p>
                 </div>

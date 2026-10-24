@@ -25,7 +25,7 @@ export default function VerifyStatusPage() {
   return (
     <Layout>
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "32px 24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 32, alignItems: "start" }}>
+        <div className="rsp-grid-sidebar">
           {/* Main column */}
           <div>
             <h1 style={{ fontFamily: V2_FONTS.display, fontSize: 32, fontWeight: 900, color: V2_COLORS.ink, marginBottom: 12, lineHeight: 1.15 }}>
@@ -86,7 +86,7 @@ export default function VerifyStatusPage() {
           {/* Right sidebar */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ background: V2_COLORS.ink, borderRadius: 12, padding: "20px 20px" }}>
-              <div style={{ fontSize: 10, fontFamily: V2_FONTS.mono, color: "#6B7280", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontFamily: V2_FONTS.mono, color: "#9CA0AE", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>
                 Conflict Window
               </div>
               <div style={{ fontSize: 24, fontFamily: V2_FONTS.display, fontWeight: 800, color: "#fff", marginBottom: 4 }}>

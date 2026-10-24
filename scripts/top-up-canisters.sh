@@ -1,140 +1,98 @@
 #!/usr/bin/env bash
-# HomeGentic — Cycle Top-Up Watchdog (issue #55 / #421)
+# HomeGentic — Cycle Top-Up (issue #55 / #421)
 #
-# Calls checkCycleLevels() on the monitoring canister, then tops up any
-# canister whose balance is below TOP_UP_TRIGGER_T (2T cycles) to TOP_UP_TARGET_T
-# (5T cycles) using the designated cycles wallet.
+# Tops up every canister whose balance is within TOPUP_MARGIN_DAYS of its
+# freezing threshold (or under the 2T floor) back up to the target in
+# scripts/lib/cycles.sh. Cycles come from the active icp identity's cycles
+# ledger balance (`icp canister top-up`). When that balance is short and
+# DFX_WALLET_ID is set, the shortfall is first moved from the dfx cycles
+# wallet into the ledger — the same deposit deploy.sh makes.
 #
 # Usage:
-#   bash scripts/top-up-canisters.sh
-#   bash scripts/top-up-canisters.sh --dry-run    # report only, no top-up
+#   ICP_ENV=ic bash scripts/top-up-canisters.sh
+#   ICP_ENV=ic bash scripts/top-up-canisters.sh --dry-run   # report only
 #
 # Environment:
-#   TOP_UP_TRIGGER_T     — top-up when balance falls below this many trillion cycles (default: 2)
-#   TOP_UP_TARGET_T      — refill target in trillion cycles (default: 5)
-#   WARNING_MULTIPLIER   — warn (but don't top-up) when balance < TRIGGER × this factor (default: 2)
-#   DFX_NETWORK          — "local" or "ic" (default: local)
-#   MONITORING_CANISTER  — canister name or ID (default: monitoring)
-#
-# The active dfx identity must have controller rights on all target canisters so
-# that `dfx canister deposit-cycles` succeeds. Fund the identity's cycles wallet
-# before running — see docs/DEPLOYMENT.md § Cycle Wallet Funding.
+#   ICP_ENV        — ic or testnet (default: $DFX_NETWORK, else ic)
+#   DFX_WALLET_ID  — optional cycles wallet to refill the ledger balance from
+#                    (needs the same identity imported into dfx)
 
 set -uo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
+source "$SCRIPT_DIR/lib/cycles.sh"
+
 DRY_RUN=false
-if [[ "${1:-}" == "--dry-run" ]]; then
-  DRY_RUN=true
-fi
+[[ "${1:-}" == "--dry-run" ]] && DRY_RUN=true
 
-DFX_NETWORK="${DFX_NETWORK:-local}"
-MONITORING_CANISTER="${MONITORING_CANISTER:-monitoring}"
-TOP_UP_TRIGGER_T="${TOP_UP_TRIGGER_T:-2}"
-TOP_UP_TARGET_T="${TOP_UP_TARGET_T:-5}"
-WARNING_MULTIPLIER="${WARNING_MULTIPLIER:-2}"
-
-TRIGGER_CYCLES=$(( TOP_UP_TRIGGER_T * 1000000000000 ))
-WARNING_CYCLES=$(( TRIGGER_CYCLES * WARNING_MULTIPLIER ))
-TOP_UP_AMOUNT=$(( TOP_UP_TARGET_T  * 1000000000000 ))
+ICP_ENV="${ICP_ENV:-${DFX_NETWORK:-ic}}"
+CYCLES_LEDGER="um5iw-rqaaa-aaaaq-qaaba-cai"
 
 echo "============================================"
-echo "  HomeGentic — Cycle Top-Up Watchdog"
-echo "  Network   : $DFX_NETWORK"
-echo "  Trigger   : ${TOP_UP_TRIGGER_T}T cycles  (top-up threshold)"
-echo "  Warning   : $(( TOP_UP_TRIGGER_T * WARNING_MULTIPLIER ))T cycles  (log-only)"
-echo "  Top-up to : ${TOP_UP_TARGET_T}T cycles"
-if $DRY_RUN; then
-  echo "  Mode      : DRY RUN (no changes)"
-fi
+echo "  HomeGentic — Cycle Top-Up"
+echo "  Environment : $ICP_ENV"
+echo "  Top up when : < ${TOPUP_MARGIN_DAYS} days before the ${FREEZE_DAYS}-day freezing threshold, or < $(cycles_t "$MIN_TOPUP_CYCLES")"
+$DRY_RUN && echo "  Mode        : DRY RUN (no changes)"
 echo "============================================"
 
-if ! dfx ping 2>/dev/null; then
-  echo "❌  dfx is not running. Run: dfx start --background"
-  exit 1
-fi
-
-MONITORING_ID=$(dfx canister id "$MONITORING_CANISTER" --network "$DFX_NETWORK" 2>/dev/null || echo "")
-if [ -z "$MONITORING_ID" ]; then
-  echo "❌  monitoring canister not deployed"
-  exit 1
-fi
-
-# ── Call checkCycleLevels() ───────────────────────────────────────────────────
-echo ""
-echo "── Polling cycle levels from monitoring canister ────────────────────────"
-LEVELS_OUT=$(dfx canister call "$MONITORING_CANISTER" checkCycleLevels --network "$DFX_NETWORK" 2>&1)
-echo "$LEVELS_OUT"
-
-TOPPED_UP=()
-WARNINGS=()
-FAILED=()
-
-# Parse output: look for lines with "critical" or "warning" status and extract canister ID.
-# Output format (Candid record vec): id, name, cycles, status, fromCache fields.
-# We use dfx canister status to get the live balance for the top-up decision since
-# the Candid output format is verbose; fall back to check-cycle-health pattern.
-
-echo ""
-echo "── Checking each deployed canister directly ─────────────────────────────"
-
-CANISTERS=(
-  auth property job contractor quote payment photo
-  report maintenance market sensor monitoring listing
-  agent fee recurring bills ai_proxy audit referrals
-)
-
-for CANISTER in "${CANISTERS[@]}"; do
-  CANISTER_ID=$(dfx canister id "$CANISTER" --network "$DFX_NETWORK" 2>/dev/null || echo "")
+# ── Work out what each canister needs ─────────────────────────────────────────
+NEED_NAMES=(); NEED_IDS=(); NEED_AMOUNTS=()
+UNKNOWN=()
+for CANISTER in "${ALL_CANISTERS[@]}"; do
+  CANISTER_ID=$(canister_id "$CANISTER" "$ICP_ENV")
   [ -z "$CANISTER_ID" ] && continue
-
-  STATUS_OUT=$(dfx canister status "$CANISTER" --network "$DFX_NETWORK" 2>&1 || echo "")
-  # The line is indented two spaces, e.g. "  Cycles: 10_000_000_000_000" — an
-  # anchor without the leading whitespace never matches.
-  CYCLES_RAW=$(echo "$STATUS_OUT" | grep -iE "^[[:space:]]*Cycles:" | head -1 | awk '{print $2}' | tr -d '_,')
-
-  if [ -z "$CYCLES_RAW" ] || ! [[ "$CYCLES_RAW" =~ ^[0-9]+$ ]]; then
-    echo "  ❓  $CANISTER — balance unknown (not a controller)"
+  STATUS_OUT=$(icp canister status "$CANISTER_ID" -n ic 2>&1 || true)
+  if ! cycles_read "$STATUS_OUT"; then
+    echo "  ❓  $CANISTER — balance unknown (not a controller, or unreachable)"
+    UNKNOWN+=("$CANISTER")
     continue
   fi
-
-  CYCLES="$CYCLES_RAW"
-
-  if [ "$CYCLES" -lt "$TRIGGER_CYCLES" ]; then
-    echo "  🔴  $CANISTER — $CYCLES cycles (below ${TOP_UP_TRIGGER_T}T trigger) → topping up"
-    if $DRY_RUN; then
-      echo "      [DRY RUN] would run: dfx canister deposit-cycles $TOP_UP_AMOUNT $CANISTER --network $DFX_NETWORK"
-      TOPPED_UP+=("$CANISTER (dry-run)")
-    else
-      if dfx canister deposit-cycles "$TOP_UP_AMOUNT" "$CANISTER" --network "$DFX_NETWORK" 2>&1; then
-        echo "      ✅  Topped up $CANISTER with ${TOP_UP_TARGET_T}T cycles"
-        TOPPED_UP+=("$CANISTER")
-      else
-        echo "      ❌  Top-up failed for $CANISTER"
-        FAILED+=("$CANISTER")
-      fi
-    fi
-  elif [ "$CYCLES" -lt "$WARNING_CYCLES" ]; then
-    echo "  🟡  $CANISTER — $CYCLES cycles (low, below $(( TOP_UP_TRIGGER_T * WARNING_MULTIPLIER ))T warning threshold)"
-    WARNINGS+=("$CANISTER")
+  cycles_policy "$CYC_BALANCE" "$CYC_IDLE_PER_DAY"
+  if [ "$CYC_BALANCE" -lt "$CYC_TOPUP_AT" ]; then
+    AMOUNT=$(( CYC_TARGET - CYC_BALANCE ))
+    echo "  🔴  $CANISTER — $(cycles_t "$CYC_BALANCE") → needs $(cycles_t "$AMOUNT")"
+    NEED_NAMES+=("$CANISTER"); NEED_IDS+=("$CANISTER_ID"); NEED_AMOUNTS+=("$AMOUNT")
   else
-    echo "  🟢  $CANISTER — $CYCLES cycles (OK)"
+    echo "  🟢  $CANISTER — $(cycles_t "$CYC_BALANCE") (${CYC_RUNWAY_DAYS} days before freezing)"
   fi
 done
 
-echo ""
-echo "============================================"
-echo "  Top-Up Summary"
-echo "============================================"
-echo "  Topped up : ${#TOPPED_UP[@]} — ${TOPPED_UP[*]:-none}"
-echo "  Warnings  : ${#WARNINGS[@]}  — ${WARNINGS[*]:-none}"
-echo "  Failed    : ${#FAILED[@]}    — ${FAILED[*]:-none}"
+TOTAL=0
+for A in "${NEED_AMOUNTS[@]+"${NEED_AMOUNTS[@]}"}"; do TOTAL=$(( TOTAL + A )); done
 
-if [ ${#FAILED[@]} -gt 0 ]; then
+FAILED=()
+if [ ${#NEED_NAMES[@]} -gt 0 ] && ! $DRY_RUN; then
+  # ── Fund the identity's cycles ledger account from the wallet ───────────────
+  # Whatever isn't spent below stays in the ledger account for the next run.
   echo ""
-  echo "❌  Some top-ups failed: ${FAILED[*]}"
-  exit 1
+  echo "  Needed: $(cycles_t "$TOTAL")"
+  if [ -n "${DFX_WALLET_ID:-}" ]; then
+    PRINCIPAL=$(icp identity principal)
+    echo "  ▶ Moving $(cycles_t "$TOTAL") from wallet $DFX_WALLET_ID into the cycles ledger..."
+    if ! dfx canister call "$CYCLES_LEDGER" deposit \
+        "(record { to = record { owner = principal \"$PRINCIPAL\"; subaccount = null }; memo = null; created_at_time = null })" \
+        --with-cycles "$TOTAL" --wallet "$DFX_WALLET_ID" --network ic; then
+      echo "  ✗ Wallet deposit failed — the top-ups below use the existing ledger balance"
+    fi
+  fi
+
+  for i in "${!NEED_NAMES[@]}"; do
+    if icp canister top-up "${NEED_IDS[$i]}" --amount "${NEED_AMOUNTS[$i]}" -n ic; then
+      echo "  ✅  Topped up ${NEED_NAMES[$i]} with $(cycles_t "${NEED_AMOUNTS[$i]}")"
+    else
+      echo "  ❌  Top-up failed for ${NEED_NAMES[$i]}"
+      FAILED+=("${NEED_NAMES[$i]}")
+    fi
+  done
 fi
 
 echo ""
-echo "✅  Cycle watchdog complete"
+echo "  Needing top-up: ${#NEED_NAMES[@]}   Failed: ${#FAILED[@]}   Unknown: ${#UNKNOWN[@]}"
+if [ ${#FAILED[@]} -gt 0 ] || [ ${#UNKNOWN[@]} -gt 0 ]; then
+  [ ${#FAILED[@]} -gt 0 ] && echo "❌  Top-up failed: ${FAILED[*]} — fund the identity's cycles ledger or wallet"
+  [ ${#UNKNOWN[@]} -gt 0 ] && echo "❌  Could not read: ${UNKNOWN[*]}"
+  exit 1
+fi
+echo "✅  Cycle top-up complete"
 exit 0

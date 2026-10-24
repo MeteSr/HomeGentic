@@ -3,9 +3,28 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-export default defineConfig(({ mode }) => {
+// Canisters the frontend calls; each maps to a process.env.<NAME>_CANISTER_ID below.
+const REQUIRED_CANISTERS = [
+  "AUTH", "PROPERTY", "JOB", "CONTRACTOR", "QUOTE", "PAYMENT", "PHOTO", "MONITORING",
+  "REPORT", "MAINTENANCE", "SENSOR", "LISTING", "AGENT", "FEE", "AI_PROXY", "MARKET",
+  "BILLS", "REFERRALS", "RECURRING",
+];
+
+export default defineConfig(({ mode, command }) => {
   // Load .env from project root (where dfx outputs canister IDs after deploy)
   const env = loadEnv(mode, path.resolve(__dirname, ".."), "");
+
+  // deploy.sh sets REQUIRE_CANISTER_IDS for testnet/mainnet builds. A missing
+  // ID would make that service fall back to mock or empty data in production,
+  // so the build fails instead.
+  if (command === "build" && process.env.REQUIRE_CANISTER_IDS === "1") {
+    const missing = REQUIRED_CANISTERS.filter(
+      (c) => !(env[`CANISTER_ID_${c}`] || env[`${c}_CANISTER_ID`]),
+    );
+    if (missing.length) {
+      throw new Error(`Missing canister IDs for a ${env.DFX_NETWORK || "network"} build: ${missing.join(", ")}`);
+    }
+  }
 
   // PROD.10 — strip dev-only localhost endpoints from the meta-tag CSP.
   // Only strip on IC mainnet builds (DFX_NETWORK=ic). Local and testnet builds
@@ -83,6 +102,9 @@ export default defineConfig(({ mode }) => {
       "process.env.MARKET_CANISTER_ID":    JSON.stringify(env.CANISTER_ID_MARKET    || env.MARKET_CANISTER_ID    || ""),
       "process.env.BILLS_CANISTER_ID":      JSON.stringify(env.CANISTER_ID_BILLS      || env.BILLS_CANISTER_ID      || ""),
       "process.env.REFERRALS_CANISTER_ID":  JSON.stringify(env.CANISTER_ID_REFERRALS  || env.REFERRALS_CANISTER_ID  || ""),
+      // Was missing: Vite turns an undefined process.env.X into {}.X, so the
+      // recurring service always ran with an empty canister ID in builds.
+      "process.env.RECURRING_CANISTER_ID":  JSON.stringify(env.CANISTER_ID_RECURRING  || env.RECURRING_CANISTER_ID  || ""),
       "process.env.INTERNET_IDENTITY_CANISTER_ID": JSON.stringify(env.CANISTER_ID_INTERNET_IDENTITY || ""),
       // VITE_ prefix exposes this to import.meta.env in the browser bundle
       // (useVoiceAgent reads it as VITE_VOICE_AGENT_API_KEY, not via process.env)

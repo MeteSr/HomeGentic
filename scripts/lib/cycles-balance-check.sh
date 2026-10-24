@@ -9,46 +9,42 @@
 #
 # On local, this is a no-op — the managed local network doesn't meter cycles.
 # On any other network, every canister in $CANISTERS gets its live balance
-# read via `icp canister status` and topped up via `icp cycles transfer` if
-# it's below $WARNING_CYCLES.
+# read via `icp canister status` and topped up via `icp canister top-up` when
+# it's inside the top-up margin from scripts/lib/cycles.sh. A failed top-up
+# sets CYCLES_TOPUP_FAILED, which deploy.sh turns into a failed deploy at the
+# end (after the rest of the deploy has run).
+
+source "$(dirname "${BASH_SOURCE[0]}")/cycles.sh"
 
 echo ""
 echo "============================================"
 echo "  Cycles Balance Check"
 echo "============================================"
-# TODO: icp-cli equivalent of dfx canister deposit-cycles is `icp cycles transfer`
-# — syntax below is unverified until icp-cli's cycles-transfer command stabilises.
+CYCLES_TOPUP_FAILED=""
 
 if [ "$ENV" != "local" ]; then
-  WARNING_CYCLES=500000000000   # 500B
-  TOP_UP_TO=2000000000000       # 2T
-
   for canister in "${CANISTERS[@]}"; do
     STATUS_OUT=$(icp canister status "$canister" -e "$ENV" 2>&1) || {
       echo "  ⚠️  Could not get status for $canister — skipping cycles check"
       continue
     }
-
-    # icp canister status indents every field two spaces (e.g. "  Cycles: N") —
-    # an anchor without the leading whitespace never matches.
-    BALANCE_RAW=$(echo "$STATUS_OUT" | grep -iE "^[[:space:]]*Cycles:" | head -1 | awk '{print $2}' | tr -d '_,') || BALANCE_RAW=""
-
-    if [ -z "$BALANCE_RAW" ] || ! [[ "$BALANCE_RAW" =~ ^[0-9]+$ ]]; then
+    if ! cycles_read "$STATUS_OUT"; then
       echo "  ⚠️  Could not parse cycles balance for $canister"
       continue
     fi
 
-    if [ "$BALANCE_RAW" -lt "$WARNING_CYCLES" ]; then
-      NEEDED=$(( TOP_UP_TO - BALANCE_RAW ))
-      echo "  ⚠️  $canister is low on cycles (${BALANCE_RAW}) — topping up ${NEEDED} cycles..."
-      # TODO: verify icp cycles transfer syntax once icp-cli stabilises
-      if icp cycles transfer "$NEEDED" "$canister" -e "$ENV"; then
-        echo "  ✓ $canister topped up to ~${TOP_UP_TO} cycles"
+    cycles_policy "$CYC_BALANCE" "$CYC_IDLE_PER_DAY"
+    if [ "$CYC_BALANCE" -lt "$CYC_TOPUP_AT" ]; then
+      NEEDED=$(( CYC_TARGET - CYC_BALANCE ))
+      echo "  ⚠️  $canister is low on cycles ($(cycles_t "$CYC_BALANCE")) — topping up $(cycles_t "$NEEDED")..."
+      if icp canister top-up "$canister" --amount "$NEEDED" -e "$ENV"; then
+        echo "  ✓ $canister topped up to ~$(cycles_t "$CYC_TARGET")"
       else
-        echo "  ✗ Top-up failed for $canister — check wallet balance"
+        echo "  ✗ Top-up failed for $canister — fund the deploy identity's cycles ledger"
+        CYCLES_TOPUP_FAILED="$CYCLES_TOPUP_FAILED $canister"
       fi
     else
-      echo "  ✓ $canister OK (${BALANCE_RAW} cycles)"
+      echo "  ✓ $canister OK ($(cycles_t "$CYC_BALANCE"))"
     fi
   done
 else

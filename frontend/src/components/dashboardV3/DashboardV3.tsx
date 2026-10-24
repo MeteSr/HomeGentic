@@ -60,6 +60,7 @@ import type { PlanTier } from "@/services/payment";
 import { AwardBidModal } from "./AwardBidModal";
 import { ChaseSignatureModal } from "./ChaseSignatureModal";
 import { HG_EASE } from "./theme";
+import { BUTTON_RESET } from "@/theme";
 import { BrandMark, HeaderDivider, RailChipCount, railChipStyle, RAIL_WIDTH } from "./chrome";
 import { buildPanels, CTA_FLOW, PANEL_ORDER, type PanelCtx } from "./panelData";
 import { buildHomeBrief, type BriefTone } from "./homeBrief";
@@ -127,6 +128,9 @@ function Row({ row, index, rise }: { row: PanelRow; index: number; rise: string 
   return (
     <div
       onClick={row.onTap}
+      role={row.onTap ? "button" : undefined}
+      tabIndex={row.onTap ? 0 : undefined}
+      onKeyDown={row.onTap ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); row.onTap!(); } } : undefined}
       style={{
         display: "flex", alignItems: "center", gap: 20, padding: "13px 2px",
         borderBottom: "1px solid var(--hg-line)",
@@ -222,7 +226,7 @@ export function DashboardV3() {
   }, [isPro, activePropertyId]);
 
   const voice = useVoiceAgent();
-  const feed = useActivityFeed(properties);
+  const feed = useActivityFeed(properties, jobSummary.loading ? undefined : allJobs);
 
   // System ages and bill patterns feed both the home brief and answer cards.
   const systems = useMemo(
@@ -387,10 +391,10 @@ export function DashboardV3() {
         <HeaderDivider />
 
         <div style={{ position: "relative", flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 9 }}>
-          <div onClick={() => setPropsOpen((o) => !o)} style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 7, cursor: "pointer", borderRadius: 100, padding: "4px 9px 4px 0" }}>
+          <button type="button" onClick={() => setPropsOpen((o) => !o)} aria-haspopup="true" aria-expanded={propsOpen} aria-label={`${propertyLabel}, switch property`} style={{ ...BUTTON_RESET, minWidth: 0, display: "flex", alignItems: "center", gap: 7, cursor: "pointer", borderRadius: 100, padding: "4px 9px 4px 0" }}>
             <div style={{ minWidth: 0, font: "400 13px/1.3 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{propertyLabel}</div>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--hg-muted)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-          </div>
+          </button>
           {certified && (
             <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 5, background: "var(--hg-good-wash)", border: "1px solid var(--hg-good-edge)", borderRadius: 100, padding: "4px 9px" }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--hg-good)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="m5 13 4.5 4.5L19 7" /></svg>
@@ -401,7 +405,7 @@ export function DashboardV3() {
           {propsOpen && (
             <div style={{ position: "absolute", top: 34, left: 0, zIndex: 20, width: 300, background: "var(--hg-surface)", border: "1px solid var(--hg-line-2)", borderRadius: 16, padding: 7, boxShadow: "0 24px 60px var(--hg-shadow)" }}>
               {properties.map((p) => (
-                <div key={String(p.id)} onClick={() => { setSelectedPropertyId(String(p.id)); setPropsOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 11px", borderRadius: 11, background: String(p.id) === activePropertyId ? "var(--hg-blue-wash)" : "transparent", cursor: "pointer" }}>
+                <button type="button" key={String(p.id)} aria-current={String(p.id) === activePropertyId ? "true" : undefined} onClick={() => { setSelectedPropertyId(String(p.id)); setPropsOpen(false); }} style={{ ...BUTTON_RESET, width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 11px", borderRadius: 11, background: String(p.id) === activePropertyId ? "var(--hg-blue-wash)" : "transparent", cursor: "pointer" }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", flex: "none", background: String(p.id) === activePropertyId ? "#2B34FF" : "var(--hg-dim)" }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ font: "600 13px/1.3 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.address}</div>
@@ -409,12 +413,12 @@ export function DashboardV3() {
                       {p.city}, {p.state} · {p.verificationLevel.toUpperCase()}
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
-              <div onClick={() => { setPropsOpen(false); handleAddProperty(); }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", marginTop: 3, borderTop: "1px solid var(--hg-line)", cursor: "pointer" }}>
+              <button type="button" onClick={() => { setPropsOpen(false); handleAddProperty(); }} style={{ ...BUTTON_RESET, width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", marginTop: 3, borderTop: "1px solid var(--hg-line)", cursor: "pointer" }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--hg-blue-soft)" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
                 <div style={{ font: "600 12.5px/1 'Hanken Grotesk',sans-serif", color: "var(--hg-blue-ink)" }}>Add a property</div>
-              </div>
+              </button>
             </div>
           )}
 
@@ -432,36 +436,36 @@ export function DashboardV3() {
         </div>
 
         {isPro && (
-          <div onClick={() => goPanel("billing")} title="HomeGentic Pro" style={{ flex: "none", display: "flex", alignItems: "center", gap: 7, border: "1.5px solid var(--hg-yel-edge)", background: "var(--hg-yel-wash)", borderRadius: 100, padding: "5px 11px", cursor: "pointer" }}>
+          <button type="button" onClick={() => goPanel("billing")} title="HomeGentic Pro" style={{ ...BUTTON_RESET, flex: "none", display: "flex", alignItems: "center", gap: 7, border: "1.5px solid var(--hg-yel-edge)", background: "var(--hg-yel-wash)", borderRadius: 100, padding: "5px 11px", cursor: "pointer" }}>
             <Dot color="var(--hg-yel)" style={{ animation: "hgHalo 3.4s ease-in-out infinite" }} />
             <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-yel-ink)", whiteSpace: "nowrap" }}>PLUS</div>
-          </div>
+          </button>
         )}
-        <div onClick={() => goPanel("billing")} title="AI assistant calls" style={{ display: "flex", alignItems: "center", gap: 7, flex: "none", cursor: "pointer" }}>
+        <button type="button" onClick={() => goPanel("billing")} title="AI assistant calls" style={{ ...BUTTON_RESET, display: "flex", alignItems: "center", gap: 7, flex: "none", cursor: "pointer" }}>
           <Dot color={voice.quotaExhausted ? "var(--hg-bad)" : "#FFD23F"} />
           <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-muted)", whiteSpace: "nowrap" }}>
             {voice.quotaExhausted ? "AI CALLS USED UP" : voice.creditBalance != null ? `${voice.creditBalance} AI CALLS LEFT` : "…"}
           </div>
-        </div>
+        </button>
         <div style={{ width: 1, height: 16, background: "var(--hg-line)", flex: "none" }} />
-        <div onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} title="Toggle theme" style={{ flex: "none", display: "flex", alignItems: "center", gap: 7, border: `1.5px solid ${theme === "light" ? "#2B34FF" : "var(--hg-line-2)"}`, background: theme === "light" ? "var(--hg-blue-fill)" : "transparent", borderRadius: 100, padding: "5px 11px", cursor: "pointer" }}>
+        <button type="button" onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} title="Toggle theme" aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"} style={{ ...BUTTON_RESET, flex: "none", display: "flex", alignItems: "center", gap: 7, border: `1.5px solid ${theme === "light" ? "#2B34FF" : "var(--hg-line-2)"}`, background: theme === "light" ? "var(--hg-blue-fill)" : "transparent", borderRadius: 100, padding: "5px 11px", cursor: "pointer" }}>
           <Dot color={theme === "light" ? "#FFD23F" : "var(--hg-dim)"} />
           <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: theme === "light" ? "var(--hg-blue-ink)" : "var(--hg-muted)" }}>{theme === "light" ? "DARK" : "LIGHT"}</div>
-        </div>
+        </button>
         <div style={{ width: 1, height: 16, background: "var(--hg-line)", flex: "none" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#2B34FF" }} />
           <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-muted)" }}>WATCHING</div>
         </div>
         <div style={{ width: 1, height: 16, background: "var(--hg-line)", flex: "none" }} />
-        <div onClick={feed.openFeed} title="Activity" style={{ position: "relative", flex: "none", width: 32, height: 32, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+        <button type="button" onClick={feed.openFeed} title="Activity" aria-label={feed.unread > 0 ? `Activity, ${feed.unread} unread` : "Activity"} style={{ ...BUTTON_RESET, position: "relative", flex: "none", width: 32, height: 32, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--hg-ink-3)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
           {feed.unread > 0 && (
             <div style={{ position: "absolute", top: 2, right: 2, width: 14, height: 14, borderRadius: "50%", background: "#2B34FF", display: "flex", alignItems: "center", justifyContent: "center", font: "700 9px/1 'Hanken Grotesk',sans-serif", color: "#FCFCFD" }}>
               {feed.unread > 9 ? "9+" : feed.unread}
             </div>
           )}
-        </div>
+        </button>
         <div ref={userMenuRef} style={{ position: "relative", flex: "none" }}>
           <button
             aria-label={displayName}
@@ -490,11 +494,12 @@ export function DashboardV3() {
             const showCount = k === "jobs" || k === "maint" || k === "sensors" || k === "forecast" || (k === "people" && isPro) || (k === "awaiting" && pendingCount > 0);
             const locked = k === "people" && !isPro;
             return (
-              <div
+              <button type="button"
                 key={k}
                 onClick={() => (locked ? setFlow("upgrade") : goPanel(k))}
+                aria-pressed={on}
                 title={locked ? "Shared access is a Pro feature" : undefined}
-                style={railChipStyle({ on, dashed: locked })}
+                style={{ ...BUTTON_RESET, ...railChipStyle({ on, dashed: locked }), width: "100%" }}
               >
                 {p.chip}
                 {locked ? (
@@ -502,20 +507,20 @@ export function DashboardV3() {
                 ) : (
                   <RailChipCount on={on}>{showCount ? p.count : ""}</RailChipCount>
                 )}
-              </div>
+              </button>
             );
           })}
           <div style={{ height: 1, background: "var(--hg-line)", margin: "7px 4px" }} />
           {PAGE_LINKS.map((l) => (
-            <div
+            <button type="button"
               key={l.to}
               onClick={() => navigate(l.to)}
               title={`Open ${l.label.charAt(0)}${l.label.slice(1).toLowerCase()}`}
-              style={railChipStyle({ dashed: true })}
+              style={{ ...BUTTON_RESET, ...railChipStyle({ dashed: true }), width: "100%" }}
             >
               {l.label}
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--hg-muted)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17 17 7M9 7h8v8" /></svg>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -568,15 +573,15 @@ export function DashboardV3() {
                     {brief.greeting}. {brief.summary}
                   </div>
                   {brief.items.map((item) => (
-                    <div
+                    <button type="button"
                       key={item.id}
                       onClick={() => (item.flow ? openFlow(item.flow) : item.go ? goPanel(item.go) : undefined)}
-                      style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 10, cursor: "pointer" }}
+                      style={{ ...BUTTON_RESET, width: "100%", display: "flex", alignItems: "flex-start", gap: 10, marginTop: 10, cursor: "pointer" }}
                     >
                       <Dot color={BRIEF_DOT[item.tone]} style={{ marginTop: 7 }} />
                       <div style={{ flex: 1, minWidth: 0, font: "400 13.5px/1.5 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-2)" }}>{item.text}</div>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--hg-muted)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none", marginTop: 5 }}><path d="m9 6 6 6-6 6" /></svg>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -609,9 +614,9 @@ export function DashboardV3() {
                       <div style={{ font: "400 11px/1.4 'JetBrains Mono',monospace", color: "var(--hg-muted)", marginTop: 9 }}>Agent limit reached — answering via chat.</div>
                     )}
                   </div>
-                  <div onClick={() => voice.reset()} style={{ flex: "none", width: 36, height: 36, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <button type="button" onClick={() => voice.reset()} aria-label="Dismiss voice answer" style={{ ...BUTTON_RESET, flex: "none", width: 36, height: 36, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--hg-muted)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
-                  </div>
+                  </button>
                 </div>
 
                 {voice.pendingProposal && (
@@ -637,9 +642,9 @@ export function DashboardV3() {
                     <div style={{ font: "700 clamp(21px,3vw,29px)/1.2 'Bricolage Grotesque',system-ui,sans-serif", color: "var(--hg-ink)", letterSpacing: "-.03em", marginTop: 12 }}>{answer.title}</div>
                     <div style={{ font: "400 13.5px/1.55 'Hanken Grotesk',sans-serif", color: "var(--hg-muted)", marginTop: 9, maxWidth: 600 }}>{answer.verdict}</div>
                   </div>
-                  <div onClick={() => setAnswerSystem(null)} aria-label="Close answer" style={{ flex: "none", width: 36, height: 36, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <button type="button" onClick={() => setAnswerSystem(null)} aria-label="Close answer" style={{ ...BUTTON_RESET, flex: "none", width: 36, height: 36, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--hg-muted)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
-                  </div>
+                  </button>
                 </div>
 
                 <div style={{ marginTop: 20, borderTop: "1px solid var(--hg-line)" }}>
@@ -652,19 +657,19 @@ export function DashboardV3() {
                 </div>
 
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginTop: 20 }}>
-                  <div
+                  <button type="button"
                     onClick={() => { setQuotePrefill({ serviceType: answer.serviceType, description: answer.quoteDescription }); setFlow("quote"); }}
-                    style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.4rem", borderRadius: 100, background: "#2B34FF", border: "1.5px solid #2B34FF", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "#FCFCFD", cursor: "pointer" }}
+                    style={{ ...BUTTON_RESET, minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.4rem", borderRadius: 100, background: "#2B34FF", border: "1.5px solid #2B34FF", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "#FCFCFD", cursor: "pointer" }}
                   >
                     Request quotes
-                  </div>
-                  <div onClick={() => goPanel("forecast")} style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.2rem", borderRadius: 100, background: "transparent", border: "1.5px solid var(--hg-line-2)", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-3)", cursor: "pointer" }}>
+                  </button>
+                  <button type="button" onClick={() => goPanel("forecast")} style={{ ...BUTTON_RESET, minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.2rem", borderRadius: 100, background: "transparent", border: "1.5px solid var(--hg-line-2)", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-3)", cursor: "pointer" }}>
                     See the ten-year forecast
-                  </div>
+                  </button>
                   {answer.installYearAssumed && activePropertyId && (
-                    <div onClick={() => navigate(`/properties/${activePropertyId}/systems`)} style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.2rem", borderRadius: 100, background: "transparent", border: "1.5px solid var(--hg-line-2)", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-3)", cursor: "pointer" }}>
+                    <button type="button" onClick={() => navigate(`/properties/${activePropertyId}/systems`)} style={{ ...BUTTON_RESET, minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.2rem", borderRadius: 100, background: "transparent", border: "1.5px solid var(--hg-line-2)", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-3)", cursor: "pointer" }}>
                       Set when it was installed
-                    </div>
+                    </button>
                   )}
                 </div>
               </div>
@@ -678,17 +683,17 @@ export function DashboardV3() {
                     <div style={{ font: "700 clamp(21px,3vw,29px)/1.2 'Bricolage Grotesque',system-ui,sans-serif", color: "var(--hg-ink)", letterSpacing: "-.03em", marginTop: 12 }}>{activePanel.title}</div>
                     <div style={{ font: "400 13.5px/1.55 'Hanken Grotesk',sans-serif", color: "var(--hg-muted)", marginTop: 9, maxWidth: 600 }}>{activePanel.sub}</div>
                   </div>
-                  <div onClick={() => setActiveKey(null)} style={{ flex: "none", width: 36, height: 36, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <button type="button" onClick={() => setActiveKey(null)} aria-label="Close panel" style={{ ...BUTTON_RESET, flex: "none", width: 36, height: 36, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--hg-muted)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
-                  </div>
+                  </button>
                 </div>
 
                 {flash && flash.key === activeKey && (
-                  <div onClick={() => setFlash(null)} style={{ display: "flex", alignItems: "center", gap: 11, marginTop: 18, border: "1px solid var(--hg-good-edge)", background: "var(--hg-good-wash)", borderRadius: 14, padding: "11px 15px", cursor: "pointer" }}>
+                  <button type="button" onClick={() => setFlash(null)} style={{ ...BUTTON_RESET, width: "100%", display: "flex", alignItems: "center", gap: 11, marginTop: 18, border: "1px solid var(--hg-good-edge)", background: "var(--hg-good-wash)", borderRadius: 14, padding: "11px 15px", cursor: "pointer" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--hg-good)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 13 4.5 4.5L19 7" /></svg>
                     <div style={{ flex: 1, minWidth: 0, font: "400 12.5px/1.45 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-2)" }}>{flash.text}</div>
                     <div style={{ flex: "none", font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-muted)" }}>DISMISS</div>
-                  </div>
+                  </button>
                 )}
 
                 <div style={{ marginTop: 20, borderTop: "1px solid var(--hg-line)" }}>
@@ -701,7 +706,7 @@ export function DashboardV3() {
                 </div>
 
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginTop: 20 }}>
-                  <div
+                  <button type="button"
                     onClick={() => {
                       if (activeKey === "awaiting") { ctx.approveAll(); return; }
                       if (activeKey === "forecast") {
@@ -723,13 +728,13 @@ export function DashboardV3() {
                       const f = activePanel.ctaFlow ?? CTA_FLOW[activeKey!];
                       if (f) openFlow(f);
                     }}
-                    style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.4rem", borderRadius: 100, background: "#2B34FF", border: "1.5px solid #2B34FF", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "#FCFCFD", cursor: "pointer" }}
+                    style={{ ...BUTTON_RESET, minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.4rem", borderRadius: 100, background: "#2B34FF", border: "1.5px solid #2B34FF", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "#FCFCFD", cursor: "pointer" }}
                   >
                     {activePanel.cta}
-                  </div>
-                  <div onClick={() => setActiveKey(null)} style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.2rem", borderRadius: 100, background: "transparent", border: "1.5px solid var(--hg-line-2)", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-3)", cursor: "pointer" }}>
+                  </button>
+                  <button type="button" onClick={() => setActiveKey(null)} style={{ ...BUTTON_RESET, minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.2rem", borderRadius: 100, background: "transparent", border: "1.5px solid var(--hg-line-2)", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-3)", cursor: "pointer" }}>
                     Back to quiet
-                  </div>
+                  </button>
                 </div>
               </div>
             )}
@@ -748,19 +753,23 @@ export function DashboardV3() {
               onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
               onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
               placeholder="Ask about your home"
+              aria-label="Ask about your home"
+              data-focus-ring="parent"
               style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", font: "400 15px/1.4 'Hanken Grotesk',sans-serif", color: "var(--hg-ink)", padding: "8px 0" }}
             />
-            <div onClick={() => goPanel("add")} title="Add to the record" style={{ flex: "none", width: 44, height: 44, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--hg-fill)", border: "1.5px solid var(--hg-line-2)", cursor: "pointer" }}>
+            <button type="button" onClick={() => goPanel("add")} title="Add to the record" aria-label="Add to the record" style={{ ...BUTTON_RESET, flex: "none", width: 44, height: 44, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--hg-fill)", border: "1.5px solid var(--hg-line-2)", cursor: "pointer" }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--hg-ink-3)" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-            </div>
+            </button>
             {voice.isSupported && (
-              <div
+              <button type="button"
                 onClick={() => (voice.state === "listening" ? voice.stopListening() : voice.startListening())}
                 title="Speak"
-                style={{ flex: "none", width: 44, height: 44, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", background: voice.state === "listening" ? "#2B34FF" : "var(--hg-blue-fill)", border: `1.5px solid ${voice.state === "listening" ? "#2B34FF" : "var(--hg-blue-edge)"}`, cursor: "pointer" }}
+                aria-label={voice.state === "listening" ? "Stop listening" : "Speak"}
+                aria-pressed={voice.state === "listening"}
+                style={{ ...BUTTON_RESET, flex: "none", width: 44, height: 44, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", background: voice.state === "listening" ? "#2B34FF" : "var(--hg-blue-fill)", border: `1.5px solid ${voice.state === "listening" ? "#2B34FF" : "var(--hg-blue-edge)"}`, cursor: "pointer" }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={voice.state === "listening" ? "#FCFCFD" : "var(--hg-blue-ink)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 11a7 7 0 0 1-14 0M12 18v4" /></svg>
-              </div>
+              </button>
             )}
           </div>
           <div style={{ font: "400 11px/1.5 'JetBrains Mono',monospace", color: "var(--hg-muted)", marginTop: 9, textAlign: "center" }}>

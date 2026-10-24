@@ -157,7 +157,7 @@ export default function ResaleReadyPage() {
         </div>
 
         {/* Stats grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", border: `1px solid ${UI.rule}`, marginBottom: "2rem" }}>
+        <div className="rsp-grid-4" style={{ border: `1px solid ${UI.rule}`, marginBottom: "2rem" }}>
           {[
             { label: "HomeGentic Score",     value: String(score),                          sub: grade },
             { label: "Verified Records",  value: String(verifiedJobs.length),            sub: "blockchain-signed" },

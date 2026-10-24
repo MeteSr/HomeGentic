@@ -6,7 +6,7 @@
  * verified job summary, photo gallery, and a showing-request form.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { PageHead } from "@/components/PageHead";
 import { ShieldCheck } from "lucide-react";
@@ -15,7 +15,6 @@ import { jobService, type Job } from "@/services/job";
 import { fsboService, type FsboRecord } from "@/services/fsbo";
 import { reportService, type ShareLink } from "@/services/report";
 import ListingPhotoManager from "@/components/ListingPhotoManager";
-import PlayCanvas360Viewer from "@/components/PlayCanvas360Viewer";
 import { computeScore } from "@/services/scoreService";
 import { listingService, type PanoramaEntry } from "@/services/listing";
 import { showingRequestService } from "@/services/showingRequest";
@@ -23,6 +22,9 @@ import { notificationService } from "@/services/notifications";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { isValidEmailOrPhone } from "@/utils/validators";
+
+// PlayCanvas is ~580 KB gzipped; load it only for listings that have panoramas.
+const PlayCanvas360Viewer = lazy(() => import("@/components/PlayCanvas360Viewer"));
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -304,7 +306,9 @@ export default function FsboListingPage() {
           <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700, fontSize: "1.125rem", color: "#0e0e0c", margin: "0 0 0.75rem" }}>
             360° Virtual Tour
           </h2>
-          <PlayCanvas360Viewer panoramas={panoramas} propertyId={propertyId!} />
+          <Suspense fallback={null}>
+            <PlayCanvas360Viewer panoramas={panoramas} propertyId={propertyId!} />
+          </Suspense>
         </div>
       )}
 

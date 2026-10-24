@@ -80,6 +80,8 @@ jobs:
           # they can be environment variables; secrets work too.
           NOTIFIER_PRINCIPAL: ${{ vars.NOTIFIER_PRINCIPAL || secrets.NOTIFIER_PRINCIPAL }}
           VOICE_WORKER_PRINCIPAL: ${{ vars.VOICE_WORKER_PRINCIPAL || secrets.VOICE_WORKER_PRINCIPAL }}
+          # Unset, sensor accepts self-asserted device IDs for every platform.
+          IOT_GATEWAY_PRINCIPAL: ${{ vars.IOT_GATEWAY_PRINCIPAL || secrets.IOT_GATEWAY_PRINCIPAL }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_ADDRESS: ${{ secrets.RESEND_FROM_ADDRESS }}
           OPEN_PERMIT_API_KEY: ${{ secrets.OPEN_PERMIT_API_KEY }}
@@ -114,19 +116,36 @@ jobs:
             echo "canister IDs unchanged, nothing to commit"
           else
             git commit -m "ops: update canister IDs after mainnet deploy [skip ci]"
+            # A lost push means the next run can't see these canisters and
+            # tries to create them again, so it fails the job instead of warning.
             git -c core.hooksPath=/dev/null push \
               "https://x-access-token:${CI_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-              "HEAD:${GITHUB_REF}" || echo "⚠️  Push blocked by branch protection — commit canister_ids.json manually from the deploy log above"
+              "HEAD:${GITHUB_REF}" || {
+                echo "::error::Push blocked — commit canister_ids.json by hand from this log before the next deploy"
+                git diff HEAD~1 -- canister_ids.json
+                exit 1
+              }
           fi
 
+      - name: Tag the release
+        # Rollback means redeploying a known commit (docs/UPGRADE_RUNBOOK.md),
+        # so every successful mainnet deploy gets a tag on the commit it ran.
+        if: success()
+        env:
+          CI_PUSH_TOKEN: ${{ secrets.CI_PUSH_TOKEN }}
+        run: |
+          TAG="mainnet-$(date -u +%Y%m%d-%H%M%S)"
+          git tag -a "$TAG" "$GITHUB_SHA" -m "Mainnet deploy, run $GITHUB_RUN_ID"
+          git -c core.hooksPath=/dev/null push \
+            "https://x-access-token:${CI_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$TAG"
+          echo "Tagged $GITHUB_SHA as $TAG" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Post-deploy cycle health gate
-        # Fail the deploy if any canister is critically low on cycles (< 500M).
-        # Issue #55: prevents deploying into a degraded state.
+        # Fail the deploy if any canister is within 30 days of its freezing
+        # threshold, or its balance can't be read (scripts/lib/cycles.sh).
         run: bash scripts/check-cycle-health.sh
         env:
-          DFX_NETWORK:     ic
-          CRITICAL_CYCLES: '500000000'
-          WARNING_CYCLES:  '1000000000000'
+          ICP_ENV: ic
 
   deploy-voice-worker:
     runs-on: ubuntu-latest

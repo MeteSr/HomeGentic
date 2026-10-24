@@ -563,11 +563,17 @@ export default function DemoPage() {
           .dm-slide-grid { grid-template-columns: 1fr !important; }
           .dm-persona-pills { display: none !important; }
         }
+        @media (max-width:640px) {
+          .dm-nav-inner { padding: 0 16px !important; gap: 12px !important; }
+          .dm-back-link { display: none !important; }
+          .dm-cta { padding: 12px 16px !important; }
+        }
+        @media (max-width:400px) { .dm-demo-badge { display: none !important; } }
       `}</style>
 
       {/* Nav */}
       <nav style={{ position: "sticky", top: 0, zIndex: 20, background: "rgba(252,252,253,0.94)", backdropFilter: "blur(16px)", borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ maxWidth: 1440, margin: "0 auto", height: 72, padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, boxSizing: "border-box" }}>
+        <div className="dm-nav-inner" style={{ maxWidth: 1440, margin: "0 auto", height: 72, padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, boxSizing: "border-box" }}>
           {/* Logo */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             <svg width="26" height="26" viewBox="0 0 28 28" fill="none" style={{ flexShrink: 0 }}>
@@ -576,7 +582,7 @@ export default function DemoPage() {
               <path d="m9.4 17.2 3.4 3.4 6.4-6.6" stroke={PAPER} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <div style={{ font: `800 18px/1 ${DISPLAY}`, letterSpacing: "-.03em" }}>Home<span style={{ color: BLUE }}>Gentic</span></div>
-            <div style={{ font: `700 9px/1 ${MONO}`, letterSpacing: ".14em", color: INK, background: YELLOW, borderRadius: 100, padding: "6px 9px", marginLeft: 2 }}>DEMO</div>
+            <div className="dm-demo-badge" style={{ font: `700 9px/1 ${MONO}`, letterSpacing: ".14em", color: INK, background: YELLOW, borderRadius: 100, padding: "6px 9px", marginLeft: 2 }}>DEMO</div>
           </div>
 
           {/* Persona pills */}
@@ -593,8 +599,8 @@ export default function DemoPage() {
 
           {/* Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-            <Link to="/" style={{ font: `600 14px/1 ${BODY}`, color: MUTED2, textDecoration: "none", padding: "12px 6px" }}>Back to site</Link>
-            <Link to={pricingHref} style={{ font: `700 14px/1 ${BODY}`, color: INK, background: YELLOW, borderRadius: 100, padding: "13px 24px", textDecoration: "none", whiteSpace: "nowrap" }}>Get started</Link>
+            <Link to="/" className="dm-back-link" style={{ font: `600 14px/1 ${BODY}`, color: MUTED2, textDecoration: "none", padding: "12px 6px" }}>Back to site</Link>
+            <Link to={pricingHref} className="dm-cta" style={{ font: `700 14px/1 ${BODY}`, color: INK, background: YELLOW, borderRadius: 100, padding: "13px 24px", textDecoration: "none", whiteSpace: "nowrap" }}>Get started</Link>
           </div>
         </div>
         {/* Progress bar */}
@@ -624,7 +630,7 @@ export default function DemoPage() {
                   <div style={{ flexShrink: 0, width: 24, height: 24, borderRadius: "50%", background: active ? BLUE : done ? "rgba(11,13,26,0.12)" : "transparent", border: `1.5px solid ${active ? BLUE : done ? "rgba(11,13,26,0.12)" : "rgba(11,13,26,0.18)"}`, display: "flex", alignItems: "center", justifyContent: "center", font: `700 10px/1 ${MONO}`, color: active ? PAPER : done ? "rgba(11,13,26,0.55)" : "rgba(11,13,26,0.35)" }}>
                     {done ? "✓" : i + 1}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0, font: `${active ? 600 : done ? 500 : 400} 13.5px/1.35 ${BODY}`, color: active ? INK : done ? "rgba(11,13,26,0.65)" : "rgba(11,13,26,0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ flex: 1, minWidth: 0, font: `${active ? 600 : done ? 500 : 400} 13.5px/1.35 ${BODY}`, color: active ? INK : done ? "rgba(11,13,26,0.65)" : "rgba(11,13,26,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {s.kicker}
                   </div>
                 </button>
@@ -649,7 +655,7 @@ export default function DemoPage() {
 
             {/* Left: copy + nav */}
             <div style={{ minWidth: 0, paddingTop: 8 }}>
-              <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: CORAL, textTransform: "uppercase" }}>{slide.kicker}</div>
+              <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: "#C93A18", textTransform: "uppercase" }}>{slide.kicker}</div>
               <h2 style={{ font: `800 42px/1.06 ${DISPLAY}`, letterSpacing: "-.04em", margin: "16px 0 0", textWrap: "pretty" as React.CSSProperties["textWrap"] }}>{slide.title}</h2>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 26 }}>

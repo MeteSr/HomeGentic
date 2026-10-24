@@ -85,15 +85,19 @@ blocked by the CSP. The Worker only accepts requests from its
 
 ### First-time setup
 
-1. Create the rate-limit KV namespace and put its IDs in `wrangler.toml`
-   (the committed `id` / `preview_id` are placeholders):
-   ```bash
-   cd agents/voice
-   npx wrangler kv namespace create RATE_LIMIT
-   npx wrangler kv namespace create RATE_LIMIT --preview
-   ```
-2. Set the secrets below with `npx wrangler secret put <NAME>`.
-3. Deploy (`npx wrangler deploy`) and check `https://<worker>/health`.
+1. Deploy the canisters first (`deploy.sh` / Deploy Mainnet), so their IDs
+   exist in `canister_ids.json`.
+2. Deploy the Worker once (`cd agents/voice && npx wrangler deploy`). The
+   `RATE_LIMIT` KV namespace has no `id` in `wrangler.toml`, so wrangler
+   creates it on this first deploy and reuses it afterwards.
+3. Set the secrets below with `npx wrangler secret put <NAME>`, including the
+   `CANISTER_ID_*` values from step 1.
+4. Deploy again and check `https://<worker>/health` returns `{"ok":true}`. It
+   returns 503 until the Anthropic, Stripe, `DFX_IDENTITY_PEM`,
+   `CANISTER_ID_AUTH` and `CANISTER_ID_PAYMENT` secrets are all set.
+
+Worker logs are kept by Cloudflare (`[observability]` in `wrangler.toml`):
+**Workers & Pages → homegentic-voice-agent → Logs**.
 
 **Testnet Worker (one-time):** deploy it once (`npx wrangler deploy --env testnet`,
 or let `deploy-testnet.yml` do it), then set the same secrets with
@@ -113,7 +117,7 @@ deadline reminders.
 | Variable | Description |
 |---|---|
 | `ANTHROPIC_API_KEY` | Claude API key (`sk-ant-...`) |
-| `VOICE_AGENT_API_KEY` | Shared secret sent by the frontend in `x-api-key` |
+| `VOICE_AGENT_API_KEY` | Client ID the frontend sends in `x-api-key`. It is baked into the public bundle, so it is not a secret; callers are identified by their `x-agent-session` token |
 | `FRONTEND_ORIGIN` | Exact origin of the frontend canister (no trailing slash) |
 | `STRIPE_SECRET_KEY` | Stripe secret key (`sk_live_...`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_...`) |
@@ -125,6 +129,11 @@ deadline reminders.
 | `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity the Worker signs canister calls with. Make it a payment admin — [One-time canister configuration](#one-time-canister-configuration), step 2 |
 | `CANISTER_ID_PAYMENT` | Payment canister ID |
 | `CANISTER_ID_AUTH` | Auth canister ID — resolves the `x-agent-session` tokens that identify callers on `/api/chat` and `/api/agent`. Without it those routes return 401 in production |
+| `CANISTER_ID_JOB` | Job canister ID — contractor-invite email |
+| `RESEND_API_KEY`, `RESEND_FROM` | Transactional email (moved off `ai_proxy`, whose memory node operators can read) |
+| `ATTOM_API_KEY` | Property-record lookups |
+| `OPENPERMIT_API_KEY` | Permit imports |
+| `LOCAL_BROKER_EMAIL` | Recipient of broker-lead emails |
 | `CANISTER_ID_MONITORING` | Optional — monitoring canister, for frontend-error and cycle-alert routes |
 | `BIDTOLIST_*` | Optional — Bid to List Stripe/Resend keys and canister IDs (see the comment block in `wrangler.toml`) |
 
@@ -151,8 +160,9 @@ with a warning and the activation is skipped.
 `agents/email/` is a small Worker (`homegentic-email-relay`) that turns
 lead-form submissions into emails via Resend. It is deployed by the
 `deploy-email-worker` job in both `deploy-mainnet.yml` and
-`deploy-testnet.yml`. There is only one Worker (no `[env.testnet]`), so a
-testnet deploy also redeploys the production email Worker.
+`deploy-testnet.yml`. Testnet deploys go to a separate
+`homegentic-email-relay-testnet` Worker (`[env.testnet]`), which needs its own
+secrets (`npx wrangler secret put <NAME> --env testnet`).
 
 First-time setup:
 
@@ -422,8 +432,8 @@ required is missing.
 | `VITE_VOICE_AGENT_URL`, `VITE_VOICE_AGENT_API_KEY` | yes | Baked into the frontend |
 | `STRIPE_SECRET_KEY` | yes | Pre-flight (must be `sk_live_…` on mainnet); also see [Stripe → Production](#production) |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | yes | Baked into the frontend |
-| `RESEND_API_KEY`, `RESEND_FROM_ADDRESS` | no | Set on `ai_proxy` (transactional email) |
-| `OPEN_PERMIT_API_KEY`, `ATTOM_API_KEY` | no | Set on `ai_proxy` (permit and property-record lookups) |
+| `IOT_GATEWAY_PRINCIPAL` | no | The IoT gateway's principal; `deploy.sh` registers it on `sensor`. Without it, sensor accepts self-asserted device IDs |
+| `RESEND_API_KEY` | no | Cycle Watchdog alert emails. Resend, ATTOM and OpenPermit keys for the app are voice Worker secrets now, not `ai_proxy` settings |
 | `VITE_NOTIFICATIONS_URL` | no | Notification relay URL baked into the frontend |
 | `CLOUDFLARE_API_TOKEN` | yes | The Worker deploy jobs |
 
@@ -444,7 +454,8 @@ cd frontend && npm run build && cd ..
 icp deploy frontend -e ic
 ```
 
-Running `npm run build` before step 1 will produce a bundle with empty canister IDs.
+Running `npm run build` before step 1 would produce a bundle with empty canister
+IDs; `deploy.sh` sets `REQUIRE_CANISTER_IDS=1`, so the build fails instead.
 Running `icp deploy frontend` before step 2 will serve a stale build without the
 updated `.ic-assets.json5` security headers.
 
@@ -641,21 +652,31 @@ See [docs/EXTERNAL_APIS.md](EXTERNAL_APIS.md#0-stripe) for the full flow.
 
 ## Cycle Wallet Funding and Automated Top-Up
 
-All 20 canisters burn cycles continuously. The `cycle-watchdog` workflow (runs every 6 hours)
-checks balances and tops up any canister below 2T cycles. For this to work the CI identity
-must hold enough cycles.
+All 20 canisters (plus the frontend) burn cycles continuously, and each runs
+with a **90-day freezing threshold** (set by `deploy.sh`). The `cycle-watchdog`
+workflow runs **every hour** against mainnet and:
 
-### Thresholds (configured in `cycle-watchdog.yml`)
+- checks the frontend canister answers and the voice Worker's `/health` is OK;
+- reads every canister's balance and idle burn rate;
+- tops up any canister that is low, from the CI identity's cycles ledger
+  balance (refilled from `MAINNET_WALLET_ID`);
+- emails `OPS_ALERT_EMAIL` and fails the run when anything is wrong.
 
-| Label | Threshold | Action |
+It is currently **disabled** in GitHub (Actions → Cycle Watchdog → Enable
+workflow). Enable it after the first mainnet deploy.
+
+### Thresholds (configured in `scripts/lib/cycles.sh`)
+
+Thresholds are days of idle burn **on top of** the freezing threshold, with an
+absolute floor for call and compute burn:
+
+| Label | When | Action |
 |---|---|---|
-| **Warning** | < 4T cycles (2× trigger) | Logged in summary; no topup |
-| **Trigger** | < 2T cycles | Automatic topup to 5T |
-| **Critical** | < 5T (monitoring canister alert) | Email sent to `OPS_ALERT_EMAIL` |
+| **Critical** | < 30 days before freezing, or < 1T | Watchdog run fails and emails |
+| **Top up** | < 60 days before freezing, or < 2T | Topped up to the target |
+| **Target** | 180 days before freezing, at least 5T | — |
 
-The monitoring canister fires a `#Critical` alert at < 5T and a `#Warning` at < 10T via
-`recordCanisterMetrics()` / `checkCycleLevels()`. These thresholds are defined as constants
-in `backend/monitoring/main.mo` (`criticalCyclesT` / `warningCyclesT`).
+`deploy.sh` applies the same top-up rule after every deploy.
 
 ### One-time setup: fund the CI cycles wallet
 
@@ -685,33 +706,36 @@ dfx wallet --network ic balance
 ### Topping up manually (ad-hoc)
 
 ```bash
-# Check current balances
-bash scripts/check-cycle-health.sh
+# Check current balances (exits 1 when any canister is critical or unreadable)
+ICP_ENV=ic bash scripts/check-cycle-health.sh
 
 # Dry run — see what would be topped up without spending cycles
-DFX_NETWORK=ic bash scripts/top-up-canisters.sh --dry-run
+ICP_ENV=ic bash scripts/top-up-canisters.sh --dry-run
 
-# Live top-up (requires funded CI identity to be active)
-DFX_NETWORK=ic bash scripts/top-up-canisters.sh
+# Live top-up (needs the funded identity active in icp-cli, and in dfx when
+# DFX_WALLET_ID is set to refill the ledger balance from the wallet)
+ICP_ENV=ic DFX_WALLET_ID=<wallet> bash scripts/top-up-canisters.sh
 ```
 
-### Required GitHub Actions secrets / variables
+### Required GitHub Actions secrets / variables (`production` environment)
 
 | Name | Type | Description |
 |---|---|---|
-| `MAINNET_IDENTITY_PEM` | Secret | Ed25519 PEM of the funded CI identity |
-| `RESEND_API_KEY` | Secret | Used to send critical-cycle alert emails |
-| `OPS_ALERT_EMAIL` | Variable | Email address for cycle alert notifications |
-| `MONITORING_CANISTER_ID` | Variable | Optional — overrides `monitoring` if using canister ID directly |
+| `MAINNET_IDENTITY_PEM` | Secret | Ed25519 PEM of the funded CI identity (a controller of every canister) |
+| `MAINNET_WALLET_ID` | Secret | Cycles wallet the top-ups are funded from |
+| `VITE_VOICE_AGENT_URL` | Secret | The Worker whose `/health` is checked |
+| `RESEND_API_KEY` | Secret | Sends the alert email |
+| `OPS_ALERT_EMAIL` | Variable | Who gets the alert email. Without it (or the key), the failed run's GitHub notification is the only alert |
+| `RESEND_FROM_ADDRESS` | Variable | Optional sender (default `noreply@homegentic.app`) |
 
 ### Ongoing maintenance
 
 - **Refill the CI wallet** when `dfx wallet --network ic balance` falls below 10T cycles.
   At typical burn rates (~200B cycles/day across 20 canisters) this is roughly monthly.
-- **Adjust thresholds** by updating `TOP_UP_TRIGGER_T` / `TOP_UP_TARGET_T` in
-  `cycle-watchdog.yml` and `criticalCyclesT` / `warningCyclesT` in `backend/monitoring/main.mo`.
-- The cycle watchdog workflow can be triggered manually via **Actions → Cycle Watchdog → Run workflow**
-  with `dry_run: true` to audit balances without spending cycles.
+- **Adjust thresholds** in `scripts/lib/cycles.sh`.
+- Run the watchdog by hand via **Actions → Cycle Watchdog → Run workflow**, with
+  `dry_run: true` to audit balances without spending cycles, or `env: testnet`
+  to check testnet.
 
 ---
 

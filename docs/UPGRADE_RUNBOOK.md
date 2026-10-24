@@ -16,10 +16,6 @@ EOP checks compatibility when the new Wasm is installed: if the new stable types
 
 ---
 
-
-
----
-
 ## Schema Versioning
 
 `ReportSnapshot` carries a `schemaVersion: ?Nat` field (added in 14.4.3):
@@ -32,7 +28,7 @@ EOP checks compatibility when the new Wasm is installed: if the new stable types
 
 The canister-level `SNAPSHOT_SCHEMA_VERSION : Nat` constant (a `transient let`, so a new value takes effect on upgrade) is stamped onto every new snapshot. Increment it any time `ReportSnapshot` gains a new required field.
 
-**Rule:** New fields MUST use `?T` (optional) so that old serialized records deserialize safely to `null`. Never add a required non-optional field to an existing stable record type.
+**Rule:** Don't change the fields of a stored record type, not even to add an optional `?T` field: EOP rejects that upgrade too. Keep new data in a new stable var with an inline initializer (for example a side `Map` keyed by the record's id), as CLAUDE.md describes.
 
 ---
 
@@ -64,8 +60,18 @@ icp canister call report pause '(null)' -e ic
 ### Step 4 — Deploy the upgrade
 
 ```bash
-icp deploy report -e ic        # one canister
-bash scripts/deploy.sh ic      # everything, in dependency order
+bash scripts/deploy.sh ic      # everything, in dependency order (preferred)
+```
+
+For each canister that already exists, `deploy.sh` stops it, takes a snapshot (replacing the previous pre-deploy snapshot, so there is one per canister), installs the new Wasm and starts it again. If the snapshot can't be taken, that canister is not upgraded and the deploy fails at the end. The snapshot IDs are printed under "Pre-upgrade snapshots".
+
+To upgrade one canister by hand, do the same steps:
+
+```bash
+icp canister stop report -e ic
+icp canister snapshot create report -e ic          # note the snapshot ID
+icp deploy report -e ic
+icp canister start report -e ic
 ```
 
 The runtime swaps the Wasm and keeps the existing stable memory. If the types are incompatible the install is refused and the old version keeps running — nothing is lost, but the change has to be made compatible (or the canister reinstalled deliberately).
@@ -89,21 +95,63 @@ icp canister call report unpause -e ic
 
 ## Rollback Procedure
 
-ICP canisters cannot be rolled back automatically — Wasm modules are replaced atomically. To roll back, redeploy the previous version from its git tag or commit (`git checkout <sha> && icp deploy report -e ic`).
+Every successful mainnet deploy is tagged `mainnet-YYYYMMDD-HHMMSS` on the commit it ran (`git tag -l 'mainnet-*'`), so the last good version is always known.
+
+### Option A — restore the pre-upgrade snapshot (code and data)
+
+Use this when an upgrade broke a canister or corrupted its data. It puts back the Wasm **and** the state exactly as they were before the deploy, so anything written since the upgrade is lost.
+
+```bash
+icp canister snapshot list report -e ic            # the pre-deploy snapshot
+icp canister stop report -e ic
+icp canister snapshot restore report <snapshot-id> -e ic
+icp canister start report -e ic
+```
+
+### Option B — redeploy the previous code (keeps current data)
+
+```bash
+git checkout <last mainnet-* tag>
+bash scripts/deploy.sh ic     # or: icp deploy report -e ic for one canister
+```
 
 1. Rolling back is itself an upgrade, so EOP applies: it succeeds only if the **old** types can accept the data as the new version left it.
-2. If the new version only added `?T` fields or new variants that were never stored, rollback is usually safe. Run `check-stable-compat.sh` with the old commit as HEAD to confirm before deploying.
-3. If the new version wrote data the old types can't represent, the rollback is refused. Fix forward instead.
+2. If the new version only added new stable vars, rollback is usually safe (the old code drops them). Run `check-stable-compat.sh` with the old commit as HEAD to confirm before deploying.
+3. If the new version wrote data the old types can't represent, the rollback is refused. Use Option A, or fix forward.
 
 **Never remove or rename a stable variable** unless you intend to drop its data.
+
+### A deploy that failed part-way
+
+`deploy.sh` keeps going after a canister fails to install, then exits non-zero, so the other canisters are on the new version and the failed one is on the old one. Read the failed canister's log in the deploy output, fix it, and run `deploy.sh` again (it is safe to re-run; already-upgraded canisters just upgrade to the same code). If the mix of versions breaks the app in the meantime, restore the canisters that did upgrade with Option A.
+
+### The voice Worker
+
+```bash
+cd agents/voice
+npx wrangler deployments list      # recent versions
+npx wrangler rollback              # back to the previous version
+```
+
+Add `--env testnet` for the testnet Worker. Worker secrets are not rolled back.
+
+---
+
+## Incident checklist
+
+1. **Contain.** Pause the affected canister so it stops taking writes: `icp canister call <canister> pause '(null)' -e ic` (`unpause` when fixed). For the voice Worker, roll it back as above.
+2. **Tell affected users** by email. There is no status page yet.
+3. **Roll back** with Option A or B above, or fix forward and redeploy.
+4. **Check** that the Cycle Watchdog run after the fix is green (it checks the frontend, the Worker's `/health` and every canister's cycles).
+5. **Write down** what happened and what changes, in the PR that fixes it.
 
 ---
 
 ## Adding a New Field to ReportSnapshot
 
-1. Add the field as `?NewType` (not `NewType`) to `ReportSnapshot`, so existing records read it as `null`.
-2. Set the field to `?<value>` in `generateReport`.
-3. Pass the field through in `applyDisclosure` and any other place that reconstructs a snapshot literal.
+1. Don't add it to `ReportSnapshot` itself (that breaks the upgrade). Add a new stable `Map` from snapshot ID to the new value, with an inline initializer; snapshots made before the change simply have no entry.
+2. Write the entry in `generateReport`.
+3. Read it back wherever the snapshot is returned (`getReport`, `applyDisclosure`), and include it in the API type the frontend sees if it needs it.
 4. Increment `SNAPSHOT_SCHEMA_VERSION` in the constants section.
 5. Make sure `stable-compat-check` is green on the PR.
 6. Update this document with the new version row in the Schema Versioning table above.

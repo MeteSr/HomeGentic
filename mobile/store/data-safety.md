@@ -43,7 +43,7 @@ All items are **linked to the user's account**, used for **App functionality** o
 
 ## Is data sold to third parties?
 
-**No.**
+**No.** HomeGentic data is never sold to third parties.
 
 ---
 

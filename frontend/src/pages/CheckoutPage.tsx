@@ -450,7 +450,7 @@ export default function CheckoutPage() {
             <div style={{ marginBottom: "32px" }}>
               <span style={{
                 fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.5rem",
-                color: V2_COLORS.blue,
+                color: "#8C93FF", // light cobalt: plain cobalt is 2.8:1 on this ink panel
               }}>
                 {price}
               </span>
@@ -500,7 +500,7 @@ export default function CheckoutPage() {
                 <div key={t} style={{
                   display: "flex", alignItems: "center", gap: "8px",
                   fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.06em",
-                  color: "rgba(252,252,253,0.4)", textTransform: "uppercase",
+                  color: "rgba(252,252,253,0.65)", textTransform: "uppercase",
                 }}>
                   <span style={{ color: V2_COLORS.blue, fontSize: "0.5rem" }}>✦</span>
                   {t}

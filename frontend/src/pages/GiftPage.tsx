@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { paymentService } from "@/services/payment";
 import { PageHead } from "@/components/PageHead";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { CheckCircle } from "lucide-react";
 
 const C = {
@@ -11,7 +12,7 @@ const C = {
   coral:  "#FF5C39",
   ink:    "#0B0D1A",
   paper:  "#FCFCFD",
-  muted:  "#6B7080",
+  muted:  "#62677A",
   muted2: "#5A5F70",
   border: "#EDEEF2",
   white:  "#FFFFFF",
@@ -474,9 +475,10 @@ function NavButtons({ onBack, onNext, nextLabel = "Continue", disabled = false }
 }
 
 function Footer() {
+  const { isMobile } = useBreakpoint();
   return (
-    <footer style={{ background: C.ink, padding: "64px 56px 32px", fontFamily: F.body }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", gap: 48, marginBottom: 52 }}>
+    <footer style={{ background: C.ink, padding: isMobile ? "48px 20px 24px" : "64px 56px 32px", fontFamily: F.body }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "1.6fr 1fr 1fr 1fr", gap: isMobile ? 32 : 48, marginBottom: 52 }}>
         <div>
           <span style={{ fontFamily: F.display, fontSize: 24, fontWeight: 800, color: C.white, marginBottom: 14, display: "block" }}>
             Home<span style={{ color: C.yellow }}>Gentic</span>
@@ -510,7 +512,7 @@ function Footer() {
           </ul>
         </div>
       </div>
-      <div style={{ borderTop: "1px solid rgba(252,252,253,0.08)", paddingTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: F.body, fontSize: 13, color: "rgba(252,252,253,0.5)" }}>
+      <div style={{ borderTop: "1px solid rgba(252,252,253,0.08)", paddingTop: 24, display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center", justifyContent: "space-between", fontFamily: F.body, fontSize: 13, color: "rgba(252,252,253,0.5)" }}>
         <span>© 2026 HomeGentic Inc.</span>
         <div style={{ display: "flex", gap: 24 }}>
           <Link to="/privacy" style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Privacy</Link>
