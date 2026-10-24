@@ -202,7 +202,9 @@ verifyStripeSession(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > photo 1`] = `
-"deleteMyData(0) -> (1)
+"addPhotoRelay(1) -> (1)
+beginUpload(6) -> (1)
+deleteMyData(0) -> (1)
 deletePhoto(1) -> (1)
 getListingPhotoDataBatch(1) -> (1) [query]
 getPhotoDataBatch(1) -> (1)
@@ -210,6 +212,8 @@ getPhotosByJob(1) -> (1)
 getPhotosByProperty(1) -> (1)
 getPhotosByRoom(1) -> (1)
 getPublicListingPhotos(1) -> (1) [query]
+photoAccess(2) -> (1) [composite_query]
+removePhotoRelay(1) -> (1)
 setPropertyCanisterId(1) -> (1)
 uploadPhoto(6) -> (1)"
 `;
