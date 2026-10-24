@@ -148,9 +148,13 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `register` | update | `(args: RegisterArgs)` | Register as a contractor; initializes `serviceZips=[]` |
 | `getMyProfile` | query | `()` | Caller's contractor profile |
 | `getContractor` | query | `(c: Principal)` | Get contractor by principal |
-| `getAll` | query | `()` | List all contractors |
-| `getBySpecialty` | query | `(s: ServiceType)` | Filter contractors by specialty |
-| `getByZip` | query | `(zipCode: Text)` | Contractors who explicitly list that zip code in `serviceZips` |
+| `getAll` | query | `()` | List contractors in the directory (unlisted profiles are left out except for themselves, admins and trusted canisters; same for `getPage`, `getBySpecialty`, `getByZip`) |
+| `getBySpecialty` | query | `(s: ServiceType)` | Filter listed contractors by specialty |
+| `getByZip` | query | `(zipCode: Text)` | Listed contractors who explicitly list that zip code in `serviceZips` |
+| `getLeadAlertTargets` | query | `()` | Lead-matching fields for every contractor, listed or not, without name or contact details; used by the notification relay |
+| `setProfilePrivacy` | update | `(p: ProfilePrivacy)` | Settings → Privacy; `ProfilePrivacy = { listed: Bool, showTrustScore: Bool, showJobsCompleted: Bool }` (caller needs a profile) |
+| `getMyProfilePrivacy` | query | `()` | Caller's privacy settings (defaults: all true) |
+| `getProfilePrivacies` | query | `(ps: [Principal])` | Privacy settings for up to 500 contractors, in order; the public profile and directory card use them to hide the trust score and job count |
 | `updateProfile` | update | `(args: UpdateArgs)` | Update contractor profile; `UpdateArgs` includes `serviceZips: [Text]` (max 50, each exactly 5 digits) |
 | `submitReview` | update | `(contractorPrincipal: Principal, rating: Nat, comment: Text, jobId: Text)` | Submit a review (rate-limited: 10/day/user) |
 | `getReviewsForContractor` | query | `(c: Principal)` | All reviews for a contractor |
@@ -280,7 +284,9 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | Method | Type | Signature | Description |
 |---|---|---|---|
 | `generateReport` | update | `(propertyId: Text, property: PropertyInput, jobs: [JobInput], recurringServices: [RecurringServiceInput], expiryDays: ?Nat, visibility: VisibilityLevel, rooms: ?[RoomInput], hideAmounts: ?Bool, hideContractors: ?Bool, hidePermits: ?Bool, hideDescriptions: ?Bool, billsSummary: ?BillsSummary)` | Generate an immutable report snapshot and share link |
-| `getReport` | update | `(token: Text)` | Fetch report by share token (checks visibility + expiry) |
+| `getReport` | update | `(token: Text)` | Fetch report by share token (checks visibility + expiry); a Public link of an owner with public reports off is treated as BuyerOnly |
+| `setAllowPublicReports` | update | `(allow: Bool)` | Settings → Privacy. While false, every Public link the caller created needs a signed-in viewer (also in `getBillsSummary` and `hasActivePublicShareLink`) |
+| `getAllowPublicReports` | query | `()` | Caller's setting (default true) |
 | `listShareLinks` | update | `(propertyId: Text)` | List all share links for a property |
 | `revokeShareLink` | update | `(token: Text)` | Revoke a share link |
 | `issueCert` | update | `(propertyId: Text, payload: Text)` | Admin: issue an on-chain certificate |

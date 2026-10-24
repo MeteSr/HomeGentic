@@ -56,6 +56,8 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
   const [includeBills, setIncludeBills] = useState(false);
   const [userTier, setUserTier] = useState<PlanTier>("Free");
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+  // Settings → Privacy: when off, every link needs a signed-in viewer.
+  const [publicReports, setPublicReports] = useState(true);
 
   const getLinkDisclosure = (token: string): DisclosureOptions =>
     linkDisclosures[token] ?? { hideAmounts: false, hideContractors: false, hidePermits: false, hideDescriptions: false };
@@ -77,6 +79,9 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
     reportService.listShareLinks(propertyId)
       .then(setLinks)
       .finally(() => setLoadingLinks(false));
+    reportService.getAllowPublicReports()
+      .then(setPublicReports)
+      .catch((e) => console.error("[GenerateReportModal] privacy load failed:", e));
   }, [propertyId]);
 
   const handleGenerate = async () => {
@@ -231,6 +236,11 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                 );
               })}
             </div>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "13px", lineHeight: 1.5, color: UI.inkLight, marginBottom: "0.5rem" }}>
+              {publicReports
+                ? "Anyone with the link can view the report."
+                : <>Public reports are off in <a href="/settings?tab=privacy" style={{ color: V2_COLORS.blue }}>Settings → Privacy</a>, so viewers must sign in to HomeGentic first.</>}
+            </p>
             {userTier === "Free" && (
               <p style={{ fontFamily: V2_FONTS.body, fontSize: "13px", lineHeight: 1.5, color: UI.inkLight, marginBottom: "1rem" }}>
                 Free plan links expire after 7 days. <a href="/pricing" style={{ color: V2_COLORS.blue }}>Upgrade to Pro</a> for longer or permanent links.

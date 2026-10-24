@@ -125,7 +125,9 @@ export async function getContractors(): Promise<ContractorInfo[]> {
   const actor = Actor.createActor(contractorIdl, {
     agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_CONTRACTOR"),
   }) as any;
-  const all: any[] = await actor.getAll();
+  // Not getAll(): that leaves out contractors who hid their profile from the
+  // directory, and they still get the lead alerts they asked for.
+  const all: any[] = await actor.getLeadAlertTargets();
   return all.map((c) => ({
     principal:     (c.id as Principal).toText(),
     specialties:   c.specialties.map((s: object) => Object.keys(s)[0]),

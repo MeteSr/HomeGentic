@@ -25,6 +25,21 @@ export const idlFactory = ({ IDL }: any) => {
     alertZips:     IDL.Vec(IDL.Text),
     origin:        ContractorOrigin,
   });
+  const ProfilePrivacy = IDL.Record({
+    listed:            IDL.Bool,
+    showTrustScore:    IDL.Bool,
+    showJobsCompleted: IDL.Bool,
+  });
+  const LeadAlertTarget = IDL.Record({
+    id:            IDL.Principal,
+    specialties:   IDL.Vec(ServiceType),
+    serviceZips:   IDL.Vec(IDL.Text),
+    alertZips:     IDL.Vec(IDL.Text),
+    notifyPush:    IDL.Opt(IDL.Bool),
+    trustScore:    IDL.Nat,
+    jobsCompleted: IDL.Nat,
+    isVerified:    IDL.Bool,
+  });
   const NotificationPrefsArgs = IDL.Record({
     notifyEmail: IDL.Opt(IDL.Text),
     notifyPush:  IDL.Opt(IDL.Bool),
@@ -87,6 +102,14 @@ export const idlFactory = ({ IDL }: any) => {
     ),
     getAll: IDL.Func([], [IDL.Vec(ContractorProfile)], ["query"]),
     getPage: IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(ContractorProfile)], ["query"]),
+    getLeadAlertTargets: IDL.Func([], [IDL.Vec(LeadAlertTarget)], ["query"]),
+    setProfilePrivacy: IDL.Func(
+      [ProfilePrivacy],
+      [IDL.Variant({ ok: ProfilePrivacy, err: Error })],
+      []
+    ),
+    getMyProfilePrivacy: IDL.Func([], [ProfilePrivacy], ["query"]),
+    getProfilePrivacies: IDL.Func([IDL.Vec(IDL.Principal)], [IDL.Vec(ProfilePrivacy)], ["query"]),
     getBySpecialty: IDL.Func([ServiceType], [IDL.Vec(ContractorProfile)], ["query"]),
     submitReview: IDL.Func(
       [IDL.Principal, IDL.Nat, IDL.Text, IDL.Text],

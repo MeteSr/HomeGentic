@@ -6,6 +6,7 @@
  *     homeownerSigned && !contractorSigned && has a contractorName
  *   - clear resets zip input, active zip, and active specialty
  *   - request-quote navigates with prefill state built from the contractor
+ *   - cards hide the trust score / job count a contractor chose to hide
  */
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -22,14 +23,15 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-const { mockSearch, mockGetAll } = vi.hoisted(() => ({
+const { mockSearch, mockGetAll, mockGetPrivacies } = vi.hoisted(() => ({
+  mockGetPrivacies: vi.fn(),
   mockSearch: vi.fn(),
   mockGetAll: vi.fn(),
 }));
 
 vi.mock("@/services/contractor", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/contractor")>();
-  return { ...actual, contractorService: { search: mockSearch } };
+  return { ...actual, contractorService: { search: mockSearch, getProfilePrivacies: mockGetPrivacies } };
 });
 
 vi.mock("@/services/job", async (importOriginal) => {
@@ -72,6 +74,27 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetAll.mockResolvedValue([]);
+  mockGetPrivacies.mockImplementation(async (ids: string[]) =>
+    Object.fromEntries(ids.map((id) => [id, { listed: true, showTrustScore: true, showJobsCompleted: true }])));
+});
+
+describe("ContractorBrowsePage — privacy", () => {
+  it("shows each contractor's numbers unless they hid them", async () => {
+    mockSearch.mockResolvedValue([
+      makeContractor({ id: "c1", name: "Alice Anderson", trustScore: 80, jobsCompleted: 12 }),
+      makeContractor({ id: "c2", name: "Bob Baker",      trustScore: 61, jobsCompleted: 7 }),
+    ]);
+    mockGetPrivacies.mockResolvedValue({
+      c1: { listed: true, showTrustScore: true,  showJobsCompleted: true },
+      c2: { listed: true, showTrustScore: false, showJobsCompleted: false },
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText("80/HIGH")).toBeInTheDocument());
+    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.queryByText("61/MID")).not.toBeInTheDocument();
+    expect(screen.queryByText("7")).not.toBeInTheDocument();
+    expect(screen.getAllByText("JOBS")).toHaveLength(1);
+  });
 });
 
 describe("ContractorBrowsePage — result summary", () => {

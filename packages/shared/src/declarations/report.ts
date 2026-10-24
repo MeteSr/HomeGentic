@@ -161,6 +161,8 @@ export const idlFactory = ({ IDL }: any) => {
     ),
     getBillsSummary: IDL.Func([IDL.Text], [IDL.Opt(BillsSummary)], ["query"]),
     hasActivePublicShareLink: IDL.Func([IDL.Text], [IDL.Bool], ["query"]),
+    setAllowPublicReports: IDL.Func([IDL.Bool], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getAllowPublicReports: IDL.Func([], [IDL.Bool], ["query"]),
     listShareLinks: IDL.Func([IDL.Text], [IDL.Vec(ShareLink)], []),
     revokeShareLink: IDL.Func(
       [IDL.Text],

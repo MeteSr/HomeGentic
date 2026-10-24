@@ -266,3 +266,57 @@ fi
 
 echo ""
 echo "✅ Contractor createOrLinkGuestProfile tests complete!"
+
+# ─── §P Settings → Privacy ───────────────────────────────────────────────────
+echo ""
+echo "=== Contractor — profile privacy ==="
+
+echo ""
+echo "── [P1] setProfilePrivacy — unlisted profile leaves the public directory ─────"
+dfx canister call contractor setProfilePrivacy \
+  "(record { listed = false; showTrustScore = false; showJobsCompleted = true })" --identity guest-signed-test
+P1_MINE=$(dfx canister call contractor getMyProfilePrivacy --identity guest-signed-test)
+P1_ANON=$(dfx canister call contractor getAll --identity anonymous)
+P1_LEADS=$(dfx canister call contractor getLeadAlertTargets --identity anonymous)
+if echo "$P1_MINE" | grep -q "listed = false" \
+  && ! echo "$P1_ANON" | grep -q "$GUEST_PRINCIPAL" \
+  && echo "$P1_LEADS" | grep -q "$GUEST_PRINCIPAL"; then
+  echo "  ✓ saved; hidden from getAll, still a lead-alert target"
+else
+  echo "  ↳ ❌ Expected the unlisted profile out of getAll but in getLeadAlertTargets"
+fi
+
+echo ""
+echo "── [P2] getProfilePrivacies — anyone can read what to display ─────────────────"
+P2=$(dfx canister call contractor getProfilePrivacies "(vec { principal \"$GUEST_PRINCIPAL\"; principal \"aaaaa-aa\" })" --identity anonymous)
+echo "$P2"
+if echo "$P2" | grep -q "showTrustScore = false" && echo "$P2" | grep -q "showTrustScore = true"; then
+  echo "  ✓ returns the saved settings, and defaults for an unknown principal"
+else
+  echo "  ↳ ❌ Expected saved settings then defaults"
+fi
+
+echo ""
+echo "── [P3] getContractor still works for an unlisted profile (bids link to it) ───"
+dfx canister call contractor getContractor "(principal \"$GUEST_PRINCIPAL\")" --identity anonymous | grep -q "ok" \
+  && echo "  ✓ direct lookup unaffected" \
+  || echo "  ↳ ❌ Expected getContractor to return the unlisted profile"
+
+echo ""
+echo "── [P4] setProfilePrivacy back to defaults — listed again ────────────────────"
+dfx canister call contractor setProfilePrivacy \
+  "(record { listed = true; showTrustScore = true; showJobsCompleted = true })" --identity guest-signed-test
+dfx canister call contractor getAll --identity anonymous | grep -q "$GUEST_PRINCIPAL" \
+  && echo "  ✓ back in getAll" \
+  || echo "  ↳ ❌ Expected the profile back in getAll"
+
+echo ""
+echo "── [P5] setProfilePrivacy without a profile → NotFound ───────────────────────"
+dfx canister call contractor setProfilePrivacy \
+  "(record { listed = false; showTrustScore = true; showJobsCompleted = true })" --identity canister-caller-test 2>&1 \
+  | grep -q "NotFound" \
+  && echo "  ✓ NotFound" \
+  || echo "  ↳ ❌ Expected NotFound for a caller with no profile"
+
+echo ""
+echo "✅ Contractor privacy tests complete!"

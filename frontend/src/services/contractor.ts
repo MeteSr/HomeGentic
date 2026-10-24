@@ -35,6 +35,16 @@ export interface ContractorProfile {
   alertZips?:    string[];
 }
 
+/** Settings → Privacy. `listed` keeps the profile in the directory; the other
+ *  two say whether the public profile and directory card show those numbers. */
+export interface ProfilePrivacy {
+  listed:            boolean;
+  showTrustScore:    boolean;
+  showJobsCompleted: boolean;
+}
+
+export const DEFAULT_PROFILE_PRIVACY: ProfilePrivacy = { listed: true, showTrustScore: true, showJobsCompleted: true };
+
 export interface JobCredential {
   id:                 number;
   jobId:              string;
@@ -86,6 +96,20 @@ function fromProfile(raw: any): ContractorProfile {
     notifyEmail:   raw.notifyEmail?.[0] ?? null,
     alertZips:     (raw.alertZips as string[] | undefined) ?? [],
   };
+}
+
+function fromPrivacy(raw: any): ProfilePrivacy {
+  return { listed: raw.listed, showTrustScore: raw.showTrustScore, showJobsCompleted: raw.showJobsCompleted };
+}
+
+/** E2E tests and an undeployed canister keep privacy settings here. */
+function mockPrivacy(): Record<string, ProfilePrivacy> {
+  const w = (typeof window !== "undefined" ? window : globalThis) as any;
+  return (w.__e2e_contractor_privacy ??= {});
+}
+
+function useMock(): boolean {
+  return (typeof window !== "undefined" && !!(window as any).__e2e_contractors) || !CONTRACTOR_CANISTER_ID;
 }
 
 function unwrap(result: any): ContractorProfile {
@@ -189,6 +213,36 @@ function createContractorService() {
       notifyPush:  [enabled],
       alertZips:   current.ok.alertZips,
     }));
+  },
+
+  async getMyProfilePrivacy(): Promise<ProfilePrivacy> {
+    if (useMock()) return mockPrivacy().me ?? DEFAULT_PROFILE_PRIVACY;
+    const a = await getActor();
+    return fromPrivacy(await a.getMyProfilePrivacy());
+  },
+
+  async setProfilePrivacy(p: ProfilePrivacy): Promise<ProfilePrivacy> {
+    if (useMock()) return (mockPrivacy().me = { ...p });
+    const a = await getActor();
+    const result = await a.setProfilePrivacy(p);
+    if ("ok" in result) return fromPrivacy(result.ok);
+    const key = Object.keys(result.err)[0];
+    if (key === "NotFound") throw new Error("Create your contractor profile first");
+    const val = result.err[key];
+    throw new Error(typeof val === "string" ? val : key);
+  },
+
+  /** Privacy settings for each contractor, keyed by principal text. */
+  async getProfilePrivacies(principalTexts: string[]): Promise<Record<string, ProfilePrivacy>> {
+    if (principalTexts.length === 0) return {};
+    if (useMock()) {
+      const m = mockPrivacy();
+      return Object.fromEntries(principalTexts.map((id) => [id, m[id] ?? DEFAULT_PROFILE_PRIVACY]));
+    }
+    const { Principal: P } = await import("@icp-sdk/core/principal");
+    const a = await getActor();
+    const raw = await a.getProfilePrivacies(principalTexts.map((id) => P.fromText(id))) as any[];
+    return Object.fromEntries(principalTexts.map((id, i) => [id, raw[i] ? fromPrivacy(raw[i]) : DEFAULT_PROFILE_PRIVACY]));
   },
 
   async submitReview(contractorPrincipalText: string, rating: number, comment: string, jobId: string): Promise<void> {

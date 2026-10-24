@@ -10,7 +10,8 @@ import { PLANS, type PlanTier } from "@/services/planConstants";
 import { paymentService } from "@/services/payment";
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { winBackService } from "@/services/winBackService";
-import { contractorService } from "@/services/contractor";
+import { contractorService, DEFAULT_PROFILE_PRIVACY, type ProfilePrivacy } from "@/services/contractor";
+import { reportService } from "@/services/report";
 import { getPushStatus, enablePush, disablePush, type PushStatus } from "@/services/pushNotifications";
 import {
   notificationsConfigured, getNotificationPrefs, setNotificationPrefs, startSmsVerification, confirmSms,
@@ -432,8 +433,8 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
 // ── Toggle row ────────────────────────────────────────────────────────────────
 
-function ToggleRow({ label, desc, value, onChange, last = false, children }: {
-  label: string; desc?: string; value: boolean; onChange: (v: boolean) => void; last?: boolean; children?: React.ReactNode;
+function ToggleRow({ label, desc, value, onChange, last = false, disabled = false, children }: {
+  label: string; desc?: string; value: boolean; onChange: (v: boolean) => void; last?: boolean; disabled?: boolean; children?: React.ReactNode;
 }) {
   return (
     <div style={{ padding: "0.875rem 0", borderBottom: last ? "none" : `1px solid ${V2_COLORS.border}` }}>
@@ -447,8 +448,9 @@ function ToggleRow({ label, desc, value, onChange, last = false, children }: {
           role="switch"
           aria-checked={value}
           aria-label={label}
+          disabled={disabled}
           onClick={() => onChange(!value)}
-          style={{ width: "2.5rem", height: "1.25rem", background: value ? V2_COLORS.blue : V2_COLORS.border, cursor: "pointer", position: "relative", flexShrink: 0, borderRadius: V2_RADIUS.pill, border: "none", padding: 0 }}
+          style={{ width: "2.5rem", height: "1.25rem", background: value ? V2_COLORS.blue : V2_COLORS.border, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1, position: "relative", flexShrink: 0, borderRadius: V2_RADIUS.pill, border: "none", padding: 0 }}
         >
           <span style={{ position: "absolute", top: "0.125rem", left: value ? "1.375rem" : "0.125rem", width: "1rem", height: "1rem", background: V2_COLORS.paper, transition: "left 0.15s", borderRadius: "50%" }} />
         </button>
@@ -771,12 +773,50 @@ function NotificationsTab() {
 
 // ── Privacy tabs ──────────────────────────────────────────────────────────────
 
+function PrivacyIntro() {
+  return (
+    <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, lineHeight: 1.6, marginBottom: "0.5rem" }}>
+      Changes save as you make them.
+    </p>
+  );
+}
+
+/** Shown under privacy switches that couldn't be loaded, so they stay off-limits. */
+function PrivacyLoadError() {
+  return (
+    <p role="alert" style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, marginTop: "0.75rem" }}>
+      Couldn't load your privacy settings. Reload the page to try again.
+    </p>
+  );
+}
+
 function ContractorPrivacyTab() {
-  const [profileVisible, setProfileVisible] = useState(true);
-  const [showTrustScore, setShowTrustScore] = useState(true);
-  const [showJobCount,   setShowJobCount]   = useState(true);
-  const [analyticsShare, setAnalyticsShare] = useState(false);
-  const [exporting,      setExporting]      = useState(false);
+  const [privacy,    setPrivacy]    = useState<ProfilePrivacy | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [exporting,  setExporting]  = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    contractorService.getMyProfilePrivacy()
+      .then((p) => { if (live) setPrivacy(p); })
+      .catch(() => { if (live) setLoadFailed(true); });
+    return () => { live = false; };
+  }, []);
+
+  // Saved to the contractor canister as each switch changes; rolled back if
+  // the save fails.
+  const change = (key: keyof ProfilePrivacy) => async (v: boolean) => {
+    if (!privacy) return;
+    const before = privacy;
+    const next = { ...before, [key]: v };
+    setPrivacy(next);
+    try {
+      await contractorService.setProfilePrivacy(next);
+    } catch (err) {
+      setPrivacy(before);
+      toast.error(err instanceof Error ? err.message : "Couldn't save privacy settings");
+    }
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -791,20 +831,19 @@ function ContractorPrivacyTab() {
     } catch { toast.error("Export failed"); } finally { setExporting(false); }
   };
 
+  const p = privacy ?? DEFAULT_PROFILE_PRIVACY;
   const rows = [
-    { label: "Public Profile",      desc: "Appear in homeowner contractor searches and the contractor directory", value: profileVisible, onChange: setProfileVisible },
-    { label: "Show Trust Score",    desc: "Display your trust score on your public profile",                     value: showTrustScore, onChange: setShowTrustScore },
-    { label: "Show Jobs Completed", desc: "Display your completed job count on your public profile",             value: showJobCount,   onChange: setShowJobCount },
-    { label: "Share Analytics",     desc: "Help improve HomeGentic with anonymous usage data",                   value: analyticsShare, onChange: setAnalyticsShare },
+    { label: "Listed in the Directory", desc: "Appear when homeowners browse or search for contractors. Off: you're left out of the directory, but homeowners still see your profile on quotes you send.", value: p.listed,            onChange: change("listed") },
+    { label: "Show Trust Score",        desc: "Show your trust score on your public profile and directory card",                                                                                 value: p.showTrustScore,    onChange: change("showTrustScore") },
+    { label: "Show Jobs Completed",     desc: "Show your completed job count and verified work portfolio on your public profile and directory card",                                             value: p.showJobsCompleted, onChange: change("showJobsCompleted") },
   ];
 
   return (
     <div>
       <SectionHeading>Privacy</SectionHeading>
-      {rows.map((r, i) => <ToggleRow key={r.label} {...r} last={i === rows.length - 1} />)}
-      <div style={{ marginTop: "1.25rem" }}>
-        <Button onClick={() => toast.success("Privacy settings saved")}>Save Privacy Settings</Button>
-      </div>
+      <PrivacyIntro />
+      {rows.map((r, i) => <ToggleRow key={r.label} {...r} disabled={!privacy} last={i === rows.length - 1} />)}
+      {loadFailed && <PrivacyLoadError />}
 
       <SectionDivider />
       <SectionHeading>Export Your Data</SectionHeading>
@@ -822,10 +861,29 @@ function ContractorPrivacyTab() {
 }
 
 function PrivacyTab() {
-  const [publicReport,   setPublicReport]   = useState(true);
-  const [contractorView, setContractorView] = useState(true);
-  const [analyticsShare, setAnalyticsShare] = useState(false);
-  const [exporting,      setExporting]      = useState(false);
+  const [publicReport, setPublicReport] = useState<boolean | null>(null);
+  const [loadFailed,   setLoadFailed]   = useState(false);
+  const [exporting,    setExporting]    = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    reportService.getAllowPublicReports()
+      .then((v) => { if (live) setPublicReport(v); })
+      .catch(() => { if (live) setLoadFailed(true); });
+    return () => { live = false; };
+  }, []);
+
+  // Saved to the report canister, which then enforces it on every share link.
+  async function togglePublicReport(next: boolean) {
+    if (publicReport === null) return;
+    setPublicReport(next);
+    try {
+      await reportService.setAllowPublicReports(next);
+    } catch (err) {
+      setPublicReport(!next);
+      toast.error(err instanceof Error ? err.message : "Couldn't save privacy settings");
+    }
+  }
   const { properties } = usePropertyStore();
   const { jobs }       = useJobStore();
 
@@ -857,19 +915,19 @@ function PrivacyTab() {
     } catch { toast.error("Export failed"); } finally { setExporting(false); }
   };
 
-  const rows = [
-    { label: "Public HomeGentic Report", desc: "Allow anyone with the link to view your property history", value: publicReport,   onChange: setPublicReport },
-    { label: "Contractor Visibility",    desc: "Allow contractors to find and view your properties",       value: contractorView, onChange: setContractorView },
-    { label: "Share Analytics",          desc: "Help improve HomeGentic with anonymous usage data",        value: analyticsShare, onChange: setAnalyticsShare },
-  ];
-
   return (
     <div>
       <SectionHeading>Privacy</SectionHeading>
-      {rows.map((r, i) => <ToggleRow key={r.label} {...r} last={i === rows.length - 1} />)}
-      <div style={{ marginTop: "1.25rem" }}>
-        <Button onClick={() => toast.success("Privacy settings saved")}>Save Privacy Settings</Button>
-      </div>
+      <PrivacyIntro />
+      <ToggleRow
+        label="Public HomeGentic Report"
+        desc="Anyone with one of your report links can view it without signing in. Off: viewers must sign in to HomeGentic first, on links you've already shared too."
+        value={publicReport ?? true}
+        onChange={togglePublicReport}
+        disabled={publicReport === null}
+        last
+      />
+      {loadFailed && <PrivacyLoadError />}
 
       <SectionDivider />
       <SectionHeading>Export Your Data</SectionHeading>

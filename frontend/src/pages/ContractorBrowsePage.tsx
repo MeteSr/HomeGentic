@@ -17,7 +17,7 @@ import { useNavigate }                          from "react-router-dom";
 import { Search, AlertTriangle, ShieldCheck, X } from "lucide-react";
 import { Layout }                               from "@/components/Layout";
 import { SHELL_PAGE_MIN_HEIGHT } from "@/components/dashboardV3/chrome";
-import { contractorService, ContractorProfile } from "@/services/contractor";
+import { contractorService, ContractorProfile, type ProfilePrivacy } from "@/services/contractor";
 import { jobService, Job }                      from "@/services/job";
 import { Panel, Pill, hudInputStyle, spinnerVars, type PillTone } from "@/components/hud";
 
@@ -52,11 +52,14 @@ function TrustBadge({ score }: { score: number }) {
 
 function ContractorCard({
   contractor,
+  privacy,
   isAwaiting,
   onViewProfile,
   onRequestQuote,
 }: {
   contractor:     ContractorProfile;
+  /** The contractor's Settings → Privacy choices; numbers stay hidden until loaded. */
+  privacy:        ProfilePrivacy | undefined;
   isAwaiting:     boolean;
   onViewProfile:  () => void;
   onRequestQuote: () => void;
@@ -92,7 +95,7 @@ function ContractorCard({
           </div>
 
           {/* Trust score */}
-          <TrustBadge score={contractor.trustScore} />
+          {privacy?.showTrustScore && <TrustBadge score={contractor.trustScore} />}
         </div>
       </div>
 
@@ -112,14 +115,16 @@ function ContractorCard({
 
       {/* Stats */}
       <div style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
+        display: "grid", gridTemplateColumns: privacy?.showJobsCompleted ? "1fr 1fr" : "1fr", gap: 10,
         padding: "10px 0", marginBottom: 14,
         borderTop: "1px solid var(--hg-line)", borderBottom: "1px solid var(--hg-line)",
       }}>
-        <div>
-          <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>JOBS</div>
-          <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 900, color: "var(--hg-ink)" }}>{contractor.jobsCompleted}</div>
-        </div>
+        {privacy?.showJobsCompleted && (
+          <div>
+            <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>JOBS</div>
+            <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 900, color: "var(--hg-ink)" }}>{contractor.jobsCompleted}</div>
+          </div>
+        )}
         <div>
           <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>SERVICE AREA</div>
           <div style={{ fontFamily: BODY, fontSize: 12, color: "var(--hg-ink)", lineHeight: 1.3 }}>
@@ -161,6 +166,7 @@ export default function ContractorBrowsePage() {
   const navigate = useNavigate();
 
   const [contractors, setContractors] = useState<ContractorProfile[]>([]);
+  const [privacy,     setPrivacy]     = useState<Record<string, ProfilePrivacy>>({});
   const [jobs,        setJobs]        = useState<Job[]>([]);
   const [loading,     setLoading]     = useState(true);
 
@@ -175,6 +181,9 @@ export default function ContractorBrowsePage() {
     ]).then(([ctrs, js]) => {
       setContractors(ctrs);
       setJobs(js);
+      contractorService.getProfilePrivacies(ctrs.map((c) => c.id))
+        .then(setPrivacy)
+        .catch((e) => console.error("[ContractorBrowsePage] privacy load failed:", e));
     }).catch((e) => console.error("[ContractorBrowsePage] load failed:", e))
       .finally(() => setLoading(false));
   }, []);
@@ -400,6 +409,7 @@ export default function ContractorBrowsePage() {
                 <ContractorCard
                   key={ctr.id}
                   contractor={ctr}
+                  privacy={privacy[ctr.id]}
                   isAwaiting={awaitingSet.has(ctr.name)}
                   onViewProfile={() => navigate(`/contractor/${ctr.id}`)}
                   onRequestQuote={() =>

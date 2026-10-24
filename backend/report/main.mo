@@ -236,6 +236,11 @@ persistent actor Report {
   /// (invariant), so adding a field there would need an explicit migration.
   private let billsSummaries = Map.empty<Text, BillsSummary>();
 
+  /// Owners who turned off "Public HomeGentic Report" in Settings → Privacy.
+  /// While they're in here every #Public link they created behaves as
+  /// #BuyerOnly (viewers must sign in); turning it back on restores them.
+  private let publicReportsOff = Map.empty<Principal, ()>();
+
   // ─── Private Helpers ──────────────────────────────────────────────────────────
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
@@ -761,6 +766,13 @@ persistent actor Report {
 
   // ─── Core: View Report ────────────────────────────────────────────────────────
 
+  /// The visibility a link has right now: #Public links of an owner who
+  /// turned public reports off need a signed-in viewer.
+  private func effectiveVisibility(link: ShareLink) : VisibilityLevel {
+    if (link.visibility == #Public and publicReportsOff.containsKey(link.createdBy)) #BuyerOnly
+    else link.visibility
+  };
+
   /// Fetch the report snapshot for a share token.
   /// Increments view count; returns error if expired or revoked.
   /// L-1: #BuyerOnly links require a signed-in (non-anonymous) caller. There
@@ -771,7 +783,8 @@ persistent actor Report {
       case (?link) {
         if (not link.isActive) return #err(#Revoked);
         if (isExpired(link))   return #err(#Expired);
-        if (link.visibility == #BuyerOnly and msg.caller.isAnonymous()) return #err(#NotAuthorized);
+        let visibility = effectiveVisibility(link);
+        if (visibility == #BuyerOnly and msg.caller.isAnonymous()) return #err(#NotAuthorized);
 
         switch (snapshots.get(link.snapshotId)) {
           case null      { #err(#NotFound) };
@@ -794,7 +807,7 @@ persistent actor Report {
             };
             Index.put(links, linksIndexes, token, updated);
             // 14.2.3 — enforce disclosure flags on-chain before returning
-            #ok((updated, applyDisclosure(snap, updated)))
+            #ok(({ updated with visibility }, applyDisclosure(snap, updated)))
           };
         }
       };
@@ -808,7 +821,7 @@ persistent actor Report {
       case null null;
       case (?link) {
         if (not link.isActive or isExpired(link)) return null;
-        if (link.visibility == #BuyerOnly and msg.caller.isAnonymous()) return null;
+        if (effectiveVisibility(link) == #BuyerOnly and msg.caller.isAnonymous()) return null;
         if (link.hideAmounts == ?true) return null;
         billsSummaries.get(link.snapshotId)
       };
@@ -824,7 +837,7 @@ persistent actor Report {
     let now = Time.now();
     var found = false;
     for (l in Index.records(linksByProperty, propertyId, links)) {
-      if (l.isActive and l.visibility == #Public) {
+      if (l.isActive and effectiveVisibility(l) == #Public) {
         switch (l.expiresAt) {
           case null   { found := true };
           case (?exp) { if (now < exp) found := true };
@@ -832,6 +845,19 @@ persistent actor Report {
       };
     };
     found
+  };
+
+  /// Settings → Privacy: whether anyone with a #Public link can view the
+  /// caller's reports without signing in.
+  public shared(msg) func setAllowPublicReports(allow: Bool) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    if (allow) publicReportsOff.remove(msg.caller) else publicReportsOff.add(msg.caller, ());
+    #ok(())
+  };
+
+  public query(msg) func getAllowPublicReports() : async Bool {
+    not publicReportsOff.containsKey(msg.caller)
   };
 
   /// List all share links the caller created for a property.
@@ -905,6 +931,7 @@ persistent actor Report {
       billsSummaries.remove(id);
       removed += 1;
     };
+    if (publicReportsOff.containsKey(caller)) { publicReportsOff.remove(caller); removed += 1 };
     #ok(removed)
   };
 
