@@ -74,7 +74,6 @@ describe("GiftPage", () => {
     fireEvent.change(screen.getByPlaceholderText(/Alex Johnson/i), { target: { value: "Jane Doe" } });
     fireEvent.change(screen.getByPlaceholderText(/alex@email\.com/i), { target: { value: "jane@example.com" } });
     fireEvent.change(screen.getByPlaceholderText(/Sarah Miller/i), { target: { value: "Bob Agent" } });
-    fireEvent.change(screen.getByPlaceholderText(/sarah@realty\.com/i), { target: { value: "bob@realty.com" } });
     fireEvent.click(screen.getAllByText(/Continue/i)[0]);
 
     // step 3: message → continue
@@ -105,7 +104,6 @@ describe("GiftPage", () => {
     fireEvent.change(screen.getByPlaceholderText(/Alex Johnson/i), { target: { value: "Jane" } });
     fireEvent.change(screen.getByPlaceholderText(/alex@email\.com/i), { target: { value: "j@j.com" } });
     fireEvent.change(screen.getByPlaceholderText(/Sarah Miller/i), { target: { value: "Bob" } });
-    fireEvent.change(screen.getByPlaceholderText(/sarah@realty\.com/i), { target: { value: "b@b.com" } });
     fireEvent.click(screen.getAllByText(/Continue/i)[0]);
     await waitFor(() => screen.getByText(/Gift message/i));
     fireEvent.click(screen.getAllByText(/Continue/i)[0]);

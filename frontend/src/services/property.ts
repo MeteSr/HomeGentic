@@ -1,8 +1,10 @@
 import { lazyActor } from "./lazyActor";
+import { voiceAgentFetch } from "./voiceAgentHeaders";
 import { idlFactory } from "@homegentic/shared/declarations/property";
 export { idlFactory };
 
 const PROPERTY_CANISTER_ID = (process.env as any).PROPERTY_CANISTER_ID || "";
+const VOICE_AGENT_URL      = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 export type PropertyType      = "SingleFamily" | "Condo" | "Townhouse" | "MultiFamily";
 export type VerificationLevel = "Unverified" | "PendingReview" | "Basic" | "Premium";
@@ -350,6 +352,21 @@ export const propertyService = {
     const result = await a.markIdentityCleared(propertyId, sessionId, name);
     if ("err" in result) throw new Error(Object.keys(result.err)[0]);
     return fromProperty(result.ok);
+  },
+
+  /**
+   * Start a Stripe Identity check for this property claim. Returns the Stripe
+   * URL to send the user to; Stripe returns them to `returnUrl`, and the
+   * Worker's webhook records the verified result on the property.
+   */
+  async startIdentityCheck(propertyId: string, returnUrl: string): Promise<string> {
+    const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/identity-session`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ propertyId, returnUrl }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || typeof data.url !== "string") throw new Error(data.error ?? "Could not start the identity check");
+    return data.url;
   },
 
   async getPendingVerifications(): Promise<Property[]> {

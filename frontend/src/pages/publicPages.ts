@@ -5,6 +5,7 @@ export { default as TermsOfServicePage }   from "./TermsOfServicePage";
 export { default as SupportPage }          from "./SupportPage";
 export { default as FAQPage }              from "./FAQPage";
 export { default as GiftPage }             from "./GiftPage";
+export { default as RedeemGiftPage }       from "./RedeemGiftPage";
 export { default as ContractorVerifyPage } from "./ContractorVerifyPage";
 export { default as ForProsPage }          from "./ForProsPage";
 export { default as PaymentSuccessPage }   from "./PaymentSuccessPage";

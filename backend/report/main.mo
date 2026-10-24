@@ -870,6 +870,44 @@ persistent actor Report {
     }
   };
 
+  // ─── Account Deletion ─────────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Returns how many records were removed.
+  ///
+  /// Deletes every snapshot the caller generated and every share link the
+  /// caller created, plus any link pointing at a deleted snapshot (so shared
+  /// URLs stop resolving) and the bills summaries keyed by those snapshots.
+  /// Certificates and risk profiles are keyed by property and record no
+  /// issuer, so they are not attributable to a caller and are kept.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+
+    let snapIds = Iter.toArray(snapshots.entries()
+      .filter(func((_, s)) = s.generatedBy == caller)
+      .map(func((id, _)) = id));
+    let snapSet = Map.empty<Text, ()>();
+    for (id in snapIds.values()) { snapSet.add(id, ()) };
+
+    let linkTokens = Iter.toArray(links.entries()
+      .filter(func((_, l)) = l.createdBy == caller or snapSet.containsKey(l.snapshotId))
+      .map(func((t, _)) = t));
+
+    var removed = 0;
+    for (t in linkTokens.values()) {
+      Index.delete(links, linksIndexes, t);
+      removed += 1;
+    };
+    for (id in snapIds.values()) {
+      snapshots.remove(id);
+      billsSummaries.remove(id);
+      removed += 1;
+    };
+    #ok(removed)
+  };
+
   // ─── Admin Functions ──────────────────────────────────────────────────────────
 
   /// Wire the report canister to the property canister.

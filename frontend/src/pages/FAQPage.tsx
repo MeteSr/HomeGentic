@@ -35,7 +35,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "What happens to my data if HomeGentic shuts down?",
-    a: "Because your records are stored on the Internet Computer blockchain, they remain readable at their on-chain address regardless of HomeGentic's operational status. No company can delete them.",
+    a: "You can export your full record as a file at any time from Settings → Privacy, so keep a copy. Your records live in canisters that HomeGentic runs and pays for on the Internet Computer, so they depend on HomeGentic keeping those canisters running.",
   },
   {
     q: "How is HomeGentic different from a spreadsheet or Google Drive folder?",

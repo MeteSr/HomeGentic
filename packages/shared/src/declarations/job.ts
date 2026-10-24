@@ -39,6 +39,7 @@ export const idlFactory = ({ IDL }: any) => {
     TierLimitReached: IDL.Text,
   });
   return IDL.Service({
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     linkContractor: IDL.Func(
       [IDL.Text, IDL.Principal],
       [IDL.Variant({ ok: Job, err: Error })],

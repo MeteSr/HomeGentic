@@ -56,6 +56,7 @@ export const idlFactory = ({ IDL }: any) => {
 
   return IDL.Service({
     register: IDL.Func([RegisterArgs], [IDL.Variant({ ok: AgentProfile, err: Error })], []),
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     getMyProfile: IDL.Func([], [IDL.Opt(AgentProfile)], ["query"]),
     getProfile: IDL.Func([IDL.Principal], [IDL.Opt(AgentProfile)], ["query"]),
     getAllProfiles: IDL.Func([], [IDL.Vec(AgentProfile)], ["query"]),

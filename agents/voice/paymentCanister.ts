@@ -50,7 +50,7 @@ const IC_HOST = process.env.DFX_NETWORK === "local"
 
 let _agentPromise: Promise<HttpAgent> | undefined;
 
-async function getAgent(): Promise<HttpAgent> {
+export async function getAgent(): Promise<HttpAgent> {
   if (_agentPromise) return _agentPromise;
   const pem = process.env.DFX_IDENTITY_PEM;
   if (!pem) {

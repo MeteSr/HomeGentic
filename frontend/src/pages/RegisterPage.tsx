@@ -198,7 +198,7 @@ export default function RegisterPage() {
                 </div>
                 <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: V2_COLORS.ink }}>Your details</h2>
                 <p style={{ fontWeight: 300, fontSize: "0.9rem", color: V2_COLORS.muted, marginBottom: "1.5rem" }}>
-                  Used for notifications and gift delivery. Never shared.
+                  Used for notifications. We share it only with the services that deliver our email and texts, as listed in our Privacy Policy.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.5rem" }}>
                   <div>

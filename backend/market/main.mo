@@ -17,6 +17,7 @@ import Blob     "mo:core/Blob";
 import List     "mo:core/List";
 import Map      "mo:core/Map";
 import Int      "mo:core/Int";
+import Iter     "mo:core/Iter";
 import Nat      "mo:core/Nat";
 import Option   "mo:core/Option";
 import Order    "mo:core/Order";
@@ -807,6 +808,34 @@ persistent actor MarketIntelligence {
       zipCode      = stored.zipCode;
       updatedAt    = stored.updatedAt;
     })
+  };
+
+  // ─── Account Deletion ─────────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Returns how many records were removed.
+  ///
+  /// Deletes the caller's stored neighbourhood score and drops the caller from
+  /// every zip index entry. The per-day vetKD derive counter (deriveLimits) is
+  /// kept until it expires so deletion can't be used to reset the cycle cap.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+
+    var removed = 0;
+    switch (scoreStore.get(caller)) {
+      case (?_) { scoreStore.remove(caller); removed += 1 };
+      case null {};
+    };
+    let zips = Iter.toArray(zipIndex.entries()
+      .filter(func((_, ps)) = Admin.contains(ps, caller))
+      .map(func((z, _)) = z));
+    for (z in zips.values()) {
+      let trimmed = zipIndex.get(z).get([]).filter(func(p) { p != caller });
+      if (trimmed.size() == 0) zipIndex.remove(z) else zipIndex.add(z, trimmed);
+    };
+    #ok(removed)
   };
 
   // ─── Admin Functions ──────────────────────────────────────────────────────────
