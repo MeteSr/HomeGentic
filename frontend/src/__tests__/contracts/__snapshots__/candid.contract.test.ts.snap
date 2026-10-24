@@ -1788,6 +1788,29 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
 
 exports[`photo IDL factory > full signature snapshot 1`] = `
 {
+  "addPhotoRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; QuotaExceeded:text}}",
+    ],
+  },
+  "beginUpload": {
+    "args": [
+      "text",
+      "text",
+      "variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}",
+      "text",
+      "text",
+      "nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; verified:bool; owner:principal; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}; err:variant {InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; QuotaExceeded:text}}",
+    ],
+  },
   "deleteMyData": {
     "args": [],
     "mode": [],
@@ -1860,6 +1883,27 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {id:text; verified:bool; owner:principal; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}",
+    ],
+  },
+  "photoAccess": {
+    "args": [
+      "text",
+      "principal",
+    ],
+    "mode": [
+      "composite_query",
+    ],
+    "rets": [
+      "opt record {owner:principal; hash:text; size:nat; canRead:bool; isPublic:bool; offChain:bool}",
+    ],
+  },
+  "removePhotoRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; QuotaExceeded:text}}",
     ],
   },
   "setPropertyCanisterId": {
