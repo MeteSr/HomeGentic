@@ -47,6 +47,8 @@ import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
 import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead } from "./offchainOutcalls";
 import { getInvitePreview } from "./jobCanister";
+import { handlePhotos } from "./photos";
+import { fetchPhotoAccess } from "../photoCanister";
 export { RateLimiterDO } from "./rateLimiterDO";
 import {
   HttpError,
@@ -97,6 +99,7 @@ export interface Env {
   CANISTER_ID_AUTH?:     string;   // resolves x-agent-session tokens
   CANISTER_ID_MONITORING?: string;
   CANISTER_ID_JOB?:      string;   // invite-token previews for contractor-invite emails
+  CANISTER_ID_PHOTO?:    string;   // photoAccess checks for /photos/*
 
   // M-6: keys that used to sit in the ai_proxy canister (now Worker secrets only)
   ATTOM_API_KEY?:        string;
@@ -125,6 +128,8 @@ export interface Env {
   RATE_LIMIT: KVNamespace;
   /** RateLimiterDO namespace (atomic counters); KV is the fallback when unbound. */
   RATE_LIMITER?: DurableObjectNamespace;
+  // R2: off-chain photo bytes (/photos/*). Unbound → those routes answer 503.
+  PHOTOS?: R2Bucket;
 }
 
 // ── Credit pack config (mirrors server.ts CREDIT_PACKS) ──────────────────────
@@ -150,7 +155,7 @@ function buildCorsHeaders(request: Request, env: Env): Record<string, string> {
   if (!origin || !isAllowedOrigin(origin, env)) return {};
   return {
     "Access-Control-Allow-Origin":   origin,
-    "Access-Control-Allow-Methods":  "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods":  "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Headers":
       "Content-Type, x-api-key, x-icp-principal, x-subscription-tier, x-agent-session, " +
       "x-context-hmac, x-request-id, x-trace-id",
@@ -361,6 +366,7 @@ export default {
     (process.env as any).CANISTER_ID_AUTH        = env.CANISTER_ID_AUTH ?? "";
     (process.env as any).CANISTER_ID_MONITORING  = env.CANISTER_ID_MONITORING ?? "";
     (process.env as any).CANISTER_ID_JOB         = env.CANISTER_ID_JOB ?? "";
+    (process.env as any).CANISTER_ID_PHOTO       = env.CANISTER_ID_PHOTO ?? "";
     (process.env as any).AI_MODEL                = env.AI_MODEL ?? "";
 
     // CORS preflight
@@ -450,6 +456,14 @@ async function route(
   if (path.startsWith("/api/bidtolist/")) {
     const subpath = path.slice("/api/bidtolist".length);
     return withCors(await handleBidtolist(request, subpath, env, () => callerPrincipal(request, env)), cors);
+  }
+
+  // ── Off-chain photo bytes (R2) ────────────────────────────────────────────
+  if (path.startsWith("/photos/")) {
+    return withCors(await handlePhotos(request, path, env, {
+      principal: () => callerPrincipal(request, env),
+      access:    fetchPhotoAccess,
+    }), cors);
   }
 
   // X-1 / F-4: every route that costs money (Anthropic, Rentcast) or touches
