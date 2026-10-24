@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { jobService, type Job } from "@/services/job";
 import { quoteService, type QuoteRequest, type Quote } from "@/services/quote";
 import { usePropertyStore } from "@/store/propertyStore";
+import type { ContractorProfile } from "@/services/contractor";
+import { useContractorProfiles, verifiedJobsLabel, earliestCloseAt } from "@/hooks/useContractorProfiles";
 import { V2_FONTS } from "@/theme";
 
 const F = V2_FONTS;
@@ -43,8 +45,16 @@ function BidRow({ pro, meta, amount }: { pro: string; meta: string; amount: stri
 
 // ── Active bid card (blue border highlight) ───────────────────────────────────
 
-function ActiveBidCard({ job, bids, onCompare }: { job: Job; bids: Quote[]; onCompare: () => void }) {
-  const closesDate = new Date(Date.now() + 7 * 86400000).toLocaleDateString(undefined, { weekday: "short" }).toUpperCase();
+function ActiveBidCard({ job, bids, closeAt, profiles, onCompare }: {
+  job:       Job;
+  bids:      Quote[];
+  closeAt:   number | null;
+  profiles:  Record<string, ContractorProfile | null>;
+  onCompare: () => void;
+}) {
+  const closesDate = closeAt
+    ? new Date(closeAt).toLocaleDateString(undefined, { weekday: "short" }).toUpperCase()
+    : null;
   return (
     <div style={{
       background: M.card,
@@ -59,9 +69,11 @@ function ActiveBidCard({ job, bids, onCompare }: { job: Job; bids: Quote[]; onCo
         <div style={{ font: `500 9px/1 ${F.mono}`, letterSpacing: ".12em", color: M.blue }}>
           {bids.length} NEW BID{bids.length !== 1 ? "S" : ""}
         </div>
-        <div style={{ font: `500 9px/1 ${F.mono}`, letterSpacing: ".12em", color: M.muted }}>
-          CLOSES {closesDate}
-        </div>
+        {closesDate && (
+          <div style={{ font: `500 9px/1 ${F.mono}`, letterSpacing: ".12em", color: M.muted }}>
+            CLOSES {closesDate}
+          </div>
+        )}
       </div>
 
       {/* Job title */}
@@ -72,15 +84,14 @@ function ActiveBidCard({ job, bids, onCompare }: { job: Job; bids: Quote[]; onCo
       {/* Bid list */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
         {bids.map((bid) => {
-          const name     = bid.contractor ?? "Contractor";
-          const initials = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
-          const avail    = new Date(Date.now() + Math.floor(Math.random() * 10 + 3) * 86400000)
-            .toLocaleDateString(undefined, { month: "short", day: "numeric" });
+          const profile  = profiles[bid.contractor];
+          const timeline = `${bid.timeline}-day timeline`;
+          const jobs     = verifiedJobsLabel(profile);
           return (
             <BidRow
               key={bid.id}
-              pro={name}
-              meta={`${initials} · ${Math.floor(Math.random() * 60 + 10)} jobs · avail ${avail}`}
+              pro={profile?.name ?? "Contractor"}
+              meta={jobs ? `${jobs} · ${timeline}` : timeline}
               amount={`$${Math.round(bid.amount / 100).toLocaleString()}`}
             />
           );
@@ -143,7 +154,7 @@ function AwaitingCard({ job }: { job: Job }) {
         {job.serviceType}
       </div>
       <div style={{ font: `400 12.5px/1.5 ${F.body}`, color: M.muted, marginTop: 7 }}>
-        Sent to nearby pros. Bids usually land within 48 hours.
+        Contractors in your area can see this request and bid on it.
       </div>
     </div>
   );
@@ -151,7 +162,7 @@ function AwaitingCard({ job }: { job: Job }) {
 
 // ── Contractor row ────────────────────────────────────────────────────────────
 
-function ContractorRow({ abbr, name, meta, isLast }: { abbr: string; name: string; meta: string; isLast: boolean }) {
+function ContractorRow({ abbr, name, meta, isLast }: { abbr: string; name: string; meta: string | null; isLast: boolean }) {
   return (
     <div style={{
       minHeight: 44, padding: "14px 18px",
@@ -167,7 +178,7 @@ function ContractorRow({ abbr, name, meta, isLast }: { abbr: string; name: strin
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ font: `600 14px/1.3 ${F.body}`, color: M.ink }}>{name}</div>
-        <div style={{ font: `400 11.5px/1.4 ${F.mono}`, color: M.muted, marginTop: 5 }}>{meta}</div>
+        {meta && <div style={{ font: `400 11.5px/1.4 ${F.mono}`, color: M.muted, marginTop: 5 }}>{meta}</div>}
       </div>
     </div>
   );
@@ -186,7 +197,7 @@ function EmptyState({ onPost }: { onPost: () => void }) {
         No open jobs yet
       </div>
       <div style={{ font: `400 13px/1.5 ${F.body}`, color: M.muted, marginBottom: 24 }}>
-        Post a job to get quotes from verified contractors in your area.
+        Post a job to get quotes from contractors in your area.
       </div>
       <button
         onClick={onPost}
@@ -255,21 +266,26 @@ export function MobileJobsPage() {
     [openJobs, jobsWithBids]
   );
 
+  const bidderIds = useMemo(
+    () => Object.values(bidsMap).flatMap(bids => bids.map(b => b.contractor)),
+    [bidsMap]
+  );
+  const profiles = useContractorProfiles(bidderIds);
+
   // Build a unique contractors list from bids
   const contractors = useMemo(() => {
     const seen = new Set<string>();
-    const list: { abbr: string; name: string; meta: string }[] = [];
-    for (const bids of Object.values(bidsMap)) {
-      for (const bid of bids) {
-        const name = bid.contractor ?? "Contractor";
-        if (seen.has(name)) continue;
-        seen.add(name);
-        const abbr = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
-        list.push({ abbr, name, meta: `${Math.floor(Math.random() * 60 + 10)} verified jobs` });
-      }
+    const list: { id: string; abbr: string; name: string; meta: string | null }[] = [];
+    for (const id of bidderIds) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const profile = profiles[id];
+      const name = profile?.name ?? "Contractor";
+      const abbr = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+      list.push({ id, abbr, name, meta: verifiedJobsLabel(profile) });
     }
     return list;
-  }, [bidsMap]);
+  }, [bidderIds, profiles]);
 
   if (loading) {
     return (
@@ -316,6 +332,8 @@ export function MobileJobsPage() {
                 key={job.id}
                 job={job}
                 bids={jobBids}
+                closeAt={earliestCloseAt(reqs)}
+                profiles={profiles}
                 onCompare={() => navigate(`/jobs/${job.id}`)}
               />
             );
@@ -347,7 +365,7 @@ export function MobileJobsPage() {
               }}>
                 {contractors.map((c, i) => (
                   <ContractorRow
-                    key={c.name}
+                    key={c.id}
                     abbr={c.abbr}
                     name={c.name}
                     meta={c.meta}

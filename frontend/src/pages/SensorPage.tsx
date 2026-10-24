@@ -22,8 +22,6 @@ function SensorCard({ device, alert, onRemove, removing }: { device: SensorDevic
   const statusLabel: string = isAlert ? "ALERT" : isHigh ? "HIGH" : "NORMAL";
   const statusTone:  PillTone = isAlert ? "bad" : isHigh ? "warn" : "good";
 
-  const batteryPct = Math.floor(Math.random() * 60 + 35);
-
   return (
     <Panel style={{ border: isAlert ? "1px solid rgba(255,92,57,0.4)" : "1px solid var(--hg-line)", background: isAlert ? "rgba(255,92,57,0.06)" : "var(--hg-surface)", padding: "18px 20px" }}>
       {/* Header */}
@@ -53,21 +51,12 @@ function SensorCard({ device, alert, onRemove, removing }: { device: SensorDevic
         </div>
       )}
 
-      {/* Battery */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-          <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.1em", textTransform: "uppercase" }}>BATTERY</span>
-          <span style={{ fontFamily: MONO, fontSize: 10, color: "var(--hg-muted)" }}>{batteryPct}%</span>
-        </div>
-        <div style={{ height: 4, background: "var(--hg-line)", borderRadius: 2, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${batteryPct}%`, background: batteryPct < 20 ? "var(--hg-bad)" : "var(--hg-blue)", borderRadius: 2 }} />
-        </div>
-      </div>
-
       {/* Last updated + remove */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <div style={{ fontFamily: BODY, fontSize: 12, color: "var(--hg-muted)" }}>
-          Updated {alert ? new Date(alert.timestamp).toLocaleString() : "just now"}
+          {alert
+            ? `Updated ${new Date(alert.timestamp).toLocaleString()}`
+            : `Registered ${new Date(device.registeredAt).toLocaleDateString()}`}
         </div>
         <button
           onClick={() => onRemove(device.id)}
