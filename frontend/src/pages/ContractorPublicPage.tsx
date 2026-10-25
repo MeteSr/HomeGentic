@@ -11,7 +11,7 @@ import { PageHead } from "@/components/PageHead";
 import { ArrowLeft, Star, ShieldCheck, Wrench, MessageSquare, Mail, Phone, Award } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
-import { contractorService, ContractorProfile, JobCredential } from "@/services/contractor";
+import { contractorService, ContractorProfile, JobCredential, DEFAULT_PROFILE_PRIVACY, type ProfilePrivacy } from "@/services/contractor";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
@@ -54,6 +54,8 @@ export default function ContractorPublicPage() {
   const { isMobile } = useBreakpoint();
   const [contractor,   setContractor]   = useState<ContractorProfile | null>(null);
   const [credentials,  setCredentials]  = useState<JobCredential[]>([]);
+  // Hidden until loaded, so a contractor who hid their numbers never sees them flash.
+  const [privacy,      setPrivacy]      = useState<ProfilePrivacy | null>(null);
   const [reviews,      setReviews]      = useState<{ id: string; rating: number; comment: string; jobId: string; createdAt: number }[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [rating,       setRating]       = useState(0);
@@ -68,6 +70,9 @@ export default function ContractorPublicPage() {
       .then((c) => {
         setContractor(c);
         if (c) {
+          contractorService.getProfilePrivacies([c.id])
+            .then((ps) => setPrivacy(ps[c.id] ?? DEFAULT_PROFILE_PRIVACY))
+            .catch((e) => console.error("[ContractorPublicPage] privacy load failed:", e));
           contractorService.getCredentials(c.id)
             .then(setCredentials)
             .catch((e) => console.error("[ContractorPublicPage] credentials load failed:", e));
@@ -106,7 +111,9 @@ export default function ContractorPublicPage() {
   const helmetName = contractor?.name ?? "Contractor";
   const helmetTitle = `${helmetName} — Verified Contractor | HomeGentic™`;
   const helmetDesc = contractor
-    ? `${helmetName} is a verified contractor on HomeGentic with a trust score of ${contractor.trustScore ?? 0}. View credentials, reviews, and verified job history.`
+    ? privacy?.showTrustScore
+      ? `${helmetName} is a verified contractor on HomeGentic with a trust score of ${contractor.trustScore ?? 0}. View credentials, reviews, and verified job history.`
+      : `${helmetName} is a contractor on HomeGentic. View their profile and reviews.`
     : "Verified contractor profile on HomeGentic.";
 
   if (loading) {
@@ -186,12 +193,14 @@ export default function ContractorPublicPage() {
                   </p>
                 )}
               </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ width: "3rem", height: "3rem", border: `2px solid ${UI.rust}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: UI.paper }}>{contractor.trustScore}</span>
-                  <span style={{ fontFamily: UI.mono, fontSize: "0.45rem", color: V2_COLORS.mutedOnDark }}>/100</span>
+              {privacy?.showTrustScore && (
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ width: "3rem", height: "3rem", border: `2px solid ${UI.rust}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: UI.paper }}>{contractor.trustScore}</span>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.45rem", color: V2_COLORS.mutedOnDark }}>/100</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -202,10 +211,12 @@ export default function ContractorPublicPage() {
               </div>
             )}
             <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
-              <div>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.15rem" }}>Jobs Completed</p>
-                <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.125rem" }}>{contractor.jobsCompleted}</p>
-              </div>
+              {privacy?.showJobsCompleted && (
+                <div>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.15rem" }}>Jobs Completed</p>
+                  <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.125rem" }}>{contractor.jobsCompleted}</p>
+                </div>
+              )}
               {contractor.licenseNumber && (
                 <div>
                   <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.15rem" }}>License</p>
@@ -252,7 +263,8 @@ export default function ContractorPublicPage() {
           </button>
         </div>
 
-        {/* Verified Work Portfolio */}
+        {/* Verified Work Portfolio — it lists every completed job, so it hides with the count */}
+        {privacy?.showJobsCompleted && (
         <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, marginBottom: "1.5rem" }}>
           <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.paper, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
@@ -300,6 +312,7 @@ export default function ContractorPublicPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Reviews */}
         <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, marginBottom: "1.5rem" }}>

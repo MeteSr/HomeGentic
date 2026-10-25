@@ -526,12 +526,16 @@ describe("contractor IDL factory", () => {
       "getBySpecialty",
       "getContractor",
       "getCredentials",
+      "getLeadAlertTargets",
       "getMyProfile",
+      "getMyProfilePrivacy",
       "getPage",
+      "getProfilePrivacies",
       "getReviewsForContractor",
       "recordJobVerified",
       "register",
       "setJobCanisterId",
+      "setProfilePrivacy",
       "submitReview",
       "updateNotificationPrefs",
       "updateProfile",
@@ -550,8 +554,11 @@ describe("contractor IDL factory", () => {
       "getBySpecialty",
       "getContractor",
       "getCredentials",
+      "getLeadAlertTargets",
       "getMyProfile",
+      "getMyProfilePrivacy",
       "getPage",
+      "getProfilePrivacies",
       "getReviewsForContractor",
     ]);
   });
@@ -624,12 +631,14 @@ describe("report IDL factory", () => {
       "deleteMyData",
       "generateReport",
       "generateRiskProfile",
+      "getAllowPublicReports",
       "getBillsSummary",
       "getReport",
       "getRiskProfile",
       "hasActivePublicShareLink",
       "listShareLinks",
       "revokeShareLink",
+      "setAllowPublicReports",
     ]);
   });
 

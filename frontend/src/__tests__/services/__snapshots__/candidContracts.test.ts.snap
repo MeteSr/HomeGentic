@@ -66,12 +66,16 @@ getAll(0) -> (1) [query]
 getBySpecialty(1) -> (1) [query]
 getContractor(1) -> (1) [query]
 getCredentials(1) -> (1) [query]
+getLeadAlertTargets(0) -> (1) [query]
 getMyProfile(0) -> (1) [query]
+getMyProfilePrivacy(0) -> (1) [query]
 getPage(2) -> (1) [query]
+getProfilePrivacies(1) -> (1) [query]
 getReviewsForContractor(1) -> (1) [query]
 recordJobVerified(4) -> (1)
 register(1) -> (1)
 setJobCanisterId(1) -> (1)
+setProfilePrivacy(1) -> (1)
 submitReview(4) -> (1)
 updateNotificationPrefs(1) -> (1)
 updateProfile(1) -> (1)
@@ -307,12 +311,14 @@ exports[`Candid contract snapshots — method arity > report 1`] = `
 "deleteMyData(0) -> (1)
 generateReport(12) -> (1)
 generateRiskProfile(3) -> (1)
+getAllowPublicReports(0) -> (1) [query]
 getBillsSummary(1) -> (1) [query]
 getReport(1) -> (1)
 getRiskProfile(1) -> (1) [query]
 hasActivePublicShareLink(1) -> (1) [query]
 listShareLinks(1) -> (1)
-revokeShareLink(1) -> (1)"
+revokeShareLink(1) -> (1)
+setAllowPublicReports(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > sensor 1`] = `

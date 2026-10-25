@@ -58,7 +58,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Can I share my HomeGentic Report without sharing everything?",
-    a: "Yes. When you generate a report from your property dashboard, you choose the visibility level: Public (anyone with the link), Link-only (no search indexing), or Private (only you). You can revoke a share link at any time. Individual jobs can be excluded from the shared report before you generate it.",
+    a: "Yes. When you generate a report link you can hide job amounts, contractor names, permit numbers and job descriptions, and you can revoke a link at any time. Anyone with the link can view the report unless you turn off Public HomeGentic Report in Settings → Privacy; then viewers must sign in first.",
   },
   {
     q: "How does the voice assistant work? Is my conversation stored?",

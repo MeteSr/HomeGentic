@@ -125,6 +125,7 @@ const mockActiveShareLink = {
 vi.mock("@/services/report", () => ({
   reportService: {
     listShareLinks: vi.fn().mockResolvedValue([]),
+    getAllowPublicReports: vi.fn().mockResolvedValue(true),
   },
 }));
 

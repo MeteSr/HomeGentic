@@ -103,6 +103,30 @@ persistent actor Contractor {
     alertZips:   [Text];
   };
 
+  /// Settings → Privacy. `listed` controls whether the profile appears in the
+  /// directory queries (getAll, getPage, getByZip, getBySpecialty); the other
+  /// two say whether the public profile page and directory card show those
+  /// numbers. Bids and quote matching are unaffected.
+  public type ProfilePrivacy = {
+    listed:            Bool;
+    showTrustScore:    Bool;
+    showJobsCompleted: Bool;
+  };
+
+  /// What the notification relay needs to match new leads to contractors —
+  /// no name or contact details, and unlisted contractors are included so
+  /// they still get the lead alerts they asked for.
+  public type LeadAlertTarget = {
+    id:            Principal;
+    specialties:   [ServiceType];
+    serviceZips:   [Text];
+    alertZips:     [Text];
+    notifyPush:    ?Bool;
+    trustScore:    Nat;
+    jobsCompleted: Nat;
+    isVerified:    Bool;
+  };
+
   public type Error = {
     #NotFound;
     #AlreadyExists;
@@ -142,6 +166,10 @@ persistent actor Contractor {
   /// Review ids by contractor principal (transient, rebuilt on every upgrade).
   private transient let reviewsByContractor = Index.build(reviews, func(r) { ?r.contractor.toText() });
   private let credentials    = Map.empty<Nat, JobCredential>();
+  /// Privacy settings, only for contractors who changed them from the
+  /// default (everything shown). A side map so ContractorProfile's stored
+  /// type is unchanged.
+  private let profilePrivacy = Map.empty<Principal, ProfilePrivacy>();
   /// compositeKey = "reviewerPrincipal|jobId" → reviewId.
   private let reviewKeys     = Map.empty<Text, Text>();
   /// Daily review rate limits per reviewer.
@@ -174,6 +202,20 @@ persistent actor Contractor {
 
   private func isTrustedCanister(p: Principal) : Bool {
     Admin.contains(trustedCanisterEntries, p)
+  };
+
+  private func privacyOf(p: Principal) : ProfilePrivacy {
+    switch (profilePrivacy.get(p)) {
+      case (?v) v;
+      case null { { listed = true; showTrustScore = true; showJobsCompleted = true } };
+    }
+  };
+
+  /// Directory queries leave out unlisted profiles, except for the contractor
+  /// themself, admins and trusted canisters.
+  private func directoryFilter(caller: Principal) : ContractorProfile -> Bool {
+    let all = isAdmin(caller) or isTrustedCanister(caller);
+    func(c: ContractorProfile) : Bool { all or c.id == caller or privacyOf(c.id).listed }
   };
 
   private func isJobCanister(p: Principal) : Bool {
@@ -464,12 +506,49 @@ persistent actor Contractor {
     }
   };
 
-  public query func getAll() : async [ContractorProfile] {
-    contractors.values().take(500).toArray()
+  public query(msg) func getAll() : async [ContractorProfile] {
+    contractors.values().filter(directoryFilter(msg.caller)).take(500).toArray()
   };
 
-  public query func getPage(from : Nat, limit : Nat) : async [ContractorProfile] {
-    contractors.values().drop(from).take(Nat.min(limit, 100)).toArray()
+  public query(msg) func getPage(from : Nat, limit : Nat) : async [ContractorProfile] {
+    contractors.values().filter(directoryFilter(msg.caller)).drop(from).take(Nat.min(limit, 100)).toArray()
+  };
+
+  /// Every contractor's lead-matching fields, for the notification relay.
+  public query func getLeadAlertTargets() : async [LeadAlertTarget] {
+    contractors.values().take(500).map(func(c: ContractorProfile) : LeadAlertTarget {
+      {
+        id            = c.id;
+        specialties   = c.specialties;
+        serviceZips   = c.serviceZips;
+        alertZips     = c.alertZips;
+        notifyPush    = c.notifyPush;
+        trustScore    = c.trustScore;
+        jobsCompleted = c.jobsCompleted;
+        isVerified    = c.isVerified;
+      }
+    }).toArray()
+  };
+
+  // ─── Privacy ───────────────────────────────────────────────────────────────────
+
+  /// Save the caller's Settings → Privacy choices. The caller must have a profile.
+  public shared(msg) func setProfilePrivacy(p: ProfilePrivacy) : async Result.Result<ProfilePrivacy, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    if (contractors.get(msg.caller) == null) return #err(#NotFound);
+    if (p.listed and p.showTrustScore and p.showJobsCompleted) profilePrivacy.remove(msg.caller)
+    else profilePrivacy.add(msg.caller, p);
+    #ok(p)
+  };
+
+  public query(msg) func getMyProfilePrivacy() : async ProfilePrivacy {
+    privacyOf(msg.caller)
+  };
+
+  /// Privacy settings for up to 500 contractors, in the order asked, so a page
+  /// can tell which numbers to show. Unknown principals get the defaults.
+  public query func getProfilePrivacies(ps: [Principal]) : async [ProfilePrivacy] {
+    ps.values().take(500).map(privacyOf).toArray()
   };
 
   public query func getReviewsForContractor(c: Principal) : async [Review] {
@@ -684,8 +763,9 @@ persistent actor Contractor {
       .toArray();
     for (id in credIds.values()) { credentials.remove(id); removed += 1 };
 
-    // Profile.
+    // Profile and its privacy settings.
     if (contractors.get(caller) != null) { contractors.remove(caller); removed += 1 };
+    if (profilePrivacy.get(caller) != null) { profilePrivacy.remove(caller); removed += 1 };
 
     #ok(removed)
   };
@@ -850,19 +930,21 @@ persistent actor Contractor {
 
   /// Return all contractors who have explicitly listed the given zip code in their serviceZips.
   /// Contractors with empty serviceZips are excluded (they haven't configured a service area yet).
-  public query func getByZip(zipCode: Text) : async [ContractorProfile] {
+  public query(msg) func getByZip(zipCode: Text) : async [ContractorProfile] {
+    let listed = directoryFilter(msg.caller);
     Iter.toArray(
       contractors.values().filter(func(c: ContractorProfile) : Bool {
-        Option.isSome(c.serviceZips.find(func(z) { z == zipCode }))
+        listed(c) and Option.isSome(c.serviceZips.find(func(z) { z == zipCode }))
       })
     )
   };
 
   /// Return all contractors who serve a given trade category.
-  public query func getBySpecialty(s: ServiceType) : async [ContractorProfile] {
+  public query(msg) func getBySpecialty(s: ServiceType) : async [ContractorProfile] {
+    let listed = directoryFilter(msg.caller);
     Iter.toArray(
       contractors.values().filter(func(c: ContractorProfile) : Bool {
-        Option.isSome(c.specialties.find(func(t) { t == s }))
+        listed(c) and Option.isSome(c.specialties.find(func(t) { t == s }))
       })
     )
   };

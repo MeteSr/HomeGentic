@@ -7,6 +7,7 @@
  *   - credentials are sorted newest-verified-first with an on-chain count
  *   - reviews are sorted newest-first with correct pluralization
  *   - request-quote navigates with a prefill built from the contractor
+ *   - the contractor's privacy settings hide their trust score / job count
  */
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -22,7 +23,8 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...actual, useParams: () => ({ id: "ctr-1" }), useNavigate: () => mockNavigate };
 });
 
-const { mockGetContractor, mockGetCredentials, mockGetReviews, mockSubmitReview } = vi.hoisted(() => ({
+const { mockGetContractor, mockGetCredentials, mockGetReviews, mockSubmitReview, mockGetPrivacies } = vi.hoisted(() => ({
+  mockGetPrivacies:   vi.fn(),
   mockGetContractor:  vi.fn(),
   mockGetCredentials: vi.fn(),
   mockGetReviews:     vi.fn(),
@@ -38,6 +40,7 @@ vi.mock("@/services/contractor", async (importOriginal) => {
       getCredentials: mockGetCredentials,
       getReviewsForContractor: mockGetReviews,
       submitReview: mockSubmitReview,
+      getProfilePrivacies: mockGetPrivacies,
     },
   };
 });
@@ -85,6 +88,28 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockGetCredentials.mockResolvedValue([]);
   mockGetReviews.mockResolvedValue([]);
+  mockGetPrivacies.mockResolvedValue({ "ctr-1": { listed: true, showTrustScore: true, showJobsCompleted: true } });
+});
+
+describe("ContractorPublicPage — privacy", () => {
+  it("shows the trust score and job history by default", async () => {
+    mockGetContractor.mockResolvedValue(makeContractor());
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Jobs Completed")).toBeInTheDocument());
+    expect(screen.getByText("/100")).toBeInTheDocument();
+    expect(screen.getByText("Verified Work Portfolio")).toBeInTheDocument();
+  });
+
+  it("hides what the contractor turned off", async () => {
+    mockGetContractor.mockResolvedValue(makeContractor());
+    mockGetPrivacies.mockResolvedValue({ "ctr-1": { listed: false, showTrustScore: false, showJobsCompleted: false } });
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Alice Anderson")).toBeInTheDocument());
+    await waitFor(() => expect(mockGetPrivacies).toHaveBeenCalledWith(["ctr-1"]));
+    expect(screen.queryByText("/100")).not.toBeInTheDocument();
+    expect(screen.queryByText("Jobs Completed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Verified Work Portfolio")).not.toBeInTheDocument();
+  });
 });
 
 describe("ContractorPublicPage — not found", () => {

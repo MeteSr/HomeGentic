@@ -83,6 +83,7 @@ vi.mock("@/services/report", () => ({
     getReport:       vi.fn().mockImplementation(() => mockGetReportResult()),
     generateReport:  vi.fn().mockResolvedValue(mockShareLinkFresh),
     listShareLinks:  vi.fn().mockResolvedValue([]),
+    getAllowPublicReports: vi.fn().mockResolvedValue(true),
     revokeShareLink: vi.fn().mockResolvedValue(undefined),
     shareUrl:        vi.fn().mockReturnValue("https://example.com/report/tok-new"),
     expiryLabel:     vi.fn().mockReturnValue("Expires in 7 days"),
