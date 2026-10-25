@@ -184,6 +184,17 @@ export const idlFactory = ({ IDL }: any) => {
     getVerificationLevel: IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ["query"]),
     getPendingVerifications: IDL.Func([], [IDL.Variant({ ok: IDL.Vec(Property), err: Error })], []),  // admin only
     isAdminPrincipal: IDL.Func([IDL.Principal], [IDL.Bool], ["query"]),
+    // Weekly Home Pulse email (notification relay only).
+    getPulseProperties: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({
+        ok: IDL.Vec(IDL.Record({
+          id: IDL.Text, address: IDL.Text, city: IDL.Text, state: IDL.Text, zipCode: IDL.Text, yearBuilt: IDL.Nat,
+        })),
+        err: Error,
+      })],
+      ["query"]
+    ),
     relayMarkIdentityCleared: IDL.Func(
       [IDL.Text, IDL.Principal, IDL.Text, IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],

@@ -223,6 +223,11 @@ Each channel is off until its variables are set; Settings hides its rows while i
 | `RESEND_API_KEY` | Resend API key. Turns notification email on |
 | `NOTIFY_EMAIL_FROM` | Sender, on a domain verified in Resend (default `HomeGentic <notifications@homegentic.app>`) |
 | `APP_URL` | Web app origin used for links in emails and texts (default `https://homegentic.app`) |
+| `NOTIFICATIONS_PUBLIC_URL` | This relay's public HTTPS origin (e.g. `https://notify.homegentic.app`). Needed for the weekly Home Pulse email: each one carries a one-click unsubscribe link to `/api/email/unsubscribe`. Without it the weekly email is off |
+| `CANISTER_ID_PROPERTY` | Property canister — the weekly Home Pulse email reads each homeowner's properties |
+| `PULSE_HOUR_UTC` | Hour (UTC) on Mondays the weekly Home Pulse starts sending (default `13`) |
+| `PULSE_SEND_INTERVAL_MS` | Pause between weekly emails, to stay under Resend's rate limit (default `600`) |
+| `UNSUBSCRIBE_SECRET` | Signs unsubscribe links (default: `INTERNAL_API_KEY`). Changing it breaks links in emails already sent |
 | `TWILIO_ACCOUNT_SID` | Twilio account SID |
 | `TWILIO_AUTH_TOKEN` | Twilio auth token — keep secret |
 | `TWILIO_VERIFY_SERVICE_SID` | Twilio Verify service (`VA…`) that texts the confirmation codes |
@@ -240,7 +245,8 @@ VAPID keys are stable — regenerate only if the private key is compromised (inv
 ### Allowlist the relay on the canisters
 
 The relay logs its principal at startup (`relay principal: …`). Allow it to read
-the job and quote outboxes and look up users' email on auth, either when deploying:
+the job and quote outboxes, look up users' email and the weekly Home Pulse recipients on
+auth, and read the Home Pulse property summaries and jobs on property and job, either when deploying:
 
 ```bash
 NOTIFIER_PRINCIPAL=<relay principal> bash scripts/deploy.sh <env>
@@ -249,9 +255,10 @@ NOTIFIER_PRINCIPAL=<relay principal> bash scripts/deploy.sh <env>
 (in CI, set the `NOTIFIER_PRINCIPAL` variable on the GitHub environment), or directly:
 
 ```bash
-icp canister call auth  addNotifier '(principal "<relay principal>")' -e <env>
-icp canister call job   addNotifier '(principal "<relay principal>")' -e <env>
-icp canister call quote addNotifier '(principal "<relay principal>")' -e <env>
+icp canister call auth     addNotifier '(principal "<relay principal>")' -e <env>
+icp canister call property addNotifier '(principal "<relay principal>")' -e <env>
+icp canister call job      addNotifier '(principal "<relay principal>")' -e <env>
+icp canister call quote    addNotifier '(principal "<relay principal>")' -e <env>
 ```
 
 Until it is allowlisted on job and quote, the relay logs `NotAuthorized` each poll and sends

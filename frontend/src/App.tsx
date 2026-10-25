@@ -60,6 +60,7 @@ const MarketIntelligencePage     = React.lazy(() => import("@/pages/MarketIntell
 const ReportPage                 = React.lazy(() => import("@/pages/ReportPage"));
 const BadgePage                  = React.lazy(() => import("@/pages/BadgePage"));
 const ScoreCertPage              = React.lazy(() => import("@/pages/ScoreCertPage"));
+const VerifyRecordPage           = React.lazy(() => import("@/pages/VerifyRecordPage"));
 const PredictiveMaintenancePage  = React.lazy(() => import("@/pages/PredictiveMaintenancePage"));
 const AdminDashboardPage         = React.lazy(() => import("@/pages/AdminDashboardPage"));
 const SensorPage                 = React.lazy(() => import("@/pages/SensorPage"));
@@ -260,6 +261,7 @@ export default function App() {
           <Route path="/report/:token"         element={<ReportPage />} />
           <Route path="/badge/:token"          element={<BadgePage />} />
           <Route path="/cert/:token"           element={<ScoreCertPage />} />
+          <Route path="/verify-record"         element={<VerifyRecordPage />} />
           {/* /neighborhood/:zipCode removed — NeighborhoodHealthPage kept in codebase for future re-enable */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

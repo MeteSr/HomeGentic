@@ -83,6 +83,7 @@ describe("auth IDL factory", () => {
       "getMetrics",
       "getNotificationContact",
       "getProfile",
+      "getPulseRecipients",
       "getUserStats",
       "hasRole",
       "isAdminPrincipal",
@@ -101,7 +102,7 @@ describe("auth IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getMetrics", "getNotificationContact", "getProfile", "getUserStats", "hasRole", "isAdminPrincipal", "resolveAgentSession"]);
+    expect(queries).toEqual(["getMetrics", "getNotificationContact", "getProfile", "getPulseRecipients", "getUserStats", "hasRole", "isAdminPrincipal", "resolveAgentSession"]);
   });
 
   it("UserRole variant includes Builder", () => {
@@ -201,6 +202,7 @@ describe("job IDL factory", () => {
       "getJob",
       "getJobByInviteToken",
       "getJobSnapshotsForProperty",
+      "getJobsByOwner",
       "getJobsForProperty",
       "getJobsPendingMySignature",
       "getMetrics",
@@ -228,6 +230,7 @@ describe("job IDL factory", () => {
       "getJob",
       "getJobByInviteToken",
       "getJobSnapshotsForProperty",
+      "getJobsByOwner",
       // getJobsForProperty is an update call (has inter-canister await for ownership check)
       "getJobsPendingMySignature",
       "getMetrics",
@@ -274,6 +277,7 @@ describe("property IDL factory", () => {
       "getPropertyManagers",
       "getPropertyOwner",
       "getPropertyYearBuilt",
+      "getPulseProperties",
       "getRoomsByProperty",
       "getVerificationLevel",
       "getVerifyStatus",
@@ -320,6 +324,7 @@ describe("property IDL factory", () => {
       "getPropertyManagers",
       "getPropertyOwner",
       "getPropertyYearBuilt",
+      "getPulseProperties",
       "getRoomsByProperty",
       "getVerificationLevel",
       "getVerifyStatus",
@@ -632,13 +637,19 @@ describe("report IDL factory", () => {
       "generateReport",
       "generateRiskProfile",
       "getAllowPublicReports",
+      "getAttestationKey",
       "getBillsSummary",
+      "getCertAttestation",
       "getReport",
+      "getReportAttestation",
+      "getReportScore",
       "getRiskProfile",
       "hasActivePublicShareLink",
       "listShareLinks",
+      "refreshAttestationKey",
       "revokeShareLink",
       "setAllowPublicReports",
+      "setAttestationKeyName",
     ]);
   });
 

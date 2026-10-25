@@ -128,6 +128,15 @@ persistent actor Property {
     conflictWindowEndsAt : ?Time.Time;  // set when both proofs submitted (#PendingReview)
   };
 
+  public type PulseProperty = {
+    id        : Text;
+    address   : Text;
+    city      : Text;
+    state     : Text;
+    zipCode   : Text;
+    yearBuilt : Nat;
+  };
+
   public type RegisterPropertyArgs = {
     address      : Text;
     city         : Text;
@@ -357,6 +366,9 @@ persistent actor Property {
   /// The voice Worker's principal: may only record Stripe Identity results
   /// (relayMarkIdentityCleared), for the property owner Stripe verified.
   private var identityRelayEntries     : [Principal] = [];
+  /// The notification relay's principal: may read the minimal property
+  /// summaries the weekly Home Pulse email needs (getPulseProperties).
+  private var notifierEntries          : [Principal] = [];
   /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
   /// first addAdmin() call. Consumed on first successful use.
   private var bootstrapNonce           : ?Text       = null;
@@ -2088,6 +2100,29 @@ persistent actor Property {
 
   public query func getTrustedCanisters() : async [Principal] {
     trustedCanisterEntries
+  };
+
+  /// Allow the notification relay to read Home Pulse property summaries. Admin only.
+  public shared(msg) func addNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    notifierEntries := Admin.add(notifierEntries, p);
+    #ok(())
+  };
+
+  public shared(msg) func removeNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    notifierEntries := Admin.remove(notifierEntries, p);
+    #ok(())
+  };
+
+  /// What the weekly Home Pulse email needs about `owner`'s active
+  /// properties: address, zip (for the climate zone) and year built. No
+  /// identity or verification evidence. Notifiers and admins only.
+  public query(msg) func getPulseProperties(owner: Principal) : async Result.Result<[PulseProperty], Error> {
+    if (not Admin.contains(notifierEntries, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(ownedBy(owner).filter(func(p: Property) : Bool { p.isActive }).map(func(p: Property) : PulseProperty {
+      { id = p.id; address = p.address; city = p.city; state = p.state; zipCode = p.zipCode; yearBuilt = p.yearBuilt }
+    }).toArray())
   };
 
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {

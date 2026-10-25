@@ -109,6 +109,7 @@ vi.mock("@/services/scoreService", () => ({
   premiumEstimate: vi.fn().mockReturnValue({ low: 400_000, high: 440_000 }),
   getScoreGrade:   vi.fn().mockReturnValue("B"),
   computeScore:    vi.fn().mockReturnValue(72),
+  scoreFromReportJobs: vi.fn().mockReturnValue(72),
 }));
 
 vi.mock("@/services/job", () => ({

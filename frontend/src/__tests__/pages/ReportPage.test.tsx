@@ -110,9 +110,8 @@ describe("ReportPage — loaded report", () => {
       makeJob({ serviceType: "Electrical", isVerified: true }),
       makeJob({ serviceType: "Windows", isVerified: true }),
     ];
-    // verifiedJobCount 10 (capped at 40 pts) + totalAmountCents high enough for
-    // the full 20 value pts + Premium's 10 + 5 distinct service types (capped
-    // at 20 diversity pts) = 90, clearing the 88 certification threshold.
+    // The on-chain score stored with the report clears the 88 threshold.
+    (window as any).__e2e_report_score = 90;
     const snapshot = makeSnapshot({
       jobs, verifiedJobCount: 10, totalAmountCents: 6_000_000, verificationLevel: "Premium",
     });
@@ -120,6 +119,7 @@ describe("ReportPage — loaded report", () => {
     renderAt("/report/tok-1");
 
     expect(await screen.findByText(/HomeGentic Certified/)).toBeInTheDocument();
+    delete (window as any).__e2e_report_score;
   });
 
   it("does not show the Certified badge with too few verified jobs", async () => {

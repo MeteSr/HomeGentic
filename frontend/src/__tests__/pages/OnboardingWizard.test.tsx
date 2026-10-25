@@ -285,9 +285,9 @@ describe("AddPropertyModal V2 — saved hub", () => {
     await goToSaved();
   });
 
-  it("shows the record score", () => {
+  it("shows setup progress", () => {
     // The score section has a specific base score of 20 after saving
-    expect(screen.getAllByText(/record score/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/setup progress/i).length).toBeGreaterThan(0);
   });
 
   it("shows 4 optional task cards", () => {

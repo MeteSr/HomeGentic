@@ -12,12 +12,14 @@
  * homeowner-reported score, shown as secondary and unverified.
  */
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { PageHead } from "@/components/PageHead";
 import { Shield, AlertTriangle, CheckCircle } from "lucide-react";
 import { getScoreGrade } from "@/services/scoreService";
 import { certService, certIdFromToken, type VerifiedCert } from "@/services/cert";
+import { SignedRecordPanel } from "@/components/SignedRecordPanel";
+import { attestationService } from "@/services/attestation";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
@@ -61,12 +63,13 @@ export default function ScoreCertPage() {
       .catch(() => { if (live) setCert(null); });
     return () => { live = false; };
   }, [certId]);
+  const loadAttestation = React.useCallback(() => attestationService.getForCert(certId ?? ""), [certId]);
 
   const grade = cert && cert.score !== null ? getScoreGrade(cert.score) : null;
   const certTitle = grade ? `HomeGentic Score Certificate — Grade ${grade} | HomeGentic™` : "Score Certificate | HomeGentic™";
   const certDesc  = cert && cert.score !== null
     ? `HomeGentic Score ${cert.score}/100, Grade ${grade}.`
-    : "HomeGentic Score Certificate — blockchain-verified home maintenance score.";
+    : "HomeGentic Score Certificate — computed on the Internet Computer and signed by HomeGentic.";
   const canonical = token ? `https://homegentic.app/cert/${token}` : "https://homegentic.app/cert";
 
   const head = (
@@ -254,8 +257,8 @@ export default function ScoreCertPage() {
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
             {[
-              "Maintenance history has been documented and cryptographically verified on the Internet Computer blockchain.",
-              "Records cannot be altered or deleted retroactively.",
+              "The score and job counts were computed on the Internet Computer from the job record when this certificate was issued.",
+              "HomeGentic signed the certificate when it was issued; the signature panel below shows whether it is unchanged since.",
               cert.certified
                 ? "This property meets HomeGentic Certified™ standards — score ≥ 88 with verified coverage of key systems."
                 : cert.score !== null
@@ -270,6 +273,11 @@ export default function ScoreCertPage() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Signature */}
+        <div style={{ padding: innerPad, paddingBottom: 0, borderBottom: `1px solid ${UI.rule}` }}>
+          <SignedRecordPanel load={loadAttestation} noun="certificate" filename={`homegentic-certificate-${certId}.json`} />
         </div>
 
         {/* Footer */}

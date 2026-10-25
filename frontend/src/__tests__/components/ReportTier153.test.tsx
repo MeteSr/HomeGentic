@@ -81,6 +81,7 @@ vi.mock("@/services/agentProfile", () => ({
 vi.mock("@/services/scoreService", () => ({
   premiumEstimate: vi.fn().mockReturnValue(null),
   getScoreGrade:   vi.fn().mockReturnValue("GOOD"),
+  scoreFromReportJobs: vi.fn().mockReturnValue(72),
 }));
 
 // ─── Render helper ─────────────────────────────────────────────────────────────

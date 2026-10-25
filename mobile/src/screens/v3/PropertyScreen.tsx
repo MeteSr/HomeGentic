@@ -29,7 +29,7 @@ export function ownershipLine(p: Property, sharedWith: number | null): string {
       line = "Your ownership documents are in review.";
       break;
     default:
-      line = "Ownership isn't verified yet. Verifying on homegentic.app adds up to 10 points.";
+      line = "Ownership isn't verified yet. Verify it on homegentic.app to share reports.";
   }
   if (sharedWith != null && sharedWith > 0) line += ` Shared with ${sharedWith} ${sharedWith === 1 ? "person" : "people"}.`;
   return line;

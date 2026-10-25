@@ -523,8 +523,8 @@ export default function InsuranceDefensePage() {
             {/* Footer disclaimer */}
             <div style={{ borderTop: `1px solid ${UI.rule}`, paddingTop: "1.5rem", marginTop: "1rem" }}>
               <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: UI.inkLight, lineHeight: 1.7, maxWidth: "44rem" }}>
-                <strong>Verification note:</strong> Records marked "ICP Verified" have been digitally signed by both the homeowner and contractor on the Internet Computer blockchain.
-                The immutable record includes a cryptographic timestamp and dual-party signature that cannot be altered retroactively.
+                <strong>Verification note:</strong> Records marked "ICP Verified" were signed off by both the homeowner and the contractor from their own accounts, and are stored on the Internet Computer.
+                Once both have signed, the job can't be edited. HomeGentic signs each shared report, and anyone can check a downloaded copy at homegentic.app/verify-record.
                 Self-reported records have not been independently verified but remain on-chain as homeowner-attested entries.
                 HomeGentic Inc. does not guarantee insurer acceptance of this documentation. Contact your insurer for submission requirements.
               </p>

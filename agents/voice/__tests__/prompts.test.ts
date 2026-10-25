@@ -155,7 +155,7 @@ describe("PROMPT.8 — score section", () => {
     ...base,
     score: {
       score: 72, grade: "B",
-      breakdown: { verifiedJobPts: 25, valuePts: 15, verificationPts: 12, diversityPts: 20 },
+      breakdown: { maintenancePts: 25, modernizationPts: 15, verificationPts: 12 },
       recentEvents: [{ label: "Verified job added", pts: 5, category: "job" }],
       nextActions:  ["Add a photo to your last job"],
     },
@@ -175,7 +175,7 @@ describe("PROMPT.9 — score trend", () => {
     ...base,
     score: {
       score: 72, grade: "B",
-      breakdown: { verifiedJobPts: 25, valuePts: 15, verificationPts: 12, diversityPts: 20 },
+      breakdown: { maintenancePts: 25, modernizationPts: 15, verificationPts: 12 },
       recentEvents: [], nextActions: [],
     },
     scoreTrend: {

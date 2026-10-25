@@ -68,8 +68,11 @@ interface AddressForm { address: string; city: string; state: string; zipCode: s
 interface DetailsForm { propertyType: PropertyType; yearBuilt: string; squareFeet: string; }
 interface VerifyForm  { legalName: string; docType: string; docFile: File | null; }
 
-// ── Score helper ───────────────────────────────────────────────────────────────
-function computeScore(
+// ── Setup progress ──────────────────────────────────────────────────────────
+// Points out of SETUP_MAX for finishing setup steps. This is wizard progress
+// only; the HomeGentic Score comes from the job record (scoreService).
+const SETUP_MAX = 54;
+function computeSetupProgress(
   step: StepKey,
   photosCount: number,
   docsUploaded: number,
@@ -218,7 +221,7 @@ function LeftRail({
   step, address, score, photosCount, docsUploaded, agesFilledCount, verifySubmitted, onNav, propertyName,
 }: RailProps) {
   const requiredDone = step !== "address" && step !== "details";
-  const maxScore = 54;
+  const maxScore = SETUP_MAX;
 
   const navItem = (
     label: string,
@@ -294,10 +297,10 @@ function LeftRail({
           borderRadius: T.radius, padding: "12px 14px", marginBottom: 22,
         }}>
           <div style={{ font: `500 9px/1 ${F.mono}`, letterSpacing: ".12em", color: T.blue, marginBottom: 6 }}>
-            RECORD SCORE
+            SETUP PROGRESS
           </div>
           <div style={{ font: `700 22px/1 ${F.display}`, color: T.blue }}>
-            {score} <span style={{ font: `400 13px/1 ${F.body}`, color: T.blue }}>/ {maxScore}</span>
+            {Math.round((score / maxScore) * 100)}%
           </div>
           {/* Progress bar */}
           <div style={{ height: 4, background: T.cobalTint, borderRadius: 100, marginTop: 10 }}>
@@ -335,7 +338,7 @@ function LeftRail({
       <div>
         {navItem(
           "Verify ownership",
-          verifySubmitted ? "Submitted" : "+20 score",
+          verifySubmitted ? "Submitted" : "",
           verifySubmitted,
           "verify",
           step === "verify",
@@ -458,7 +461,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
   // Derived
   const photosCount    = baselineCompleted.size;
   const agesFilledCount = Object.values(ages).filter(v => v.trim().length > 0).length;
-  const score          = computeScore(step, photosCount, docsUploaded, verifySubmitted);
+  const score          = computeSetupProgress(step, photosCount, docsUploaded, verifySubmitted);
   const propAddress    = [addr.address, addr.city, addr.state].filter(Boolean).join(", ");
 
   // Lock body scroll
@@ -809,7 +812,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
               Your property is saved.
             </h2>
             <p style={{ font: `400 13.5px/1.6 ${F.body}`, color: T.muted, margin: "0 0 24px" }}>
-              The required record is complete. Add optional details to unlock predictions and boost your score.
+              The required record is complete. Add optional details to unlock predictions and strengthen the record.
             </p>
 
             {/* Score */}
@@ -820,19 +823,19 @@ export default function AddPropertyModal({ open, onClose }: Props) {
             }}>
               <div>
                 <div style={{ font: `500 9px/1 ${F.mono}`, letterSpacing: ".12em", color: T.blue, marginBottom: 4 }}>
-                  RECORD SCORE
+                  SETUP PROGRESS
                 </div>
                 <div style={{ font: `700 28px/1 ${F.display}`, color: T.blue }}>
-                  {score}
+                  {Math.round((score / SETUP_MAX) * 100)}%
                 </div>
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ font: `400 12px/1.5 ${F.body}`, color: T.blue, marginBottom: 6 }}>
-                  Complete optional steps to reach 54
+                  Complete the optional steps to reach 100%
                 </div>
                 <div style={{ height: 6, background: T.cobalTint, borderRadius: 100 }}>
                   <div style={{
-                    height: 6, width: `${Math.min(100, (score / 54) * 100)}%`,
+                    height: 6, width: `${Math.min(100, (score / SETUP_MAX) * 100)}%`,
                     background: T.blue, borderRadius: 100, transition: "width .4s",
                   }} />
                 </div>
@@ -891,7 +894,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                 Capture baseline photos.
               </h2>
               <p style={{ font: `400 13.5px/1.6 ${F.body}`, color: T.muted, margin: "0 0 20px" }}>
-                Photograph your major systems to create a permanent record. Each photo adds +1 to your score.
+                Photograph your major systems so the record shows their condition today.
               </p>
 
               {/* Counter */}
@@ -984,7 +987,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                 Import documents.
               </h2>
               <p style={{ font: `400 13.5px/1.6 ${F.body}`, color: T.muted, margin: "0 0 24px" }}>
-                Upload receipts, permits, and inspection reports. Duplicates are auto-detected. Adds +8 to your score.
+                Upload receipts, permits, and inspection reports. Duplicates are auto-detected.
               </p>
               {docsUploaded > 0 && (
                 <div style={{
@@ -1082,7 +1085,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                 Verify ownership.
               </h2>
               <p style={{ font: `400 13.5px/1.6 ${F.body}`, color: T.muted, margin: "0 0 24px" }}>
-                Submit your legal name and an ownership document. Our team reviews within 1–2 business days and adds +20 to your record score.
+                Submit your legal name and an ownership document. Our team reviews within 1–2 business days. Verified ownership is required before you can share a report.
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>

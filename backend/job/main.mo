@@ -27,6 +27,7 @@ import Index        "../shared/Index";
 import Uuid         "../shared/Uuid";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
+import Score "../shared/Score";
 import Canisters "../shared/Canisters";
 
 persistent actor Job {
@@ -482,13 +483,11 @@ persistent actor Job {
   /// Returns a lightweight snapshot of all jobs for a property, suitable for
   /// cross-canister consumption by the market canister's computePropertyScore.
   public query func getJobSnapshotsForProperty(propertyId: Text) : async [JobSnapshot] {
-    let secsPerYear : Nat = 31_536_000;
     Iter.toArray(Index.records(jobsByProperty, propertyId, jobs).map(
       func(j: Job) : JobSnapshot {
-        let secsSince1970 = Int.abs(j.completedDate) / 1_000_000_000;
         {
           serviceType   = serviceTypeText(j.serviceType);
-          completedYear = 1970 + secsSince1970 / secsPerYear;
+          completedYear = Score.yearOf(j.completedDate);
           amountCents   = j.amount;
           isDiy         = j.isDiy;
           isVerified    = countsAsVerified(j);
@@ -515,7 +514,8 @@ persistent actor Job {
   /// canisters get the list; anyone else gets [].
   public query(msg) func getJobsByOwner(owner: Principal) : async [Job] {
     if (msg.caller.isAnonymous()) return [];
-    if (msg.caller != owner and not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return [];
+    // Notifiers: the relay builds the weekly Home Pulse email from these.
+    if (msg.caller != owner and not isAdmin(msg.caller) and not isTrustedCanister(msg.caller) and not isNotifier(msg.caller)) return [];
     Index.records(jobsByHomeowner, owner.toText(), jobs).toArray(
       
     )

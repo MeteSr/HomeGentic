@@ -137,7 +137,7 @@ export default function JobCreatePage() {
         setLoggedServiceType(form.serviceType);
         // Snapshot score for job-value delta display — use getByProperty so the
         // newly created job is included in the score (getAll was always returning []).
-        jobService.getByProperty(form.propertyId).then((js) => setScoreAtSubmit(computeScore(js, []))).catch(() => {}); // score delta is display-only; failure does not affect job creation
+        jobService.getByProperty(form.propertyId).then((js) => setScoreAtSubmit(computeScore(js, properties.filter((p) => String(p.id) === form.propertyId)))).catch(() => {}); // score delta is display-only; failure does not affect job creation
         setSubmitted(true);
         return; // don't navigate — show success state
       }

@@ -11,6 +11,7 @@
  *   bid_declined                      yes   Bid Outcome                —
  *   quote_received                    —     Quote Received             —
  *   new_lead                          yes*  New Lead                   —
+ *   weekly_pulse                      —     Weekly Home Pulse          —
  *
  * * new-lead pushes follow the contractor profile's notifyPush instead of a
  *   relay preference.
@@ -38,17 +39,23 @@ export const EMAIL_GROUPS = {
   job_verified:   ["job_verified"],
   quote_received: ["quote_received"],
   job_updates:    ["job_awaiting_signature", "sensor_alert"],
+  weekly_pulse:   ["weekly_pulse"],
 } as const satisfies Record<string, readonly NotificationKind[]>;
 export type EmailPrefKey = keyof typeof EMAIL_GROUPS;
 export const EMAIL_PREF_KEYS = Object.keys(EMAIL_GROUPS) as EmailPrefKey[];
 
-/** Defaults match what the Settings rows showed before they were wired up. */
+/**
+ * Defaults match what the Settings rows showed before they were wired up.
+ * The weekly Home Pulse is on by default (the product promises it); every
+ * one has a one-click unsubscribe link.
+ */
 export const EMAIL_DEFAULTS: Record<EmailPrefKey, boolean> = {
   new_lead:       true,
   bid_outcome:    false,
   job_verified:   true,
   quote_received: true,
   job_updates:    false,
+  weekly_pulse:   true,
 };
 
 export const SMS_KINDS: readonly NotificationKind[] = [

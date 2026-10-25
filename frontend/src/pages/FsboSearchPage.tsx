@@ -788,7 +788,7 @@ export default function FsboSearchPage() {
                 {
                   icon:  <ShieldCheck size={20} color={C.blue} />,
                   title: "Verified by HomeGentic",
-                  body:  "Basic and Premium verified properties have had their maintenance history reviewed and cryptographically signed on-chain.",
+                  body:  "Basic and Premium verified properties have had their ownership reviewed by HomeGentic. Their jobs are signed off by homeowner and contractor.",
                 },
                 {
                   icon:  <Wrench size={20} color={C.blue} />,

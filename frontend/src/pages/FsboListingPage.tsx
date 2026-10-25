@@ -371,7 +371,7 @@ export default function FsboListingPage() {
           </div>
         </div>
         <p style={{ fontFamily: UI.sans, fontSize: "0.78rem", color: UI.inkLight, margin: 0 }}>
-          Maintenance data is stored on-chain and immutable — records cannot be altered or deleted after submission.
+          Maintenance data is stored on-chain. Jobs signed off by both homeowner and contractor can't be edited afterwards.
         </p>
       </section>
 

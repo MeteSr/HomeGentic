@@ -58,7 +58,7 @@ export interface AgentContext {
   pendingSignatureJobIds: string[];
   openQuoteCount:         number;
   openQuoteRequests?:     { id: string; serviceType: string; description: string; urgency: string; status: string; bidCount: number; lowestBidDollars?: number }[];
-  score?:                 { score: number; grade: string; breakdown: { verifiedJobPts: number; valuePts: number; verificationPts: number; diversityPts: number }; recentEvents: never[]; nextActions: string[] };
+  score?:                 { score: number; grade: string; breakdown: { maintenancePts: number; modernizationPts: number; verificationPts: number }; recentEvents: never[]; nextActions: string[] };
   role?:                  "Homeowner" | "Contractor";
   contractorProfile?:     { name: string; specialties: string[]; trustScore: number; jobsCompleted: number; isVerified: boolean };
   plan?:                  { tier: string; propertyLimit: number; summary: string };

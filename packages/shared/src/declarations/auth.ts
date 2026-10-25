@@ -64,6 +64,12 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Opt(IDL.Record({ email: IDL.Text })), err: Error })],
       ["query"]
     ),
+    // Homeowners for the weekly Home Pulse email, paged by principal (allow-listed callers only).
+    getPulseRecipients: IDL.Func(
+      [IDL.Opt(IDL.Principal), IDL.Nat],
+      [IDL.Variant({ ok: IDL.Vec(IDL.Record({ principal: IDL.Principal, email: IDL.Text })), err: Error })],
+      ["query"]
+    ),
     getMetrics: IDL.Func(
       [],
       [IDL.Record({

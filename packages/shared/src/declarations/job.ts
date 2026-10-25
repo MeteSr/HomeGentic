@@ -82,6 +82,8 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: Job, err: Error })],
       ["query"]
     ),
+    // The owner, admins, trusted canisters and the notification relay (weekly Home Pulse email).
+    getJobsByOwner: IDL.Func([IDL.Principal], [IDL.Vec(Job)], ["query"]),
     getJobsForProperty: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Vec(Job), err: Error })],

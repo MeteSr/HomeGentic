@@ -8,6 +8,7 @@ import Char "mo:core/Char";
 import Blob "mo:core/Blob";
 import Debug "mo:core/Debug";
 import Iter "mo:core/Iter";
+import List "mo:core/List";
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
 import Nat8 "mo:core/Nat8";
@@ -488,6 +489,28 @@ persistent actor class Auth(initDeployer : Principal) {
       };
       case null #ok(null);
     }
+  };
+
+  /// Homeowners to send the weekly Home Pulse email to: active accounts with
+  /// an email address, in principal order, after `after` (exclusive), at most
+  /// `limit` (capped at 200) per page. Notifiers and admins only. Whether each
+  /// one wants the email is the relay's preference, not stored here.
+  public query(msg) func getPulseRecipients(after : ?Principal, limit : Nat) : async Result.Result<[{ principal : Principal; email : Text }], Error> {
+    if (not isNotifier(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let cap = if (limit == 0 or limit > 200) 200 else limit;
+    let iter = switch (after) {
+      case (?a) Map.entriesFrom(users, Principal.compare, a);
+      case null users.entries();
+    };
+    let out = List.empty<{ principal : Principal; email : Text }>();
+    label scan for ((p, u) in iter) {
+      if (out.size() >= cap) break scan;
+      if (after == ?p) continue scan;
+      if (u.role == #Homeowner and u.isActive and Text.size(u.email) > 0) {
+        out.add({ principal = p; email = u.email });
+      };
+    };
+    #ok(out.toArray())
   };
 
   /// The principal a live session token belongs to, or null if the token is
