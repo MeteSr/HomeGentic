@@ -3,7 +3,8 @@
  *   - loading -> empty -> populated states
  *   - openJobs excludes verified jobs and rejected_by_homeowner
  *   - bidCount sums bids across all open quote requests
- *   - accept/decline remove the bid from bidsMap (optimistic update)
+ *   - accept calls the quote canister, then drops the request's bids; hide is local only
+ *   - contractor name, VERIFIED PRO badge and job count come from the profile
  *   - mobile vs desktop switch
  */
 
@@ -21,7 +22,9 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-const { mockGetAll, mockGetRequests, mockGetQuotesForRequest } = vi.hoisted(() => ({
+const { mockGetAll, mockGetRequests, mockGetQuotesForRequest, mockAccept, mockGetContractor } = vi.hoisted(() => ({
+  mockAccept:               vi.fn(),
+  mockGetContractor:        vi.fn(),
   mockGetAll:               vi.fn(),
   mockGetRequests:          vi.fn(),
   mockGetQuotesForRequest:  vi.fn(),
@@ -32,8 +35,14 @@ vi.mock("@/services/job", () => ({
 }));
 
 vi.mock("@/services/quote", () => ({
-  quoteService: { getRequests: mockGetRequests, getQuotesForRequest: mockGetQuotesForRequest },
+  quoteService: { getRequests: mockGetRequests, getQuotesForRequest: mockGetQuotesForRequest, accept: mockAccept },
 }));
+
+vi.mock("@/services/contractor", () => ({
+  contractorService: { getContractor: mockGetContractor },
+}));
+
+vi.mock("react-hot-toast", () => ({ default: { success: vi.fn(), error: vi.fn() } }));
 
 vi.mock("@/store/propertyStore", () => ({
   usePropertyStore: () => ({ properties: [{ id: "prop-1", address: "123 Main St" }] }),
@@ -78,6 +87,8 @@ beforeEach(() => {
   mockBreakpoint.isTablet = false;
   mockGetRequests.mockResolvedValue([]);
   mockGetQuotesForRequest.mockResolvedValue([]);
+  mockAccept.mockResolvedValue(undefined);
+  mockGetContractor.mockResolvedValue(null);
 });
 
 describe("JobsPage — loading and empty states", () => {
@@ -160,6 +171,58 @@ describe("JobsPage — bid count and accept/decline", () => {
     await waitFor(() => expect(screen.getByText("Accept bid")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Accept bid"));
     await waitFor(() => expect(screen.queryByText("Accept bid")).not.toBeInTheDocument());
+    expect(mockAccept).toHaveBeenCalledWith("q1");
+  });
+
+  it("keeps the bid when the canister rejects the accept", async () => {
+    mockAccept.mockRejectedValue(new Error("NotAuthorized"));
+    mockGetAll.mockResolvedValue([makeJob({ id: "j1", propertyId: "prop-1" })]);
+    mockGetRequests.mockResolvedValue([{
+      id: "req-1", propertyId: "prop-1", homeowner: "p-owner", serviceType: "HVAC",
+      urgency: "medium", description: "x", status: "open", createdAt: Date.now(),
+    }]);
+    mockGetQuotesForRequest.mockResolvedValue([{
+      id: "q1", requestId: "req-1", contractor: "ctr-1",
+      amount: 45000, timeline: 3, validUntil: Date.now(), status: "pending", createdAt: Date.now(),
+    }]);
+
+    renderPage();
+    fireEvent.click(await screen.findByText("Accept bid"));
+    await waitFor(() => expect(mockAccept).toHaveBeenCalled());
+    expect(screen.getByText("Accept bid")).toBeInTheDocument();
+  });
+});
+
+describe("JobsPage — contractor details", () => {
+  const request: QuoteRequest = {
+    id: "req-1", propertyId: "prop-1", homeowner: "p-owner", serviceType: "HVAC",
+    urgency: "medium", description: "x", status: "open", createdAt: Date.now(),
+  };
+  const quote: Quote = {
+    id: "q1", requestId: "req-1", contractor: "ctr-1",
+    amount: 45000, timeline: 3, validUntil: Date.now(), status: "pending", createdAt: Date.now(),
+  };
+
+  beforeEach(() => {
+    mockGetAll.mockResolvedValue([makeJob({ id: "j1", propertyId: "prop-1" })]);
+    mockGetRequests.mockResolvedValue([request]);
+    mockGetQuotesForRequest.mockResolvedValue([quote]);
+  });
+
+  it("shows the profile's name, real job count and VERIFIED PRO only when verified", async () => {
+    mockGetContractor.mockResolvedValue({ id: "ctr-1", name: "Cool Air LLC", jobsCompleted: 1, isVerified: true });
+    renderPage();
+    expect(await screen.findByText("Cool Air LLC")).toBeInTheDocument();
+    expect(screen.getByText("1 verified job")).toBeInTheDocument();
+    expect(screen.getByText("VERIFIED PRO")).toBeInTheDocument();
+    expect(screen.getByText("3 days")).toBeInTheDocument();
+  });
+
+  it("shows no badge or job count for an unverified contractor without a profile", async () => {
+    renderPage();
+    await screen.findByText("Accept bid");
+    expect(screen.queryByText("VERIFIED PRO")).not.toBeInTheDocument();
+    expect(screen.queryByText(/verified job/)).not.toBeInTheDocument();
   });
 });
 

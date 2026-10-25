@@ -3,7 +3,9 @@
  *   - jobs are split into "with active bids" vs "awaiting bids" based on
  *     whether their quote requests have any bids yet
  *   - verified jobs render as Scheduled cards, using the property address map
- *   - the unique-contractors list dedupes by contractor name across all bids
+ *   - the unique-contractors list dedupes by contractor principal across all bids
+ *   - contractor names and verified-job counts come from the contractor profile,
+ *     never made up
  *   - the empty state shows only when there are no open jobs and no requests
  */
 
@@ -14,7 +16,8 @@ import { MobileJobsPage } from "@/pages/MobileJobsPage";
 import type { Job } from "@/services/job";
 import type { QuoteRequest, Quote } from "@/services/quote";
 
-const { mockGetAll, mockGetRequests, mockGetQuotesForRequest, mockUsePropertyStore } = vi.hoisted(() => ({
+const { mockGetAll, mockGetRequests, mockGetQuotesForRequest, mockUsePropertyStore, mockGetContractor } = vi.hoisted(() => ({
+  mockGetContractor: vi.fn(),
   mockGetAll: vi.fn(),
   mockGetRequests: vi.fn(),
   mockGetQuotesForRequest: vi.fn(),
@@ -29,6 +32,7 @@ vi.mock("@/services/quote", async (importOriginal) => {
   return { ...actual, quoteService: { getRequests: mockGetRequests, getQuotesForRequest: mockGetQuotesForRequest } };
 });
 vi.mock("@/store/propertyStore", () => ({ usePropertyStore: mockUsePropertyStore }));
+vi.mock("@/services/contractor", () => ({ contractorService: { getContractor: mockGetContractor } }));
 
 function makeJob(overrides: Partial<Job> = {}): Job {
   return {
@@ -45,7 +49,7 @@ function makeRequest(overrides: Partial<QuoteRequest> = {}): QuoteRequest {
 }
 
 function makeQuote(overrides: Partial<Quote> = {}): Quote {
-  return { id: "quote-1", requestId: "req-1", contractor: "Acme Co.", amount: 50000, timeline: "1 week", ...overrides } as Quote;
+  return { id: "quote-1", requestId: "req-1", contractor: "acme-principal", amount: 50000, timeline: 7, ...overrides } as Quote;
 }
 
 function renderPage() {
@@ -55,6 +59,9 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   mockUsePropertyStore.mockReturnValue({ properties: [{ id: "prop-1", address: "123 Main St, Austin, TX" }] });
+  mockGetContractor.mockImplementation((id: string) =>
+    Promise.resolve(id === "acme-principal" ? { id, name: "Acme Co.", jobsCompleted: 12, isVerified: true } : null)
+  );
 });
 
 describe("MobileJobsPage — empty state", () => {
@@ -100,17 +107,50 @@ describe("MobileJobsPage — job classification", () => {
 });
 
 describe("MobileJobsPage — contractors list", () => {
-  it("dedupes contractors by name across multiple bids", async () => {
+  it("dedupes contractors by principal across multiple bids", async () => {
     mockGetAll.mockResolvedValue([makeJob({ id: "j1" }), makeJob({ id: "j2", propertyId: "prop-1" })]);
     mockGetRequests.mockResolvedValue([makeRequest({ id: "req-1" }), makeRequest({ id: "req-2" })]);
     mockGetQuotesForRequest.mockImplementation((id: string) =>
-      Promise.resolve([makeQuote({ id: `q-${id}`, requestId: id, contractor: "Acme Co." })])
+      Promise.resolve([makeQuote({ id: `q-${id}`, requestId: id, contractor: "acme-principal" })])
     );
     renderPage();
 
     await waitFor(() => expect(screen.getByText("YOUR CONTRACTORS")).toBeInTheDocument());
     const contractorsHeading = screen.getByText("YOUR CONTRACTORS");
     const contractorsList = contractorsHeading.nextElementSibling as HTMLElement;
-    expect(within(contractorsList).getAllByText("Acme Co.")).toHaveLength(1);
+    expect(await within(contractorsList).findAllByText("Acme Co.")).toHaveLength(1);
+  });
+});
+
+describe("MobileJobsPage — contractor details", () => {
+  it("shows the profile's real verified-job count and the bid's timeline", async () => {
+    mockGetAll.mockResolvedValue([makeJob()]);
+    mockGetRequests.mockResolvedValue([makeRequest({ status: "quoted" })]);
+    mockGetQuotesForRequest.mockResolvedValue([makeQuote()]);
+    renderPage();
+
+    expect(await screen.findByText("12 verified jobs · 7-day timeline")).toBeInTheDocument();
+    const contractorsList = screen.getByText("YOUR CONTRACTORS").nextElementSibling as HTMLElement;
+    expect(within(contractorsList).getByText("12 verified jobs")).toBeInTheDocument();
+  });
+
+  it("shows no job count when the bidder has no contractor profile", async () => {
+    mockGetAll.mockResolvedValue([makeJob()]);
+    mockGetRequests.mockResolvedValue([makeRequest({ status: "quoted" })]);
+    mockGetQuotesForRequest.mockResolvedValue([makeQuote({ contractor: "unknown-principal" })]);
+    renderPage();
+
+    expect(await screen.findByText("7-day timeline")).toBeInTheDocument();
+    expect(screen.queryByText(/verified job/)).not.toBeInTheDocument();
+  });
+
+  it("only shows a close date when the request has a bid window", async () => {
+    mockGetAll.mockResolvedValue([makeJob()]);
+    mockGetRequests.mockResolvedValue([makeRequest({ status: "quoted" })]);
+    mockGetQuotesForRequest.mockResolvedValue([makeQuote()]);
+    renderPage();
+
+    await screen.findByText(/1 NEW BID/);
+    expect(screen.queryByText(/CLOSES/)).not.toBeInTheDocument();
   });
 });
