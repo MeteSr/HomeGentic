@@ -80,7 +80,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
                   color: categoryColor(ev.category),
                 }}
               >
-                +{ev.pts}
+                {ev.pts > 0 ? `+${ev.pts}` : ev.pts}
               </span>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>

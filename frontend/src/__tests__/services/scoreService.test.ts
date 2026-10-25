@@ -10,8 +10,13 @@ import {
   recordSnapshot,
   loadHistory,
   scoreDelta,
+  computeBreakdown,
+  scoreSuggestions,
+  scoreChange,
+  toScoreJob,
   type ScoreSnapshot,
 } from "@/services/scoreService";
+import { scoreBreakdown } from "@homegentic/shared/score";
 import { SCORE_DECAY_FLOOR } from "@/services/scoreDecayService";
 import type { Job } from "@/services/job";
 import type { Property } from "@/services/property";
@@ -64,78 +69,75 @@ function makeProperty(overrides: Partial<Property> = {}): Property {
 // ─── computeScore ─────────────────────────────────────────────────────────────
 
 describe("computeScore", () => {
-  it("returns 0 for empty inputs", () => {
+  const year = new Date().getFullYear();
+  const prop = makeProperty({ yearBuilt: BigInt(year - 30) });   // every system past its rated life except plumbing/electrical
+
+  it("returns 0 with no jobs", () => {
     expect(computeScore([], [])).toBe(0);
+    expect(computeScore([], [prop])).toBe(0);
   });
 
-  it("adds 4 pts per verified job, capped at 40", () => {
-    const jobs = Array.from({ length: 10 }, (_, i) =>
-      makeJob({ id: `j${i}`, serviceType: `ServiceType${i}` })
-    );
-    // 10 verified jobs = 40 pts (capped); 10 unique types = 40 pts (capped) → total capped at 100
-    // but value = 10 × $2400 = $24000 → floor(24000/2500) = 9 pts, capped at 20
-    // no properties → 0 pts
-    // diversity: 10 types × 4 = 40 pts (capped at 20) → 40 + 9 + 0 + 20 = 69
-    expect(computeScore(jobs, [])).toBe(69);
-  });
-
-  it("caps verified-job points at 40", () => {
-    const jobs = Array.from({ length: 15 }, (_, i) =>
-      makeJob({ id: `j${i}`, serviceType: "HVAC" })  // same type, no diversity pts beyond 4
-    );
-    // verified pts: min(15*4, 40) = 40
-    // value: 15 * $2400 = $36000 → floor(36000/2500) = 14 pts (capped at 20)
-    // verification: 0 (no properties)
-    // diversity: 1 type × 4 = 4 pts
-    expect(computeScore(jobs, [])).toBe(40 + 14 + 0 + 4);
-  });
-
-  it("does not count unverified jobs toward verified-job points", () => {
-    const verified   = makeJob({ id: "v1", verified: true,  status: "verified" });
-    const unverified = makeJob({ id: "u1", verified: false, status: "pending" });
-    const score = computeScore([verified, unverified], []);
-    // verified pts: 1 × 4 = 4
-    // value: 2 × $2400 = $4800 → floor(4800/2500) = 1 pt
-    // diversity: 1 type × 4 = 4 pts
-    expect(score).toBe(4 + 1 + 4);
-  });
-
-  it("adds value pts: 1 per $2500, capped at 20", () => {
-    // $50,000 total → 20 pts; verified 0, diversity 0
-    const job = makeJob({ verified: false, status: "pending", amount: 5_000_000, serviceType: "HVAC" });
-    expect(computeScore([job], [])).toBe(0 + 20 + 0 + 4);
-  });
-
-  it("adds 10 pts for Premium property, 5 for Basic, capped at 20", () => {
-    const premium = makeProperty({ verificationLevel: "Premium" });
-    const basic   = makeProperty({ id: "prop-2", verificationLevel: "Basic" });
-    expect(computeScore([], [premium])).toBe(10);
-    expect(computeScore([], [basic])).toBe(5);
-    expect(computeScore([], [premium, basic])).toBe(15);
-    // two Premium → 20, capped
-    const premium2 = makeProperty({ id: "prop-3", verificationLevel: "Premium" });
-    expect(computeScore([], [premium, premium2])).toBe(20);
-  });
-
-  it("adds 4 pts per unique service type, capped at 20", () => {
-    const types = ["HVAC", "Roofing", "Plumbing", "Electrical", "Painting", "Flooring"];
-    const jobs = types.map((t, i) => makeJob({ id: `j${i}`, serviceType: t, verified: false, status: "pending" }));
-    // diversity: min(6*4, 20) = 20
-    const totalValue = jobs.reduce((s, j) => s + j.amount, 0) / 100;
-    const valuePts = Math.min(Math.floor(totalValue / 2500), 20);
-    expect(computeScore(jobs, [])).toBe(valuePts + 20);
-  });
-
-  it("caps total score at 100", () => {
-    // 10 verified + 10 unique types + $100K+ value + 2 Premium properties → would exceed 100
-    const jobs = Array.from({ length: 10 }, (_, i) =>
-      makeJob({ id: `j${i}`, serviceType: `Type${i}`, amount: 1_000_000 })
-    );
-    const props = [
-      makeProperty({ id: "prop-1", verificationLevel: "Premium" }),
-      makeProperty({ id: "prop-2", verificationLevel: "Premium" }),
+  it("matches the shared formula exactly", () => {
+    const jobs = [
+      makeJob({ id: "a", serviceType: "HVAC", amount: 900_000, date: `${year - 1}-03-01` }),
+      makeJob({ id: "b", serviceType: "Plumbing", isDiy: true, verified: false, status: "pending", amount: 20_000 }),
     ];
-    expect(computeScore(jobs, props)).toBe(100);
+    const expected = scoreBreakdown(jobs.map(toScoreJob), year - 30, year).total;
+    expect(computeScore(jobs, [prop])).toBe(expected);
+  });
+
+  it("counts each key system once: many filter changes don't beat one verified roof", () => {
+    const filters = Array.from({ length: 100 }, (_, i) => makeJob({ id: `f${i}`, serviceType: "HVAC", amount: 9_000 }));
+    const roof = [makeJob({ id: "r", serviceType: "Roofing", amount: 1_400_000, date: `${year - 1}-05-01` })];
+    expect(computeScore(roof, [prop])).toBeGreaterThan(computeScore(filters, [prop]));
+  });
+
+  it("a cheap job covers a system but doesn't count as replacing it", () => {
+    const filter = [makeJob({ serviceType: "HVAC", amount: 9_000, date: `${year}-01-01` })];
+    const newUnit = [makeJob({ serviceType: "HVAC", amount: 900_000, date: `${year}-01-01` })];
+    const b1 = computeBreakdown(filter, [prop]);
+    const b2 = computeBreakdown(newUnit, [prop]);
+    expect(b1.maintenance).toBe(b2.maintenance);
+    expect(b2.modernization).toBeGreaterThan(b1.modernization);
+  });
+
+  it("verified jobs count fully; unsigned and unverified-contractor jobs count less", () => {
+    const verified   = computeBreakdown([makeJob()], [prop]);
+    const unsigned   = computeBreakdown([makeJob({ verified: false, status: "pending" })], [prop]);
+    const badContractor = computeBreakdown([makeJob({ contractorUnverified: true })], [prop]);
+    expect(verified.maintenance).toBe(25);
+    expect(unsigned.maintenance).toBe(12);
+    expect(badContractor.verification).toBe(0);
+  });
+
+  it("weighted points add up to the total", () => {
+    const b = computeBreakdown([makeJob(), makeJob({ id: "j2", serviceType: "Roofing", verified: false, status: "pending" })], [prop]);
+    expect(b.maintenancePts + b.modernizationPts + b.verificationPts).toBeLessThanOrEqual(b.total + 2);
+    expect(b.maintenancePts + b.modernizationPts + b.verificationPts).toBeGreaterThanOrEqual(b.total - 2);
+  });
+
+  it("averages several properties, each on its own jobs", () => {
+    const p2 = makeProperty({ id: "prop-2", yearBuilt: BigInt(year - 30) });
+    const jobs = [makeJob({ propertyId: "prop-1" }), makeJob({ id: "x", propertyId: "prop-2", verified: false, status: "pending" })];
+    const a = computeScore([jobs[0]], [prop]);
+    const b = computeScore([jobs[1]], [p2]);
+    expect(computeScore(jobs, [prop, p2])).toBe(Math.floor((a + b) / 2));
+  });
+});
+
+describe("scoreSuggestions", () => {
+  const year = new Date().getFullYear();
+  const prop = makeProperty({ yearBuilt: BigInt(year - 30) });
+
+  it("puts a free contractor sign-off first, with the points it really adds", () => {
+    const pending = makeJob({ verified: false, status: "pending", serviceType: "Roofing" });
+    const [first] = scoreSuggestions([pending], prop);
+    expect(first.isFree).toBe(true);
+    expect(first.pts).toBe(scoreChange([pending], [{ ...pending, verified: true, status: "verified" }], [prop]));
+  });
+
+  it("never suggests something worth zero points", () => {
+    for (const s of scoreSuggestions([makeJob()], prop)) expect(s.pts).toBeGreaterThan(0);
   });
 });
 

@@ -751,12 +751,13 @@ function NotificationsTab() {
   }
 
   const rows = [
-    { label: "Weekly Home Pulse",     desc: "In-app maintenance tips on your dashboard",   value: pulseEnabled, onChange: setLocal("homegentic_pulse_enabled", setPulseEnabled) },
+    { label: "Dashboard: Home Pulse tips", desc: "Maintenance tips on your dashboard, in this browser", value: pulseEnabled, onChange: setLocal("homegentic_pulse_enabled", setPulseEnabled) },
     { label: "Score Change Alerts",   desc: "Banner when your HomeGentic Score increases", value: scoreAlerts,  onChange: setLocal("homegentic_score_alerts", setScoreAlerts) },
     ...emailRows(relay, [
       { key: "job_verified",   label: "Email: Job Verified",   desc: "When a contractor signs off and a job is verified" },
       { key: "quote_received", label: "Email: Quote Received", desc: "When a contractor submits a quote" },
       { key: "job_updates",    label: "Email: Job Updates",    desc: "When a job needs your signature or a sensor opens one" },
+      { key: "weekly_pulse",   label: "Email: Weekly Home Pulse", desc: "Mondays: jobs to sign, warranties ending, aging systems and the season's jobs" },
     ]),
   ];
   const hasSms = !!relay.state?.channels.sms;

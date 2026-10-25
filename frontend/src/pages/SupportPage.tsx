@@ -54,7 +54,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Why is my HomeGentic Score lower than I expected?",
-    a: "Your score reflects documented, verified maintenance records — jobs without receipts or contractor signatures carry less weight. To improve your score: add photos and receipts to existing jobs, ask your contractor to co-sign completed work, and fill in your home system ages (HVAC install year, roof replace year, etc.) in Property → Systems.",
+    a: "Your score has three parts: which key systems (HVAC, roof, plumbing, electrical, windows) have work on record, how much rated life your major systems have left, and what share of your jobs are verified. To raise it: ask your contractor to sign off on completed work, log service on key systems that have nothing on record yet, and log it when you replace a major system. The Score panel on your dashboard shows each part and what the next step adds.",
   },
   {
     q: "Can I share my HomeGentic Report without sharing everything?",

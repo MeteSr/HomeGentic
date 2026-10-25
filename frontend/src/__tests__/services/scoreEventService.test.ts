@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { getRecentScoreEvents, categoryColor, categoryBg } from "@/services/scoreEventService";
 import type { Job } from "@/services/job";
 import type { Property } from "@/services/property";
+import { computeScore } from "@/services/scoreService";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -64,80 +65,30 @@ describe("getRecentScoreEvents", () => {
     expect(getRecentScoreEvents([], [])).toEqual([]);
   });
 
-  it("emits a Job event for each verified job (4 pts)", () => {
-    const job = makeJob({ status: "verified" });
-    const events = getRecentScoreEvents([job], []);
-    const jobEvent = events.find((e) => e.id === `verified-${job.id}`);
-    expect(jobEvent).toBeDefined();
-    expect(jobEvent!.pts).toBe(4);
-    expect(jobEvent!.category).toBe("Job");
-  });
+  const prop = makeProperty({ id: "p1" });
 
-  it("emits 1-pt events for recent DIY (non-verified) jobs", () => {
-    const diy = makeJob({ id: "diy1", isDiy: true, status: "pending", verified: false, date: "2025-01-10" });
-    const events = getRecentScoreEvents([diy], []);
-    const diyEvent = events.find((e) => e.id === `diy-${diy.id}`);
-    expect(diyEvent).toBeDefined();
-    expect(diyEvent!.pts).toBe(1);
-  });
-
-  it("excludes DIY jobs older than 90 days", () => {
-    const old = makeJob({ id: "old", isDiy: true, status: "pending", verified: false, date: "2024-09-01" });
-    const events = getRecentScoreEvents([old], []);
-    expect(events.find((e) => e.id === `diy-${old.id}`)).toBeUndefined();
-  });
-
-  it("includes verified jobs regardless of age", () => {
-    const old = makeJob({ id: "old-verified", date: "2020-01-01", status: "verified" });
-    const events = getRecentScoreEvents([old], []);
-    expect(events.find((e) => e.id === `verified-${old.id}`)).toBeDefined();
-  });
-
-  it("emits Property event for Basic (5 pts) and Premium (10 pts)", () => {
-    const basic   = makeProperty({ id: "1", verificationLevel: "Basic" });
-    const premium = makeProperty({ id: "2", verificationLevel: "Premium", address: "456 Oak Ave" });
-    const events  = getRecentScoreEvents([], [basic, premium]);
-    const basicEv = events.find((e) => e.id === `prop-1`);
-    const premEv  = events.find((e) => e.id === `prop-2`);
-    expect(basicEv?.pts).toBe(5);
-    expect(premEv?.pts).toBe(10);
-    expect(basicEv?.category).toBe("Property");
-  });
-
-  it("does not emit Property events for Unverified or PendingReview", () => {
-    const p1 = makeProperty({ id: "1", verificationLevel: "Unverified" });
-    const p2 = makeProperty({ id: "2", verificationLevel: "PendingReview" });
-    const events = getRecentScoreEvents([], [p1, p2]);
-    expect(events.filter((e) => e.category === "Property")).toHaveLength(0);
-  });
-
-  it("emits a Diversity event when 3+ unique verified service types", () => {
+  it("gives each job the points it added when it joined the record, so they sum to the score", () => {
     const jobs = [
-      makeJob({ id: "j1", serviceType: "HVAC" }),
-      makeJob({ id: "j2", serviceType: "Roofing" }),
-      makeJob({ id: "j3", serviceType: "Plumbing" }),
+      makeJob({ id: "a", serviceType: "HVAC", date: "2024-03-01" }),
+      makeJob({ id: "b", serviceType: "Roofing", date: "2024-06-01", amount: 1_200_000 }),
+      makeJob({ id: "c", serviceType: "Plumbing", date: "2024-09-01", verified: false, status: "pending" }),
     ];
-    const events = getRecentScoreEvents(jobs, []);
-    const divEvent = events.find((e) => e.category === "Diversity");
-    expect(divEvent).toBeDefined();
-    expect(divEvent!.pts).toBe(12); // 3 * 4
+    const events = getRecentScoreEvents(jobs, [prop]);
+    expect(events.reduce((s, e) => s + e.pts, 0)).toBe(computeScore(jobs, [prop]));
   });
 
-  it("does not emit Diversity event with fewer than 3 types", () => {
-    const jobs = [
-      makeJob({ id: "j1", serviceType: "HVAC" }),
-      makeJob({ id: "j2", serviceType: "Roofing" }),
-    ];
-    const events = getRecentScoreEvents(jobs, []);
-    expect(events.find((e) => e.category === "Diversity")).toBeUndefined();
+  it("labels verified and unverified jobs differently", () => {
+    const events = getRecentScoreEvents([
+      makeJob({ id: "a", date: "2024-03-01" }),
+      makeJob({ id: "b", serviceType: "Roofing", date: "2024-04-01", verified: false, status: "pending" }),
+    ], [prop]);
+    expect(events.map((e) => e.label)).toEqual(expect.arrayContaining(["HVAC Verified", "Roofing Logged"]));
   });
 
-  it("emits a Value event at highest crossed threshold", () => {
-    const job = makeJob({ amount: 1_100_000 }); // $11,000 → crosses $10,000 threshold
-    const events = getRecentScoreEvents([job], []);
-    const valEvent = events.find((e) => e.category === "Value");
-    expect(valEvent).toBeDefined();
-    expect(valEvent!.id).toBe("value-1000000"); // highest crossed = $10,000
+  it("leaves out a job that didn't change the score", () => {
+    const jobs = [makeJob({ id: "a", date: "2024-03-01" }), makeJob({ id: "b", date: "2024-04-01" })];
+    const events = getRecentScoreEvents(jobs, [prop]);
+    expect(events.find((e) => e.id === "job-b")).toBeUndefined();
   });
 
   it("returns events sorted newest first", () => {

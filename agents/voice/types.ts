@@ -43,11 +43,11 @@ export interface ScoreTrend {
   milestoneCoaching: MilestoneCoaching | null;
 }
 
+/** Points per part of the score (packages/shared/src/score.ts). */
 export interface ScoreBreakdown {
-  verifiedJobPts:  number;
-  valuePts:        number;
-  verificationPts: number;
-  diversityPts:    number;
+  maintenancePts:   number;   // of 40
+  modernizationPts: number;   // of 35
+  verificationPts:  number;   // of 25
 }
 
 export interface ScoreEvent {

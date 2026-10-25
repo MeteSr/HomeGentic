@@ -311,6 +311,18 @@ exports[`auth IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {principal:principal; createdAt:int; lastLoggedIn:opt int; role:variant {Builder; Homeowner; Realtor; Contractor}; onboardingComplete:opt bool; isActive:bool; email:text; updatedAt:int; phone:text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists}}",
     ],
   },
+  "getPulseRecipients": {
+    "args": [
+      "opt principal",
+      "nat",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {principal:principal; email:text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists}}",
+    ],
+  },
   "getUserStats": {
     "args": [],
     "mode": [
@@ -1010,6 +1022,17 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {serviceType:text; completedYear:nat; amountCents:nat; isVerified:bool; isDiy:bool}",
+    ],
+  },
+  "getJobsByOwner": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}",
     ],
   },
   "getJobsForProperty": {
@@ -2263,6 +2286,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "opt nat",
     ],
   },
+  "getPulseProperties": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {id:text; city:text; zipCode:text; state:text; address:text; yearBuilt:nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
   "getRoomsByProperty": {
     "args": [
       "text",
@@ -2761,6 +2795,15 @@ exports[`report IDL factory > full signature snapshot 1`] = `
       "bool",
     ],
   },
+  "getAttestationKey": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {publicKey:vec nat8; keyName:text}",
+    ],
+  },
   "getBillsSummary": {
     "args": [
       "text",
@@ -2772,6 +2815,17 @@ exports[`report IDL factory > full signature snapshot 1`] = `
       "opt record {asOf:text; lines:vec record {avgMonthlyCents:nat; category:variant {Gas; HOA; Internet; Water; OtherUtility; Telecom; PropertyTax; Electric; HomeInsurance}; basis:variant {Scheduled; Statements:nat}}}",
     ],
   },
+  "getCertAttestation": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {signature:vec nat8; publicKey:vec nat8; signedAt:int; message:text; keyName:text}",
+    ],
+  },
   "getReport": {
     "args": [
       "text",
@@ -2779,6 +2833,28 @@ exports[`report IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {record {snapshotId:text; token:text; expiresAt:opt int; createdAt:int; createdBy:principal; propertyId:text; isActive:bool; viewCount:nat; visibility:variant {BuyerOnly; Public}}; record {snapshotId:text; propertyType:text; city:text; generatedAt:int; generatedBy:principal; jobs:vec record {status:text; serviceType:text; permitNumber:opt text; date:text; description:text; amountCents:nat; isVerified:bool; warrantyMonths:opt nat; isDiy:bool; contractorName:opt text}; squareFeet:nat; propertyId:text; zipCode:text; state:text; totalAmountCents:nat; diyJobCount:nat; address:text; verificationLevel:text; verifiedJobCount:nat; permitCount:nat; yearBuilt:nat; rooms:opt vec record {paintBrand:text; name:text; floorType:text; paintColor:text; fixtureCount:nat; paintCode:text}; recurringServices:vec record {status:text; serviceType:text; lastVisitDate:opt text; providerName:text; totalVisits:nat; frequency:text; startDate:text}}}; err:variant {UnverifiedProperty; InvalidInput:text; NotFound; NotAuthorized; Revoked; Expired}}",
+    ],
+  },
+  "getReportAttestation": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {signature:vec nat8; publicKey:vec nat8; signedAt:int; message:text; keyName:text}",
+    ],
+  },
+  "getReportScore": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt nat",
     ],
   },
   "getRiskProfile": {
@@ -2812,6 +2888,13 @@ exports[`report IDL factory > full signature snapshot 1`] = `
       "vec record {snapshotId:text; token:text; expiresAt:opt int; createdAt:int; createdBy:principal; propertyId:text; isActive:bool; viewCount:nat; visibility:variant {BuyerOnly; Public}}",
     ],
   },
+  "refreshAttestationKey": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:vec nat8; err:variant {UnverifiedProperty; InvalidInput:text; NotFound; NotAuthorized; Revoked; Expired}}",
+    ],
+  },
   "revokeShareLink": {
     "args": [
       "text",
@@ -2824,6 +2907,15 @@ exports[`report IDL factory > full signature snapshot 1`] = `
   "setAllowPublicReports": {
     "args": [
       "bool",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {UnverifiedProperty; InvalidInput:text; NotFound; NotAuthorized; Revoked; Expired}}",
+    ],
+  },
+  "setAttestationKeyName": {
+    "args": [
+      "text",
     ],
     "mode": [],
     "rets": [

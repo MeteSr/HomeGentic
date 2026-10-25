@@ -827,8 +827,9 @@ fi
 # doesn't stop the deploy.
 #   NOTIFIER_PRINCIPAL      — the notification relay (its RELAY_IDENTITY_SEED;
 #                             agents/notifications logs it on start). Allowlisted
-#                             to read notification events (job, quote) and email
-#                             addresses (auth).
+#                             to read notification events (job, quote), email
+#                             addresses and Home Pulse recipients (auth), and the
+#                             Home Pulse property summaries and jobs (property, job).
 #   VOICE_WORKER_PRINCIPAL  — the voice Worker's DFX_IDENTITY_PEM. Made a payment
 #                             Stripe relay so it can activate subscriptions after checkout.
 #                             Also a photo relay, for photoAccess checks on /photos/*.
@@ -843,7 +844,7 @@ grant() {  # grant <canister> <method> <principal> <description>
   fi
 }
 if [ -n "${NOTIFIER_PRINCIPAL:-}" ]; then
-  for c in auth job quote; do
+  for c in auth property job quote; do
     grant "$c" addNotifier "$NOTIFIER_PRINCIPAL" "Allowlisting notification relay"
   done
 fi
@@ -1045,6 +1046,22 @@ if [ "$ENV" = "ic" ]; then
     icp canister call "$canister" setVetkdKeyName '("key_1")' -e "$ENV" >/dev/null \
       || { echo "❌ could not set the vetKD key on $canister"; exit 1; }
   done
+fi
+
+# ── Report signing key ───────────────────────────────────────────────────────
+# report signs report links and score certificates with threshold Ed25519
+# (Schnorr). It defaults to the test key; mainnet must use key_1. Then cache
+# the public key so /verify-record can show it (best effort: signing still
+# works without it, and the first signature fetches it).
+if [ "$ENV" = "ic" ]; then
+  echo "  report: signing key → key_1"
+  icp canister call report setAttestationKeyName '("key_1")' -e "$ENV" >/dev/null \
+    || { echo "❌ could not set the signing key on report"; exit 1; }
+fi
+if out=$(icp canister call report refreshAttestationKey -e "$ENV" 2>&1) && [[ "$out" == *"variant { ok"* ]]; then
+  echo "  ✓ report signing key published"
+else
+  echo "  ⚠️  report.refreshAttestationKey failed (records still get signed): $out"
 fi
 
 # ── AI Proxy canister — wire API keys from environment ────────────────────────

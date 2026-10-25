@@ -35,6 +35,7 @@ deleteMyData(0) -> (1)
 getMetrics(0) -> (1) [query]
 getNotificationContact(1) -> (1) [query]
 getProfile(0) -> (1) [query]
+getPulseRecipients(2) -> (1) [query]
 getUserStats(0) -> (1) [query]
 hasRole(1) -> (1) [query]
 isAdminPrincipal(1) -> (1) [query]
@@ -91,6 +92,7 @@ deleteMyData(0) -> (1)
 getCertificationData(1) -> (1) [query]
 getJob(1) -> (1) [query]
 getJobByInviteToken(1) -> (1) [query]
+getJobsByOwner(1) -> (1) [query]
 getJobsForProperty(1) -> (1)
 getJobSnapshotsForProperty(1) -> (1) [query]
 getJobsPendingMySignature(0) -> (1) [query]
@@ -248,6 +250,7 @@ getPropertyLimitForTier(1) -> (1) [query]
 getPropertyManagers(1) -> (1) [query]
 getPropertyOwner(1) -> (1) [query]
 getPropertyYearBuilt(1) -> (1) [query]
+getPulseProperties(1) -> (1) [query]
 getRoomsByProperty(1) -> (1) [query]
 getVerificationLevel(1) -> (1) [query]
 getVerifyStatus(1) -> (1) [query]
@@ -312,13 +315,19 @@ exports[`Candid contract snapshots — method arity > report 1`] = `
 generateReport(12) -> (1)
 generateRiskProfile(3) -> (1)
 getAllowPublicReports(0) -> (1) [query]
+getAttestationKey(0) -> (1) [query]
 getBillsSummary(1) -> (1) [query]
+getCertAttestation(1) -> (1) [query]
 getReport(1) -> (1)
+getReportAttestation(1) -> (1) [query]
+getReportScore(1) -> (1) [query]
 getRiskProfile(1) -> (1) [query]
 hasActivePublicShareLink(1) -> (1) [query]
 listShareLinks(1) -> (1)
+refreshAttestationKey(0) -> (1)
 revokeShareLink(1) -> (1)
-setAllowPublicReports(1) -> (1)"
+setAllowPublicReports(1) -> (1)
+setAttestationKeyName(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > sensor 1`] = `

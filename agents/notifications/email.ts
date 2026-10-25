@@ -16,11 +16,11 @@ export function emailConfigured(): boolean {
   return !!process.env.RESEND_API_KEY;
 }
 
-function appUrl(): string {
+export function appUrl(): string {
   return (process.env.APP_URL ?? "https://homegentic.app").replace(/\/$/, "");
 }
 
-const escapeHtml = (s: string) =>
+export const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export interface EmailMessage {
@@ -50,9 +50,18 @@ export function renderEmail(payload: PushPayload): EmailMessage {
 
 /** Send one notification email. Throws on a non-2xx response. */
 export async function sendEmail(to: string, payload: PushPayload, idempotencyKey: string): Promise<void> {
+  await sendRawEmail(to, renderEmail(payload), idempotencyKey);
+}
+
+/**
+ * Send a rendered email, with any extra headers (e.g. List-Unsubscribe).
+ * No-op without RESEND_API_KEY. Throws on a non-2xx response.
+ */
+export async function sendRawEmail(
+  to: string, msg: EmailMessage, idempotencyKey: string, headers?: Record<string, string>,
+): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return;
-  const msg = renderEmail(payload);
   const res = await fetch("https://api.resend.com/emails", {
     method:  "POST",
     headers: {
@@ -66,6 +75,7 @@ export async function sendEmail(to: string, payload: PushPayload, idempotencyKey
       subject: msg.subject,
       text:    msg.text,
       html:    msg.html,
+      ...(headers ? { headers } : {}),
     }),
   });
   if (!res.ok) {

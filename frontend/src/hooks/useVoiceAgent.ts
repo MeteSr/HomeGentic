@@ -4,7 +4,7 @@ import { jobService } from "../services/job";
 import { quoteService } from "../services/quote";
 import { executeTool, toolActionLabel, type ToolName } from "../services/agentTools";
 import { useAgentHistory, type AgentAction } from "./useAgentHistory";
-import { computeScore, computeBreakdown, getScoreGrade } from "../services/scoreService";
+import { computeScore, computeBreakdown, getScoreGrade, scoreSuggestions } from "../services/scoreService";
 import { getRecentScoreEvents } from "../services/scoreEventService";
 import { marketService, jobToSummary } from "../services/market";
 import { buildMaintenanceForecast } from "../services/maintenanceForecast";
@@ -268,22 +268,9 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
     const breakdown = computeBreakdown(jobs, properties);
     const events    = getRecentScoreEvents(jobs, properties);
 
-    // Derive plain-English next-action tips from what's missing in the breakdown
-    const nextActions: string[] = [];
-    if (breakdown.verifiedJobPts < 40) {
-      const needed = Math.ceil((40 - breakdown.verifiedJobPts) / 4);
-      nextActions.push(`verify ${needed} more job${needed > 1 ? "s" : ""} to gain up to ${40 - breakdown.verifiedJobPts} pts`);
-    }
-    if (breakdown.diversityPts < 20) {
-      const needed = Math.ceil((20 - breakdown.diversityPts) / 4);
-      if (needed > 0) nextActions.push(`document ${needed} more system type${needed > 1 ? "s" : ""} (e.g. HVAC, Roofing, Plumbing, Electrical) for up to ${20 - breakdown.diversityPts} diversity pts`);
-    }
-    if (breakdown.valuePts < 20) {
-      nextActions.push(`log more job costs — each additional $2,500 documented adds 1 value pt (up to 20 pts)`);
-    }
-    if (breakdown.verificationPts < 20 && properties.some((p) => p.verificationLevel === "Unverified" || p.verificationLevel === "PendingReview")) {
-      nextActions.push(`complete property verification to earn 5–10 verification pts`);
-    }
+    // Next actions, each with the points it would add (simulated on the real formula)
+    const nextActions: string[] = scoreSuggestions(jobs, properties[0] ?? null)
+      .map((sg) => `${sg.action} (+${sg.pts} pt${sg.pts === 1 ? "" : "s"})`);
 
     // ── Value-add recommendations (top 3, first property) ────────────────────
     const topRecommendations = (() => {
@@ -329,7 +316,7 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       },
       scoreTrend: (() => {
         const history  = loadHistory(properties[0] ? String(properties[0].id) : null);
-        const trend    = buildScoreTrend(score, breakdown, jobs, history);
+        const trend    = buildScoreTrend(score, jobs, properties[0] ?? null, history);
         return {
           delta:             trend.delta,
           trend:             trend.trend,

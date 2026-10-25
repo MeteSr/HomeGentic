@@ -24,7 +24,8 @@ Signatures and query/update types in this file are generated from the Motoko sou
 | `revokeAgentSession` | update | `()` | Revoke the caller's voice-agent session. |
 | `resolveAgentSession` | query | `(token: Text)` | Principal owning a live session token, or null. Called by the voice Worker. |
 | `getNotificationContact` | query | `(p: Principal)` | Notifier/admin: `?{ email }` for an active user with an email on file, else null — read by the notification relay to send notification email |
-| `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) calling `getNotificationContact` |
+| `getPulseRecipients` | query | `(after: ?Principal, limit: Nat)` | Notifier/admin: `{ principal; email }` for active homeowners with an email, in principal order after `after` (max 200 per page) — the weekly Home Pulse email's recipient list |
+| `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) calling `getNotificationContact` and `getPulseRecipients` |
 
 **UserRole:** `#Homeowner | #Contractor | #Realtor | #Builder`
 
@@ -52,6 +53,8 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `verifyProperty` | update | `(id: Text, level: VerificationLevel, method: ?Text)` | Admin: approve verification |
 | `bulkRegisterProperties` | update | `(rows: [RegisterPropertyArgs])` | Admin: bulk seed |
 | `isAdminPrincipal` | query | `(p: Principal)` | Check if principal is admin |
+| `getPulseProperties` | query | `(owner: Principal)` | Notifier/admin: `{ id; address; city; state; zipCode; yearBuilt }` for the owner's active properties — the weekly Home Pulse email. No identity or verification evidence |
+| `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the notification relay's) calling `getPulseProperties` |
 
 ### Ownership Transfer
 
@@ -114,7 +117,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `createJob` | update | `(propertyId: Text, title: Text, serviceType: ServiceType, description: Text, contractorName: ?Text, amount: Nat, completedDate: Time.Time, permitNumber: ?Text, warrantyMonths: ?Nat, isDiy: Bool, sourceQuoteId: ?Text)` | Create a maintenance job |
 | `getJob` | query | `(jobId: Text)` | Get job by ID |
 | `getJobsForProperty` | update | `(propertyId: Text)` | All jobs for a property |
-| `getJobsByOwner` | query | `(owner: Principal)` | All jobs for an owner |
+| `getJobsByOwner` | query | `(owner: Principal)` | All jobs for an owner (the owner, admins, trusted canisters and notifiers — the relay builds the weekly Home Pulse email from them) |
 | `getJobsPendingMySignature` | query | `()` | Jobs awaiting caller's signature |
 | `updateJobStatus` | update | `(jobId: Text, status: JobStatus)` | Update job status |
 | `linkContractor` | update | `(jobId: Text, contractorPrincipal: Principal)` | Link a contractor to a job |
@@ -128,7 +131,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `createJobProposal` | update | `(propertyId: Text, title: Text, serviceType: ServiceType, description: Text, contractorName: ?Text, amount: Nat, completedDate: Time.Time, permitNumber: ?Text, warrantyMonths: ?Nat)` | Called by a contractor to propose a completed job for homeowner approval. |
 | `approveJobProposal` | update | `(jobId: Text)` | Homeowner approves a pending contractor proposal. |
 | `rejectJobProposal` | update | `(jobId: Text)` | Homeowner rejects a pending contractor proposal. |
-| `getJobSnapshotsForProperty` | query | `(propertyId: Text)` | Returns a lightweight snapshot of all jobs for a property, suitable for cross-canister consumption by the market canister's computePropertyScore. |
+| `getJobSnapshotsForProperty` | query | `(propertyId: Text)` | The score inputs for each of a property's jobs (`{ serviceType; completedYear; amountCents; isDiy; isVerified }`), read by the market canister's `computePropertyScore` and the weekly Home Pulse email. |
 | `getReferralJobs` | update | `()` | Returns all jobs that were sourced via a HomeGentic quote request. |
 | `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: notification outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |
 | `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) reading the outbox |
@@ -295,6 +298,14 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | `getRiskProfile` | query | `(token: Text)` | Retrieve a previously generated risk profile by token. |
 | `getBillsSummary` | query | `(token: Text)` | The cost summary attached to a report, if the owner included one. |
 | `hasActivePublicShareLink` | query | `(propertyId: Text)` | Returns true if the property has at least one active, non-expired share link with Public visibility. |
+| `getReportAttestation` | query | `(token: Text)` | `?Attestation`: the signed statement behind a share link (same visibility and expiry checks as `getReport`), or null when the report predates signing |
+| `getReportScore` | query | `(token: Text)` | `?Nat`: the HomeGentic Score the market canister computed when the report was generated |
+| `getCertAttestation` | query | `(certId: Text)` | `?Attestation` for a score certificate |
+| `getAttestationKey` | query | `()` | `?{ keyName; publicKey }`: the Ed25519 key reports are signed with now (shown on `/verify-record`) |
+| `refreshAttestationKey` | update | `()` | Admin: fetch and cache the signing public key (`scripts/deploy.sh` runs it) |
+| `setAttestationKeyName` | update | `(name: Text)` | Admin: `key_1` (mainnet), `test_key_1` (default) or `dfx_test_key` |
+
+**Signed records.** `generateReport` and `issueCert` sign a JSON statement of exactly what the link or certificate shows (fields the owner hid are left out) with threshold Ed25519 (`sign_with_schnorr`, derivation path `hg-attest-v1`). **Attestation:** `{ message: Text; signature: Blob; publicKey: Blob; keyName: Text; signedAt: Int }`. Signing costs about 26B cycles per record on `key_1`; it's skipped (the record is still created, unsigned) when the canister holds less than twice that. Check a downloaded copy at `/verify-record`, or with any Ed25519 library over `message`'s UTF-8 bytes.
 
 **VisibilityLevel:** `#Public | #BuyerOnly`
 

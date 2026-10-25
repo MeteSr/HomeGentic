@@ -123,10 +123,9 @@ const JOBS: Job[] = [
 ];
 
 const SCORE_FACTORS = [
-  { label: "Verified jobs",         pts: 40, max: 40, pct: "100%", color: YELLOW },
-  { label: "Documented value",      pts: 16, max: 20, pct: "80%",  color: "#6E77FF" },
-  { label: "Property verification", pts: 12, max: 20, pct: "60%",  color: "#6E77FF" },
-  { label: "System diversity",      pts: 19, max: 20, pct: "95%",  color: YELLOW },
+  { label: "Maintenance coverage",  pts: 37, max: 40, pct: "93%",  color: YELLOW },
+  { label: "System modernization",  pts: 25, max: 35, pct: "71%",  color: "#6E77FF" },
+  { label: "Verification depth",    pts: 25, max: 25, pct: "100%", color: YELLOW },
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -487,7 +486,7 @@ export default function SampleReportPage() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, background: LBLUE, borderRadius: 100, padding: "6px 12px" }}>
                 <LockIcon />
-                <span style={{ fontFamily: MONO, fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", color: BLUE, textTransform: "uppercase" }}>Tamper-Proof Record</span>
+                <span style={{ fontFamily: MONO, fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.1em", color: BLUE, textTransform: "uppercase" }}>Signed Record</span>
               </div>
             </div>
           </div>

@@ -19,7 +19,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "How does verified contractor work history work?",
-    a: "When a contractor completes a job on HomeGentic, both the homeowner and contractor digitally sign the record. This dual-signature makes the entry tamper-proof and verifiable by third parties.",
+    a: "When a contractor completes a job on HomeGentic, both the homeowner and the contractor sign off on the record from their own accounts. Once both have signed, the job is locked: nobody can edit it. Reports and score certificates built from your record are signed by HomeGentic, so a buyer or lender can check a copy hasn't been altered at homegentic.app/verify-record.",
   },
   {
     q: "Can I use HomeGentic to track DIY home repairs?",
@@ -47,7 +47,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "What is the HomeGentic Score and how is it calculated?",
-    a: "The HomeGentic Score is a 0–100 grade that reflects the overall documented condition of your property. It's made up of three dimensions: Maintenance Coverage (40%) measures how consistently you've logged service across key systems like HVAC, roof, plumbing, and electrical; System Modernization (35%) weighs how current your major systems are relative to their expected lifespan; and Verification Depth (25%) reflects how many of your records are dual-signed by both you and a contractor rather than self-reported. Scores are graded A through F. Your score is private by default — it's only visible to you and appears in reports you choose to share. It never becomes public.",
+    a: "The HomeGentic Score is a 0–100 grade built from your job record in three parts. Maintenance Coverage (40%): whether each key system (HVAC, roof, plumbing, electrical, windows, plus any other trade) has work on record. A system counts once, from its best job: full weight when the job is verified, less when it is self-reported or unsigned, so many small jobs on one system can't outweigh work on another. System Modernization (35%): how much rated life your major systems have left, counted from the last replacement or major job you logged on each, or from the year the house was built. Verification Depth (25%): the share of your jobs that are verified. Scores are graded A+ through F. Score certificates and reports use exactly this formula. Your dashboard can also show points lost to lapsed warranties, overdue maintenance and long gaps without verified work, listed in the Property panel. Your score is private by default: it is only visible to you and in the reports, certificates and listings you choose to share.",
   },
   {
     q: "What subscription tier do I need?",

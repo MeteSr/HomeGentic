@@ -1,19 +1,18 @@
 /**
- * HomeGentic Score — the same rubric and decay rules as the web app
- * (frontend/src/services/scoreService.ts and scoreDecayService.ts):
+ * HomeGentic Score — the shared formula (@homegentic/shared/score), the same
+ * one the web app and the market canister use:
  *
- *   • Verified jobs  – 4 pts each, max 40
- *   • Total value    – 1 pt per $2,500, max 20
- *   • Verification   – Premium 10, Basic 5 (max 20)
- *   • Job diversity  – 4 pts per service type, max 20
+ *   maintenance coverage × 40 % + system modernization × 35 %
+ *   + verification depth × 25 %
  *
- * minus decay: −2 per lapsed warranty, −1 per month past 6 months without a
- * verified job (max 6), −1 per overdue maintenance task (max 5); floor 30.
- * Pure functions only, so they're easy to unit test.
+ * minus the web app's decay: −2 per lapsed warranty, −1 per month past 6
+ * months without a verified job (max 6), −1 per overdue maintenance task
+ * (max 5); floor 30. Pure functions only, so they're easy to unit test.
  */
 import type { Job } from "./jobService";
 import type { Property } from "./propertyService";
 import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
+import { scoreBreakdown, weightedPoints, type ScoreJob } from "@homegentic/shared/score";
 
 const DAY_MS   = 24 * 60 * 60 * 1000;
 const MONTH_MS = 30 * DAY_MS;
@@ -23,26 +22,38 @@ export const INACTIVITY_GRACE_MONTHS   = 6;
 export const INACTIVITY_MAX_DECAY      = 6;
 export const MAINTENANCE_GAP_MAX_DECAY = 5;
 
+/** Points each part adds to the score. */
 export interface ScoreBreakdown {
-  verifiedJobPts:  number;
-  valuePts:        number;
-  verificationPts: number;
-  diversityPts:    number;
+  maintenancePts:   number;   // of 40
+  modernizationPts: number;   // of 35
+  verificationPts:  number;   // of 25
+  total:            number;
+}
+
+function toScoreJob(j: Job): ScoreJob {
+  const year = parseInt((j.completedDate ?? "").slice(0, 4), 10);
+  return {
+    serviceType:   serviceTypeLabel(j.serviceType),
+    completedYear: Number.isFinite(year) ? year : new Date().getFullYear(),
+    amountCents:   j.amountCents,
+    isDiy:         j.isDiy,
+    isVerified:    j.verified,
+  };
 }
 
 export function computeBreakdown(jobs: Job[], property: Property): ScoreBreakdown {
-  const verifiedJobPts = Math.min(jobs.filter((j) => j.verified).length * 4, 40);
-  const valuePts       = Math.min(Math.floor(jobs.reduce((s, j) => s + j.amountCents, 0) / 100 / 2500), 20);
-  const verificationPts =
-    property.verificationLevel === "Premium" ? 10 :
-    property.verificationLevel === "Basic"   ? 5  : 0;
-  const diversityPts   = Math.min(new Set(jobs.map((j) => j.serviceType)).size * 4, 20);
-  return { verifiedJobPts, valuePts, verificationPts, diversityPts };
+  if (jobs.length === 0) return { maintenancePts: 0, modernizationPts: 0, verificationPts: 0, total: 0 };
+  const b = scoreBreakdown(jobs.map(toScoreJob), property.yearBuilt, new Date().getFullYear());
+  return {
+    maintenancePts:   weightedPoints(b.maintenance, "maintenance"),
+    modernizationPts: weightedPoints(b.modernization, "modernization"),
+    verificationPts:  weightedPoints(b.verification, "verification"),
+    total:            b.total,
+  };
 }
 
 export function rawScore(jobs: Job[], property: Property): number {
-  const b = computeBreakdown(jobs, property);
-  return Math.min(b.verifiedJobPts + b.valuePts + b.verificationPts + b.diversityPts, 100);
+  return computeBreakdown(jobs, property).total;
 }
 
 function warrantyExpiryMs(job: Job): number | null {
@@ -119,27 +130,30 @@ export function getAtRisk(jobs: Job[], now: number, lookaheadDays = 30): AtRiskI
 
 /**
  * One sentence under the score: the single most useful next step and what
- * it's worth.
+ * it's worth, worked out with the real formula.
  */
 export function scoreHint(jobs: Job[], property: Property, now = Date.now(), overdueTasks = 0): string {
   const score = computeScore(jobs, property, now, overdueTasks);
-  const unsigned = jobs.filter((j) => !j.verified).length;
-  const b = computeBreakdown(jobs, property);
+  const unsigned = jobs.filter((j) => !j.verified);
 
-  if (unsigned > 0 && b.verifiedJobPts < 40) {
-    const gain = Math.min(unsigned * 4, 40 - b.verifiedJobPts);
-    const target = Math.min(score + gain, 100);
-    return `${unsigned === 1 ? "One job is" : `${unsigned} jobs are`} waiting on a signature. Verifying ${unsigned === 1 ? "it" : "them"} moves you to ${target}.`;
+  if (unsigned.length > 0) {
+    const signed = jobs.map((j) => (j.verified ? j : { ...j, verified: true }));
+    const target = computeScore(signed, property, now, overdueTasks);
+    if (target > score) {
+      return `${unsigned.length === 1 ? "One job is" : `${unsigned.length} jobs are`} waiting on a signature. Verifying ${unsigned.length === 1 ? "it" : "them"} moves you to ${target}.`;
+    }
   }
   if (overdueTasks > 0) {
     const n = Math.min(overdueTasks, MAINTENANCE_GAP_MAX_DECAY);
     return `${overdueTasks === 1 ? "One maintenance task is" : `${overdueTasks} maintenance tasks are`} overdue. Completing ${overdueTasks === 1 ? "it" : "them"} recovers ${n} ${n === 1 ? "point" : "points"}.`;
   }
-  if (property.verificationLevel !== "Premium") {
-    return property.verificationLevel === "Basic"
-      ? "Verify ownership with a deed or tax record to reach Premium and add 5 points."
-      : "Verify ownership to add up to 10 points.";
-  }
   if (jobs.length === 0) return "Log your first job to start building the record.";
-  return "Your record is complete. Keep logging work as it happens.";
+  const missing = ["HVAC", "Roofing", "Plumbing", "Electrical", "Windows"]
+    .find((sys) => !jobs.some((j) => serviceTypeLabel(j.serviceType) === sys));
+  if (missing) {
+    const withIt = [...jobs, { ...jobs[0], id: "hypothetical", serviceType: missing, amountCents: 0, verified: true, isDiy: false }];
+    const gain = computeScore(withIt, property, now, overdueTasks) - score;
+    if (gain > 0) return `${missing} has nothing on record yet. A verified ${missing} job adds ${gain} ${gain === 1 ? "point" : "points"}.`;
+  }
+  return "Your record covers every key system. Keep logging work as it happens.";
 }

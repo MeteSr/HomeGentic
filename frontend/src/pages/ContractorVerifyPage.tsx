@@ -304,8 +304,8 @@ export default function ContractorVerifyPage() {
               Signature recorded
             </h1>
             <p style={{ fontSize: "0.875rem", color: UI.muted, marginBottom: "1.75rem", lineHeight: 1.6 }}>
-              Your signature has been added to the immutable job record on the
-              Internet Computer blockchain. The homeowner can share a verified
+              Your sign-off has been added to the job record on the Internet
+              Computer, and the job can no longer be edited. The homeowner can share a verified
               report with buyers, insurers, and inspectors.
             </p>
             <p style={{ fontSize: "0.75rem", color: UI.muted, marginBottom: "1.75rem", marginTop: "-1rem", lineHeight: 1.6 }}>

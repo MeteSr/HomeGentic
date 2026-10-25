@@ -227,7 +227,7 @@ function VoiceOrb({ mode }: { mode: VoiceMode }) {
 
 // ── Voice demo ─────────────────────────────────────────────────────────────────
 const DEMO_Q  = "What maintenance is due this month?";
-const DEMO_A  = "Three things. Gutter cleaning is due in four days — Bell & Sons did it in May for $180 and they have Friday open. Your HVAC filter is due September 2nd, and the chimney inspection is annual, due the 9th. Want me to book the gutters?";
+const DEMO_A  = "Three things. Gutter cleaning is due in four days — Bell & Sons did it in May for $180. Your HVAC filter is due September 2nd, and the chimney inspection is annual, due the 9th. Want me to ask Bell & Sons for a quote on the gutters?";
 
 function VoiceDemo() {
   const [mode, setMode]         = useState<VoiceMode>("idle");
@@ -349,16 +349,16 @@ const STEPS = [
 ];
 
 const SCORE_FACTORS = [
-  { label: "Verified jobs",         max: "40 pts", pct: "100%", color: YELLOW },
-  { label: "Documented value",      max: "20 pts", pct: "52%",  color: "#6E77FF" },
-  { label: "Property verification", max: "20 pts", pct: "50%",  color: "#6E77FF" },
-  { label: "Job diversity",         max: "20 pts", pct: "100%", color: YELLOW },
+  { label: "Maintenance coverage",  max: "40 pts", pct: "90%",  color: YELLOW },
+  { label: "System modernization",  max: "35 pts", pct: "55%",  color: "#6E77FF" },
+  { label: "Verification depth",    max: "25 pts", pct: "100%", color: YELLOW },
 ];
 
+// What the weekly Home Pulse email (agents/notifications/pulse.ts) sends.
 const PULSE_ITEMS = [
-  { title: "Gutter cleaning", tag: "DUE NOW",  tone: CORAL,  chipColor: "#8C2402",  chipBg: "#FFDCD3", body: "Bell & Sons quoted $180 in May. They have Friday open." },
-  { title: "HVAC filter",     tag: "DUE SEP 2",tone: YELLOW, chipColor: "#8A6800",chipBg: "#FFF0B0",body: "Last replaced 84 days ago. Rated for 90 days." },
-  { title: "Chimney",         tag: "ANNUAL",   tone: BLUE,   chipColor: BLUE,   chipBg: VBADGE,    body: "Last inspected Oct 2024. Due before first fire of the season." },
+  { title: "Sign off: Gutter cleaning", tag: "SIGN OFF",   tone: CORAL,  chipColor: "#8C2402", chipBg: "#FFDCD3", body: "Bell & Sons logged this job. Sign it to make it a verified job." },
+  { title: "Water heater warranty",     tag: "ENDS SEP 2", tone: YELLOW, chipColor: "#8A6800", chipBg: "#FFF0B0", body: "From Ace Plumbing, Sep 2025. Check it's working while it's still covered." },
+  { title: "AC tune-up",                tag: "SEASONAL",   tone: BLUE,   chipColor: BLUE,      chipBg: VBADGE,    body: "A summer priority for climate zone 4. Last HVAC job on record: May 2025, by Bell & Sons for $180." },
 ];
 
 const FEATURES = [
@@ -374,7 +374,7 @@ const FEATURES = [
   },
   {
     span: 1, kicker: "REPORTS", title: "Shareable proof",
-    desc: "Tamper-proof reports with links for insurance, buyers, or contractors.",
+    desc: "Signed reports with links for insurance, buyers, or contractors. Anyone can check a copy hasn't been altered.",
     bg: PAPER, border: BORDER, kickerColor: MUTED, titleColor: INK, bodyColor: MUTED2,
   },
   {
@@ -606,7 +606,7 @@ export default function LandingPage() {
                 One number a buyer, an agent or an insurer can check.
               </div>
               <p style={{ font: `400 16.5px/1.66 ${BODY}`, color: PAPER, marginTop: 18, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
-                Every verified job, receipt and inspection adds points. Lapsed warranties, aging systems and long gaps take them away, so the score reflects the house as it is today — not the day you signed up.
+                Verified work on each key system adds points, and so does replacing a system near the end of its rated life. As systems age the score drifts down, so it reflects the house as it is today — not the day you signed up.
               </p>
               <PillBtn label="See a sample report" onClick={() => navigate("/sample-report")} variant="yellow" />
             </div>
@@ -626,7 +626,7 @@ export default function LandingPage() {
                 ))}
               </div>
               <p style={{ font: `400 13px/1.6 ${BODY}`, color: PAPER, marginTop: 24, paddingTop: 18, borderTop: "1px solid rgba(252,252,253,0.12)", textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
-                Points are capped per category, so a hundred filter changes never outweigh a verified roof.
+                Each system counts once, so a hundred filter changes never outweigh a verified roof.
               </p>
             </div>
           </div>
@@ -642,18 +642,18 @@ export default function LandingPage() {
                 It knows your house, not houses in general.
               </div>
               <p style={{ font: `400 16.5px/1.66 ${BODY}`, color: PAPER, marginTop: 18, maxWidth: 620, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
-                Ask out loud and the answer comes from your own record — the job, the contractor who did it last time, the price they charged. It can book the next one while you are still standing in the driveway.
+                Ask out loud and the answer comes from your own record — the job, the contractor who did it last time, the price they charged. It can request a quote for the next one while you are still standing in the driveway.
               </p>
               <div className="hg-ai-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0,420px) minmax(0,1fr)", gap: 32, marginTop: 44, alignItems: "start" }}>
                 <VoiceDemo />
                 <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 20 }}>
                   <div style={{ background: "rgba(252,252,253,0.08)", border: "1px solid rgba(252,252,253,0.14)", borderRadius: 26, padding: 30 }}>
-                    <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: PAPER }}>MONDAY BRIEFING · ZONE 4 · SUMMER</div>
+                    <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: PAPER }}>MONDAY EMAIL · ZONE 4 · SUMMER</div>
                     <div style={{ font: `700 26px/1.2 ${DISPLAY}`, color: PAPER, letterSpacing: "-.03em", marginTop: 14, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                       Every Monday, your house tells you what it needs.
                     </div>
                     <p style={{ font: `400 15px/1.62 ${BODY}`, color: PAPER, marginTop: 12, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
-                      Not a generic checklist. The briefing reads the age of each system, your climate zone and the season, then ranks what actually matters this week.
+                      Not a generic checklist. The Home Pulse email reads your own record: jobs waiting on your signature, warranties about to run out, systems past their rated life, then this season's jobs for your climate zone.
                     </p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 26 }}>
                       {PULSE_ITEMS.map((pi) => (
@@ -752,7 +752,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <p style={{ font: `400 13px/1.65 ${BODY}`, color: MUTED, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
-                Records are stored on the Internet Computer Protocol — permanent, tamper-proof, and yours to export at any time.
+                Records are stored on the Internet Computer Protocol. Signed-off jobs can't be edited, shared reports are signed so anyone can check them, and your data is yours to export at any time.
               </p>
             </div>
             <div style={{ display: "flex", gap: 64, flexWrap: "wrap" }}>

@@ -45,6 +45,7 @@ rewiring screens.
 | `/report/:token` | ReportPage | Shareable HomeGentic report (print-ready) |
 | `/badge/:token` | BadgePage | Shareable verified badge |
 | `/cert/:token` | ScoreCertPage | HomeGentic score certificate |
+| `/verify-record` | VerifyRecordPage | Check a signed copy of a report or certificate (in the browser, against the report canister's published key) |
 
 ### Public free tools (no auth required)
 
@@ -354,6 +355,23 @@ Multi-tab page — the main workspace for a property.
 **Badge (`/badge/:token`) and Certificate (`/cert/:token`)**
 - Embeddable proof-of-score widgets
 
+**Signed records (`/verify-record`)**
+- The report canister signs each report link and score certificate when it's created (threshold Ed25519)
+- Reports and certificates show "Signed by HomeGentic", checked in the viewer's browser, with **Download signed copy**
+- Anyone can check a signed copy on `/verify-record` or with any Ed25519 tool; the page states what a signature does and doesn't prove
+
+**HomeGentic Score** — one formula (`packages/shared/src/score.ts`, mirrored by `backend/shared/Score.mo`) for the dashboard, reports, certificates and the FSBO index:
+- `(maintenance × 40 + modernization × 35 + verification × 25) / 100`
+- Maintenance coverage: key systems with a job on record, each counted once from its best job (verified 100 %, DIY 80 %, other 50 %)
+- System modernization: remaining rated life per major system, counted from the last major job (above a per-system cost floor) or the year built
+- Verification depth: share of jobs verified
+- The dashboard also applies decay for overdue maintenance; reports and certificates use the plain formula
+
+**Weekly Home Pulse email** (`agents/notifications/pulse.ts`)
+- Mondays from 13:00 UTC, to homeowners who haven't turned it off (Settings → Notifications → Email: Weekly Home Pulse, on by default)
+- Per property: HomeGentic Score, jobs waiting on the homeowner's signature, systems past or near their rated life, warranties ending within 60 days, and the season's priorities for the climate zone with the last matching job
+- One-click unsubscribe (RFC 8058); resumes where it stopped after a restart, never sends twice in a week
+
 ---
 
 ### FSBO Listing (Sell without an agent)
@@ -446,7 +464,7 @@ Realtors compete for homeowners' listings in a sealed-bid auction. Identities st
 
 - **Account tab** — edit email, phone; view role; realtor co-branding link
 - **Subscription tab** — current plan + features; upgrade options; pause (1/2/3 months); cancel with confirmation
-- **Notifications tab** — weekly pulse toggle, score alerts, email/SMS preferences per event type (differs by role)
+- **Notifications tab** — dashboard Home Pulse tips and score alerts (this browser), the weekly Home Pulse email, email/SMS preferences per event type (differs by role)
 - **Privacy tab** — visibility controls (public report, contractor visibility, trust score); export data as JSON
 
 ---

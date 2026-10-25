@@ -1,7 +1,7 @@
 /**
  * Canister-backed Score Certificate Service (4.2.1)
  *
- * Issues tamper-proof score certificates stored on the ICP report canister.
+ * Issues score certificates stored on, and signed by, the ICP report canister.
  * Each cert gets a random UUID id so a lender can independently verify
  * it by querying the canister — unlike the original client-side base64
  * token which could be forged.

@@ -13,7 +13,8 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Shield, AlertTriangle, Copy, CheckCircle, ExternalLink } from "lucide-react";
 import { reportService, ReportSnapshot, ShareLink } from "@/services/report";
-import { getScoreGrade } from "@/services/scoreService";
+import { getScoreGrade, scoreFromReportJobs } from "@/services/scoreService";
+import { attestationService } from "@/services/attestation";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
@@ -155,6 +156,16 @@ export default function BadgePage() {
       .catch((err: Error) => { setError(err.message); setState("error"); });
   }, [token]);
 
+  const [onChainScore, setOnChainScore] = useState<number | null>(null);
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    Promise.resolve().then(() => attestationService.getReportScore(token))
+      .then((n) => { if (!cancelled) setOnChainScore(n); })
+      .catch(() => { /* fall back to the snapshot formula */ });
+    return () => { cancelled = true; };
+  }, [token]);
+
   if (state === "loading") {
     return (
       <div style={{ minHeight: isEmbed ? "auto" : "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: isEmbed ? V2_COLORS.ink : UI.paper }}>
@@ -180,15 +191,7 @@ export default function BadgePage() {
   }
 
   // Compute score from snapshot data
-  const score = (() => {
-    let s = 0;
-    s += Math.min(snapshot.verifiedJobCount * 4, 40);
-    s += Math.min(Math.floor(snapshot.totalAmountCents / 100 / 2500), 20);
-    if (snapshot.verificationLevel === "Premium") s += 10;
-    else if (snapshot.verificationLevel === "Basic") s += 5;
-    s += Math.min(new Set(snapshot.jobs.map((j) => j.serviceType)).size * 4, 20);
-    return Math.min(Math.round(s), 100);
-  })();
+  const score = onChainScore ?? scoreFromReportJobs(snapshot.jobs, Number(snapshot.yearBuilt));
 
   const badgeUrl   = `${window.location.origin}/badge/${token}`;
   const reportUrl  = `${window.location.origin}/report/${token}`;

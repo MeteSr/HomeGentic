@@ -160,7 +160,7 @@ export default function ResaleReadyPage() {
         <div className="rsp-grid-4" style={{ border: `1px solid ${UI.rule}`, marginBottom: "2rem" }}>
           {[
             { label: "HomeGentic Score",     value: String(score),                          sub: grade },
-            { label: "Verified Records",  value: String(verifiedJobs.length),            sub: "blockchain-signed" },
+            { label: "Verified Records",  value: String(verifiedJobs.length),            sub: "signed off" },
             { label: "Value Documented",  value: `$${(totalValue / 100).toLocaleString()}`, sub: "across all jobs" },
             { label: "Systems Covered",   value: String(uniqueTypes),                    sub: "service categories" },
           ].map((stat, i, arr) => (

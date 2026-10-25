@@ -5,7 +5,8 @@
  *
  * Flow:
  *   1. Homeowner calls generateReport(propertyData, jobs, options)
- *   2. Canister stores a signed snapshot + issues a share token
+ *   2. Canister stores the snapshot, issues a share token, and signs what the
+ *      link shows with a threshold Ed25519 key (see "Signed attestations")
  *   3. Anyone with the token calls getReport(token) to read the snapshot
  *   4. Homeowner can revoke links or set expiry
  *
@@ -16,7 +17,9 @@
 import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
 import Char      "mo:core/Char";
+import Cycles    "mo:core/Cycles";
 import Debug     "mo:core/Debug";
+import Error     "mo:core/Error";
 import Map       "mo:core/Map";
 import Int        "mo:core/Int";
 import Iter       "mo:core/Iter";
@@ -240,6 +243,30 @@ persistent actor Report {
   /// While they're in here every #Public link they created behaves as
   /// #BuyerOnly (viewers must sign in); turning it back on restores them.
   private let publicReportsOff = Map.empty<Principal, ()>();
+
+  // ─── Signed attestations ─────────────────────────────────────────────────────
+  /// Each report (as its share link shows it) and each score certificate is
+  /// signed with an Ed25519 key held by the IC's threshold signing service
+  /// (sign_with_schnorr), derived for this canister. `message` is the exact
+  /// UTF-8 JSON that was signed, so anyone with the public key can check it
+  /// with any Ed25519 library; the web app's /verify-record page does it in
+  /// the browser. Kept in side maps (not new fields on ReportSnapshot or
+  /// CertRecord) per the stable-memory rule.
+  public type Attestation = {
+    message   : Text;   // the signed JSON
+    signature : Blob;   // 64-byte Ed25519 signature over message's UTF-8 bytes
+    publicKey : Blob;   // 32-byte Ed25519 public key that signed it
+    keyName   : Text;   // IC master key it was derived from ("key_1" on mainnet)
+    signedAt  : Int;    // ns
+  };
+  /// "test_key_1" until deploy.sh sets "key_1" on mainnet (like quote/market's vetKD key).
+  private var attestKeyName : Text = "test_key_1";
+  /// "report:<snapshotId>" / "cert:<certId>" → attestation.
+  private let attestations = Map.empty<Text, Attestation>();
+  /// keyName → this canister's derived public key (cached; it never changes).
+  private let attestPublicKeys = Map.empty<Text, Blob>();
+  /// snapshotId → the on-chain score (market.computePropertyScore) when the report was made.
+  private let reportScores = Map.empty<Text, Nat>();
 
   // ─── Private Helpers ──────────────────────────────────────────────────────────
 
@@ -510,6 +537,132 @@ persistent actor Report {
     out # "\""
   };
 
+  // ─── Attestation helpers ─────────────────────────────────────────────────────
+
+  type SchnorrAlgorithm = { #ed25519; #bip340secp256k1 };
+  type SchnorrKeyId     = { algorithm : SchnorrAlgorithm; name : Text };
+
+  transient let thresholdSigner : actor {
+    schnorr_public_key : ({ canister_id : ?Principal; derivation_path : [Blob]; key_id : SchnorrKeyId })
+      -> async { public_key : Blob; chain_code : Blob };
+    sign_with_schnorr : ({ message : Blob; derivation_path : [Blob]; key_id : SchnorrKeyId })
+      -> async { signature : Blob };
+  } = actor "aaaaa-aa";
+
+  /// Domain separator: keys derived on this path sign nothing but attestations.
+  private transient let ATTEST_PATH : [Blob] = ["hg-attest-v1".encodeUtf8()];
+
+  /// sign_with_schnorr fee: key_1 ~26.15B cycles, test keys 10B. Unused cycles are refunded.
+  private func attestSignCycles(name : Text) : Nat {
+    if (name == "key_1") 26_153_846_153 else 10_000_000_000
+  };
+
+  private func attestPublicKey(name : Text) : async* Blob {
+    switch (attestPublicKeys.get(name)) {
+      case (?k) k;
+      case null {
+        let r = await thresholdSigner.schnorr_public_key({
+          canister_id = null; derivation_path = ATTEST_PATH; key_id = { algorithm = #ed25519; name };
+        });
+        attestPublicKeys.add(name, r.public_key);
+        r.public_key
+      };
+    }
+  };
+
+  /// Sign `message` and store it under `ref`. Never fails the caller: if
+  /// signing is unavailable (no key on a local replica, out of cycles) the
+  /// record is kept unsigned and the pages say so.
+  private func attest(ref : Text, message : Text) : async* () {
+    let name = attestKeyName;
+    // Attaching more cycles than the canister holds would trap after the
+    // record is saved; skip signing instead and leave it unsigned.
+    if (Cycles.balance() < 2 * attestSignCycles(name)) {
+      Debug.print("attest " # ref # " skipped: low cycles");
+      return;
+    };
+    try {
+      let publicKey = await* attestPublicKey(name);
+      let r = await (with cycles = attestSignCycles(name)) thresholdSigner.sign_with_schnorr({
+        message = message.encodeUtf8(); derivation_path = ATTEST_PATH; key_id = { algorithm = #ed25519; name };
+      });
+      attestations.add(ref, { message; signature = r.signature; publicKey; keyName = name; signedAt = Time.now() });
+    } catch (e) {
+      Debug.print("attest " # ref # " failed: " # e.message());
+    };
+  };
+
+  private func jsonBool(b : Bool) : Text { if (b) "true" else "false" };
+  private func jsonOptText(t : ?Text) : Text { switch (t) { case (?v) jsonStr(v); case null "null" } };
+  private func jsonOptNat(n : ?Nat) : Text { switch (n) { case (?v) v.toText(); case null "null" } };
+
+  /// The signed statement for one share link: the snapshot exactly as that
+  /// link shows it. Fields the owner hid are left out (not zeroed), so the
+  /// statement can't be read as "this job cost $0". Rooms and recurring
+  /// services are owner-supplied and sit under "selfReported".
+  private func reportMessage(snap : ReportSnapshot, link : ShareLink, score : ?Nat) : Text {
+    let hideAmounts      = link.hideAmounts.get(false);
+    let hideContractors  = link.hideContractors.get(false);
+    let hidePermits      = link.hidePermits.get(false);
+    let hideDescriptions = link.hideDescriptions.get(false);
+    var jobs = "";
+    for (j in snap.jobs.values()) {
+      var o = "{\"serviceType\":" # jsonStr(j.serviceType) # ",\"date\":" # jsonStr(j.date);
+      if (not hideDescriptions) o #= ",\"description\":" # jsonStr(j.description);
+      if (not hideContractors)  o #= ",\"contractorName\":" # jsonOptText(j.contractorName);
+      if (not hideAmounts)      o #= ",\"amountCents\":" # j.amountCents.toText();
+      if (not hidePermits)      o #= ",\"permitNumber\":" # jsonOptText(j.permitNumber);
+      o #= ",\"warrantyMonths\":" # jsonOptNat(j.warrantyMonths)
+        # ",\"isDiy\":" # jsonBool(j.isDiy)
+        # ",\"verified\":" # jsonBool(j.isVerified)
+        # ",\"status\":" # jsonStr(j.status) # "}";
+      jobs #= (if (jobs == "") "" else ",") # o;
+    };
+    var recurring = "";
+    for (r in snap.recurringServices.values()) {
+      recurring #= (if (recurring == "") "" else ",")
+        # "{\"serviceType\":" # jsonStr(r.serviceType)
+        # ",\"providerName\":" # jsonStr(r.providerName)
+        # ",\"frequency\":" # jsonStr(r.frequency)
+        # ",\"status\":" # jsonStr(r.status)
+        # ",\"startDate\":" # jsonStr(r.startDate)
+        # ",\"lastVisitDate\":" # jsonOptText(r.lastVisitDate)
+        # ",\"totalVisits\":" # r.totalVisits.toText() # "}";
+    };
+    var rooms = "";
+    for (r in (snap.rooms.get([])).values()) {
+      rooms #= (if (rooms == "") "" else ",")
+        # "{\"name\":" # jsonStr(r.name) # ",\"floorType\":" # jsonStr(r.floorType)
+        # ",\"fixtureCount\":" # r.fixtureCount.toText() # "}";
+    };
+    "{\"type\":\"homegentic.report\",\"v\":1"
+      # ",\"issuer\":"            # jsonStr(Principal.fromActor(Report).toText())
+      # ",\"snapshotId\":"        # jsonStr(snap.snapshotId)
+      # ",\"propertyId\":"        # jsonStr(snap.propertyId)
+      # ",\"generatedAtMs\":"     # Int.toText(snap.generatedAt / 1_000_000)
+      # ",\"property\":{\"address\":" # jsonStr(snap.address)
+        # ",\"city\":"            # jsonStr(snap.city)
+        # ",\"state\":"           # jsonStr(snap.state)
+        # ",\"zipCode\":"         # jsonStr(snap.zipCode)
+        # ",\"propertyType\":"    # jsonStr(snap.propertyType)
+        # ",\"yearBuilt\":"       # snap.yearBuilt.toText()
+        # ",\"squareFeet\":"      # snap.squareFeet.toText()
+        # ",\"verificationLevel\":" # jsonStr(snap.verificationLevel) # "}"
+      # ",\"score\":"             # jsonOptNat(score)
+      # ",\"hidden\":{\"amounts\":" # jsonBool(hideAmounts)
+        # ",\"contractors\":"     # jsonBool(hideContractors)
+        # ",\"permits\":"         # jsonBool(hidePermits)
+        # ",\"descriptions\":"    # jsonBool(hideDescriptions) # "}"
+      # ",\"totals\":{\"jobs\":" # snap.jobs.size().toText()
+        # ",\"verifiedJobs\":"    # snap.verifiedJobCount.toText()
+        # ",\"diyJobs\":"         # snap.diyJobCount.toText()
+        # ",\"permits\":"         # snap.permitCount.toText()
+        # (if (hideAmounts) "" else ",\"amountCents\":" # snap.totalAmountCents.toText()) # "}"
+      # ",\"jobs\":["             # jobs # "]"
+      # ",\"selfReported\":{\"recurringServices\":[" # recurring # "],\"rooms\":[" # rooms # "]}"
+      # "}"
+  };
+
   private transient let MAX_MONTHLY_CENTS : Nat = 100_000_000;   // $1M/month — far beyond any household cost
 
   private func billsCategoryKey(c: BillsCategory) : Nat {
@@ -761,6 +914,15 @@ persistent actor Report {
       hideDescriptions;
     };
     Index.put(links, linksIndexes, token, link);
+
+    // The on-chain score at this moment, then a signature over what this
+    // link shows. Both are best-effort: the report is already saved.
+    let score : ?Nat = if (Text.size(marketCanisterId) == 0) null else {
+      let marketActor = actor(marketCanisterId) : actor { computePropertyScore : (Text) -> async ?Nat };
+      try { await marketActor.computePropertyScore(propertyId) } catch (_) { null }
+    };
+    switch (score) { case (?n) reportScores.add(snapshotId, n); case null {} };
+    await* attest("report:" # snapshotId, reportMessage(applyDisclosure(snapshot, link), link, score));
     #ok(link)
   };
 
@@ -929,6 +1091,8 @@ persistent actor Report {
     for (id in snapIds.values()) {
       snapshots.remove(id);
       billsSummaries.remove(id);
+      reportScores.remove(id);
+      attestations.remove("report:" # id);
       removed += 1;
     };
     if (publicReportsOff.containsKey(caller)) { publicReportsOff.remove(caller); removed += 1 };
@@ -1438,6 +1602,11 @@ persistent actor Report {
       issuedAt   = now;
     };
     certs.add(certId, record);
+    await* attest("cert:" # certId,
+      "{\"type\":\"homegentic.scoreCertificate\",\"v\":1"
+      # ",\"issuer\":" # jsonStr(Principal.fromActor(Report).toText())
+      # ",\"certId\":" # jsonStr(certId)
+      # ",\"certificate\":" # json # "}");
     #ok(certId)
   };
 
@@ -1449,6 +1618,64 @@ persistent actor Report {
       case null  null;
       case (?r)  ?r.payload;
     }
+  };
+
+  // ─── Attestation API ─────────────────────────────────────────────────────────
+
+  /// The signed statement for a share link, under the same checks as
+  /// getReport (active, unexpired, signed-in viewer for #BuyerOnly). Null when
+  /// the link can't be viewed or the report was never signed.
+  public query(msg) func getReportAttestation(token : Text) : async ?Attestation {
+    switch (links.get(token)) {
+      case null null;
+      case (?link) {
+        if (not link.isActive or isExpired(link)) return null;
+        if (effectiveVisibility(link) == #BuyerOnly and msg.caller.isAnonymous()) return null;
+        attestations.get("report:" # link.snapshotId)
+      };
+    }
+  };
+
+  /// The on-chain score stored with a report (same checks as getReport).
+  public query(msg) func getReportScore(token : Text) : async ?Nat {
+    switch (links.get(token)) {
+      case null null;
+      case (?link) {
+        if (not link.isActive or isExpired(link)) return null;
+        if (effectiveVisibility(link) == #BuyerOnly and msg.caller.isAnonymous()) return null;
+        reportScores.get(link.snapshotId)
+      };
+    }
+  };
+
+  /// The signed statement for a score certificate. Public, like verifyCert.
+  public query func getCertAttestation(certId : Text) : async ?Attestation {
+    attestations.get("cert:" # certId)
+  };
+
+  /// The key this canister signs with now, once it has been fetched (first
+  /// signature, or refreshAttestationKey). Published on /verify-record.
+  public query func getAttestationKey() : async ?{ keyName : Text; publicKey : Blob } {
+    switch (attestPublicKeys.get(attestKeyName)) {
+      case (?publicKey) ?{ keyName = attestKeyName; publicKey };
+      case null null;
+    }
+  };
+
+  /// Fetch and cache the current key's public key. Admin only (deploy.sh).
+  public shared(msg) func refreshAttestationKey() : async Result.Result<Blob, Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    try { #ok(await* attestPublicKey(attestKeyName)) } catch (e) { #err(#InvalidInput(e.message())) }
+  };
+
+  /// Select the threshold signing key ("key_1" on mainnet). Admin only.
+  /// Existing attestations keep the key they were signed with.
+  public shared(msg) func setAttestationKeyName(name : Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (name != "key_1" and name != "test_key_1" and name != "dfx_test_key")
+      return #err(#InvalidInput("unknown signing key name"));
+    attestKeyName := name;
+    #ok(())
   };
 
   public query func getMetrics() : async Metrics {

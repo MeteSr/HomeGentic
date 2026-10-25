@@ -22,7 +22,8 @@ export type NotificationKind =
   | "bid_accepted"
   | "bid_declined"
   | "quote_received"
-  | "new_lead";
+  | "new_lead"
+  | "weekly_pulse";
 
 export interface NotificationEvent {
   type:      NotificationKind;
@@ -70,4 +71,37 @@ export interface ContractorInfo {
   trustScore:    number;
   jobsCompleted: number;
   isVerified:    boolean;
+}
+
+// ── Weekly Home Pulse ─────────────────────────────────────────────────────────
+
+export interface PulseRecipient {
+  principal: string;
+  email:     string;
+}
+
+export interface PulseProperty {
+  id:        string;
+  address:   string;
+  city:      string;
+  state:     string;
+  zipCode:   string;
+  yearBuilt: number;
+}
+
+/** The job fields the weekly email reads. */
+export interface PulseJob {
+  id:               string;
+  propertyId:       string;
+  title:            string;
+  serviceType:      string;   // display label, e.g. "HVAC"
+  contractorName:   string | null;
+  amountCents:      number;
+  completedAtMs:    number;
+  warrantyMonths:   number | null;
+  isDiy:            boolean;
+  status:           string;   // JobStatus tag
+  verified:         boolean;
+  homeownerSigned:  boolean;
+  contractorSigned: boolean;
 }

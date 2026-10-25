@@ -7,6 +7,7 @@
 
 import type { Job } from "./job";
 import type { Property } from "./property";
+import { computeScore } from "./scoreService";
 
 export type EventCategory = "Job" | "Property" | "Diversity" | "Value";
 
@@ -19,95 +20,36 @@ export interface ScoreEvent {
   category:  EventCategory;
 }
 
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
-
 /**
- * Returns the most recent score-earning events derived from jobs + properties.
- * Events from the last 90 days are returned, newest first, capped at 12.
+ * Returns the jobs that moved the score, newest first, capped at 12. Each
+ * event's points are what that job changed when it was added: the record is
+ * replayed in date order through the real formula (computeScore), so the
+ * points always add up to the score. A job that changed nothing is left out.
  */
 export function getRecentScoreEvents(
   jobs: Job[],
   properties: Property[]
 ): ScoreEvent[] {
+  const ordered = [...jobs].sort((a, b) => a.date.localeCompare(b.date));
   const events: ScoreEvent[] = [];
-  const now = Date.now();
-
-  // ── Verified jobs: 4 pts each ────────────────────────────────────────────
-  for (const job of jobs.filter((j) => j.status === "verified")) {
-    const ts = new Date(job.date).getTime();
+  let before = computeScore([], properties);
+  ordered.forEach((job, i) => {
+    const after = computeScore(ordered.slice(0, i + 1), properties);
+    const pts = after - before;
+    before = after;
+    if (pts === 0) return;
+    const verified = job.verified && !job.contractorUnverified;
     events.push({
-      id:        `verified-${job.id}`,
-      label:     `${job.serviceType} Verified`,
-      detail:    job.isDiy ? "DIY record" : (job.contractorName ?? "Contractor") + " sign-off",
-      pts:       4,
-      timestamp: ts,
+      id:        `job-${job.id}`,
+      label:     verified ? `${job.serviceType} Verified` : `${job.serviceType} Logged`,
+      detail:    verified
+        ? (job.isDiy ? "DIY record" : (job.contractorName ?? "Contractor") + " sign-off")
+        : (job.isDiy ? "Self-reported" : "Awaiting contractor sign-off"),
+      pts,
+      timestamp: new Date(job.date).getTime(),
       category:  "Job",
     });
-  }
-
-  // ── DIY-only (pending) jobs: 1 pt each ───────────────────────────────────
-  for (const job of jobs.filter((j) => j.isDiy && j.status !== "verified")) {
-    const ts = new Date(job.date).getTime();
-    if (now - ts <= NINETY_DAYS_MS) {
-      events.push({
-        id:        `diy-${job.id}`,
-        label:     `${job.serviceType} — DIY Logged`,
-        detail:    "Self-reported; get contractor signature to earn full 4 pts",
-        pts:       1,
-        timestamp: ts,
-        category:  "Job",
-      });
-    }
-  }
-
-  // ── Property verification: 5 pts (Basic) or 10 pts (Premium) ─────────────
-  for (const prop of properties) {
-    if (prop.verificationLevel === "Basic" || prop.verificationLevel === "Premium") {
-      const pts = prop.verificationLevel === "Premium" ? 10 : 5;
-      const ts  = prop.createdAt ? Number(prop.createdAt) / 1_000_000 : now;
-      events.push({
-        id:        `prop-${prop.id}`,
-        label:     `${prop.address.split(",")[0]} — ${prop.verificationLevel} Verified`,
-        detail:    `Property verification level: +${pts} score points`,
-        pts,
-        timestamp: ts,
-        category:  "Property",
-      });
-    }
-  }
-
-  // ── Job diversity milestone: noted when 3+ unique types ──────────────────
-  const verifiedJobs    = jobs.filter((j) => j.status === "verified");
-  const uniqueTypes     = new Set(verifiedJobs.map((j) => j.serviceType));
-  if (uniqueTypes.size >= 3) {
-    const ts = Math.max(...verifiedJobs.map((j) => new Date(j.date).getTime()));
-    events.push({
-      id:        `diversity-${uniqueTypes.size}`,
-      label:     `Job Diversity — ${uniqueTypes.size} Categories`,
-      detail:    `Documenting multiple systems adds up to 20 diversity pts`,
-      pts:       Math.min(uniqueTypes.size * 4, 20),
-      timestamp: ts,
-      category:  "Diversity",
-    });
-  }
-
-  // ── Value milestone: noted when documented value crosses thresholds ───────
-  const totalCents = jobs.reduce((s, j) => s + j.amount, 0);
-  const thresholds = [10_000_000, 5_000_000, 2_500_000, 1_000_000, 500_000];
-  for (const t of thresholds) {
-    if (totalCents >= t) {
-      const ts = Math.max(...jobs.map((j) => new Date(j.date).getTime()));
-      events.push({
-        id:        `value-${t}`,
-        label:     `$${(t / 100).toLocaleString()} Documented`,
-        detail:    "Total documented value contributes up to 20 score points",
-        pts:       Math.round(Math.min((totalCents / 100) / 2500, 20)),
-        timestamp: ts,
-        category:  "Value",
-      });
-      break; // only show the highest crossed threshold
-    }
-  }
+  });
 
   return events
     .sort((a, b) => b.timestamp - a.timestamp)
