@@ -101,6 +101,6 @@ describe("CheckAddressPage — buyer notify form", () => {
     fireEvent.click(screen.getByLabelText("notify me"));
 
     await waitFor(() => expect(mockSubmitReportRequest).toHaveBeenCalledWith("123 Main St", "buyer@example.com"));
-    expect(await screen.findByText("We'll notify you when a report is created for this address.")).toBeInTheDocument();
+    expect(await screen.findByText("We'll email you once if a public report is shared for this address in the next 180 days.")).toBeInTheDocument();
   });
 });

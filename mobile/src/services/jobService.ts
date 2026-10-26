@@ -1,3 +1,5 @@
+import { sha256 } from "@noble/hashes/sha2";
+import { bytesToHex } from "@noble/hashes/utils";
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
 import { idlFactory as jobIdlFactory }   from "@homegentic/shared/declarations/job";
 import { idlFactory as photoIdlFactory } from "@homegentic/shared/declarations/photo";
@@ -14,6 +16,7 @@ export interface CreateJobInput {
   isDiy:          boolean;
   contractorName: string | null;
   permitNumber:   string | null;
+  warrantyMonths?: number | null;
 }
 
 export interface Job {
@@ -117,7 +120,7 @@ export async function createJob(input: CreateJobInput, agent?: HttpAgent): Promi
     BigInt(input.amountCents),
     dateToNs(input.completedDate),
     input.permitNumber ? [input.permitNumber] : [],
-    [],                           // warrantyMonths — not captured on mobile
+    input.warrantyMonths ? [BigInt(input.warrantyMonths)] : [],
     input.isDiy,
     [],                           // sourceQuoteId
   );
@@ -163,7 +166,7 @@ export async function verifyJob(jobId: string, agent?: HttpAgent): Promise<Job> 
 
 /**
  * Uploads a base64-encoded photo to the photo canister for a given job.
- * Generates a random 64-char hex hash for canister-side deduplication.
+ * Sends the bytes' SHA-256 (hex) as the photo hash.
  */
 export async function uploadJobPhoto(
   jobId: string,
@@ -178,11 +181,9 @@ export async function uploadJobPhoto(
     bytes[i] = binaryStr.charCodeAt(i);
   }
 
-  // Generate a unique hash using crypto.getRandomValues (available in Expo via
-  // react-native-get-random-values which is already a project dependency)
-  const hashBytes = new Uint8Array(32);
-  crypto.getRandomValues(hashBytes);
-  const hash = Array.from(hashBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  // SHA-256 of the bytes, as the web app sends: the photo canister de-duplicates
+  // on it, and signed records rely on it naming the content.
+  const hash = bytesToHex(sha256(bytes));
 
   const a = getPhotoActor(agent ?? getIcpAgent());
   const result = await (a as any).uploadPhoto(

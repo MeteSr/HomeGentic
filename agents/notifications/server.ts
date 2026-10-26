@@ -14,6 +14,7 @@ import { E164, allowCodeRequest, allowCodeToPhone, checkVerification, smsConfigu
 import { relayIdentity }              from "./icp";
 import { emailUnsubscribeId, safeEqual, unsubscribeTokenFor, validUnsubscribeToken } from "./unsubscribe";
 import { startPulse }                 from "./pulse";
+import { addAlert, reportAlertsEnabled, startReportAlerts } from "./reportAlerts";
 import { EMAIL_PREF_KEYS, type EmailPrefKey } from "./channels";
 import type { Platform, PushPayload } from "./types";
 import type { PushSubscription }      from "web-push";
@@ -375,6 +376,27 @@ export function buildApp() {
     res.type("html").send(page("You're unsubscribed", `<p>No more weekly Home Pulse emails. You can turn it back on in your settings.</p>${settingsLink()}`));
   });
 
+  // ── POST /api/report-alerts ─────────────────────────────────────────────────
+  // Public (no session): a buyer on /check asks to be emailed once a public
+  // report exists for an address. Body: { address, email }. See reportAlerts.ts.
+  const reportAlertLimiter = rateLimit({
+    windowMs:        60 * 60_000,
+    max:             10,
+    standardHeaders: true,
+    legacyHeaders:   false,
+    message: { error: "Too many requests — please try again later." },
+  });
+  app.post("/api/report-alerts", reportAlertLimiter, (req: Request, res: Response): void => {
+    if (!reportAlertsEnabled()) {
+      res.status(503).json({ error: "Report alerts are not available" });
+      return;
+    }
+    const result = addAlert(req.body?.address, req.body?.email);
+    if (result === "invalid") { res.status(400).json({ error: "A street address and a valid email are required" }); return; }
+    if (result === "limit")   { res.status(429).json({ error: "Too many alerts for this email or address" }); return; }
+    res.status(result === "added" ? 201 : 200).json({ ok: true });
+  });
+
   // ── GET /health ─────────────────────────────────────────────────────────────
   app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "homegentic-notifications" });
@@ -395,6 +417,7 @@ if (require.main === module) {
       console.log(`[notifications] relay principal: ${relayIdentity().getPrincipal().toText()}`);
       startPoller();
       startPulse();
+      startReportAlerts();
     } catch (err) {
       if (process.env.NODE_ENV === "production") throw err;
       console.warn(`[notifications] ${err instanceof Error ? err.message : err} — not polling canisters`);

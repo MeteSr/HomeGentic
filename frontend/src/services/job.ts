@@ -101,6 +101,11 @@ function fromJob(raw: any): Job {
   };
 }
 
+/** Whether the job canister's updateJob accepts this record: nobody has signed it and it isn't verified. */
+export function isEditableRecord(job: Pick<Job, "verified" | "homeownerSigned" | "contractorSigned" | "isDiy" | "contractor">): boolean {
+  return !job.verified && !job.homeownerSigned && !(job.contractorSigned && !job.isDiy) && !job.contractor;
+}
+
 function unwrapJob(result: any): Job {
   if ("ok" in result) return fromJob(result.ok);
   const key = Object.keys(result.err)[0];
@@ -207,9 +212,23 @@ function createJobService() {
     return unwrapJob(result);
   },
 
-  async updateJob(_jobId: string, _updates: Partial<Pick<Job, "serviceType" | "contractorName" | "amount" | "date" | "description" | "permitNumber" | "warrantyMonths" | "isDiy">>): Promise<Job> {
-    // Canister updateJob not yet implemented — throw to signal unsupported
-    throw new Error("Job editing is not yet available on-chain. Please contact support.");
+  /** Correct an unsigned record (the canister refuses once anyone has signed it or it's verified). */
+  async updateJob(jobId: string, updates: Pick<Job, "serviceType" | "amount" | "date" | "description" | "isDiy"> & Partial<Pick<Job, "contractorName" | "permitNumber" | "warrantyMonths">>): Promise<Job> {
+    const a = await getActor();
+    const completedDateNs = BigInt(new Date(updates.date).getTime()) * 1_000_000n;
+    const result = await a.updateJob(
+      jobId,
+      updates.serviceType,                                    // title = serviceType, as in create
+      serviceTypeVariant(updates.serviceType),
+      updates.description,
+      !updates.isDiy && updates.contractorName ? [updates.contractorName] : [],
+      BigInt(updates.amount),
+      completedDateNs,
+      updates.permitNumber   ? [updates.permitNumber]   : [],
+      updates.warrantyMonths ? [BigInt(updates.warrantyMonths)] : [],
+      updates.isDiy,
+    );
+    return unwrapJob(result);
   },
 
   async updateJobStatus(jobId: string, status: JobStatus): Promise<Job> {

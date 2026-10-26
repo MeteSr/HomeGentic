@@ -24,6 +24,7 @@ import { idlFactory as authIdl } from "../../packages/shared/src/declarations/au
 import { idlFactory as propertyIdl } from "../../packages/shared/src/declarations/property";
 import { idlFactory as jobIdl } from "../../packages/shared/src/declarations/job";
 import { idlFactory as paymentIdl } from "../../packages/shared/src/declarations/payment";
+import { idlFactory as reportIdl } from "../../packages/shared/src/declarations/report";
 import { serviceTypeFromVariant } from "../../packages/shared/src/serviceTypes";
 
 const IC_HOST = () => process.env.IC_HOST ?? "https://icp-api.io";
@@ -255,4 +256,16 @@ export async function getJobSnapshots(propertyId: string): Promise<ScoreJob[]> {
     isDiy:         s.isDiy,
     isVerified:    s.isVerified,
   }));
+}
+
+/**
+ * The newest public report whose street address matches (report canister,
+ * anonymous query). Used by the buyer report alerts (reportAlerts.ts).
+ */
+export async function findPublicReport(address: string): Promise<{ token: string; address: string; city: string; state: string; zipCode: string } | null> {
+  const report = Actor.createActor(reportIdl, {
+    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_REPORT"),
+  }) as any;
+  const res: any[] = await report.findPublicReport(address);
+  return res.length > 0 ? res[0] : null;
 }

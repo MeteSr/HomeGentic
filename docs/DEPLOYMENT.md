@@ -257,6 +257,8 @@ Each channel is off until its variables are set; Settings hides its rows while i
 | `CANISTER_ID_PROPERTY` | Property canister — the weekly Home Pulse email reads each homeowner's properties |
 | `PULSE_HOUR_UTC` | Hour (UTC) on Mondays the weekly Home Pulse starts sending (default `13`) |
 | `PULSE_SEND_INTERVAL_MS` | Pause between weekly emails, to stay under Resend's rate limit (default `600`) |
+| `CANISTER_ID_REPORT` | Report canister — buyer report alerts from the public `/check` page ("notify me"). The relay checks each saved address hourly and emails the buyer once a public report exists. Needs `RESEND_API_KEY` too; without either the page says the request couldn't be saved |
+| `REPORT_ALERT_INTERVAL_MS` | How often buyer report alerts are checked (default `3600000`) |
 | `UNSUBSCRIBE_SECRET` | Signs unsubscribe links (default: `INTERNAL_API_KEY`). Changing it breaks links in emails already sent |
 | `TWILIO_ACCOUNT_SID` | Twilio account SID |
 | `TWILIO_AUTH_TOKEN` | Twilio auth token — keep secret |
@@ -422,7 +424,7 @@ Set these as EAS environment variables (they're inlined at build time):
 | Variable | Description |
 |---|---|
 | `EXPO_PUBLIC_ICP_HOST` | ICP API host (`https://icp-api.io`) |
-| `EXPO_PUBLIC_AUTH_CANISTER_ID`, `EXPO_PUBLIC_PROPERTY_CANISTER_ID`, `EXPO_PUBLIC_JOB_CANISTER_ID`, `EXPO_PUBLIC_QUOTE_CANISTER_ID`, `EXPO_PUBLIC_PHOTO_CANISTER_ID`, `EXPO_PUBLIC_PAYMENT_CANISTER_ID`, `EXPO_PUBLIC_CONTRACTOR_CANISTER_ID`, `EXPO_PUBLIC_RECURRING_CANISTER_ID`, `EXPO_PUBLIC_MAINTENANCE_CANISTER_ID`, `EXPO_PUBLIC_SENSOR_CANISTER_ID` | Canister IDs for the target environment (`canister_ids.json`). Without `PAYMENT` every user reads as Free; without `SENSOR` the Property tab shows no sensors |
+| `EXPO_PUBLIC_AUTH_CANISTER_ID`, `EXPO_PUBLIC_PROPERTY_CANISTER_ID`, `EXPO_PUBLIC_JOB_CANISTER_ID`, `EXPO_PUBLIC_QUOTE_CANISTER_ID`, `EXPO_PUBLIC_PHOTO_CANISTER_ID`, `EXPO_PUBLIC_PAYMENT_CANISTER_ID`, `EXPO_PUBLIC_CONTRACTOR_CANISTER_ID`, `EXPO_PUBLIC_RECURRING_CANISTER_ID`, `EXPO_PUBLIC_MAINTENANCE_CANISTER_ID`, `EXPO_PUBLIC_SENSOR_CANISTER_ID`, `EXPO_PUBLIC_BILLS_CANISTER_ID` | Canister IDs for the target environment (`canister_ids.json`). Without `PAYMENT` every user reads as Free; without `SENSOR` the Property tab shows no sensors; without `BILLS` utility-bill upload says bills aren't available |
 | `EXPO_PUBLIC_VOICE_AGENT_URL` | Voice Worker URL |
 | `EXPO_PUBLIC_WEB_URL` | Web app origin, used for shareable report links (default `https://homegentic.app`) |
 | `EXPO_PUBLIC_NOTIFICATIONS_URL` | Notification relay URL; without it the app skips push registration |

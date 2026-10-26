@@ -8,6 +8,8 @@ export interface JobForm {
   isDiy:          boolean;
   contractorName: string;
   permitNumber:   string;
+  /** Whole months; blank = no warranty. Filled from a scanned warranty card. */
+  warrantyMonths?: string;
 }
 
 export const SERVICE_TYPES = [
@@ -35,6 +37,8 @@ export function validateJobForm(form: JobForm): string | null {
   if (!DATE_RE.test(form.completedDate))    return "Enter the date as YYYY-MM-DD.";
   if (!form.isDiy && !form.contractorName.trim())
                                             return "Contractor name is required for non-DIY jobs.";
+  if (form.warrantyMonths?.trim() && !/^\d{1,3}$/.test(form.warrantyMonths.trim()))
+                                            return "Warranty must be a whole number of months.";
   return null;
 }
 
@@ -49,5 +53,6 @@ export function buildJobPayload(propertyId: string, form: JobForm): CreateJobInp
     isDiy:          form.isDiy,
     contractorName: form.isDiy || !form.contractorName.trim() ? null : form.contractorName.trim(),
     permitNumber:   form.permitNumber.trim() || null,
+    warrantyMonths: form.warrantyMonths?.trim() ? Number(form.warrantyMonths.trim()) || null : null,
   };
 }

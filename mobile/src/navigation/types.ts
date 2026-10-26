@@ -24,7 +24,7 @@ export type RootStackParamList = {
   Upgrade:        undefined;
   AddRecurring:   { propertyId: string };
   PropertyDetail: { property: Property };
-  LogJob:         { propertyId: string; propertyAddress: string };
+  LogJob:         { propertyId: string; propertyAddress: string; prefill?: Partial<import("../services/jobFormService").JobForm> };
   QuoteRequest:   { propertyId: string; propertyAddress: string };
   MyQuotes:       { propertyId?: string; propertyAddress?: string; requestId?: string };
   CompareBids:    { requestId: string; title: string };

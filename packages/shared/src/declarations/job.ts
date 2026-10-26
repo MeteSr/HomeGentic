@@ -106,6 +106,22 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: Job, err: Error })],
       []
     ),
+    updateJob: IDL.Func(
+      [
+        IDL.Text,         // jobId
+        IDL.Text,         // title
+        ServiceType,      // serviceType
+        IDL.Text,         // description
+        IDL.Opt(IDL.Text),// contractorName
+        IDL.Nat,          // amount (cents)
+        IDL.Int,          // completedDate (nanoseconds)
+        IDL.Opt(IDL.Text),// permitNumber
+        IDL.Opt(IDL.Nat), // warrantyMonths
+        IDL.Bool,         // isDiy
+      ],
+      [IDL.Variant({ ok: Job, err: Error })],
+      []
+    ),
     getReferralJobs: IDL.Func(
       [],
       [IDL.Variant({ ok: IDL.Vec(Job), err: Error })],

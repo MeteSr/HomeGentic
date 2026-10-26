@@ -141,3 +141,16 @@ describe("buildJobPayload", () => {
     expect(payload.propertyId).toBe("prop_abc");
   });
 });
+
+describe("warranty months", () => {
+  it("passes a whole number of months through to the payload", () => {
+    expect(buildJobPayload("p1", { ...VALID_DIY, warrantyMonths: " 24 " }).warrantyMonths).toBe(24);
+    expect(buildJobPayload("p1", { ...VALID_DIY, warrantyMonths: "" }).warrantyMonths).toBeNull();
+    expect(buildJobPayload("p1", VALID_DIY).warrantyMonths).toBeNull();
+  });
+
+  it("rejects a warranty that isn't a whole number", () => {
+    expect(validateJobForm({ ...VALID_DIY, warrantyMonths: "1.5" })).toMatch(/whole number/);
+    expect(validateJobForm({ ...VALID_DIY, warrantyMonths: "12" })).toBeNull();
+  });
+});

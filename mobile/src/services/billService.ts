@@ -8,9 +8,12 @@
 
 import { getAgentSessionToken } from "./agentSession";
 import { SESSION_HEADER } from "@homegentic/shared/agentSession";
+import { idlFactory } from "@homegentic/shared/declarations/bills";
+import { actorFor, nsToMs, tag } from "./canister";
 
 const VOICE_AGENT_URL =
   process.env.EXPO_PUBLIC_VOICE_AGENT_URL ?? "http://localhost:8787";
+const BILLS_CANISTER_ID = process.env.EXPO_PUBLIC_BILLS_CANISTER_ID ?? "";
 
 export type BillType = "Electric" | "Gas" | "Water" | "Internet" | "Telecom" | "Other";
 
@@ -88,12 +91,55 @@ export async function extractBill(
   return res.json();
 }
 
+function billsActor(): any {
+  if (!BILLS_CANISTER_ID) throw new Error("Bills aren't available in this build (EXPO_PUBLIC_BILLS_CANISTER_ID is not set)");
+  return actorFor(idlFactory, BILLS_CANISTER_ID);
+}
+
+/** Map a bills-canister error variant to an Error (TierLimitReachedError for the plan limit). */
+function billError(err: Record<string, unknown>): Error {
+  if ("TierLimitReached" in err) return new TierLimitReachedError(String(err.TierLimitReached));
+  const key = Object.keys(err)[0];
+  const val = err[key];
+  return new Error(typeof val === "string" ? val : key);
+}
+
+function fromBill(raw: any): BillRecord {
+  return {
+    id:            raw.id,
+    propertyId:    raw.propertyId,
+    billType:      tag<BillType>(raw.billType),
+    provider:      raw.provider,
+    periodStart:   raw.periodStart,
+    periodEnd:     raw.periodEnd,
+    amountCents:   Number(raw.amountCents),
+    usageAmount:   raw.usageAmount[0] ?? undefined,
+    usageUnit:     raw.usageUnit[0] ?? undefined,
+    uploadedAt:    nsToMs(raw.uploadedAt),
+    anomalyFlag:   raw.anomalyFlag,
+    anomalyReason: raw.anomalyReason[0] ?? undefined,
+  };
+}
+
 /** Save a confirmed bill record to the bills canister. */
-export async function addBill(_args: AddBillArgs): Promise<BillRecord> {
-  throw new Error("Not implemented: addBill — wire to bills canister addBill");
+export async function addBill(args: AddBillArgs): Promise<BillRecord> {
+  const result = await billsActor().addBill({
+    propertyId:  args.propertyId,
+    billType:    { [args.billType]: null },
+    provider:    args.provider,
+    periodStart: args.periodStart,
+    periodEnd:   args.periodEnd,
+    amountCents: BigInt(Math.max(0, Math.round(args.amountCents))),
+    usageAmount: args.usageAmount != null ? [args.usageAmount] : [],
+    usageUnit:   args.usageAmount != null && args.usageUnit ? [args.usageUnit] : [],
+  });
+  if ("err" in result) throw billError(result.err);
+  return fromBill(result.ok);
 }
 
 /** Fetch all bills for a property from the bills canister. */
-export async function getBillsForProperty(_propertyId: string): Promise<BillRecord[]> {
-  throw new Error("Not implemented: getBillsForProperty — wire to bills canister getBillsForProperty");
+export async function getBillsForProperty(propertyId: string): Promise<BillRecord[]> {
+  const result = await billsActor().getBillsForProperty(propertyId);
+  if ("err" in result) throw billError(result.err);
+  return (result.ok as any[]).map(fromBill);
 }

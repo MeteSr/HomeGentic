@@ -102,7 +102,7 @@ function WarrantyRow({ item, isLast }: { item: WarrantyJob; isLast: boolean }) {
           </div>
         )}
         <button
-          onClick={() => navigate(`/jobs/new`, { state: { editJob: item.job } })}
+          onClick={() => navigate(`/properties/${item.job.propertyId}`)}
           style={{ marginTop: "0.5rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: `1px solid ${UI.rule}`, padding: "0.2rem 0.5rem", cursor: "pointer" }}
         >
           View

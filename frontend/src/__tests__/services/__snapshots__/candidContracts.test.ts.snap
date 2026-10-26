@@ -120,6 +120,7 @@ removeInboxRelay(1) -> (1)
 resetMyInboxToken(0) -> (1)
 setFeeCanisterId(1) -> (1)
 setPropertyCanisterId(1) -> (1)
+updateJob(10) -> (1)
 updateJobStatus(2) -> (1)
 verifyJob(1) -> (1)"
 `;
@@ -330,6 +331,7 @@ updateStatus(2) -> (1)"
 
 exports[`Candid contract snapshots — method arity > report 1`] = `
 "deleteMyData(0) -> (1)
+findPublicReport(1) -> (1) [query]
 generateReport(12) -> (1)
 generateRiskProfile(3) -> (1)
 getAllowPublicReports(0) -> (1) [query]

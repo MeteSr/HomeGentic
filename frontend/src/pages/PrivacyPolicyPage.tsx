@@ -70,6 +70,7 @@ const SECTIONS: Section[] = [
         <p><strong>Ownership and identity checks.</strong> To verify a property you upload an ownership document, and you may complete an identity check with Stripe. Stripe collects your ID images and selfie and keeps them; HomeGentic stores only the result, the Stripe session reference and the name on your ID.</p>
         <p><strong>Billing.</strong> Card payments go directly to Stripe; we never see your full card number. We store your plan, its expiry and cancellation date, gift details (recipient name, email and message), credit balances, and records of platform and referral fees.</p>
         <p><strong>AI assistant.</strong> When you use the assistant or ask us to read a document, the request and the context needed to answer it are sent to Anthropic. We count your requests to enforce plan limits but do not keep the conversation.</p>
+        <p><strong>Report alerts.</strong> If you ask on the address lookup page to be told when a public report appears, we keep that address and your email on our notification server, send one email when a public report exists, and then delete the request. Requests that never match are deleted after 180 days. You don't need an account for this.</p>
         <p><strong>Device and usage data.</strong> Our services log requests (time, route, errors, IP address) for reliability and abuse prevention. The mobile app stores a push-notification token if you turn notifications on. We do not use advertising trackers or third-party behavioural analytics.</p>
       </>
     ),

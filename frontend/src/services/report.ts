@@ -150,6 +150,17 @@ export interface ReportSnapshot {
   planTier:          string;   // "Free" | "Pro" | "ContractorFree" | "ContractorPro"; "" treated as "Free"
 }
 
+export interface PublicReportMatch {
+  token:             string;
+  address:           string;
+  city:              string;
+  state:             string;
+  zipCode:           string;
+  propertyType:      string;
+  yearBuilt:         number;
+  verificationLevel: string;
+}
+
 export interface ShareLink {
   token:      string;
   snapshotId: string;
@@ -449,6 +460,19 @@ function createReportService() {
     const a = await getActor();
     const result = await a.getBillsSummary(token) as any[];
     return result.length > 0 ? fromBillsSummary(result[0]) : null;
+  },
+
+  /** Public /check lookup: the newest public report whose street address matches (anonymous query). */
+  async findPublicReport(address: string): Promise<PublicReportMatch | null> {
+    if (typeof window !== "undefined" && "__e2e_public_report" in window) {
+      return (window as any).__e2e_public_report as PublicReportMatch | null;
+    }
+    if (!REPORT_CANISTER_ID) return null;
+    const a = await getActor();
+    const result = await a.findPublicReport(address) as any[];
+    if (result.length === 0) return null;
+    const m = result[0];
+    return { ...m, yearBuilt: Number(m.yearBuilt) };
   },
 
   /** Settings → Privacy: while off, every Public link of the caller needs a signed-in viewer. */

@@ -291,6 +291,18 @@ function CyclesDashboard() {
   );
 }
 
+/** Human label for the method a homeowner submitted with (see submitVerification callers). */
+const REPRESENTATIVE_LABELS: Record<string, string> = {
+  llc_officer: "LLC officer or member", trustee: "Trustee", poa: "Power of attorney", executor: "Executor or heir",
+};
+function verificationMethodLabel(method: string): string {
+  if (method.startsWith("Representative:")) {
+    const rel = method.slice("Representative:".length);
+    return `Representative (${REPRESENTATIVE_LABELS[rel] ?? rel})`;
+  }
+  return ({ UtilityBill: "Utility bill", DeedRecord: "Property deed", TaxRecord: "Tax record" } as Record<string, string>)[method] ?? method;
+}
+
 function VerificationCard({
   property,
   onApprove,
@@ -320,6 +332,14 @@ function VerificationCard({
         <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, marginTop: "0.25rem" }}>
           Built: {String(property.yearBuilt)} · {String(property.squareFeet)} sq ft · {property.propertyType}
         </p>
+        {(property.verificationMethod || property.nameOnDocument) && (
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, marginTop: "0.25rem" }}>
+            {property.verificationMethod && <>Submitted: {verificationMethodLabel(property.verificationMethod)}</>}
+            {property.verificationMethod && property.nameOnDocument && " · "}
+            {property.nameOnDocument && <>Name on document: {property.nameOnDocument}</>}
+            {property.nameOnId && <> · Name on ID: {property.nameOnId}</>}
+          </p>
+        )}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
