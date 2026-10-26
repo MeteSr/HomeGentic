@@ -23,6 +23,8 @@ import { systemAgesService } from "@/services/systemAges";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SystemAgesModal from "@/components/SystemAgesModal";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { LoadError } from "@/components/LoadError";
+import { useDialog } from "@/hooks/useDialog";
 
 const C = V2_COLORS;
 const F = V2_FONTS;
@@ -239,13 +241,14 @@ function AddToScheduleModal({ pred, propertyId, onSave, onClose }: { pred: Syste
 
   const inp: React.CSSProperties = { width: "100%", padding: "8px 10px", fontFamily: F.body, fontSize: 13, border: `1px solid ${C.border}`, outline: "none", background: "#fff", color: C.ink, boxSizing: "border-box" };
   const lbl: React.CSSProperties = { display: "block", fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: 4 };
+  const dialog = useDialog(true, onClose, { label: `Schedule ${pred.systemName} work` });
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }} onClick={onClose}>
-      <div style={{ background: "#fff", padding: "1.5rem", maxWidth: "26rem", width: "100%", border: `1px solid ${C.border}` }} onClick={(e) => e.stopPropagation()}>
+      <div {...dialog} style={{ background: "#fff", padding: "1.5rem", maxWidth: "26rem", width: "100%", border: `1px solid ${C.border}` }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
           <p style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, color: C.ink, margin: 0 }}>Schedule {pred.systemName} Work</p>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}><X size={16} /></button>
+          <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}><X size={16} /></button>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
           <div>
@@ -403,6 +406,8 @@ export default function PredictiveMaintenancePage() {
   const [, setScheduleEntries] = useState<ScheduleEntry[]>([]);
   const [scheduleTarget,  setScheduleTarget]  = useState<SystemPrediction | null>(null);
   const [recurring,       setRecurring]       = useState<RecurringService[]>([]);
+  const [recurringFailed, setRecurringFailed] = useState(false);
+  const [recurringTry,    setRecurringTry]    = useState(0);
   const [visitLogMap,     setVisitLogMap]     = useState<Record<string, VisitLog[]>>({});
 
   const property = properties.find(p => String(p.id) === selectedId);
@@ -418,6 +423,7 @@ export default function PredictiveMaintenancePage() {
   useEffect(() => {
     if (!selectedId) return;
     let cancelled = false;
+    setRecurringFailed(false);
     recurringService.getByProperty(selectedId).then(async (svcs) => {
       if (cancelled) return;
       setRecurring(svcs);
@@ -425,9 +431,9 @@ export default function PredictiveMaintenancePage() {
         svcs.map(async (s) => [s.id, await recurringService.getVisitLogs(s.id).catch(() => [])] as [string, VisitLog[]])
       );
       if (!cancelled) setVisitLogMap(Object.fromEntries(entries));
-    }).catch(() => { if (!cancelled) { setRecurring([]); setVisitLogMap({}); } });
+    }).catch(() => { if (!cancelled) { setRecurring([]); setVisitLogMap({}); setRecurringFailed(true); } });
     return () => { cancelled = true; };
-  }, [selectedId]);
+  }, [selectedId, recurringTry]);
 
   React.useEffect(() => {
     if (!deepLinkSystem || !report) return;
@@ -521,13 +527,15 @@ export default function PredictiveMaintenancePage() {
         <div style={{ border: `1px solid ${C.border}`, background: "#fff", borderRadius: R.card, boxShadow: V2_SHADOWS.card, marginBottom: 18, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "15px 24px", borderBottom: `1px solid ${C.border}`, flexWrap: "wrap", gap: 16 }}>
             <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.11em", color: C.muted }}>
-              RECURRING SERVICES · {recurringServices.length} contracts · {pausedCount} paused{nextVisitDaysMsg ? ` · ${nextVisitDaysMsg}` : ""}
+              RECURRING SERVICES{recurringFailed ? "" : ` · ${recurringServices.length} contracts · ${pausedCount} paused${nextVisitDaysMsg ? ` · ${nextVisitDaysMsg}` : ""}`}
             </span>
             <button onClick={() => navigate("/recurring/new")} style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: C.ink, background: C.paper, border: `1.5px solid ${C.divider}`, borderRadius: R.pill, padding: "9px 17px", cursor: "pointer" }}>
               Add service
             </button>
           </div>
-          {recurringServices.length === 0 ? (
+          {recurringFailed ? (
+            <LoadError what="your recurring services" onRetry={() => setRecurringTry(n => n + 1)} />
+          ) : recurringServices.length === 0 ? (
             <div style={{ padding: "2rem", textAlign: "center" }}>
               <p style={{ fontFamily: F.body, fontSize: 14, color: C.muted }}>No recurring services yet.</p>
             </div>

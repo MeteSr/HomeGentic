@@ -77,6 +77,8 @@ export interface PanelCtx {
 
   sensorDevices: SensorDevice[];
   sensorAlerts: SensorEvent[];
+  /** The sensor lists failed to load; the panel says so instead of "0 devices". */
+  sensorsFailed?: boolean;
 
   systemAges: SystemAges;
   /** null while loading, or when the tier doesn't have shared access. */
@@ -409,6 +411,16 @@ function buildPros(ctx: PanelCtx): PanelData {
 // ── SENSORS ──────────────────────────────────────────────────────────────
 
 function buildSensors(ctx: PanelCtx): PanelData {
+  if (ctx.sensorsFailed) {
+    return {
+      chip: "SENSORS", count: "",
+      asked: "Sensor data didn't load",
+      title: "Couldn't load your sensors",
+      sub: "Check your connection and try again.",
+      cta: "Try again",
+      rows: [fullPageRow("Full Sensors page", "PAIR DEVICES, EVENT HISTORY", "/sensors", ctx)],
+    };
+  }
   const rows: PanelRow[] = ctx.sensorDevices.map((d) => {
     const alert = ctx.sensorAlerts.find((a) => a.deviceId === d.id);
     return alert

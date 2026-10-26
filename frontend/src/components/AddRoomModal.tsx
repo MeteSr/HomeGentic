@@ -4,6 +4,7 @@ import { Button } from "./Button";
 import { roomService, type Room, type CreateRoomArgs } from "@/services/room";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 const FLOOR_TYPES = [
   "Hardwood", "Tile", "Carpet", "Laminate", "Vinyl", "Concrete", "Stone", "Other",
@@ -54,13 +55,10 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, propertyId }: AddRoom
     if (!isOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [isOpen, onClose]);
+    return () => { document.body.style.overflow = prev; };
+  }, [isOpen]);
+
+  const dialog = useDialog(isOpen, onClose, { labelledBy: "add-room-title" });
 
   if (!isOpen) return null;
 
@@ -94,6 +92,7 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, propertyId }: AddRoom
       }}
     >
       <div
+        {...dialog}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: V2_COLORS.paper,
@@ -120,7 +119,7 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, propertyId }: AddRoom
               <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 600, color: V2_COLORS.blue, marginBottom: "0.2rem" }}>
                 Room Digital Twin
               </p>
-              <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: V2_COLORS.ink }}>
+              <h2 id="add-room-title" style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: V2_COLORS.ink }}>
                 Add Room
               </h2>
             </div>

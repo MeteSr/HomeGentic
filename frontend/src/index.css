@@ -468,3 +468,19 @@ table { border-collapse: collapse; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   [data-report-card] { break-inside: avoid; }
 }
+
+/* Dialog panels take focus when they open (useDialog); the panel itself
+   doesn't need a ring — its contents get one as the user tabs. */
+[aria-modal="true"]:focus { outline: none; }
+
+/* Visually hidden but read by screen readers (route announcements). */
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
+/* RouteAnnouncer focuses the page heading after navigation; it isn't a control. */
+h1[tabindex="-1"]:focus { outline: none; }

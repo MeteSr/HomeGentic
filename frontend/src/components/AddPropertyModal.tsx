@@ -12,6 +12,7 @@ import PermitCoverageIndicator from "@/components/PermitCoverageIndicator";
 import { isValidZip, isValidUsState } from "@/utils/validators";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 import type { PropertyType } from "@/services/property";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -470,13 +471,8 @@ export default function AddPropertyModal({ open, onClose }: Props) {
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
-  // ESC to close
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  // Focus trap + ESC to close
+  const dialog = useDialog(open, onClose, { label: "Add property wizard" });
 
   // Reset on open
   useEffect(() => {
@@ -1165,10 +1161,8 @@ export default function AddPropertyModal({ open, onClose }: Props) {
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
+        {...dialog}
         data-testid="property-wizard-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Add property wizard"
         style={{
           display: "flex",
           width: "100%",

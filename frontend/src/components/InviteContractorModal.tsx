@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { X, Copy, Check, Mail, Loader2 } from "lucide-react";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 import { jobService } from "@/services/job";
 import type { Job } from "@/services/job";
 import { isValidEmail } from "@/utils/validators";
@@ -40,6 +41,7 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
   const [token,    setToken]    = useState<string | null>(null);
   const [error,    setError]    = useState<string | null>(null);
   const [copied,   setCopied]   = useState(false);
+  const dialog = useDialog(true, onClose, { label: "Invite contractor to verify job" });
   const [email,    setEmail]    = useState("");
   const [sending,  setSending]  = useState(false);
   const [sent,     setSent]     = useState(false);
@@ -86,9 +88,6 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Invite contractor to verify job"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       style={{
         position: "fixed", inset: 0, zIndex: 1000,
@@ -97,7 +96,7 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
         padding: "1rem",
       }}
     >
-      <div style={{
+      <div {...dialog} style={{
         background: V2_COLORS.paper,
         borderRadius: V2_RADIUS.card,
         boxShadow: V2_SHADOWS.modal,

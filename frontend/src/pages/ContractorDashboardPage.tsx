@@ -14,6 +14,7 @@ import { useAuthStore } from "@/store/authStore";
 import { isNewSince, countNew } from "@/services/notifications";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { ResponsiveGrid } from "@/components/ResponsiveGrid";
 import { EarningsView } from "@/components/EarningsView";
@@ -100,12 +101,15 @@ function SubmitQuoteModal({ request, onSubmit, onClose }: SubmitModalProps) {
     }
   };
 
+  const dialog = useDialog(true, onClose, { label: `Submit quote for ${request.serviceType}` });
+
   return (
     <div
       style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }}
       onClick={onClose}
     >
       <div
+        {...dialog}
         style={{ background: V2_COLORS.paper, padding: "1.5rem", maxWidth: "28rem", width: "100%", maxHeight: "90vh", overflowY: "auto", border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -120,7 +124,7 @@ function SubmitQuoteModal({ request, onSubmit, onClose }: SubmitModalProps) {
               {request.description.length > 100 ? request.description.slice(0, 100) + "…" : request.description}
             </p>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, flexShrink: 0, marginLeft: "0.75rem" }}>
+          <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, flexShrink: 0, marginLeft: "0.75rem" }}>
             <X size={16} />
           </button>
         </div>

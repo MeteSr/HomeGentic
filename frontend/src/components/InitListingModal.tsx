@@ -18,6 +18,7 @@ import { fsboService } from "@/services/fsbo";
 import type { Property } from "@/services/property";
 import type { Job } from "@/services/job";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
   const [generating,   setGenerating]   = useState(false);
   const [priceError,   setPriceError]   = useState("");
   const [submitting,   setSubmitting]   = useState(false);
+  const dialog = useDialog(open, onClose, { label: "List Your Home" });
 
   if (!open) return null;
 
@@ -123,9 +125,6 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="List Your Home"
       style={{
         position:   "fixed", inset: 0, zIndex: 200,
         background: "rgba(14,11,23,0.55)",
@@ -134,7 +133,7 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{
+      <div {...dialog} style={{
         background: V2_COLORS.paper,
         width:      "100%",
         maxWidth:   "520px",

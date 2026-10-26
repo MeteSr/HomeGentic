@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useDialog } from "@/hooks/useDialog";
 import { roomService, type Room as RoomRecord, type UpdateRoomArgs, type AddFixtureArgs } from "@/services/room";
 import { type Photo } from "@/services/photo";
 import { AddRoomModal } from "@/components/AddRoomModal";
@@ -186,10 +187,11 @@ function EditRoomDrawer({
     catch (err: any) { toast.error(err.message ?? "Failed to save"); }
     finally { setSaving(false); }
   };
+  const dialog = useDialog(true, onClose, { label: `Edit ${room.name}` });
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
-      <div style={{ background: "var(--hg-surface)", border: "1px solid var(--hg-line)", borderBottom: "none", borderRadius: "16px 16px 0 0", padding: 24, width: "100%", maxWidth: 540, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+      <div {...dialog} style={{ background: "var(--hg-surface)", border: "1px solid var(--hg-line)", borderBottom: "none", borderRadius: "16px 16px 0 0", padding: 24, width: "100%", maxWidth: 540, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
         <h3 style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 800, color: "var(--hg-ink)", marginBottom: 20 }}>Edit {room.name}</h3>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div style={{ gridColumn: "1/-1" }}>
@@ -298,10 +300,11 @@ function AddFixtureDrawer({ propertyId, roomId, onSave, onClose }: { propertyId:
     catch (err: any) { toast.error(err.message ?? "Failed to add"); }
     finally { setSaving(false); }
   };
+  const dialog = useDialog(true, onClose, { label: "Add Appliance / Fixture" });
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
-      <div style={{ background: "var(--hg-surface)", border: "1px solid var(--hg-line)", borderBottom: "none", borderRadius: "16px 16px 0 0", padding: 24, width: "100%", maxWidth: 540, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+      <div {...dialog} style={{ background: "var(--hg-surface)", border: "1px solid var(--hg-line)", borderBottom: "none", borderRadius: "16px 16px 0 0", padding: 24, width: "100%", maxWidth: 540, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
         <h3 style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 800, color: "var(--hg-ink)", marginBottom: 12 }}>Add Appliance / Fixture</h3>
         <label style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, fontFamily: BODY, fontSize: 13, color: "var(--hg-muted)", cursor: scanning ? "wait" : "pointer" }}>
           <span style={{ fontFamily: BODY, fontSize: 13, fontWeight: 700, color: "var(--hg-blue-ink)", border: "1px solid var(--hg-blue-edge)", borderRadius: 100, padding: "7px 14px", whiteSpace: "nowrap" }}>

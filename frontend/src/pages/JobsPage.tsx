@@ -8,6 +8,7 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { MobileJobsPage } from "@/pages/MobileJobsPage";
 import { Panel, Pill, spinnerVars } from "@/components/hud";
+import { LoadError } from "@/components/LoadError";
 import type { ContractorProfile } from "@/services/contractor";
 import { useContractorProfiles, verifiedJobsLabel, earliestCloseAt } from "@/hooks/useContractorProfiles";
 import toast from "react-hot-toast";
@@ -190,11 +191,15 @@ export default function JobsPage() {
   const [requests,    setRequests]   = useState<QuoteRequest[]>([]);
   const [bidsMap,     setBidsMap]    = useState<Record<string, Quote[]>>({});
   const [loading,     setLoading]    = useState(true);
+  const [loadFailed,  setLoadFailed] = useState(false);
+  const [attempt,     setAttempt]    = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setLoadFailed(false);
     Promise.all([
-      jobService.getAll().catch(() => [] as Job[]),
-      quoteService.getRequests().catch(() => [] as QuoteRequest[]),
+      jobService.getAll(),
+      quoteService.getRequests(),
     ]).then(async ([js, reqs]) => {
       setJobs(js);
       setRequests(reqs);
@@ -204,8 +209,9 @@ export default function JobsPage() {
         map[r.id] = await quoteService.getQuotesForRequest(r.id).catch(() => []);
       }));
       setBidsMap(map);
-    }).finally(() => setLoading(false));
-  }, []);
+    }).catch(() => setLoadFailed(true))
+      .finally(() => setLoading(false));
+  }, [attempt]);
 
   const openJobs = useMemo(() => jobs.filter(j => !j.verified && j.status !== "rejected_by_homeowner"), [jobs]);
   const bidCount = useMemo(() => Object.values(bidsMap).reduce((s, b) => s + b.length, 0), [bidsMap]);
@@ -270,7 +276,9 @@ export default function JobsPage() {
               JOBS
             </div>
             <h1 style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: "1.875rem", color: "var(--hg-ink)", margin: 0 }}>
-              {openJobs.length} open job{openJobs.length !== 1 ? "s" : ""} · {bidCount} bid{bidCount !== 1 ? "s" : ""} waiting on you
+              {loadFailed
+                ? "Your jobs"
+                : <>{openJobs.length} open job{openJobs.length !== 1 ? "s" : ""} · {bidCount} bid{bidCount !== 1 ? "s" : ""} waiting on you</>}
             </h1>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -289,6 +297,10 @@ export default function JobsPage() {
           <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
             <div className="spinner-lg" style={spinnerVars} />
           </div>
+        ) : loadFailed ? (
+          <Panel>
+            <LoadError what="your jobs" onRetry={() => setAttempt(a => a + 1)} />
+          </Panel>
         ) : openJobs.length === 0 && requests.length === 0 ? (
           <Panel style={{ padding: "3rem", textAlign: "center" }}>
             <p style={{ fontFamily: BODY, fontSize: 15, fontWeight: 600, color: "var(--hg-ink)", marginBottom: 6 }}>No open jobs</p>

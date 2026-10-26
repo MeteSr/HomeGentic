@@ -5,6 +5,7 @@ import { sensorService, type SensorDevice, type DeviceSource } from "@/services/
 import { useOAuthDevicePicker, type OAuthPickedDevice } from "@/hooks/useOAuthDevicePicker";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -107,6 +108,7 @@ export function RegisterDeviceModal({ isOpen, onClose, onSuccess, propertyId }: 
   const [pickedDevice, setPickedDevice] = useState<OAuthPickedDevice | null>(null);
 
   const oAuth = useOAuthDevicePicker();
+  const dialog = useDialog(isOpen, onClose, { label: "Register device" });
 
   if (!isOpen) return null;
 
@@ -184,7 +186,7 @@ export function RegisterDeviceModal({ isOpen, onClose, onSuccess, propertyId }: 
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div role="dialog" aria-modal="true" aria-label="Register device" style={{
+      <div {...dialog} style={{
         background: V2_COLORS.paper, width: "100%", maxWidth: "30rem",
         borderRadius: V2_RADIUS.card, padding: "1.75rem",
         boxShadow: "0 8px 32px rgba(0,0,0,0.18)",

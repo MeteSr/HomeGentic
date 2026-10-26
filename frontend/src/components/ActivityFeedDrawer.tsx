@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import type { ActivityEvent } from "@/services/activityFeed";
+import { useDialog } from "@/hooks/useDialog";
 
 interface ActivityFeedDrawerProps {
   events:     ActivityEvent[];
@@ -15,6 +16,7 @@ interface ActivityFeedDrawerProps {
 }
 
 export function ActivityFeedDrawer({ events, feedLoaded, lastReadAt, onClose }: ActivityFeedDrawerProps) {
+  const dialog = useDialog(true, onClose, { label: "Activity" });
   const navigate = useNavigate();
 
   const icons: Record<ActivityEvent["type"], React.ReactNode> = {
@@ -36,7 +38,7 @@ export function ActivityFeedDrawer({ events, feedLoaded, lastReadAt, onClose }: 
       />
 
       {/* Drawer panel */}
-      <div style={{
+      <div {...dialog} style={{
         position:      "fixed",
         top:           0,
         right:         0,
@@ -66,7 +68,7 @@ export function ActivityFeedDrawer({ events, feedLoaded, lastReadAt, onClose }: 
               Activity
             </span>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted }}>
+          <button onClick={onClose} aria-label="Close activity" style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted }}>
             <X size={16} />
           </button>
         </div>

@@ -6,6 +6,7 @@ import { type Property } from "@/services/property";
 import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 const SERVICE_TYPES = SERVICE_TYPE_LABELS;
 const PERMIT_SERVICE_TYPES = new Set(["HVAC", "Roofing", "Electrical", "Plumbing", "Foundation"]);
@@ -89,13 +90,10 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
     if (!isOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [isOpen, onClose]);
+    return () => { document.body.style.overflow = prev; };
+  }, [isOpen]);
+
+  const dialog = useDialog(isOpen, onClose, { label: "Log a job" });
 
   if (!isOpen) return null;
 
@@ -144,6 +142,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
       }}
     >
       <div
+        {...dialog}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: V2_COLORS.paper,

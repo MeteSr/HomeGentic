@@ -124,6 +124,22 @@ test.describe("Tier limit — plan upgrade flow from Settings (Free tier)", () =
     await page.locator('[aria-label="Upgrade Your Plan"] button').first().click();
     await expect(page.getByRole("dialog", { name: /upgrade your plan/i })).not.toBeVisible();
   });
+
+  test("UpgradeModal is keyboard accessible: focus moves in, Tab stays in, Escape closes and returns focus", async ({ page }) => {
+    const opener = page.getByRole("button", { name: /^upgrade$/i }).first();
+    await opener.focus();
+    await page.keyboard.press("Enter");
+    const dialog = page.getByRole("dialog", { name: /upgrade your plan/i });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toBeFocused();
+    for (let i = 0; i < 25; i++) {
+      await page.keyboard.press("Tab");
+      expect(await dialog.evaluate((d) => d.contains(document.activeElement))).toBe(true);
+    }
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    await expect(opener).toBeFocused();
+  });
 });
 
 test.describe("Tier limit — Settings plan section (Pro tier, the only purchasable plan)", () => {

@@ -14,6 +14,7 @@ import { paymentService, type PlanTier } from "@/services/payment";
 import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
+import { useDialog } from "@/hooks/useDialog";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -39,6 +40,7 @@ const EXPIRY_OPTIONS = [
 
 export function GenerateReportModal({ property, onClose }: GenerateReportModalProps) {
   const [links,        setLinks]        = useState<ShareLink[]>([]);
+  const dialog = useDialog(true, onClose, { label: `Share report for ${property.address}` });
   const [generating,   setGenerating]   = useState(false);
   const [expiryDays,   setExpiryDays]   = useState<number | null>(30);
   const [copiedToken,  setCopiedToken]  = useState<string>("");
@@ -170,7 +172,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{
+      <div {...dialog} style={{
         background: "#FFFFFF", width: "100%", maxWidth: "32.5rem",
         maxHeight: "90vh", overflow: "auto",
         borderRadius: 22,
