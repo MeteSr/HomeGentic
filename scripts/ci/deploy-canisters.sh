@@ -77,7 +77,9 @@ dfx canister call job         setPaymentCanisterId    "(\"$PAYMENT_ID\")"
 dfx canister call property    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
 dfx canister call photo       setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
 dfx canister call quote       setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
-dfx canister call contractor  setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
+if has_method contractor setPaymentCanisterId; then
+  dfx canister call contractor setPaymentCanisterId  "(principal \"$PAYMENT_ID\")"
+fi
 dfx canister call bills       setPaymentCanisterId    "(\"$PAYMENT_ID\")"
 dfx canister call referrals   setPaymentCanisterId    "(\"$PAYMENT_ID\")"
 dfx canister call payment     setReferralsCanisterId  "(\"$REFERRALS_ID\")"
