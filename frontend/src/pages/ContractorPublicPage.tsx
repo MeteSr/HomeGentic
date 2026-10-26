@@ -15,6 +15,9 @@ import { contractorService, ContractorProfile, JobCredential, DEFAULT_PROFILE_PR
 import { LicenseCheckBadge } from "@/components/LicenseCheck";
 import { FeaturedWork } from "@/components/ContractorPortfolio";
 import { paymentService } from "@/services/payment";
+import { quoteService, type QuoteRequest } from "@/services/quote";
+import { openRequestInTrades } from "@/services/contactGate";
+import { useAuthStore } from "@/store/authStore";
 import type { PortfolioItem } from "@/services/contractor";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS } from "@/theme";
@@ -71,6 +74,9 @@ export default function ContractorPublicPage() {
   const [jobId,        setJobId]        = useState(() => searchParams.get("review") ?? "");
   const [submitting,   setSubmitting]   = useState(false);
   const [submitted,    setSubmitted]    = useState(false);
+  // undefined while loading, so contact details never flash before the check.
+  const [openTradeRequest, setOpenTradeRequest] = useState<QuoteRequest | null | undefined>(undefined);
+  const { isAuthenticated, principal } = useAuthStore();
 
   useEffect(() => {
     if (!id) return;
@@ -101,6 +107,16 @@ export default function ContractorPublicPage() {
       .catch((e) => console.error("[ContractorPublicPage] contractor load failed:", e))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!contractor) return;
+    if (!isAuthenticated || principal === contractor.id) { setOpenTradeRequest(null); return; }
+    let cancelled = false;
+    quoteService.getRequests()
+      .then((rs) => { if (!cancelled) setOpenTradeRequest(openRequestInTrades(rs, contractor.specialties)); })
+      .catch(() => { if (!cancelled) setOpenTradeRequest(null); });
+    return () => { cancelled = true; };
+  }, [contractor, isAuthenticated, principal]);
 
   const handleSubmit = async () => {
     if (!id) return;
@@ -245,8 +261,14 @@ export default function ContractorPublicPage() {
             {contractor.bio && (
               <p style={{ fontSize: "0.85rem", fontWeight: 300, color: UI.inkLight, lineHeight: 1.6 }}>{contractor.bio}</p>
             )}
-            {/* Contact info */}
-            {(contractor.email || contractor.phone) && (
+            {/* Contact info: held back while the viewer has an open request in this contractor's trade */}
+            {openTradeRequest && (contractor.email || contractor.phone) && (
+              <p data-testid="contact-held" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, paddingTop: "0.75rem", borderTop: `1px solid ${UI.rule}`, margin: 0, lineHeight: 1.6 }}>
+                You have an open {openTradeRequest.serviceType} request, so {contractor.name}'s phone and email show once you accept a bid or close it.{" "}
+                <a href={`/quotes/${openTradeRequest.id}`} style={{ color: UI.ink }}>Compare bids</a>
+              </p>
+            )}
+            {openTradeRequest === null && (contractor.email || contractor.phone) && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", paddingTop: "0.75rem", borderTop: `1px solid ${UI.rule}` }}>
                 {contractor.email && (
                   <a href={`mailto:${contractor.email}`} style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, textDecoration: "none" }}>

@@ -163,5 +163,10 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
+    setFeeCanisterId: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
   });
 };

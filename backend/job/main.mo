@@ -148,6 +148,10 @@ persistent actor Job {
   /// Currently unused: the product has no per-tier job cap (see CLAUDE.md
   /// tier table); storage is bounded by MAX_JOBS_PER_PROPERTY instead.
   private var payCanisterId:      Text        = "";
+  /// Fee canister ID — set post-deploy via setFeeCanisterId(). When set, a
+  /// job verified by both parties is reported for the Contractor Free
+  /// referral fee.
+  private var feeCanisterId:      Text        = "";
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
@@ -349,6 +353,18 @@ persistent actor Job {
   /// Text label for a ServiceType, used where it crosses a canister boundary
   /// as Text (the contractor canister, job snapshots).
   private func serviceTypeText(s: ServiceType) : Text { ServiceTypes.toText(s) };
+
+  /// Reports a job both parties verified to `fee`, which decides whether a
+  /// referral fee is now due. Failures are printed: the job stays verified.
+  private func reportReferralJob(job: Job, contractor: Principal) : async* () {
+    if (feeCanisterId == "") return;
+    try {
+      switch (await Canisters.fee(feeCanisterId).recordReferralJobVerified(job.id, contractor, job.propertyId, serviceTypeText(job.serviceType))) {
+        case (#err(_)) { Debug.print("job: fee.recordReferralJobVerified rejected " # job.id) };
+        case (#ok(_)) {};
+      };
+    } catch (_) { Debug.print("job: fee.recordReferralJobVerified failed " # job.id) };
+  };
 
   /// R2: a verified job counts toward scores / certificates / reports only when
   /// it is DIY (homeowner-only), or its contractor signature came from a
@@ -791,6 +807,12 @@ persistent actor Job {
             case null {};
           };
         };
+        if (fullyVerified and not existing2.isDiy) {
+          switch (existing2.contractor) {
+            case (?con) { await* reportReferralJob(updated, con) };
+            case null {};
+          };
+        };
 
         // Notify contractor canister when job becomes fully verified
         if (fullyVerified and Text.size(contrCanisterId) > 0) {
@@ -892,6 +914,14 @@ persistent actor Job {
   public shared(msg) func setContractorCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     contrCanisterId := id;
+    #ok(())
+  };
+
+  /// Wire the job canister to the fee canister for the Contractor Free
+  /// referral fee. fee.setJobCanisterId must name this canister too.
+  public shared(msg) func setFeeCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    feeCanisterId := id;
     #ok(())
   };
 
@@ -1392,6 +1422,12 @@ persistent actor Job {
       try {
         ignore await contrActor2.recordJobVerified(msg.caller, updated.id, svcText, updated.homeowner);
       } catch (_e) {};
+    };
+    if (bothSigned) {
+      switch (updated.contractor) {
+        case (?con) { await* reportReferralJob(updated, con) };
+        case null {};
+      };
     };
 
     #ok(updated)

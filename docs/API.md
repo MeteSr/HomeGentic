@@ -556,7 +556,24 @@ Bid to List platform-fee ledger. A fee is recorded Owed when a homeowner accepts
 | `getAllFees` | query | `()` | Admin: all fee records |
 | `getFeesDue` | query | `()` | Admin: fees still Owed or Invoiced |
 
-**Admin / Lifecycle:** `setListingCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `initAdmins(newAdmins: [Principal], nonce: Text)` · `addAdmin(newAdmin: Principal)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
+**Contractor Free referral fee** (3% of an accepted bid, $20 minimum). `quote` records bids and acceptances, `job` reports verified jobs, and the voice Worker (a referral relay) saves cards and reports charges. Status: `Pending` (accepted, job not verified) → `Due` → `Paid`, or `PaymentFailed` (card declined, invoice sent) → `Paid`; an admin can `Waive` anything unpaid.
+
+| Method | Type | Signature | Description |
+|---|---|---|---|
+| `referralBidAllowed` | query | `(contractor: Principal)` | `#ok`, `#needsCard`, or `#overdue` (a declined fee unpaid 30 days). Asked by `quote` before a non-ContractorPro bid; a contractor may ask about themselves |
+| `recordReferralBid` | update | `(bid: ReferralBid)` | `quote` only: a bid that carries the fee (the plan at bid time decides) |
+| `recordReferralAccepted` | update | `(quoteId: Text)` | `quote` only: opens a `Pending` fee for an accepted bid that carries one |
+| `recordReferralJobVerified` | update | `(jobId: Text, contractor: Principal, propertyId: Text, serviceType: Text)` | `job` only: makes the matching pending fee `Due`; with none, a bid by the same contractor on the same home and trade in the last 180 days becomes a `Due` fee (`reason = "off_app_job"`) |
+| `takeDueReferralFees` | update | `()` | Relay: moves pending fees 60 days past acceptance to `Due`, then returns every `Due` fee with the card to charge |
+| `relayMarkReferralFeePaid` | update | `(feeId: Text, paymentRef: Text)` | Relay: charge or invoice settled (idempotent) |
+| `relayMarkReferralFeeFailed` | update | `(feeId: Text, paymentRef: Text, payUrl: Text)` | Relay: card declined; `payUrl` is the Stripe invoice sent instead |
+| `relaySetReferralCard` | update | `(contractor: Principal, card: ReferralCard)` | Relay: card saved through Stripe Checkout (setup mode), with the terms version agreed |
+| `getMyReferralCard` | query | `()` | Caller's saved card (brand, last four, when agreed) |
+| `getMyReferralFees` | query | `()` | Caller's referral fees |
+| `getAllReferralFees` | query | `()` | Admin: every referral fee |
+| `waiveReferralFee` | update | `(feeId: Text, note: Text)` | Admin: cancel an unpaid fee; the note is shown to the contractor |
+
+**Admin / Lifecycle:** `setQuoteCanisterId(id: Text)` · `setJobCanisterId(id: Text)` · `addReferralRelay(p: Principal)` · `removeReferralRelay(p: Principal)` · `setListingCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `initAdmins(newAdmins: [Principal], nonce: Text)` · `addAdmin(newAdmin: Principal)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
 
 ---
 

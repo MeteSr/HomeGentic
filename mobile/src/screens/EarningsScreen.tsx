@@ -21,8 +21,8 @@ export function feeNote(pro: boolean, feeTotalCents: number, freeFeeCents: numbe
       : "Referral fees are waived on Contractor Pro.";
   }
   return feeTotalCents > 0
-    ? "3% of each winning bid, $20 minimum per job. On Contractor Pro this month would be $0."
-    : "3% of each winning bid, $20 minimum per job. Contractor Pro has no referral fees.";
+    ? "3% of each bid a homeowner accepts, $20 minimum, charged to the card you saved. Your fee history and receipts are in Settings on the HomeGentic website. On Contractor Pro this month would be $0."
+    : "3% of each bid a homeowner accepts, $20 minimum, charged to the card you saved. Your fee history and receipts are in Settings on the HomeGentic website. Contractor Pro has no referral fees.";
 }
 
 export default function EarningsScreen() {

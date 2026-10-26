@@ -37,6 +37,26 @@ fi
 # Far-future validUntil timestamp (nanoseconds) — year 2030
 VALID_UNTIL="1893456000000000000"
 
+# ─── Referral fee: a contractor without ContractorPro needs a saved card ─────
+# When quote is wired to fee (deploy-canisters.sh), quote-contractor-test bids
+# on the Contractor Free terms. The deployer is a fee admin, so it can save a
+# card the way the voice Worker does after Stripe Checkout.
+if dfx canister id fee >/dev/null 2>&1 && dfx canister metadata quote candid:service 2>/dev/null | grep -q setFeeCanisterId; then
+  echo ""
+  echo "── [RF1] referralBidAllowed before a card is saved → needsCard ──────────"
+  RF_OUT=$(dfx canister call fee referralBidAllowed "(principal \"$CONTRACTOR_PRINCIPAL\")")
+  echo "$RF_OUT"
+  if [[ "$RF_OUT" == *needsCard* ]]; then echo "  ↳ ✓"; else echo "  ↳ ❌ expected needsCard"; exit 1; fi
+  echo "── [RF2] save a card → ok ───────────────────────────────────────────────"
+  dfx canister call fee relaySetReferralCard "(principal \"$CONTRACTOR_PRINCIPAL\", record {
+    customerId = \"cus_test\"; paymentMethodId = \"pm_test\"; brand = \"visa\"; last4 = \"4242\";
+    agreedAt = 0; termsVersion = \"2026-10-26\";
+  })"
+  RF_OUT=$(dfx canister call fee referralBidAllowed "(principal \"$CONTRACTOR_PRINCIPAL\")")
+  if [[ "$RF_OUT" == *"variant { ok }"* ]]; then echo "  ↳ ✓"; else echo "  ↳ ❌ expected ok; got $RF_OUT"; exit 1; fi
+  REFERRAL_FEES_WIRED=1
+fi
+
 # ─── Real properties for the calling identities ──────────────────────────────
 # createQuoteRequest requires the caller to own or manage the property
 # (property.isAuthorized, M1), so every request below is made against a
@@ -164,6 +184,15 @@ dfx canister call $CANISTER acceptQuote "(\"$QUOTE_ID\")"
 echo ""
 echo "── [10] getQuoteRequest — status should now be Accepted ─────────────────"
 dfx canister call $CANISTER getQuoteRequest "(\"$REQ_ID\")"
+
+if [ -n "${REFERRAL_FEES_WIRED:-}" ]; then
+  echo ""
+  echo "── [RF3] the accepted bid opens a Pending referral fee of \$20 (3% of \$380 is under the minimum)"
+  RF_FEES=$(dfx canister call fee getAllReferralFees)
+  if [[ "$RF_FEES" == *"quoteId = \"$QUOTE_ID\""* && "$RF_FEES" == *"feeCents = 2_000"* && "$RF_FEES" == *"variant { Pending }"* ]]; then
+    echo "  ↳ ✓"
+  else echo "  ↳ ❌ expected a Pending \$20 fee for $QUOTE_ID; got: $RF_FEES"; exit 1; fi
+fi
 
 echo ""
 echo "── [11] acceptQuote again → expect error (already closed) ───────────────"

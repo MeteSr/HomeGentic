@@ -447,6 +447,14 @@ Multi-tab page — the main workspace for a property.
 - When a job a ContractorPro contractor co-signed becomes verified, the homeowner gets a review-request email (the job canister's `review_request` outbox event; the relay checks the tier and uses the homeowner's Job Verified email setting)
 - 50 photos per job instead of 5, 10 AI agent calls a day, no referral fee
 
+**Referral fee (Contractor Free)**
+- 3% of each bid a homeowner accepts, $20 minimum; ContractorPro pays none. The plan when the bid is sent decides
+- A card must be saved before bidding: Settings, Subscription, "Save card with Stripe" (terms checkbox first; Stripe Checkout in setup mode via `POST /api/stripe/referral-card`). The quote canister refuses the bid otherwise, and the contractor dashboard shows a reminder
+- Charged when the job is verified by both sides, or 60 days after acceptance if it never is (admins can waive). A job verified for the same home and trade within 180 days of a bid that was never accepted in the app is charged on that bid too
+- The voice Worker's hourly cron charges due fees off-session to the saved card; a declined card gets a Stripe invoice (30 days), and a fee still unpaid 30 days after the decline pauses bidding
+- Settings shows the card and every fee with its status; the admin dashboard's Referral Fees tab lists them all with a Waive button
+- While a homeowner has an open request in a contractor's trade, that contractor's public profile holds back their phone and email (front end only) and points to the bids
+
 **Directory (`/contractors`)**
 - Filter by specialty; sort by trust score or job count
 - Contractor cards with name, specialties, trust score, verification badge
@@ -529,7 +537,7 @@ than daily like every other tier — see `TIER_PERIOD` in
 cost rationale (Free carries $0 revenue to offset the cost, so its
 allowance is both smaller and paced weekly).
 
-Contractor tiers: **ContractorFree** (profile + view leads, 3% referral fee per winning bid, $20 minimum) · **ContractorPro** ($40/mo, quote submissions + earnings dashboard + reviews)
+Contractor tiers: **ContractorFree** (profile, leads and bids with a saved card, 3% referral fee per accepted bid, $20 minimum) · **ContractorPro** ($40/mo, quote submissions + earnings dashboard + reviews)
 
 Realtors have no subscription tier: the winning agent in a Bid to List auction pays a one-time platform fee (`listing.getPlatformFee()`, $399 default).
 

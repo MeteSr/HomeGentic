@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { propertyService, Property, VerificationLevel, SubscriptionTier } from "@/services/property";
 import { monitoringService, CanisterMetrics, CycleLevelResult, runwayDays, cyclesToUsd } from "@/services/monitoringService";
-import { jobService, Job } from "@/services/job";
+import { feeService, type ReferralFee, type ReferralFeeStatus } from "@/services/fee";
 import { referralService } from "@/services/referralService";
 import { paymentService } from "@/services/payment";
 import { contractorService, ContractorProfile } from "@/services/contractor";
@@ -440,17 +440,24 @@ function TierManager() {
   );
 }
 
+const REFERRAL_STATUS_LABEL: Record<ReferralFeeStatus, string> = {
+  Pending: "Awaiting verification", Due: "Charging", Paid: "Paid", PaymentFailed: "Card declined", Waived: "Waived",
+};
+const REFERRAL_REASON_LABEL: Record<string, string> = {
+  verified_job: "Job verified", accepted_60_days: "60 days after acceptance", off_app_job: "Verified job without an accepted bid",
+};
+
 function ReferralPipeline() {
-  const [jobs, setJobs]       = useState<Job[] | null>(null);
+  const [fees, setFees]       = useState<ReferralFee[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [waiving, setWaiving] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const data = await jobService.getReferralJobs();
-      setJobs(data);
+      setFees(await feeService.getAllReferralFees());
     } catch {
-      toast.error("Failed to load referral jobs");
+      toast.error("Failed to load referral fees");
     } finally {
       setLoading(false);
     }
@@ -458,18 +465,35 @@ function ReferralPipeline() {
 
   useEffect(() => { load(); }, []);
 
-  const pending   = jobs?.filter((j) => !j.verified) ?? [];
-  const collected = jobs?.filter((j) => j.verified)  ?? [];
-  const totalOwed   = pending.reduce((sum, j) => sum + referralService.calculateFee(j.amount), 0) / 100;
-  const totalEarned = collected.reduce((sum, j) => sum + referralService.calculateFee(j.amount), 0) / 100;
-  const allFees      = jobs?.reduce((sum, j) => sum + referralService.calculateFee(j.amount), 0) ?? 0;
-  const avgFee       = jobs && jobs.length > 0 ? allFees / jobs.length / 100 : 0;
+  const waive = async (f: ReferralFee) => {
+    const note = window.prompt(`Why waive ${f.id} ($${(f.feeCents / 100).toFixed(2)})? The contractor sees this note.`);
+    if (!note?.trim()) return;
+    setWaiving(f.id);
+    try {
+      const updated = await feeService.waiveReferralFee(f.id, note.trim().slice(0, 300));
+      setFees((prev) => prev?.map((x) => (x.id === updated.id ? updated : x)) ?? null);
+      toast.success(`${f.id} waived`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Couldn't waive the fee");
+    } finally {
+      setWaiving(null);
+    }
+  };
+
+  const sum = (st: ReferralFeeStatus[]) => {
+    const xs = fees?.filter((f) => st.includes(f.status)) ?? [];
+    return { cents: xs.reduce((a, f) => a + f.feeCents, 0), count: xs.length };
+  };
+  const pending   = sum(["Pending"]);
+  const owed      = sum(["Due", "PaymentFailed"]);
+  const collected = sum(["Paid"]);
+  const usd = (c: number) => `$${(c / 100).toFixed(2)}`;
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
         <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", letterSpacing: "0.06em", color: V2_COLORS.muted }}>
-          Jobs sourced via HomeGentic quote requests. {referralService.REFERRAL_FEE_RATE * 100}% of awarded value applies on dual-signature verification, ${referralService.REFERRAL_FEE_FLOOR_CENTS / 100} minimum on small jobs.
+          Contractor Free referral fees: {referralService.REFERRAL_FEE_RATE * 100}% of each accepted bid, ${referralService.REFERRAL_FEE_FLOOR_CENTS / 100} minimum. Charged to the contractor's saved card when the job is verified, or 60 days after acceptance. Waive any fee that isn't paid.
         </p>
         <button
           onClick={load}
@@ -484,19 +508,14 @@ function ReferralPipeline() {
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
         {[
-          { label: "Pending fees",   value: `$${totalOwed.toFixed(2)}`,   count: pending.length,   note: "awaiting verification" },
-          { label: "Collected fees", value: `$${totalEarned.toFixed(2)}`, count: collected.length, note: "verified jobs" },
-          { label: "Avg fee/job",    value: `$${avgFee.toFixed(2)}`, count: null, note: `${referralService.REFERRAL_FEE_RATE * 100}% · $${referralService.REFERRAL_FEE_FLOOR_CENTS / 100} min` },
+          { label: "Pending fees",   value: usd(pending.cents),   note: `${pending.count} awaiting verification` },
+          { label: "Owed now",       value: usd(owed.cents),      note: `${owed.count} charging or declined` },
+          { label: "Collected fees", value: usd(collected.cents), note: `${collected.count} paid` },
         ].map((card) => (
           <div key={card.label} style={{ background: V2_COLORS.paper, border: `1px solid ${V2_COLORS.border}`, padding: "1rem 1.25rem" }}>
             <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.375rem" }}>{card.label}</p>
             <p style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: V2_COLORS.ink, marginBottom: "0.25rem" }}>{card.value}</p>
-            {card.count !== null && (
-              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted }}>{card.count} {card.note}</p>
-            )}
-            {card.count === null && (
-              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted }}>{card.note}</p>
-            )}
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted }}>{card.note}</p>
           </div>
         ))}
       </div>
@@ -505,46 +524,55 @@ function ReferralPipeline() {
         <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
           <div className="spinner-lg" />
         </div>
-      ) : jobs === null || jobs.length === 0 ? (
+      ) : fees === null || fees.length === 0 ? (
         <div style={{ border: `1px dashed ${V2_COLORS.border}`, padding: "3rem", textAlign: "center" }}>
           <DollarSign size={32} color={V2_COLORS.border} style={{ margin: "0 auto 0.75rem" }} />
           <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", letterSpacing: "0.06em", color: V2_COLORS.muted }}>
-            No referral jobs yet. Jobs sourced via quote requests will appear here once contractors receive their first HomeGentic lead.
+            No referral fees yet. A fee opens when a homeowner accepts a bid from a contractor without ContractorPro.
           </p>
         </div>
       ) : (
-        <div style={{ border: `1px solid ${V2_COLORS.border}`, borderRadius: 0, overflow: "hidden" }}>
+        <div style={{ border: `1px solid ${V2_COLORS.border}`, borderRadius: 0, overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: V2_COLORS.lblue }}>
-                {["Job ID", "Quote ID", "Service", "Amount", "Status", "Fee"].map((h) => (
+                {["Fee", "Contractor", "Service", "Bid", "Status", "Why", "Fee amount", ""].map((h) => (
                   <th key={h} style={{ textAlign: "left", padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, borderBottom: `1px solid ${V2_COLORS.border}` }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {jobs.map((j, i) => (
-                <tr key={j.id} style={{ borderBottom: i < jobs.length - 1 ? `1px solid ${V2_COLORS.border}` : "none", background: i % 2 === 0 ? V2_COLORS.paper : V2_COLORS.lblue }}>
-                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.ink, fontWeight: 600 }}>{j.id}</td>
-                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.muted }}>{j.sourceQuoteId ?? "—"}</td>
-                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.muted }}>{j.serviceType}</td>
-                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.muted }}>${(j.amount / 100).toFixed(2)}</td>
+              {fees.map((f, i) => (
+                <tr key={f.id} style={{ borderBottom: i < fees.length - 1 ? `1px solid ${V2_COLORS.border}` : "none", background: i % 2 === 0 ? V2_COLORS.paper : V2_COLORS.lblue }}>
+                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.ink, fontWeight: 600 }}>{f.id}<div style={{ fontWeight: 400, color: V2_COLORS.muted }}>{f.quoteId}{f.jobId ? ` · ${f.jobId}` : ""}</div></td>
+                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.mono, fontSize: "0.6rem", color: V2_COLORS.muted, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.contractor}>{f.contractor}</td>
+                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.muted }}>{f.serviceType}</td>
+                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.muted }}>{usd(f.bidCents)}</td>
                   <td style={{ padding: "0.625rem 1rem" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 8px", background: j.verified ? "#dcfce7" : V2_COLORS.attentionBg, color: j.verified ? "#16a34a" : V2_COLORS.ink }}>
-                      {j.verified ? "Verified" : j.status}
+                    <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 8px", background: f.status === "Paid" ? "#dcfce7" : V2_COLORS.attentionBg, color: f.status === "Paid" ? "#16a34a" : V2_COLORS.ink }}>
+                      {REFERRAL_STATUS_LABEL[f.status]}
                     </span>
+                    {f.payUrl && f.status === "PaymentFailed" && <a href={f.payUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 6, fontSize: "0.6rem", color: V2_COLORS.blue }}>Invoice</a>}
                   </td>
-                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: j.verified ? "#16a34a" : V2_COLORS.muted, fontWeight: j.verified ? 700 : 400 }}>
-                    {j.verified
-                      ? <>
-                          {`$${(referralService.calculateFee(j.amount) / 100).toFixed(2)}`}
-                          {referralService.isFloored(j.amount) && (
-                            <span style={{ marginLeft: "0.375rem", fontFamily: V2_FONTS.body, fontSize: "0.5rem", letterSpacing: "0.06em", color: V2_COLORS.amberText, background: V2_COLORS.amberBg, border: `1px solid ${V2_COLORS.amberBorder}`, borderRadius: 3, padding: "1px 4px" }}>
-                              MIN
-                            </span>
-                          )}
-                        </>
-                      : "Pending"}
+                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted }}>{f.status === "Waived" ? f.reason : (REFERRAL_REASON_LABEL[f.reason] ?? f.reason)}</td>
+                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.ink, fontWeight: 700 }}>
+                    {usd(f.feeCents)}
+                    {referralService.isFloored(f.bidCents) && (
+                      <span style={{ marginLeft: "0.375rem", fontFamily: V2_FONTS.body, fontSize: "0.5rem", letterSpacing: "0.06em", color: V2_COLORS.amberText, background: V2_COLORS.amberBg, border: `1px solid ${V2_COLORS.amberBorder}`, borderRadius: 3, padding: "1px 4px" }}>
+                        MIN
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: "0.625rem 1rem" }}>
+                    {f.status !== "Paid" && f.status !== "Waived" && (
+                      <button
+                        onClick={() => waive(f)}
+                        disabled={waiving === f.id}
+                        style={{ padding: "0.25rem 0.625rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.paper, fontFamily: V2_FONTS.body, fontSize: "0.6rem", cursor: "pointer", color: V2_COLORS.ink }}
+                      >
+                        Waive
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

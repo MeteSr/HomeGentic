@@ -864,6 +864,7 @@ if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
   grant photo addPhotoRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker check who may read off-chain photos"
   grant job addInboxRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker file forwarded invoices as drafts"
   grant contractor addLicenseRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker record Florida DBPR licence lookups"
+  grant fee addReferralRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker save referral-fee cards and record charges"
 fi
 if [ -n "${IOT_GATEWAY_PRINCIPAL:-}" ]; then
   # Once a gateway is registered, sensor refuses self-asserted registerDevice
@@ -927,6 +928,18 @@ fi
 if [ -n "$FEE_ID" ]        && [ -n "$LISTING_ID" ]; then
   echo "  Wiring listing -> fee (recordFeeOwed trust)..."
   bg_call fee        setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV"
+fi
+# Contractor Free referral fee: quote and job report bids, acceptances and
+# verified jobs to fee, and fee only accepts them from those two canisters.
+if [ -n "$FEE_ID" ]        && [ -n "$QUOTE_ID" ]; then
+  echo "  Wiring quote <-> fee (referral fee bids and acceptances)..."
+  bg_call fee        setQuoteCanisterId      "(\"$QUOTE_ID\")"            -e "$ENV"
+  bg_call quote      setFeeCanisterId        "(principal \"$FEE_ID\")"    -e "$ENV"
+fi
+if [ -n "$FEE_ID" ]        && [ -n "$JOB_ID" ]; then
+  echo "  Wiring job <-> fee (referral fee on verified jobs)..."
+  bg_call fee        setJobCanisterId        "(\"$JOB_ID\")"              -e "$ENV"
+  bg_call job        setFeeCanisterId        "(\"$FEE_ID\")"              -e "$ENV"
 fi
 if [ -n "$MARKET_ID" ]     && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> market (score computation)..."

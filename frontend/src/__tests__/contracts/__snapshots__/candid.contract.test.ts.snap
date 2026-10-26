@@ -1326,6 +1326,15 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "variant {ok:text; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
     ],
   },
+  "setFeeCanisterId": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
+    ],
+  },
   "setPropertyCanisterId": {
     "args": [
       "text",
@@ -2924,6 +2933,15 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {bids:vec record {id:text; requestId:text; ciphertext:vec nat8; timelineDays:nat; submittedAt:int; contractor:principal}; encryptedKey:vec nat8}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
+    ],
+  },
+  "setFeeCanisterId": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
     ],
   },
   "setPropertyCanisterId": {
