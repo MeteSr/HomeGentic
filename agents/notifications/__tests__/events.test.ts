@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 // Outbox event → push mapping and new-lead contractor matching.
-import { contractorWantsLead, notificationsFor, payloadFor, tradeLabel } from "../events";
+import { FREE_LEAD_DELAY_MS, contractorWantsLead, notificationsFor, payloadFor, tradeLabel } from "../events";
 import type { ContractorInfo, OutboxEvent, QuoteRequestInfo } from "../types";
 
 const REQ: QuoteRequestInfo = {
@@ -104,9 +104,10 @@ describe("contractorWantsLead", () => {
 });
 
 describe("notificationsFor", () => {
-  const lookups = (req: QuoteRequestInfo | null, contractors: ContractorInfo[]) => ({
+  const lookups = (req: QuoteRequestInfo | null, contractors: ContractorInfo[], pro: (p: string) => Promise<boolean> = async () => true) => ({
     getQuoteRequest: jest.fn(async () => req),
     getContractors:  jest.fn(async () => contractors),
+    isPro:           jest.fn(pro),
   });
 
   it("sends a recipient event to its recipient", async () => {
@@ -127,6 +128,35 @@ describe("notificationsFor", () => {
     const out = await notificationsFor(lead, lookups(REQ, [PRO, other]));
     expect(out.map((n) => n.principal)).toEqual(["hvac-pro"]);
     expect(out[0].payload.route).toBe("leads/REQ_1");
+  });
+
+  it("holds lead alerts 30 minutes for contractors without ContractorPro", async () => {
+    expect(FREE_LEAD_DELAY_MS).toBe(30 * 60 * 1000);
+    const free = { ...PRO, principal: "free-pro" };
+    const broken = { ...PRO, principal: "broken" };
+    const out = await notificationsFor(lead, lookups(REQ, [PRO, free, broken], async (p) => {
+      if (p === "broken") throw new Error("payment down");
+      return p === "hvac-pro";
+    }), 1_000);
+    expect(out.map((n) => [n.principal, n.notBefore])).toEqual([
+      ["hvac-pro", undefined],
+      ["free-pro", 1_000 + FREE_LEAD_DELAY_MS],
+      ["broken", 1_000 + FREE_LEAD_DELAY_MS],
+    ]);
+  });
+
+  it("asks the homeowner for a review only when the contractor has ContractorPro", async () => {
+    const ask = { seq: 4, kind: "review_request", recipient: "home-1", refId: "JOB_9", summary: "pro-1" };
+    const out = await notificationsFor(ask, lookups(null, [], async (p) => p === "pro-1"));
+    expect(out).toEqual([{ type: "review_request", principal: "home-1", pushOptIn: true, payload: expect.objectContaining({ route: "review/pro-1/JOB_9" }) }]);
+    expect(await notificationsFor({ ...ask, summary: "free-1" }, lookups(null, [], async (p) => p === "pro-1"))).toEqual([]);
+    expect(await notificationsFor(ask, lookups(null, [], async () => { throw new Error("down"); }))).toEqual([]);
+  });
+
+  it("doesn't look up tiers for recipient events", async () => {
+    const l = lookups(null, []);
+    await notificationsFor({ seq: 2, kind: "bid_accepted", recipient: "c-1", refId: "Q", summary: "HVAC" }, l);
+    expect(l.isPro).not.toHaveBeenCalled();
   });
 
   it("skips a lead whose request is gone or no longer open", async () => {

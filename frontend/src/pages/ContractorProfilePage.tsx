@@ -4,7 +4,10 @@ import { TRADE_LABELS } from "@homegentic/shared/serviceTypes";
 import { ArrowLeft, Save, ShieldCheck, User } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
-import { contractorService, ContractorProfile } from "@/services/contractor";
+import { contractorService, ContractorProfile, type LicenseCheck } from "@/services/contractor";
+import { PortfolioEditor } from "@/components/ContractorPortfolio";
+import { paymentService } from "@/services/payment";
+import { licenseCheckSummary, licenseCheckSource, normLicense, looksLikeFlLicense } from "@/components/LicenseCheck";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { isValidEmail, isValidPhone } from "@/utils/validators";
@@ -66,14 +69,23 @@ export default function ContractorProfilePage() {
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [zipInput,  setZipInput]  = useState("");
+  const [licenseCheck, setLicenseCheck] = useState<LicenseCheck | null>(null);
+  const [checking,  setChecking]  = useState(false);
+  const [isPro,     setIsPro]     = useState(false);
 
   useEffect(() => {
     contractorService.getMyProfile()
       .then((p) => {
-        if (p) { setExisting(p); setForm(fromProfile(p)); }
+        if (p) {
+          setExisting(p); setForm(fromProfile(p));
+          if (p.licenseNumber) contractorService.getLicenseCheck(p.id).then(setLicenseCheck).catch(() => {});
+        }
       })
       .catch((e) => console.error("[ContractorProfilePage] profile load failed:", e))
       .finally(() => setLoading(false));
+    paymentService.getMySubscription()
+      .then((s) => setIsPro(s.tier === "ContractorPro"))
+      .catch(() => {});
   }, []);
 
   const update = (key: keyof FormState, value: string) =>
@@ -88,6 +100,20 @@ export default function ContractorProfilePage() {
   };
 
   const isEditing = existing !== null;
+  const savedLicense = existing?.licenseNumber ?? "";
+  const licenseUnsaved = form.licenseNumber.trim() !== savedLicense;
+
+  const checkLicense = async () => {
+    if (!existing) return;
+    setChecking(true);
+    try {
+      setLicenseCheck(await contractorService.checkMyLicense(existing.id));
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't check your licence just now.");
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!form.name.trim())          { toast.error("Name is required"); return; }
@@ -324,6 +350,29 @@ export default function ContractorProfilePage() {
                     value={form.licenseNumber}
                     onChange={(e) => update("licenseNumber", e.target.value)}
                   />
+                  {isEditing && looksLikeFlLicense(form.licenseNumber) && (
+                    <div data-testid="license-check-panel" style={{ marginTop: "0.5rem", fontFamily: UI.mono, fontSize: "0.72rem", lineHeight: 1.45, color: UI.ink }}>
+                      {licenseUnsaved ? (
+                        <p style={{ color: UI.inkLight, margin: 0 }}>Save your profile to check this number with Florida DBPR.</p>
+                      ) : (
+                        <>
+                          {licenseCheck && licenseCheck.licenseNumber === normLicense(savedLicense) ? (
+                            <p style={{ margin: "0 0 0.4rem" }}>
+                              {licenseCheckSummary(licenseCheck)}{" "}
+                              <span style={{ color: UI.inkLight }}>{licenseCheckSource(licenseCheck)} Homeowners see this on your public profile.</span>
+                            </p>
+                          ) : (
+                            <p style={{ color: UI.inkLight, margin: "0 0 0.4rem" }}>
+                              Florida licences can be looked up in DBPR's public licensee file. Homeowners see the result on your public profile.
+                            </p>
+                          )}
+                          <Button variant="outline" size="sm" onClick={checkLicense} disabled={checking}>
+                            {checking ? "Checking…" : "Check with Florida DBPR"}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="form-label">Service Area</label>
@@ -420,6 +469,15 @@ export default function ContractorProfilePage() {
                 Score improves as you complete verified HomeGentic jobs.
               </p>
             </div>
+          </div>
+        )}
+
+        {existing && (
+          <div style={{ marginTop: "1.25rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.25rem", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.card }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
+              Portfolio
+            </p>
+            <PortfolioEditor contractorId={existing.id} isPro={isPro} />
           </div>
         )}
       </div>

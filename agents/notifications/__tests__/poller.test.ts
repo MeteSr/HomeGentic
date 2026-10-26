@@ -36,6 +36,7 @@ function deps(over: Partial<PollerDeps> = {}): PollerDeps {
     readOutbox:      outbox([]),
     getQuoteRequest: jest.fn(async () => null),
     getContractors:  jest.fn(async () => []),
+    isPro:           jest.fn(async () => true),
     dispatch:        jest.fn(async () => undefined),
     wantsPush:       jest.fn(() => true),
     emailEnabled:    jest.fn(() => false),
@@ -270,5 +271,58 @@ describe("pollOnce", () => {
     const d = deps();
     await p.pollOnce(d);
     expect(d.readOutbox).not.toHaveBeenCalled();
+  });
+});
+
+describe("held lead alerts (Contractor Free)", () => {
+  const REQ = (status: string) => jest.fn(async (id: string) => ({
+    id, homeowner: "h", serviceType: "Roofing", status,
+    zipCode: null, minTrustScore: null, minJobsCompleted: null,
+  }));
+  const roofer = (principal: string) => ({
+    principal, specialties: ["Roofing"], serviceZips: [], alertZips: [],
+    notifyPush: true, trustScore: 70, jobsCompleted: 0, isVerified: false,
+  });
+
+  async function holdOneLead(p: typeof import("../poller"), status = "Open") {
+    await p.pollCanister("quote-id", deps({ readOutbox: outbox([]) }));
+    const d = deps({
+      readOutbox:      outbox([ev(1, { kind: "new_lead", recipient: null, refId: "REQ_1", summary: "Roofing" })]),
+      getQuoteRequest: REQ("Open"),
+      getContractors:  jest.fn(async () => [roofer("pro"), roofer("free")]),
+      isPro:           jest.fn(async (pr: string) => pr === "pro"),
+    });
+    expect(await p.pollCanister("quote-id", d)).toBe(1);
+    expect(d.dispatch).toHaveBeenCalledWith("pro", expect.anything());
+    expect(d.dispatch).not.toHaveBeenCalledWith("free", expect.anything());
+    expect(p.heldNotifications().map((h) => h.n.principal)).toEqual(["free"]);
+    return deps({ getQuoteRequest: REQ(status) });
+  }
+
+  it("sends a held alert once it's due, and only once", async () => {
+    const p = freshPoller();
+    const d = await holdOneLead(p);
+    expect(await p.flushHeld(d, Date.now())).toBe(0);
+    expect(await p.flushHeld(d, Date.now() + 31 * 60_000)).toBe(1);
+    expect(d.dispatch).toHaveBeenCalledWith("free", expect.anything());
+    expect(p.heldNotifications()).toEqual([]);
+    expect(await p.flushHeld(d, Date.now() + 61 * 60_000)).toBe(0);
+  });
+
+  it("drops a held alert when the request closed in the meantime", async () => {
+    const p = freshPoller();
+    const d = await holdOneLead(p, "Accepted");
+    expect(await p.flushHeld(d, Date.now() + 31 * 60_000)).toBe(0);
+    expect(d.dispatch).not.toHaveBeenCalled();
+    expect(p.heldNotifications()).toEqual([]);
+  });
+
+  it("keeps a held alert to retry when the request can't be read", async () => {
+    const p = freshPoller();
+    await holdOneLead(p);
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    const d = deps({ getQuoteRequest: jest.fn(async () => { throw new Error("down"); }) });
+    expect(await p.flushHeld(d, Date.now() + 31 * 60_000)).toBe(0);
+    expect(p.heldNotifications()).toHaveLength(1);
   });
 });

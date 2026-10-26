@@ -7,6 +7,11 @@ export function webPathFor(route: string | undefined): string {
   if (!route) return "/dashboard";
   if (route === "jobs" || route.startsWith("jobs/")) return "/jobs";
   if (route === "leads" || route.startsWith("leads/")) return "/contractor-dashboard";
+  // "review/<contractor>/<jobId>": the contractor's public page, review form filled in.
+  if (route.startsWith("review/")) {
+    const [contractor, jobId = ""] = route.slice("review/".length).split("/");
+    return `/contractor/${encodeURIComponent(contractor)}?review=${encodeURIComponent(jobId)}#review`;
+  }
   if (route.startsWith("quotes/")) return `/quotes/${encodeURIComponent(route.slice("quotes/".length))}`;
   return "/dashboard";
 }

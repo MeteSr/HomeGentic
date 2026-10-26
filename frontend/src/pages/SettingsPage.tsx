@@ -259,7 +259,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.375rem 1.5rem" }}>
             {(profile?.role === "Contractor"
-              ? ["Contractor profile listing", "Lead notifications", "Job completion certificates", "Trust score display", "Customer reviews", "Earnings dashboard"]
+              ? ["Instant lead alerts", "50 photos per job", "Featured portfolio", "Automatic review requests", "Earnings view", "No referral fees"]
               : ["Score Breakdown", "Insurance Defense Mode", "Resale Ready"]
             ).map((f) => (
               <span key={f} style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, display: "flex", alignItems: "center", gap: "0.35rem" }}>

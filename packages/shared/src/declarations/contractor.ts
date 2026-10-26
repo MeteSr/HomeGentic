@@ -78,6 +78,29 @@ export const idlFactory = ({ IDL }: any) => {
     RateLimitExceeded: IDL.Null,
     InvalidInput:      IDL.Text,
   });
+  const LicenseCheckFields = {
+    licenseNumber: IDL.Text,
+    found:         IDL.Bool,
+    licenseeName:  IDL.Text,
+    dbaName:       IDL.Text,
+    licenseType:   IDL.Text,
+    status:        IDL.Text,
+    active:        IDL.Bool,
+    expiresOn:     IDL.Text,
+    nameMatches:   IDL.Bool,
+    sourceDate:    IDL.Text,
+  };
+  const LicenseCheckInput = IDL.Record(LicenseCheckFields);
+  const LicenseCheck = IDL.Record({ ...LicenseCheckFields, checkedAt: IDL.Int });
+  const PortfolioInput = IDL.Record({ credentialId: IDL.Nat, title: IDL.Text, description: IDL.Text });
+  const PortfolioItem = IDL.Record({
+    credentialId: IDL.Nat,
+    title:        IDL.Text,
+    description:  IDL.Text,
+    serviceType:  IDL.Text,
+    verifiedAt:   IDL.Int,
+    featuredAt:   IDL.Int,
+  });
   return IDL.Service({
     register: IDL.Func(
       [RegisterArgs],
@@ -90,6 +113,17 @@ export const idlFactory = ({ IDL }: any) => {
       []
     ),
     deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
+    relayRecordLicenseCheck: IDL.Func(
+      [IDL.Principal, LicenseCheckInput],
+      [IDL.Variant({ ok: LicenseCheck, err: Error })],
+      []
+    ),
+    getLicenseCheck: IDL.Func([IDL.Principal], [IDL.Opt(LicenseCheck)], ["query"]),
+    setPortfolio: IDL.Func([IDL.Vec(PortfolioInput)], [IDL.Variant({ ok: IDL.Vec(PortfolioItem), err: Error })], []),
+    getPortfolio: IDL.Func([IDL.Principal], [IDL.Vec(PortfolioItem)], ["query"]),
+    setPaymentCanisterId: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    addLicenseRelay: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    removeLicenseRelay: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     getMyProfile: IDL.Func(
       [],
       [IDL.Variant({ ok: ContractorProfile, err: Error })],

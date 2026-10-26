@@ -37,9 +37,20 @@ vi.mock("@/services/contractor", async (importOriginal) => {
       getMyProfile: mockGetMyProfile,
       updateProfile: mockUpdateProfile,
       register: mockRegister,
+      getLicenseCheck: vi.fn(async () => null),
+      checkMyLicense:  vi.fn(),
+      getCredentials:  vi.fn(async () => []),
+      getPortfolio:    vi.fn(async () => []),
     },
   };
 });
+
+vi.mock("@/services/payment", () => ({
+  paymentService: {
+    getMySubscription: vi.fn(async () => ({ tier: "ContractorFree", expiresAt: null, cancelledAt: null })),
+    getTierFor:        vi.fn(async () => "ContractorFree"),
+  },
+}));
 
 vi.mock("@/components/Layout", () => ({
   Layout: ({ children }: any) => <div data-testid="layout">{children}</div>,

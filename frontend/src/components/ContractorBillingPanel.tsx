@@ -147,10 +147,10 @@ function FreeBillingView({ rows, onUpgradeClick }: { rows: LedgerRow[]; onUpgrad
         <div style={{ display: "flex", flexDirection: "column", gap: "0.6875rem", marginTop: "1.25rem", paddingTop: "1.125rem", borderTop: "1px solid rgba(252,252,253,0.16)" }}>
           {[
             `No ${FEE_LABEL} fee on any winning bid`,
-            "Lead notifications the moment a job posts",
+            "Lead alerts the moment a job posts, 30 minutes before Free",
             "50 photos per job instead of 5",
-            "Trust score shown on your public profile",
-            "Earnings dashboard across all jobs",
+            "A featured portfolio and automatic review requests",
+            "Month-by-month earnings with CSV export",
           ].map((f) => (
             <div key={f} style={{ display: "grid", gridTemplateColumns: "1rem minmax(0,1fr)", gap: "0.625rem", alignItems: "start" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.yellow} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: "0.1875rem" }}><path d="M20 6.5 9.2 17.3 4 12.1" /></svg>

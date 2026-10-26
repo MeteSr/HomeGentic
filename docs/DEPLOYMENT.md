@@ -130,6 +130,7 @@ deadline reminders.
 | `CANISTER_ID_PAYMENT` | Payment canister ID |
 | `CANISTER_ID_AUTH` | Auth canister ID — resolves the `x-agent-session` tokens that identify callers on `/api/chat` and `/api/agent`. Without it those routes return 401 in production |
 | `CANISTER_ID_JOB` | Job canister ID — contractor-invite email, and filing forwarded invoices as drafts |
+| `CANISTER_ID_CONTRACTOR` | Contractor canister ID — records Florida DBPR licence lookups (`/api/license/check`). The Worker's identity must be added with `contractor.addLicenseRelay` (`scripts/deploy.sh` does it). Optional `DBPR_LICENSE_FILE_URL` overrides DBPR's construction licensee file URL |
 | `RESEND_API_KEY`, `RESEND_FROM` | Transactional email (moved off `ai_proxy`, whose memory node operators can read) |
 | `ATTOM_API_KEY` | Property-record lookups |
 | `OPENPERMIT_API_KEY` | Permit imports |
@@ -233,6 +234,7 @@ Dockerfile in the repo — host it on any Node platform and set the variables be
 | `CANISTER_ID_JOB` | Job canister — outbox for job signatures, verified jobs and sensor alerts |
 | `CANISTER_ID_QUOTE` | Quote canister — outbox for bid outcomes, quotes received and new leads |
 | `CANISTER_ID_CONTRACTOR` | Contractor canister — profiles for new-lead matching and contractors' notification email |
+| `CANISTER_ID_PAYMENT` | Payment canister — contractor tiers: ContractorPro gets new-lead alerts at once and Free 30 minutes later, and review requests go out only for ContractorPro. Without it every contractor is treated as Free |
 | `POLL_INTERVAL_MS` | How often to read the outboxes (default `30000`) |
 | `APNS_KEY_ID` | Apple APNs Auth Key ID (for iOS push) |
 | `APNS_TEAM_ID` | Apple Team ID |

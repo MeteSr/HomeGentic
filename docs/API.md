@@ -176,10 +176,15 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `createOrLinkGuestProfile` | update | `(contractorPrincipal: Principal, name: Text, phone: Text, email: Text, licenseNumber: ?Text, serviceTypeText: Text, originJobId: Text)` | #518 — Called by the Job canister (cross-canister) when a guest (no-account) contractor redeems an invite token. |
 | `getContractorStats` | query | `(p: Principal)` | Lightweight stats query used by the quote canister to check visibility thresholds. |
 | `getPage` | query | `(from: Nat, limit: Nat)` | Paginated contractor list |
+| `relayRecordLicenseCheck` | update | `(contractor: Principal, input: LicenseCheckInput)` | Licence relay (the voice Worker) or admin: record what Florida DBPR's licensee file says about the contractor's licence number. Refused when `input.licenseNumber` isn't the profile's current number (compared uppercased, without spaces or dashes) |
+| `getLicenseCheck` | query | `(contractor: Principal)` | Public: the last DBPR lookup (`LicenseCheck`: number, found, licensee and DBA name, licence type, status, active, expiry, nameMatches, DBPR file date, checkedAt), or null when never checked or the number has changed since |
+| `addLicenseRelay` / `removeLicenseRelay` | update | `(p: Principal)` | Admin: allow or revoke a principal recording licence checks |
+| `setPortfolio` | update | `(entries: [PortfolioInput])` | ContractorPro only (tier read live from `payment`; refused when payment isn't wired): replace the caller's featured jobs. `PortfolioInput = { credentialId: Nat, title: Text (1–80), description: Text (≤600) }`; each credential must be the caller's own, at most 12, no repeats. Returns `[PortfolioItem]` |
+| `getPortfolio` | query | `(contractor: Principal)` | Public: featured jobs in order, each with the credential's `serviceType` and `verifiedAt`. The public page shows them only while `payment.getTierForPrincipal` says ContractorPro |
 
 **ContractorProfile new fields (after #279):** `notifyEmail: ?Text` (override email for alerts; null = use profile email), `notifyPush: ?Bool` (opt-in to new-lead push alerts on the contractor's phones and browsers), `alertZips: [Text]` (subset of serviceZips to receive alerts for; empty = all serviceZips).
 
-**Admin / Lifecycle:** `setJobCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `addTrustedCanister(p: Principal)` · `removeTrustedCanister(p: Principal)` · `getTrustedCanisters()` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
+**Admin / Lifecycle:** `setJobCanisterId(id: Text)` · `setPaymentCanisterId(id: Principal)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `addTrustedCanister(p: Principal)` · `removeTrustedCanister(p: Principal)` · `getTrustedCanisters()` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
 
 ---
 

@@ -16,6 +16,8 @@ import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { ResponsiveGrid } from "@/components/ResponsiveGrid";
+import { EarningsView } from "@/components/EarningsView";
+import { paymentService } from "@/services/payment";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -321,6 +323,7 @@ export default function ContractorDashboardPage() {
   const [modalRequest,  setModalRequest]  = useState<QuoteRequest | null>(null);
   const [loading,       setLoading]       = useState(true);
   const [showBidHistory, setShowBidHistory] = useState(false);
+  const [isPro,         setIsPro]         = useState(false);
   const { isMobile } = useBreakpoint();
 
   useEffect(() => {
@@ -339,6 +342,7 @@ export default function ContractorDashboardPage() {
       quoteService.getOpenRequests().then(setOpenRequests).catch((e) => console.error("[ContractorDashboard] open requests load failed:", e)),
       jobService.getJobsPendingMySignature().then(setPendingJobs).catch((e) => console.error("[ContractorDashboard] pending jobs load failed:", e)),
       quoteService.getMyBids().then(setMyBids).catch((e) => console.error("[ContractorDashboard] my bids load failed:", e)),
+      paymentService.getMySubscription().then((s) => setIsPro(s.tier === "ContractorPro")).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -509,6 +513,8 @@ export default function ContractorDashboardPage() {
             );
           })}
         </ResponsiveGrid>
+
+        {!loading && profile && <EarningsView bids={myBids} isPro={isPro} />}
 
         {/* Two-column layout */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: "1.5rem", alignItems: "start" }}>

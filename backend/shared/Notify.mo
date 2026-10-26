@@ -29,6 +29,9 @@ module {
   ///   "sensor_alert"           — recipient: the homeowner; refId: the job a
   ///                              critical sensor reading opened
   ///   "quote_received"         — recipient: the homeowner; refId: quote requestId
+  ///   "review_request"         — recipient: the homeowner; refId: jobId;
+  ///                              summary: the contractor's principal (the
+  ///                              relay sends it only for ContractorPro)
   ///   "new_lead"               — recipient: null (the relay picks matching
   ///                              contractors); refId: quote requestId
   public type Event = {

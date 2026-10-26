@@ -104,10 +104,12 @@ const PLAN_META: Record<string, { label: string; monthly: number; yearly: number
     monthly: 40,
     yearly:  400,
     features: [
-      "Unlimited properties",
+      "Instant lead alerts",
       "50 photos per job",
-      "Lead generation tools",
-      "Business analytics",
+      "Featured portfolio of your co-signed jobs",
+      "Automatic review requests",
+      "Earnings view with CSV export",
+      "No referral fees",
     ],
   },
 };

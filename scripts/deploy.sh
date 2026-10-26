@@ -777,6 +777,10 @@ if [ -n "$QUOTE_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> quote..."
   bg_call quote    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV"
 fi
+if [ -n "$CONTRACTOR_ID" ] && [ -n "$PAYMENT_ID" ];  then
+  echo "  Wiring payment -> contractor..."
+  bg_call contractor setPaymentCanisterId  "(principal \"$PAYMENT_ID\")" -e "$ENV"
+fi
 
 if [ -n "$BILLS_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> bills..."
@@ -859,6 +863,7 @@ if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
   grant agent addContactReader "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker read agent emails for Bid to List mail"
   grant photo addPhotoRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker check who may read off-chain photos"
   grant job addInboxRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker file forwarded invoices as drafts"
+  grant contractor addLicenseRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker record Florida DBPR licence lookups"
 fi
 if [ -n "${IOT_GATEWAY_PRINCIPAL:-}" ]; then
   # Once a gateway is registered, sensor refuses self-asserted registerDevice

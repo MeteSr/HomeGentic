@@ -78,7 +78,10 @@ describe("RECALL.3 caching", () => {
     expect(f).toHaveBeenCalledTimes(1);
     expect(String(f.mock.calls[0][0])).toBe(`${CPSC_RECALL_URL}?format=json&Manufacturer=rheem`);
     expect(puts).toEqual([{ key: "cpsc:mfr:rheem", ttl: RECALL_CACHE_TTL_S }]);
-    expect(a).toEqual(b);
+    // checkedAt is the time of each call, so compare everything else.
+    const { checkedAt: _a, ...restA } = a.body as any;
+    const { checkedAt: _b, ...restB } = b.body as any;
+    expect({ ...a, body: restA }).toEqual({ ...b, body: restB });
     const body = a.body as any;
     expect(body.matches).toHaveLength(1);
     expect(body.matches[0]).toMatchObject({ brand: "Rheem", model: "XG40T06EC36U1" });
