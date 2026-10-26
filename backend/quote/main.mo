@@ -830,6 +830,7 @@ persistent actor Quote {
                     if (freshReq.status == #Cancelled)
                       return #err(#InvalidInput("Cannot accept a quote on a cancelled request"));
                     if (freshQ.status != #Pending) return #err(#InvalidInput("Quote is no longer pending"));
+                    if (freshQ.validUntil <= Time.now()) return #err(#InvalidInput("This quote has expired; ask the contractor for a new one"));
 
                     // Accept this quote
                     let accepted: Quote = {

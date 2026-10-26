@@ -72,12 +72,13 @@ export function AwardBidModal({ open, requestId, onClose, onAwarded }: AwardBidM
           {!loading && quotes.length === 0 && <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: V2_COLORS.muted }}>No bids on this job yet.</p>}
           {quotes.filter((q) => q.status === "pending").map((q) => {
             const on = picked === q.id;
+            const expired = quoteService.isQuoteExpired(q);
             return (
-              <button type="button" key={q.id} aria-pressed={on} onClick={() => setPicked(q.id)} style={{ ...BUTTON_RESET, width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "0.9rem 1rem", borderRadius: "0.9rem", border: `1.5px solid ${on ? V2_COLORS.blue : V2_COLORS.border}`, background: on ? V2_COLORS.lblue : "transparent", cursor: "pointer" }}>
+              <button type="button" key={q.id} aria-pressed={on} disabled={expired} onClick={() => setPicked(q.id)} style={{ ...BUTTON_RESET, width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "0.9rem 1rem", borderRadius: "0.9rem", border: `1.5px solid ${on ? V2_COLORS.blue : V2_COLORS.border}`, background: on ? V2_COLORS.lblue : "transparent", cursor: expired ? "not-allowed" : "pointer", opacity: expired ? 0.5 : 1 }}>
                 <div>
                   <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.9rem", fontWeight: 700, color: V2_COLORS.ink }}>Bid #{q.id.slice(0, 8)}</div>
                   <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.7rem", color: V2_COLORS.muted, marginTop: 2 }}>
-                    {q.timeline} day{q.timeline === 1 ? "" : "s"} · valid until {new Date(q.validUntil).toLocaleDateString()}
+                    {q.timeline} day{q.timeline === 1 ? "" : "s"} · {expired ? "expired" : "valid until"} {new Date(q.validUntil).toLocaleDateString()}
                   </div>
                 </div>
                 <div style={{ fontFamily: V2_FONTS.body, fontSize: "1rem", fontWeight: 700, color: V2_COLORS.ink }}>

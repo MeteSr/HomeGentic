@@ -794,7 +794,11 @@ persistent actor Payment {
       cancelledAt = null;
     };
     subscriptions.add(userPrincipal, sub);
-    await notifyReferralConverted(userPrincipal);
+    // A downgrade to a free tier (cancellation, failed payment) isn't a conversion.
+    switch (tier) {
+      case (#Free or #ContractorFree) {};
+      case _ { await notifyReferralConverted(userPrincipal) };
+    };
     try { ignore await auditLog("TierActivated", ?userPrincipal, "months=" # months.toText() # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };

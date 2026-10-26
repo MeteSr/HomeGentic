@@ -647,7 +647,7 @@ export function InviteNeighborPanel({ onInvite }: { onInvite: () => void }) {
             Invite a Neighbor
           </h3>
           <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted, lineHeight: 1.4, marginBottom: "0.625rem" }}>
-            You get $10 credit.<br />They get $10 off.
+            You each get $10 in credit<br />when they start a paid plan.
           </p>
           <button
             onClick={onInvite}

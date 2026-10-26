@@ -1,38 +1,7 @@
+import { idlFactory } from "@homegentic/shared/declarations/referrals";
 import { lazyActor } from "./lazyActor";
 
 const CANISTER_ID: string = (process.env as any).REFERRALS_CANISTER_ID || "";
-
-// ─── Candid IDL ───────────────────────────────────────────────────────────────
-
-const idlFactory = ({ IDL }: any) => {
-  const Referral = IDL.Record({
-    referrer:    IDL.Text,
-    referee:     IDL.Text,
-    code:        IDL.Text,
-    referredAt:  IDL.Int,
-    convertedAt: IDL.Opt(IDL.Int),
-  });
-
-  const Error = IDL.Variant({
-    AlreadyReferred:  IDL.Null,
-    SelfReferral:     IDL.Null,
-    CodeNotFound:     IDL.Null,
-    AlreadyConverted: IDL.Null,
-    Unauthorized:     IDL.Null,
-    InvalidInput:     IDL.Text,
-  });
-
-  const Result   = IDL.Variant({ ok: IDL.Null, err: Error });
-  const ResultTx = IDL.Variant({ ok: IDL.Null, err: IDL.Text });
-
-  return IDL.Service({
-    getMyCode:        IDL.Func([],             [IDL.Text],       []),  // update: lazily creates the code (a query call would discard it)
-    useReferralCode:  IDL.Func([IDL.Text],     [Result],         []),
-    getMyReferrals:   IDL.Func([],             [IDL.Vec(Referral)], ["query"]),
-    getCreditBalance: IDL.Func([],             [IDL.Nat],        ["query"]),
-    addAdmin:         IDL.Func([IDL.Principal], [ResultTx],      []),
-  });
-};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

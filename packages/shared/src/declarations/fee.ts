@@ -66,6 +66,7 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: FeeRecord, err: Error })],
       []
     ),
+    getFeeForRequest: IDL.Func([IDL.Text], [IDL.Opt(FeeRecord)], ["query"]),
     getMyFees: IDL.Func([], [IDL.Vec(FeeRecord)], ["query"]),
     getAllFees: IDL.Func([], [IDL.Variant({ ok: IDL.Vec(FeeRecord), err: Error })], ["query"]),
     getFeesDue: IDL.Func([], [IDL.Variant({ ok: IDL.Vec(FeeRecord), err: Error })], ["query"]),

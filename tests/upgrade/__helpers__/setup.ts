@@ -425,3 +425,20 @@ export const contractorIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     getMetrics:              I.Func([], [Metrics], ["query"]),
   });
 };
+
+// ── Extending the shared declarations ─────────────────────────────────────────
+
+/**
+ * A shared declaration (packages/shared/src/declarations) plus methods it
+ * leaves out, typically the admin bootstrap. `extra` gets the IDL namespace.
+ */
+export function withMethods(
+  factory: (a: { IDL: any }) => any,
+  extra: (I: any) => Record<string, unknown>,
+) {
+  return ({ IDL: I }: { IDL: any }) =>
+    I.Service({ ...Object.fromEntries(factory({ IDL: I })._fields), ...extra(I) });
+}
+
+/** `Result<(), E>` for any E: the tests only look at which side came back. */
+export const unitResult = (I: any) => I.Variant({ ok: I.Null, err: I.Reserved });

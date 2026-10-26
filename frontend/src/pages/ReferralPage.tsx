@@ -184,8 +184,8 @@ export default function ReferralPage() {
         </p>
         {[
           "Share your link with a neighbor.",
-          "They sign up and complete their first paid month.",
-          "You each receive $10 credit applied to your next bill.",
+          "They sign up with your link and start a paid plan.",
+          "You each get $10 in referral credit, shown on this page. It isn't taken off bills automatically yet.",
         ].map((step, i) => (
           <div key={i} style={{ display: "flex", gap: "0.75rem", marginBottom: i < 2 ? "0.5rem" : 0 }}>
             <span style={{ fontFamily: V2_FONTS.mono, fontSize: "0.7rem", color: V2_COLORS.blue, fontWeight: 700, flexShrink: 0, minWidth: "1rem" }}>{i + 1}.</span>
