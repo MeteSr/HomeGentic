@@ -305,6 +305,8 @@ Multi-tab page — the main workspace for a property.
 - Generate a filtered report of these jobs (sorted by system + date)
 - Print / share for insurance claims
 - Sensor × insurer discount estimator (IoT coverage → potential discount)
+- Florida inspection readiness (Florida properties only; `services/insuranceReadiness.ts`, `components/InsuranceReadiness.tsx`): the 4-point systems (roof, electrical, plumbing incl. water heater, HVAC) and the wind-mitigation credits (building code, roof covering permit, opening protection, attic items), each marked "In your record", "Partly recorded", "Not recorded yet" or "Inspector checks", with the record lines behind it and what's missing. Uses jobs plus the property's system ages (editable there). Panel brand, wiring and pipe material aren't tracked, so those systems are never shown as fully documented. Prints with the report. "Get inspector quotes" opens `/quotes/new` pre-filled (service type Other). It never predicts insurability or premiums.
+- The discount estimate is labelled as an AI estimate whose insurer and program names may be wrong
 
 ---
 
