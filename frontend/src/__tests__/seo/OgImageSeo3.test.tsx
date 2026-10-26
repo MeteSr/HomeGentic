@@ -40,7 +40,7 @@ vi.mock("@/services/job", () => ({
   jobService: { getByProperty: vi.fn(() => PENDING) },
 }));
 vi.mock("@/services/fsbo", () => ({
-  fsboService: { getRecord: vi.fn(() => null) },
+  fsboService: { getRecord: vi.fn(async () => null), getPublicListing: vi.fn(async () => null) },
 }));
 
 Object.defineProperty(window, "matchMedia", {

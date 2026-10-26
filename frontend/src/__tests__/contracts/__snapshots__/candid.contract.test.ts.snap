@@ -1344,6 +1344,24 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
     ],
   },
+  "updateJob": {
+    "args": [
+      "text",
+      "text",
+      "variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}",
+      "text",
+      "opt text",
+      "nat",
+      "int",
+      "opt text",
+      "opt nat",
+      "bool",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
+    ],
+  },
   "updateJobStatus": {
     "args": [
       "text",
@@ -1368,6 +1386,16 @@ exports[`job IDL factory > full signature snapshot 1`] = `
 
 exports[`listing IDL factory > full signature snapshot 1`] = `
 {
+  "acceptFsboOffer": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; status:variant {Countered; Active; Rejected; Accepted}; closeDate:int; earnestMoneyCents:nat; hasEscalationClause:bool; offerAmountCents:nat; propertyId:text; counters:vec record {id:text; createdAt:int; amountCents:nat; notes:text; fromSeller:bool}; buyerName:text; contingencies:vec text; loggedAt:int}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
   "acceptProposal": {
     "args": [
       "text",
@@ -1396,6 +1424,15 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
+  "addNotifier": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
   "addPanorama": {
     "args": [
       "text",
@@ -1414,6 +1451,19 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "counterFsboOffer": {
+    "args": [
+      "text",
+      "text",
+      "nat",
+      "text",
+      "bool",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; status:variant {Countered; Active; Rejected; Accepted}; closeDate:int; earnestMoneyCents:nat; hasEscalationClause:bool; offerAmountCents:nat; propertyId:text; counters:vec record {id:text; createdAt:int; amountCents:nat; notes:text; fromSeller:bool}; buyerName:text; contingencies:vec text; loggedAt:int}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
   "createBidRequest": {
@@ -1451,6 +1501,15 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:nat; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "discardFsboDraft": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
   "flagPhotoForReview": {
@@ -1495,6 +1554,50 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
       "opt record {medianCents:nat; saleCount:nat}",
     ],
   },
+  "getFsboDraft": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {startedAt:int; owner:principal; step:nat; description:opt text; listPriceCents:nat; updatedAt:int}",
+    ],
+  },
+  "getFsboListing": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {propertyType:text; systemHighlights:vec text; bedrooms:nat; activatedAt:int; city:text; squareFeet:nat; description:opt text; photoUrl:opt text; propertyId:text; hasPublicReport:bool; listPriceCents:nat; zipCode:text; score:opt nat; state:text; address:text; verificationLevel:text; bathrooms:nat; homeowner:principal; verifiedJobCount:nat; yearBuilt:nat}",
+    ],
+  },
+  "getFsboOffers": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {id:text; status:variant {Countered; Active; Rejected; Accepted}; closeDate:int; earnestMoneyCents:nat; hasEscalationClause:bool; offerAmountCents:nat; propertyId:text; counters:vec record {id:text; createdAt:int; amountCents:nat; notes:text; fromSeller:bool}; buyerName:text; contingencies:vec text; loggedAt:int}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "getFsboPriceHistory": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {recordedAt:int; priceCents:nat}",
+    ],
+  },
   "getListingPhotos": {
     "args": [
       "text",
@@ -1522,6 +1625,18 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {id:text; status:variant {Withdrawn; Rejected; Accepted; Pending}; agentRecord:record {commitmentsUnmet:nat; saleToListRatioBps:nat; withdrawnUnsold:nat; closedInZip:nat; avgDom:nat}; marketingPlan:text; suggestedListCents:nat; requestId:text; cmaSummary:text; createdAt:int; commissionBps:nat; agentName:text; coverLetter:text; agentId:principal; agentBrokerage:text; marketingCommitments:vec text; derived:record {pctVsCompsBps:int; estNetToSellerCents:nat; thinCompsFlag:bool; overCompFlag:bool}; agentEmail:text; estimatedDaysOnMarket:nat; letter:text; includedServices:vec text; validUntil:int}",
+    ],
+  },
+  "getNotificationEvents": {
+    "args": [
+      "nat",
+      "nat",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:record {latestSeq:nat; events:vec record {seq:nat; kind:text; createdAt:int; recipient:opt principal; summary:text; refId:text}}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
   "getOpenBidRequests": {
@@ -1587,6 +1702,17 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
       "vec record {id:text; status:variant {Withdrawn; Rejected; Accepted; Pending}; agentRecord:record {commitmentsUnmet:nat; saleToListRatioBps:nat; withdrawnUnsold:nat; closedInZip:nat; avgDom:nat}; marketingPlan:text; suggestedListCents:nat; requestId:text; cmaSummary:text; createdAt:int; commissionBps:nat; agentName:opt text; agentBrokerage:opt text; isMine:bool; marketingCommitments:vec text; derived:record {pctVsCompsBps:int; estNetToSellerCents:nat; thinCompsFlag:bool; overCompFlag:bool}; agentEmail:opt text; estimatedDaysOnMarket:nat; letter:text}",
     ],
   },
+  "getShowingRequests": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {id:text; status:variant {Accepted; Declined; AlternateProposed; Pending}; requester:principal; contact:text; name:text; createdAt:int; propertyId:text; alternateTime:opt text; preferredTime:text}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
   "getThread": {
     "args": [
       "text",
@@ -1596,6 +1722,17 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:vec record {id:text; authorRole:variant {agent; seller}; scrubbedBody:text; sentAt:int; redactions:vec text; proposalId:text}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "isFsboScoreHidden": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "bool",
     ],
   },
   "listActiveFsboListings": {
@@ -1619,6 +1756,16 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
       "vec record {propertyType:text; systemHighlights:vec text; bedrooms:nat; activatedAt:int; city:text; squareFeet:nat; description:opt text; photoUrl:opt text; propertyId:text; hasPublicReport:bool; listPriceCents:nat; zipCode:text; score:opt nat; state:text; address:text; verificationLevel:text; bathrooms:nat; homeowner:principal; verifiedJobCount:nat; yearBuilt:nat}",
     ],
   },
+  "logFsboOffer": {
+    "args": [
+      "text",
+      "record {closeDate:int; earnestMoneyCents:nat; hasEscalationClause:bool; offerAmountCents:nat; buyerName:text; contingencies:vec text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; status:variant {Countered; Active; Rejected; Accepted}; closeDate:int; earnestMoneyCents:nat; hasEscalationClause:bool; offerAmountCents:nat; propertyId:text; counters:vec record {id:text; createdAt:int; amountCents:nat; notes:text; fromSeller:bool}; buyerName:text; contingencies:vec text; loggedAt:int}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
   "markListingFeePaid": {
     "args": [
       "text",
@@ -1640,10 +1787,29 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; authorRole:variant {agent; seller}; scrubbedBody:text; sentAt:int; redactions:vec text; proposalId:text}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
+  "rejectFsboOffer": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; status:variant {Countered; Active; Rejected; Accepted}; closeDate:int; earnestMoneyCents:nat; hasEscalationClause:bool; offerAmountCents:nat; propertyId:text; counters:vec record {id:text; createdAt:int; amountCents:nat; notes:text; fromSeller:bool}; buyerName:text; contingencies:vec text; loggedAt:int}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
   "removeListingPhoto": {
     "args": [
       "text",
       "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "removeNotifier": {
+    "args": [
+      "principal",
     ],
     "mode": [],
     "rets": [
@@ -1670,6 +1836,29 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
+  "requestShowing": {
+    "args": [
+      "text",
+      "text",
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; status:variant {Accepted; Declined; AlternateProposed; Pending}; requester:principal; contact:text; name:text; createdAt:int; propertyId:text; alternateTime:opt text; preferredTime:text}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "respondToShowing": {
+    "args": [
+      "text",
+      "text",
+      "variant {Accept; ProposeAlternate:text; Decline}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; status:variant {Accepted; Declined; AlternateProposed; Pending}; requester:principal; contact:text; name:text; createdAt:int; propertyId:text; alternateTime:opt text; preferredTime:text}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
   "reviewPhoto": {
     "args": [
       "text",
@@ -1677,6 +1866,18 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "saveFsboDraft": {
+    "args": [
+      "text",
+      "nat",
+      "opt text",
+      "nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {startedAt:int; owner:principal; step:nat; description:opt text; listPriceCents:nat; updatedAt:int}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
   "setAgentCanisterId": {
@@ -1706,6 +1907,16 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "setFsboScoreVisible": {
+    "args": [
+      "text",
+      "bool",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {propertyType:text; systemHighlights:vec text; bedrooms:nat; activatedAt:int; city:text; squareFeet:nat; description:opt text; photoUrl:opt text; propertyId:text; hasPublicReport:bool; listPriceCents:nat; zipCode:text; score:opt nat; state:text; address:text; verificationLevel:text; bathrooms:nat; homeowner:principal; verifiedJobCount:nat; yearBuilt:nat}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
   "setJobCanisterId": {
@@ -1769,6 +1980,16 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; status:variant {Withdrawn; Rejected; Accepted; Pending}; agentRecord:record {commitmentsUnmet:nat; saleToListRatioBps:nat; withdrawnUnsold:nat; closedInZip:nat; avgDom:nat}; marketingPlan:text; suggestedListCents:nat; requestId:text; cmaSummary:text; createdAt:int; commissionBps:nat; agentName:text; coverLetter:text; agentId:principal; agentBrokerage:text; marketingCommitments:vec text; derived:record {pctVsCompsBps:int; estNetToSellerCents:nat; thinCompsFlag:bool; overCompFlag:bool}; agentEmail:text; estimatedDaysOnMarket:nat; letter:text; includedServices:vec text; validUntil:int}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "updateFsboPrice": {
+    "args": [
+      "text",
+      "nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {propertyType:text; systemHighlights:vec text; bedrooms:nat; activatedAt:int; city:text; squareFeet:nat; description:opt text; photoUrl:opt text; propertyId:text; hasPublicReport:bool; listPriceCents:nat; zipCode:text; score:opt nat; state:text; address:text; verificationLevel:text; bathrooms:nat; homeowner:principal; verifiedJobCount:nat; yearBuilt:nat}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
   "withdrawProposal": {
@@ -2986,6 +3207,17 @@ exports[`report IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:nat; err:variant {UnverifiedProperty; InvalidInput:text; NotFound; NotAuthorized; Revoked; Expired}}",
+    ],
+  },
+  "findPublicReport": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {token:text; propertyType:text; city:text; zipCode:text; state:text; address:text; verificationLevel:text; yearBuilt:nat}",
     ],
   },
   "generateReport": {

@@ -32,7 +32,7 @@ describe("defaults", () => {
         job_awaiting_signature: true, job_awaiting_contractor_signature: true,
         bid_accepted: true, bid_declined: true,
       },
-      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true },
+      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true, showing_requests: true },
       sms:   { enabled: false, phone: null },
     });
   });
@@ -96,6 +96,7 @@ describe("channel decisions", () => {
     expect(p.wantsPush("c-1", "bid_declined")).toBe(false);
     expect(p.wantsPush("c-1", "bid_accepted")).toBe(true);
     expect(p.wantsPush("c-1", "new_lead")).toBe(true);
+    expect(p.wantsPush("s-1", "showing_request")).toBe(true);
     expect(p.wantsPush("c-1", "quote_received")).toBe(false);
   });
 
@@ -106,6 +107,9 @@ describe("channel decisions", () => {
     ok(p.setPrefs("h-1", { email: { job_updates: true } }));
     expect(p.wantsEmail("h-1", "sensor_alert")).toBe(true);
     expect(p.wantsEmail("h-1", "job_awaiting_contractor_signature")).toBe(false); // no email row
+    expect(p.wantsEmail("h-1", "showing_request")).toBe(true);
+    ok(p.setPrefs("h-1", { email: { showing_requests: false } }));
+    expect(p.wantsEmail("h-1", "showing_request")).toBe(false);
   });
 
   it("SMS: only the time-sensitive kinds", () => {

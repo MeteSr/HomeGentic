@@ -29,7 +29,7 @@ const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 30_000;
 const PAGE_SIZE = 200; // the canister's MAX_PAGE
 
 /** Canisters with an outbox, by the env var holding each one's ID. */
-const OUTBOX_CANISTERS = ["CANISTER_ID_JOB", "CANISTER_ID_QUOTE"];
+const OUTBOX_CANISTERS = ["CANISTER_ID_JOB", "CANISTER_ID_QUOTE", "CANISTER_ID_LISTING"];
 
 export interface PollerDeps {
   readOutbox:      (canisterId: string, afterSeq: number) => Promise<OutboxPage>;
@@ -244,7 +244,7 @@ export function startPoller(): void {
   if (intervalHandle) return; // already running
   const configured = OUTBOX_CANISTERS.filter((v) => process.env[v]);
   if (configured.length === 0) {
-    console.warn("[poller] neither CANISTER_ID_JOB nor CANISTER_ID_QUOTE is set — not polling");
+    console.warn("[poller] none of CANISTER_ID_JOB, CANISTER_ID_QUOTE, CANISTER_ID_LISTING is set — not polling");
     return;
   }
   console.log(`[poller] polling ${configured.join(", ")} every ${POLL_INTERVAL_MS}ms`);

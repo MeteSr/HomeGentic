@@ -19,7 +19,7 @@ export type PushPrefKind =
   | "bid_declined";
 
 /** One key per Settings email row (agents/notifications/channels.ts). */
-export type EmailPrefKey = "new_lead" | "bid_outcome" | "job_verified" | "quote_received" | "job_updates" | "weekly_pulse";
+export type EmailPrefKey = "new_lead" | "bid_outcome" | "job_verified" | "quote_received" | "job_updates" | "weekly_pulse" | "showing_requests";
 
 export interface NotificationPrefs {
   push:  Record<PushPrefKind, boolean>;

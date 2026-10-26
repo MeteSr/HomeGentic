@@ -12,6 +12,7 @@
  *   quote_received                    —     Quote Received             —
  *   new_lead                          yes*  New Lead                   —
  *   review_request                    —     Job Verified               —
+ *   showing_request                   yes   Showing Requests           —
  *   weekly_pulse                      —     Weekly Home Pulse          —
  *
  * * new-lead pushes follow the contractor profile's notifyPush instead of a
@@ -31,7 +32,7 @@ export const PUSH_PREF_KINDS = [
 export type PushPrefKind = (typeof PUSH_PREF_KINDS)[number];
 
 /** Kinds that are pushed at all (new_lead's opt-in lives on the contractor profile). */
-export const PUSH_KINDS: readonly NotificationKind[] = [...PUSH_PREF_KINDS, "new_lead"];
+export const PUSH_KINDS: readonly NotificationKind[] = [...PUSH_PREF_KINDS, "new_lead", "showing_request"];
 
 /** Email preference keys — one per Settings row — and the kinds each covers. */
 export const EMAIL_GROUPS = {
@@ -41,6 +42,7 @@ export const EMAIL_GROUPS = {
   quote_received: ["quote_received"],
   job_updates:    ["job_awaiting_signature", "sensor_alert"],
   weekly_pulse:   ["weekly_pulse"],
+  showing_requests: ["showing_request"],
 } as const satisfies Record<string, readonly NotificationKind[]>;
 export type EmailPrefKey = keyof typeof EMAIL_GROUPS;
 export const EMAIL_PREF_KEYS = Object.keys(EMAIL_GROUPS) as EmailPrefKey[];
@@ -57,6 +59,7 @@ export const EMAIL_DEFAULTS: Record<EmailPrefKey, boolean> = {
   quote_received: true,
   job_updates:    false,
   weekly_pulse:   true,
+  showing_requests: true,
 };
 
 export const SMS_KINDS: readonly NotificationKind[] = [

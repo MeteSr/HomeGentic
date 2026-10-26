@@ -1,71 +1,42 @@
 /**
- * FsboListingPage — real logic worth locking down:
- *   - shows "Not Listed For Sale" when the property has no active FSBO record
- *   - renders the real computeScore() and only verified jobs in the record list
- *   - ShowingRequestForm rejects an invalid contact and only submits once valid
- *   - a successful submission creates the request + notification and shows
- *     the confirmation message
+ * FsboListingPage (/for-sale/:propertyId, public) — everything shown comes
+ * from the live listing on the listing canister (fsboService.getPublicListing),
+ * plus the public report for the address. Showing requests go through
+ * showingRequestService, which notifies the seller on the canister side.
  */
-
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import FsboListingPage, { ShowingRequestForm } from "@/pages/FsboListingPage";
-import { computeScore } from "@/services/scoreService";
-import type { Property } from "@/services/property";
-import type { Job } from "@/services/job";
+import type { FsboPublicListing } from "@/services/fsbo";
 
-const {
-  mockGetProperty, mockGetByProperty, mockGetRecord, mockListShareLinks,
-  mockGetPanoramas, mockShowingCreate, mockNotificationCreate,
-} = vi.hoisted(() => ({
-  mockGetProperty: vi.fn(),
-  mockGetByProperty: vi.fn(),
-  mockGetRecord: vi.fn(),
-  mockListShareLinks: vi.fn(),
-  mockGetPanoramas: vi.fn(),
-  mockShowingCreate: vi.fn(),
-  mockNotificationCreate: vi.fn(),
+const { mockGetPublicListing, mockFindPublicReport, mockCreate } = vi.hoisted(() => ({
+  mockGetPublicListing: vi.fn(),
+  mockFindPublicReport: vi.fn(),
+  mockCreate:           vi.fn(),
 }));
 
-vi.mock("@/services/property", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/property")>();
-  return { ...actual, propertyService: { getProperty: mockGetProperty } };
+vi.mock("@/services/fsbo", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/fsbo")>();
+  return { ...actual, fsboService: { getPublicListing: mockGetPublicListing } };
 });
-vi.mock("@/services/job", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/job")>();
-  return { ...actual, jobService: { getByProperty: mockGetByProperty } };
-});
-vi.mock("@/services/fsbo", () => ({ fsboService: { getRecord: mockGetRecord } }));
-vi.mock("@/services/report", () => ({ reportService: { listShareLinks: mockListShareLinks } }));
-vi.mock("@/services/listing", () => ({ listingService: { getPanoramas: mockGetPanoramas } }));
-vi.mock("@/services/showingRequest", () => ({ showingRequestService: { create: mockShowingCreate } }));
-vi.mock("@/services/notifications", () => ({ notificationService: { create: mockNotificationCreate } }));
-vi.mock("@/components/ListingPhotoManager", () => ({ default: () => <div data-testid="gallery" /> }));
-vi.mock("@/components/PlayCanvas360Viewer", () => ({ default: () => <div data-testid="tour" /> }));
+vi.mock("@/services/report", () => ({ reportService: { findPublicReport: mockFindPublicReport } }));
+vi.mock("@/services/showingRequest", () => ({ showingRequestService: { create: mockCreate } }));
+vi.mock("@/services/listing", () => ({ listingService: { getPanoramas: vi.fn(async () => []) } }));
+vi.mock("@/components/ListingPhotoManager", () => ({ default: () => <div data-testid="photo-gallery" /> }));
 
-function makeProperty(overrides: Partial<Property> = {}): Property {
-  return {
-    id: "prop-1", owner: "p-owner", address: "123 Main St", city: "Austin", state: "TX",
-    zipCode: "78701", propertyType: "SingleFamily" as any, yearBuilt: 2000n, squareFeet: 2000n,
-    verificationLevel: "None" as any, tier: "Free" as any, createdAt: 0n, updatedAt: 0n, isActive: true,
-    ...overrides,
-  };
-}
+import FsboListingPage, { ShowingRequestForm } from "@/pages/FsboListingPage";
 
-function makeJob(overrides: Partial<Job> = {}): Job {
-  return {
-    id: "job-1", propertyId: "prop-1", homeowner: "p-owner", serviceType: "HVAC",
-    amount: 50000, date: "2024-01-01", description: "Service", isDiy: false,
-    contractorName: "Cool Air Co.", status: "verified" as any, verified: true,
-    homeownerSigned: true, contractorSigned: true, photos: [], createdAt: Date.now(),
-    ...overrides,
-  };
-}
+const LISTING: FsboPublicListing = {
+  propertyId: "prop-1", listPriceCents: 48_500_000, activatedAt: Date.now() - 86_400_000,
+  address: "123 Maple Street", city: "Austin", state: "TX", zipCode: "78701",
+  propertyType: "SingleFamily", yearBuilt: 2001, squareFeet: 2400, bedrooms: 4, bathrooms: 3,
+  verificationLevel: "Basic", score: 82, verifiedJobCount: 3, description: "Shady backyard",
+  hasPublicReport: true, systemHighlights: ["Roof replaced 2021"],
+};
 
-function renderAt(propertyId: string) {
+function renderPage(id = "prop-1") {
   return render(
-    <MemoryRouter initialEntries={[`/for-sale/${propertyId}`]}>
+    <MemoryRouter initialEntries={[`/for-sale/${id}`]}>
       <Routes><Route path="/for-sale/:propertyId" element={<FsboListingPage />} /></Routes>
     </MemoryRouter>
   );
@@ -73,80 +44,112 @@ function renderAt(propertyId: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetPanoramas.mockResolvedValue([]);
+  mockGetPublicListing.mockResolvedValue(LISTING);
+  mockFindPublicReport.mockResolvedValue({ token: "tok-1", address: "123 Maple Street", city: "Austin", state: "TX", zipCode: "78701" });
+  mockCreate.mockImplementation(async (input) => ({ ...input, id: "sr-1", createdAt: Date.now(), status: "Pending" }));
 });
 
-describe("FsboListingPage — not for sale", () => {
-  it("shows 'Not Listed For Sale' when there is no active FSBO record", async () => {
-    mockGetRecord.mockReturnValue(null);
-    mockGetProperty.mockResolvedValue(makeProperty());
-    mockGetByProperty.mockResolvedValue([]);
-    renderAt("prop-1");
+describe("FsboListingPage — not listed", () => {
+  it("shows Loading… then Not Listed For Sale when there's no live listing", async () => {
+    mockGetPublicListing.mockResolvedValue(null);
+    renderPage();
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
     expect(await screen.findByText("Not Listed For Sale")).toBeInTheDocument();
-  });
-
-  it("shows 'Not Listed For Sale' when isFsbo is false", async () => {
-    mockGetRecord.mockReturnValue({ isFsbo: false, hasReport: false });
-    mockGetProperty.mockResolvedValue(makeProperty());
-    mockGetByProperty.mockResolvedValue([]);
-    renderAt("prop-1");
-    expect(await screen.findByText("Not Listed For Sale")).toBeInTheDocument();
+    expect(mockGetPublicListing).toHaveBeenCalledWith("prop-1");
   });
 });
 
-describe("FsboListingPage — listed", () => {
-  it("renders price, address, and the real computeScore() for the property", async () => {
-    const property = makeProperty();
-    const jobs = [makeJob({ verified: true }), makeJob({ id: "j2", verified: false, status: "pending" as any })];
-    mockGetRecord.mockReturnValue({ isFsbo: true, hasReport: false, listPriceCents: 45_000_000, description: "" });
-    mockGetProperty.mockResolvedValue(property);
-    mockGetByProperty.mockResolvedValue(jobs);
-    renderAt("prop-1");
-
-    expect(await screen.findByText("$450,000")).toBeInTheDocument();
-    expect(screen.getByText("123 Main St")).toBeInTheDocument();
-    const expectedScore = computeScore(jobs, [property]);
-    expect(screen.getByText(String(expectedScore))).toBeInTheDocument();
+describe("FsboListingPage — listed (10.3.1 / 10.3.2)", () => {
+  it("shows price, address and home details from the listing", async () => {
+    renderPage();
+    expect(await screen.findByText("$485,000")).toBeInTheDocument();
+    expect(screen.getByText("123 Maple Street")).toBeInTheDocument();
+    expect(screen.getByText("Austin, TX 78701")).toBeInTheDocument();
+    for (const v of ["Single Family", "4", "3", "2001", "2,400"]) expect(screen.getAllByText(v).length).toBeGreaterThan(0);
+    expect(screen.getByText("Shady backyard")).toBeInTheDocument();
+    expect(screen.getByTestId("photo-gallery")).toBeInTheDocument();
   });
 
-  it("only lists verified jobs in the maintenance record", async () => {
-    mockGetRecord.mockReturnValue({ isFsbo: true, hasReport: false, listPriceCents: 45_000_000, description: "" });
-    mockGetProperty.mockResolvedValue(makeProperty());
-    mockGetByProperty.mockResolvedValue([
-      makeJob({ id: "j1", verified: true, serviceType: "HVAC" }),
-      makeJob({ id: "j2", verified: false, status: "pending" as any, serviceType: "Roofing" }),
-    ]);
-    renderAt("prop-1");
+  it("shows the canister's score and verified job count, with honest wording", async () => {
+    renderPage();
+    const badge = await screen.findByRole("region", { name: "HomeGentic Score" });
+    expect(badge).toHaveTextContent("82");
+    expect(badge).toHaveTextContent(/calculated by homegentic from this home's records/i);
+    expect(screen.getByText(/3 verified/)).toBeInTheDocument();
+    expect(screen.getByText("Roof replaced 2021")).toBeInTheDocument();
+  });
 
-    expect(await screen.findByText(/1 verified/)).toBeInTheDocument();
+  it("hides the score section when the seller hid the score", async () => {
+    mockGetPublicListing.mockResolvedValue({ ...LISTING, score: undefined });
+    renderPage();
+    await screen.findByText("$485,000");
+    expect(screen.queryByRole("region", { name: "HomeGentic Score" })).not.toBeInTheDocument();
+  });
+
+  it("sets the page title and og tags from the listing (10.3.5)", async () => {
+    renderPage();
+    await waitFor(() => expect(document.title).toMatch(/123 Maple Street.*For Sale by Owner/));
+    await waitFor(() => {
+      const og = document.querySelector('meta[property="og:description"]');
+      expect(og?.getAttribute("content")).toMatch(/\$485,000.*Austin/);
+    });
   });
 });
 
-describe("ShowingRequestForm", () => {
-  function renderForm() {
-    return render(<ShowingRequestForm propertyId="prop-1" />);
+describe("FsboListingPage — report link (10.3.3)", () => {
+  it("links the public report found for the listing's address", async () => {
+    renderPage();
+    const link = await screen.findByRole("link", { name: /view full maintenance history/i });
+    expect(link).toHaveAttribute("href", "/report/tok-1");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(mockFindPublicReport).toHaveBeenCalledWith("123 Maple Street, Austin, TX 78701");
+  });
+
+  it("doesn't look up a report when the listing has none", async () => {
+    mockGetPublicListing.mockResolvedValue({ ...LISTING, hasPublicReport: false });
+    renderPage();
+    await screen.findByText("$485,000");
+    expect(mockFindPublicReport).not.toHaveBeenCalled();
+    expect(screen.queryByRole("link", { name: /view full maintenance history/i })).not.toBeInTheDocument();
+  });
+
+  it("shows no link when no public report matches", async () => {
+    mockFindPublicReport.mockResolvedValue(null);
+    renderPage();
+    await screen.findByText("$485,000");
+    await waitFor(() => expect(mockFindPublicReport).toHaveBeenCalled());
+    expect(screen.queryByRole("link", { name: /view full maintenance history/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("ShowingRequestForm (10.3.4)", () => {
+  function fill(contact = "jane@example.com") {
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Jane" } });
+    fireEvent.change(screen.getByLabelText(/email or phone/i), { target: { value: contact } });
+    fireEvent.change(screen.getByLabelText(/preferred showing time/i), { target: { value: "Sat am" } });
+    fireEvent.submit(screen.getByRole("form", { name: "Showing Request" }));
   }
 
-  it("rejects submission with an invalid contact", () => {
-    renderForm();
-    fireEvent.change(screen.getByLabelText("Your Name"), { target: { value: "Jane" } });
-    fireEvent.change(screen.getByLabelText("Email or Phone"), { target: { value: "not-valid" } });
-    fireEvent.change(screen.getByLabelText("Preferred Showing Time"), { target: { value: "Weekends" } });
-    fireEvent.submit(screen.getByLabelText("Showing Request"));
-
-    expect(mockShowingCreate).not.toHaveBeenCalled();
-    expect(screen.getByText("Enter a valid email or phone number")).toBeInTheDocument();
+  it("rejects an invalid contact", () => {
+    render(<ShowingRequestForm propertyId="prop-1" />);
+    fill("nope");
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(screen.getByText(/enter a valid email or phone/i)).toBeInTheDocument();
   });
 
-  it("creates the showing request and notification, then shows confirmation", () => {
-    renderForm();
-    fireEvent.change(screen.getByLabelText("Your Name"), { target: { value: "Jane" } });
-    fireEvent.change(screen.getByLabelText("Email or Phone"), { target: { value: "jane@example.com" } });
-    fireEvent.change(screen.getByLabelText("Preferred Showing Time"), { target: { value: "Weekends" } });
-    fireEvent.submit(screen.getByLabelText("Showing Request"));
+  it("sends the request and says the seller will reply directly", async () => {
+    render(<ShowingRequestForm propertyId="prop-1" />);
+    expect(screen.getByText(/we pass your name, contact and preferred time to the seller/i)).toBeInTheDocument();
+    fill();
+    expect(await screen.findByText(/the seller has your contact details and will reply to you directly/i)).toBeInTheDocument();
+    expect(mockCreate).toHaveBeenCalledWith({ propertyId: "prop-1", name: "Jane", contact: "jane@example.com", preferredTime: "Sat am" });
+  });
 
-    expect(mockShowingCreate).toHaveBeenCalledWith({ propertyId: "prop-1", name: "Jane", contact: "jane@example.com", preferredTime: "Weekends" });
-    expect(mockNotificationCreate).toHaveBeenCalledWith(expect.objectContaining({ type: "ShowingRequest", propertyId: "prop-1" }));
-    expect(screen.getByText(/Request sent/)).toBeInTheDocument();
+  it("shows the canister's error and keeps the form", async () => {
+    mockCreate.mockRejectedValue(new Error("You already have requests open for this home"));
+    render(<ShowingRequestForm propertyId="prop-1" />);
+    fill();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/already have requests open/i);
+    expect(screen.getByRole("form", { name: "Showing Request" })).toBeInTheDocument();
   });
 });

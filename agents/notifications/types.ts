@@ -24,6 +24,7 @@ export type NotificationKind =
   | "quote_received"
   | "new_lead"
   | "review_request"
+  | "showing_request"
   | "weekly_pulse";
 
 export interface NotificationEvent {

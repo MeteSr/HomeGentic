@@ -12,6 +12,7 @@ export function webPathFor(route: string | undefined): string {
     const [contractor, jobId = ""] = route.slice("review/".length).split("/");
     return `/contractor/${encodeURIComponent(contractor)}?review=${encodeURIComponent(jobId)}#review`;
   }
+  if (route.startsWith("my-listing/")) return `/my-listing/${encodeURIComponent(route.slice("my-listing/".length))}`;
   if (route.startsWith("quotes/")) return `/quotes/${encodeURIComponent(route.slice("quotes/".length))}`;
   return "/dashboard";
 }

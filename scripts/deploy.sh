@@ -850,7 +850,7 @@ grant() {  # grant <canister> <method> <principal> <description>
   fi
 }
 if [ -n "${NOTIFIER_PRINCIPAL:-}" ]; then
-  for c in auth property job quote; do
+  for c in auth property job quote listing; do
     grant "$c" addNotifier "$NOTIFIER_PRINCIPAL" "Allowlisting notification relay"
   done
 fi

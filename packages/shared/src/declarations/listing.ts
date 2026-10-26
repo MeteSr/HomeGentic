@@ -219,6 +219,8 @@ export const idlFactory = ({ IDL }: any) => {
     getFsboDraft: IDL.Func([IDL.Text], [IDL.Opt(FsboDraft)], ["query"]),
     discardFsboDraft: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     updateFsboPrice: IDL.Func([IDL.Text, IDL.Nat], [IDL.Variant({ ok: PublicFsboListing, err: Error })], []),
+    setFsboScoreVisible: IDL.Func([IDL.Text, IDL.Bool], [IDL.Variant({ ok: PublicFsboListing, err: Error })], []),
+    isFsboScoreHidden: IDL.Func([IDL.Text], [IDL.Bool], ["query"]),
     requestShowing: IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text], [ShowingResult], []),
     getShowingRequests: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(ShowingRequest), err: Error })], ["query"]),
     respondToShowing: IDL.Func([IDL.Text, IDL.Text, ShowingResponse], [ShowingResult], []),

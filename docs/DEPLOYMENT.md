@@ -234,6 +234,7 @@ Dockerfile in the repo — host it on any Node platform and set the variables be
 | `CANISTER_ID_AUTH` | Auth canister — resolves the session tokens clients register with, and users' email addresses |
 | `CANISTER_ID_JOB` | Job canister — outbox for job signatures, verified jobs and sensor alerts |
 | `CANISTER_ID_QUOTE` | Quote canister — outbox for bid outcomes, quotes received and new leads |
+| `CANISTER_ID_LISTING` | Listing canister — outbox for FSBO showing requests (push and email to the seller). The relay must be on its notifier list: `scripts/deploy.sh` grants `addNotifier` when `NOTIFIER_PRINCIPAL` is set |
 | `CANISTER_ID_CONTRACTOR` | Contractor canister — profiles for new-lead matching and contractors' notification email |
 | `CANISTER_ID_PAYMENT` | Payment canister — contractor tiers: ContractorPro gets new-lead alerts at once and Free 30 minutes later, and review requests go out only for ContractorPro. Without it every contractor is treated as Free |
 | `POLL_INTERVAL_MS` | How often to read the outboxes (default `30000`) |

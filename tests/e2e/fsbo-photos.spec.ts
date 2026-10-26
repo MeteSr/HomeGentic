@@ -31,6 +31,19 @@ async function injectFsboRecord(page: Parameters<typeof injectTestAuth>[0], prop
   }, propertyId);
 }
 
+/** The live listing the public page reads (listing canister getFsboListing). */
+async function injectFsboListing(page: Parameters<typeof injectTestAuth>[0], propertyId = "1") {
+  await page.addInitScript((pid: string) => {
+    (window as any).__e2e_fsbo_listings = [{
+      propertyId: pid, listPriceCents: 45_000_000, activatedAt: Date.now() - 86_400_000 * 7,
+      address: "123 Maple Street", city: "Austin", state: "TX", zipCode: "78701",
+      propertyType: "SingleFamily", yearBuilt: 2001, squareFeet: 2400, bedrooms: 3, bathrooms: 2,
+      verificationLevel: "Basic", score: 81, verifiedJobCount: 3,
+      description: "Beautiful family home in Austin.", hasPublicReport: false, systemHighlights: [],
+    }];
+  }, propertyId);
+}
+
 /** Minimal property shape needed by FsboListingPage. */
 async function injectFsboProperty(page: Parameters<typeof injectTestAuth>[0]) {
   await page.addInitScript(() => {
@@ -52,7 +65,7 @@ async function injectFsboProperty(page: Parameters<typeof injectTestAuth>[0]) {
 test.describe("FsboListingPage — photo gallery", () => {
   test.beforeEach(async ({ page }) => {
     await injectFsboProperty(page);
-    await injectFsboRecord(page);
+    await injectFsboListing(page);
     await injectFsboPhotos(page, "1");
   });
 
@@ -75,7 +88,7 @@ test.describe("FsboListingPage — photo gallery", () => {
 test.describe("FsboListingPage — empty photo state", () => {
   test.beforeEach(async ({ page }) => {
     await injectFsboProperty(page);
-    await injectFsboRecord(page);
+    await injectFsboListing(page);
     // No photos injected
   });
 

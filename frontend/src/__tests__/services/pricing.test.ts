@@ -3,7 +3,7 @@
  *
  * 10.2.1  Comparable sales  — CompSale type + compService mock interface
  * 10.2.2  HomeGentic-adjusted price recommendation — computePriceRecommendation()
- * 10.2.3  Price history tracking — fsboService.logPriceChange / getPriceHistory
+ * (10.2.3 price history is covered in fsbo.test.ts.)
  * 10.2.4  DOM estimator — estimateDaysOnMarket()
  */
 
@@ -16,7 +16,6 @@ import { computePriceRecommendation } from "@/services/pricingService";
 import { estimateDaysOnMarket } from "@/services/pricingService";
 
 // ─── 10.2.3 ───────────────────────────────────────────────────────────────────
-import { fsboService } from "@/services/fsbo";
 
 // ─── 10.2.1 ───────────────────────────────────────────────────────────────────
 import { compService } from "@/services/compService";
@@ -87,65 +86,6 @@ describe("computePriceRecommendation — (10.2.2)", () => {
     // 20_001 cents/sqft × 1 sqft = 20_001 (exact); using non-round to test no float bleed
     const result = computePriceRecommendation(33_333, 3, 30);
     expect(result.baseCents).toBe(99_999);
-  });
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// 10.2.3  Price history tracking
-// ──────────────────────────────────────────────────────────────────────────────
-describe("fsboService price history — (10.2.3)", () => {
-  beforeEach(() => {
-    fsboService.__reset();
-  });
-
-  it("getPriceHistory returns empty array when no history exists", () => {
-    expect(fsboService.getPriceHistory("prop-1")).toEqual([]);
-  });
-
-  it("logPriceChange appends an entry with priceCents and a timestamp", () => {
-    fsboService.logPriceChange("prop-1", 50_000_000);
-    const history = fsboService.getPriceHistory("prop-1");
-    expect(history).toHaveLength(1);
-    expect(history[0].priceCents).toBe(50_000_000);
-    expect(typeof history[0].recordedAt).toBe("number");
-  });
-
-  it("multiple calls append in order (oldest first)", () => {
-    fsboService.logPriceChange("prop-1", 50_000_000);
-    fsboService.logPriceChange("prop-1", 48_000_000);
-    fsboService.logPriceChange("prop-1", 46_500_000);
-    const history = fsboService.getPriceHistory("prop-1");
-    expect(history).toHaveLength(3);
-    expect(history[0].priceCents).toBe(50_000_000);
-    expect(history[1].priceCents).toBe(48_000_000);
-    expect(history[2].priceCents).toBe(46_500_000);
-  });
-
-  it("history is isolated per property", () => {
-    fsboService.logPriceChange("prop-1", 50_000_000);
-    fsboService.logPriceChange("prop-2", 30_000_000);
-    expect(fsboService.getPriceHistory("prop-1")).toHaveLength(1);
-    expect(fsboService.getPriceHistory("prop-2")).toHaveLength(1);
-  });
-
-  it("timestamps are non-decreasing across calls", () => {
-    fsboService.logPriceChange("prop-1", 50_000_000);
-    fsboService.logPriceChange("prop-1", 48_000_000);
-    const history = fsboService.getPriceHistory("prop-1");
-    expect(history[1].recordedAt).toBeGreaterThanOrEqual(history[0].recordedAt);
-  });
-
-  it("__reset clears all price history", () => {
-    fsboService.logPriceChange("prop-1", 50_000_000);
-    fsboService.__reset();
-    expect(fsboService.getPriceHistory("prop-1")).toEqual([]);
-  });
-
-  it("getPriceHistory returns a copy — mutations do not affect stored history", () => {
-    fsboService.logPriceChange("prop-1", 50_000_000);
-    const history = fsboService.getPriceHistory("prop-1");
-    history.push({ priceCents: 1, recordedAt: 0 });
-    expect(fsboService.getPriceHistory("prop-1")).toHaveLength(1);
   });
 });
 

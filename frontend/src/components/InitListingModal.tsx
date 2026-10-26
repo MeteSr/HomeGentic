@@ -3,16 +3,17 @@
  *
  * Collects:
  *   - Asking price (required)
- *   - Listing description (optional, with AI-draft)
+ *   - Listing description (optional; "Fill in from my records" writes a
+ *     starting point from the property and its verified jobs)
  *
  * On submit:
- *   - Calls fsboService.setFsboMode(propertyId, priceCents, description)
+ *   - Saves the setup with fsboService.saveDraft (price done, next step 2)
  *   - Navigates to /my-listing/:propertyId
  */
 
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, X } from "lucide-react";
+import { FileText, X } from "lucide-react";
 import { Button } from "@/components/Button";
 import { fsboService } from "@/services/fsbo";
 import type { Property } from "@/services/property";
@@ -52,7 +53,7 @@ function draftDescription(property: Property, jobs: Job[], score: number): strin
       ? ` ${verifiedJobs.length} verified maintenance job${verifiedJobs.length !== 1 ? "s" : ""} on record${typeList}.`
       : "";
 
-  return `Well-maintained ${type} in ${property.city}, ${property.state}. Built ${property.yearBuilt}, ${sqFt} sq ft.${jobLine} HomeGentic score: ${score}/100 — all records verified on-chain.`;
+  return `Well-maintained ${type} in ${property.city}, ${property.state}. Built ${property.yearBuilt}, ${sqFt} sq ft.${jobLine} HomeGentic score: ${score}/100.`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -92,20 +93,15 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
 
   const [priceInput,   setPriceInput]   = useState("");
   const [description,  setDescription]  = useState("");
-  const [generating,   setGenerating]   = useState(false);
   const [priceError,   setPriceError]   = useState("");
   const [submitting,   setSubmitting]   = useState(false);
+  const [saveError,    setSaveError]    = useState("");
   const dialog = useDialog(open, onClose, { label: "List Your Home" });
 
   if (!open) return null;
 
-  function handleDraftAI() {
-    setGenerating(true);
-    // Simulate a short generation delay then fill the textarea
-    setTimeout(() => {
-      setDescription(draftDescription(property, jobs, score));
-      setGenerating(false);
-    }, 600);
+  function handleFillFromRecords() {
+    setDescription(draftDescription(property, jobs, score));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -116,11 +112,17 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
       return;
     }
     setPriceError("");
+    setSaveError("");
     setSubmitting(true);
 
     const priceCents = Math.round(dollars * 100);
-    fsboService.setFsboMode(String(property.id), priceCents, description.trim() || undefined);
-    navigate(`/my-listing/${property.id}`);
+    try {
+      await fsboService.saveDraft(String(property.id), priceCents, description, 2);
+      navigate(`/my-listing/${property.id}`);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Couldn't save your listing. Please try again.");
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -194,21 +196,21 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
               <label style={{ ...labelStyle, margin: 0 }}>Listing Description</label>
               <button
                 type="button"
-                onClick={handleDraftAI}
-                disabled={generating}
+                onClick={handleFillFromRecords}
                 style={{
                   display:    "inline-flex", alignItems: "center", gap: "0.3rem",
                   fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em",
-                  color:      generating ? UI.inkLight : V2_COLORS.blue,
-                  background: "none", border: "none", cursor: generating ? "default" : "pointer",
+                  color:      V2_COLORS.blue,
+                  background: "none", border: "none", cursor: "pointer",
                   padding:    "0.2rem 0",
                 }}
               >
-                <Sparkles size={11} />
-                {generating ? "Drafting…" : "Draft with AI"}
+                <FileText size={11} />
+                Fill in from my records
               </button>
             </div>
             <textarea
+              maxLength={5000}
               style={{
                 ...inputStyle,
                 height:     "110px",
@@ -220,9 +222,15 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
               onChange={(e) => setDescription(e.target.value)}
             />
             <p style={{ fontFamily: UI.sans, fontSize: "0.7rem", color: UI.inkLight, marginTop: "0.25rem" }}>
-              Optional — you can add or edit this later from My Listing.
+              Optional. You can change it on My Listing until the listing goes live.
             </p>
           </div>
+
+          {saveError && (
+            <p role="alert" style={{ fontFamily: UI.sans, fontSize: "0.75rem", color: V2_COLORS.coralText, margin: 0 }}>
+              {saveError}
+            </p>
+          )}
 
           {/* Actions */}
           <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", paddingTop: "0.5rem", borderTop: `1px solid ${V2_COLORS.border}` }}>

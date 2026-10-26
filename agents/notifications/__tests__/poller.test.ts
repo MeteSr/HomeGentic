@@ -252,6 +252,7 @@ describe("pollOnce", () => {
   it("polls every configured outbox and keeps going when one fails", async () => {
     process.env.CANISTER_ID_JOB   = "job-id";
     process.env.CANISTER_ID_QUOTE = "quote-id";
+    process.env.CANISTER_ID_LISTING = "listing-id";
     const p = freshPoller();
     const readOutbox = jest.fn(async (id: string) => {
       if (id === "job-id") throw new Error("boom");
@@ -261,12 +262,14 @@ describe("pollOnce", () => {
     await p.pollOnce(deps({ readOutbox }));
     expect(readOutbox).toHaveBeenCalledWith("job-id", 0);
     expect(readOutbox).toHaveBeenCalledWith("quote-id", 0);
+    expect(readOutbox).toHaveBeenCalledWith("listing-id", 0);
     expect(p.getCursor("quote-id")).toBe(0);
   });
 
   it("skips canisters whose ID isn't set", async () => {
     delete process.env.CANISTER_ID_JOB;
     delete process.env.CANISTER_ID_QUOTE;
+    delete process.env.CANISTER_ID_LISTING;
     const p = freshPoller();
     const d = deps();
     await p.pollOnce(d);

@@ -5,13 +5,27 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   fsboService,
+  listPublicFsbos,
   computeFsboReadiness,
   computeAgentCommissionSavings,
 } from "@/services/fsbo";
+import { showingRequestService } from "@/services/showingRequest";
+import { fsboOfferService } from "@/services/fsboOffer";
+import type { Property } from "@/services/property";
 
+// No LISTING_CANISTER_ID here, so the service runs on its in-memory store.
+// services/fsboCanister.test.ts covers the listing canister calls.
 beforeEach(() => {
   fsboService.__reset();
+  showingRequestService.__reset();
+  fsboOfferService.__reset();
 });
+
+const property: Property = {
+  id: "prop-1", owner: "2vxsx-fae", address: "12 Elm St", city: "Orlando", state: "FL", zipCode: "32801",
+  propertyType: "SingleFamily", yearBuilt: 1998n, squareFeet: 1850n, verificationLevel: "Basic",
+  tier: "Pro", createdAt: 0n, updatedAt: 0n, isActive: true,
+};
 
 // ── computeFsboReadiness ──────────────────────────────────────────────────────
 
@@ -72,123 +86,119 @@ describe("computeAgentCommissionSavings", () => {
 
 // ── fsboService.setFsboMode ───────────────────────────────────────────────────
 
-describe("fsboService.setFsboMode", () => {
-  it("creates a new FSBO record for a property", () => {
-    const record = fsboService.setFsboMode("prop-1", 45_000_00);
-    expect(record.propertyId).toBe("prop-1");
-    expect(record.isFsbo).toBe(true);
-    expect(record.listPriceCents).toBe(45_000_00);
-    expect(record.step).toBe(1);
+// ── Seller setup (in-memory store) ───────────────────────────────────────────
+
+describe("fsboService.saveDraft", () => {
+  it("returns null before the seller starts", async () => {
+    expect(await fsboService.getRecord("prop-1")).toBeNull();
   });
 
-  it("preserves activatedAt on subsequent calls", () => {
-    const first = fsboService.setFsboMode("prop-1", 40_000_00);
-    const second = fsboService.setFsboMode("prop-1", 42_000_00);
+  it("saves price, description and the next step; the home isn't live yet", async () => {
+    const rec = await fsboService.saveDraft("prop-1", 48_500_000, "Sunny corner lot", 2);
+    expect(rec).toMatchObject({ propertyId: "prop-1", isFsbo: false, listPriceCents: 48_500_000, step: 2, description: "Sunny corner lot" });
+    expect(await fsboService.getRecord("prop-1")).toEqual(rec);
+    expect(await fsboService.getPublicListing("prop-1")).toBeNull();
+  });
+
+  it("keeps the start time across saves", async () => {
+    const first  = await fsboService.saveDraft("prop-1", 1_000, undefined, 2);
+    const second = await fsboService.saveDraft("prop-1", 2_000, undefined, 3);
     expect(second.activatedAt).toBe(first.activatedAt);
-    expect(second.listPriceCents).toBe(42_000_00);
+    expect(second.step).toBe(3);
   });
 
-  it("stores an optional description", () => {
-    const record = fsboService.setFsboMode("prop-1", 40_000_00, "Charming colonial home");
-    expect(record.description).toBe("Charming colonial home");
-  });
-});
-
-// ── fsboService.getRecord ─────────────────────────────────────────────────────
-
-describe("fsboService.getRecord", () => {
-  it("returns null when no record exists", () => {
-    expect(fsboService.getRecord("prop-x")).toBeNull();
+  it("drops a blank description", async () => {
+    const rec = await fsboService.saveDraft("prop-1", 1_000, "   ", 2);
+    expect(rec.description).toBeUndefined();
   });
 
-  it("returns the record after setFsboMode", () => {
-    fsboService.setFsboMode("prop-2", 30_000_00);
-    const record = fsboService.getRecord("prop-2");
-    expect(record).not.toBeNull();
-    expect(record!.propertyId).toBe("prop-2");
+  it("rejects a zero or negative price", async () => {
+    await expect(fsboService.saveDraft("prop-1", 0, undefined, 2)).rejects.toThrow(/above \$0/);
+    await expect(fsboService.saveDraft("prop-1", -5, undefined, 2)).rejects.toThrow(/above \$0/);
   });
 });
 
-// ── fsboService.advanceStep ───────────────────────────────────────────────────
+describe("fsboService.goLive", () => {
+  it("publishes the listing with the property details and the seller's beds and baths", async () => {
+    const draft = await fsboService.saveDraft("prop-1", 48_500_000, "Sunny", 3);
+    const rec = await fsboService.goLive(property, draft, { bedrooms: 3, bathrooms: 2 });
+    expect(rec).toMatchObject({ isFsbo: true, step: "done", listPriceCents: 48_500_000 });
 
-describe("fsboService.advanceStep", () => {
-  it("advances from step 1 to 2", () => {
-    fsboService.setFsboMode("prop-1", 40_000_00);
-    const updated = fsboService.advanceStep("prop-1");
-    expect(updated.step).toBe(2);
-  });
-
-  it("advances from step 2 to 3", () => {
-    fsboService.setFsboMode("prop-1", 40_000_00);
-    fsboService.advanceStep("prop-1");
-    const updated = fsboService.advanceStep("prop-1");
-    expect(updated.step).toBe(3);
-  });
-
-  it("advances from step 3 to done", () => {
-    fsboService.setFsboMode("prop-1", 40_000_00);
-    fsboService.advanceStep("prop-1");
-    fsboService.advanceStep("prop-1");
-    const updated = fsboService.advanceStep("prop-1");
-    expect(updated.step).toBe("done");
-  });
-
-  it("throws when FSBO not activated", () => {
-    expect(() => fsboService.advanceStep("prop-not-exist")).toThrow();
+    const live = await fsboService.getPublicListing("prop-1");
+    expect(live).toMatchObject({
+      address: "12 Elm St", city: "Orlando", zipCode: "32801", propertyType: "SingleFamily",
+      yearBuilt: 1998, squareFeet: 1850, bedrooms: 3, bathrooms: 2, description: "Sunny",
+    });
+    expect((await listPublicFsbos()).map((l) => l.propertyId)).toEqual(["prop-1"]);
+    expect(await fsboService.getPriceHistory("prop-1")).toEqual([
+      { priceCents: 48_500_000, recordedAt: expect.any(Number) },
+    ]);
   });
 });
-
-// ── fsboService.deactivate ────────────────────────────────────────────────────
-
-describe("fsboService.deactivate", () => {
-  it("removes the FSBO record", () => {
-    fsboService.setFsboMode("prop-1", 40_000_00);
-    fsboService.deactivate("prop-1");
-    expect(fsboService.getRecord("prop-1")).toBeNull();
-  });
-});
-
-// ── fsboService price history ─────────────────────────────────────────────────
-
-describe("fsboService price history", () => {
-  it("returns empty array when no price logged", () => {
-    expect(fsboService.getPriceHistory("prop-1")).toHaveLength(0);
-  });
-
-  it("logs price changes and retrieves them", () => {
-    fsboService.logPriceChange("prop-1", 40_000_00);
-    fsboService.logPriceChange("prop-1", 38_000_00);
-    const history = fsboService.getPriceHistory("prop-1");
-    expect(history).toHaveLength(2);
-    expect(history[0].priceCents).toBe(40_000_00);
-    expect(history[1].priceCents).toBe(38_000_00);
-  });
-});
-
-// ── fsboService.updatePrice ───────────────────────────────────────────────────
 
 describe("fsboService.updatePrice", () => {
-  it("updates the list price on an active record", () => {
-    fsboService.setFsboMode("prop-1", 40_000_00);
-    const updated = fsboService.updatePrice("prop-1", 35_000_00);
-    expect(updated.listPriceCents).toBe(35_000_00);
+  it("changes the price and adds each new price to the history", async () => {
+    const draft = await fsboService.saveDraft("prop-1", 50_000_000, undefined, 3);
+    await fsboService.goLive(property, draft, { bedrooms: 3, bathrooms: 2 });
+    await fsboService.updatePrice("prop-1", 48_000_000);
+    await fsboService.updatePrice("prop-1", 48_000_000); // same price: no new entry
+    const rec = await fsboService.updatePrice("prop-1", 46_500_000);
+
+    expect(rec.listPriceCents).toBe(46_500_000);
+    expect((await fsboService.getPriceHistory("prop-1")).map((h) => h.priceCents))
+      .toEqual([50_000_000, 48_000_000, 46_500_000]);
   });
 
-  it("throws when property not found", () => {
-    expect(() => fsboService.updatePrice("prop-not-exist", 100)).toThrow();
+  it("fails when the home isn't live", async () => {
+    await expect(fsboService.updatePrice("nope", 1_000)).rejects.toThrow(/no longer exists/);
   });
 });
 
-// ── fsboService.setUnderContract ──────────────────────────────────────────────
+describe("fsboService.deactivate", () => {
+  it("takes the listing down and deletes its showings, offers and history", async () => {
+    const draft = await fsboService.saveDraft("prop-1", 50_000_000, undefined, 3);
+    await fsboService.goLive(property, draft, { bedrooms: 3, bathrooms: 2 });
+    await showingRequestService.create({ propertyId: "prop-1", name: "Ana", contact: "ana@example.com", preferredTime: "Sat" });
+    await fsboOfferService.logOffer("prop-1", {
+      buyerName: "Ana", offerAmountCents: 49_000_000, earnestMoneyCents: 0,
+      contingencies: [], closeDateMs: 0, hasEscalationClause: false,
+    });
 
-describe("fsboService.setUnderContract", () => {
-  it("sets step to done", () => {
-    fsboService.setFsboMode("prop-1", 40_000_00);
-    fsboService.setUnderContract("prop-1");
-    expect(fsboService.getRecord("prop-1")!.step).toBe("done");
+    await fsboService.deactivate("prop-1");
+
+    expect(await fsboService.getRecord("prop-1")).toBeNull();
+    expect(await fsboService.getPublicListing("prop-1")).toBeNull();
+    expect(await fsboService.getPriceHistory("prop-1")).toEqual([]);
+    expect(await showingRequestService.getByProperty("prop-1")).toEqual([]);
+    expect(await fsboOfferService.getByProperty("prop-1")).toEqual([]);
   });
 
-  it("is a no-op when property not in map", () => {
-    expect(() => fsboService.setUnderContract("prop-none")).not.toThrow();
+  it("discards an unfinished setup", async () => {
+    await fsboService.saveDraft("prop-1", 50_000_000, undefined, 2);
+    await fsboService.deactivate("prop-1");
+    expect(await fsboService.getRecord("prop-1")).toBeNull();
+  });
+});
+
+describe("fsboService score visibility", () => {
+  it("hides and shows the score on the public listing", async () => {
+    const draft = await fsboService.saveDraft("prop-1", 50_000_000, undefined, 3);
+    await fsboService.goLive(property, draft, { bedrooms: 3, bathrooms: 2 });
+    expect(await fsboService.isScoreHidden("prop-1")).toBe(false);
+    await fsboService.setScoreVisible("prop-1", false);
+    expect(await fsboService.isScoreHidden("prop-1")).toBe(true);
+    await fsboService.setScoreVisible("prop-1", true);
+    expect(await fsboService.isScoreHidden("prop-1")).toBe(false);
+  });
+});
+
+describe("E2E injection", () => {
+  it("window.__e2e_fsbo wins over the store", async () => {
+    (window as any).__e2e_fsbo = { "prop-9": { propertyId: "prop-9", isFsbo: true, listPriceCents: 1, activatedAt: 0, step: "done", hasReport: false } };
+    try {
+      expect((await fsboService.getRecord("prop-9"))?.isFsbo).toBe(true);
+    } finally {
+      delete (window as any).__e2e_fsbo;
+    }
   });
 });

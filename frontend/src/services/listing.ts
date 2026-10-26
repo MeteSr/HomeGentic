@@ -532,27 +532,8 @@ function createListingService() {
     if (!LISTING_CANISTER_ID) return [];
     const actor = await getActor();
     const raw = (await actor.listActiveFsboListings()) as any[];
-    return raw.map((r: any) => ({
-      propertyId:        r.propertyId,
-      listPriceCents:    Number(r.listPriceCents),
-      activatedAt:       Number(r.activatedAt) / 1_000_000,
-      address:           r.address,
-      city:              r.city,
-      state:             r.state,
-      zipCode:           r.zipCode,
-      propertyType:      r.propertyType as import("./fsbo").PropertyType,
-      yearBuilt:         Number(r.yearBuilt),
-      squareFeet:        Number(r.squareFeet),
-      bedrooms:          Number(r.bedrooms),
-      bathrooms:         Number(r.bathrooms),
-      verificationLevel: r.verificationLevel as import("./fsbo").VerificationLevel,
-      score:             r.score[0] != null ? Number(r.score[0]) : undefined,
-      verifiedJobCount:  Number(r.verifiedJobCount),
-      description:       r.description[0] ?? undefined,
-      photoUrl:          r.photoUrl[0] ?? undefined,
-      hasPublicReport:   r.hasPublicReport,
-      systemHighlights:  r.systemHighlights as string[],
-    }));
+    const { fromPublicListing } = await import("./fsbo");
+    return raw.map(fromPublicListing);
   },
 
   async activateFsboListing(listing: import("./fsbo").FsboPublicListing & { homeowner: string }): Promise<void> {

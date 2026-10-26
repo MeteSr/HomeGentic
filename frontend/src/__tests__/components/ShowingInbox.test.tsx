@@ -1,125 +1,77 @@
 /**
- * ShowingInbox — real logic worth locking down (against the real
- * in-memory showingRequestService/showingFeedbackService, not mocks):
- *   - Accept/Decline update the request's status and badge in place
- *   - Propose Alternate Time only submits a non-blank value, and shows
- *     the pending alternate time once proposed
- *   - Request Feedback is only offered once Accepted, and once sent
- *     shows "Feedback Requested" (or the response, once submitted)
- *     instead of the button again
- *   - the empty state shows when a property has no showing requests
+ * ShowingInbox (10.4.1) — the seller's showing requests, loaded by the
+ * manager page and passed in. Answers go to the listing canister through
+ * showingRequestService (its in-memory store here).
  */
-
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { useState } from "react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, beforeEach } from "vitest";
 import ShowingInbox from "@/components/ShowingInbox";
-import { showingRequestService } from "@/services/showingRequest";
-import { showingFeedbackService } from "@/services/showingFeedback";
+import { showingRequestService, type ShowingRequest } from "@/services/showingRequest";
 
-beforeEach(() => {
-  (showingRequestService as any).__reset();
-  (showingFeedbackService as any).__reset();
-});
-
-function seedRequest(overrides: Partial<Parameters<typeof showingRequestService.create>[0]> = {}) {
-  return showingRequestService.create({
-    propertyId: "prop-1", name: "Jamie Rivera", contact: "jamie@example.com",
-    preferredTime: "Saturday 10am", ...overrides,
-  });
+function Harness({ initial }: { initial: ShowingRequest[] }) {
+  const [requests, setRequests] = useState(initial);
+  return <ShowingInbox requests={requests} onUpdate={(u) => setRequests((xs) => xs.map((r) => (r.id === u.id ? u : r)))} />;
 }
 
-describe("ShowingInbox — empty state", () => {
-  it("shows a message when there are no requests", () => {
-    render(<ShowingInbox propertyId="prop-1" />);
-    expect(screen.getByText("No showing requests yet.")).toBeInTheDocument();
-  });
-});
+async function seed(n = 1): Promise<ShowingRequest[]> {
+  const out: ShowingRequest[] = [];
+  for (let i = 0; i < n; i++) {
+    out.push(await showingRequestService.create({
+      propertyId: "prop-1", name: `Buyer ${i + 1}`, contact: i === 0 ? "b1@example.com" : "(407) 555-0100", preferredTime: "Saturday 10am",
+    }));
+  }
+  return out;
+}
 
-describe("ShowingInbox — accept / decline", () => {
-  it("accepts a request and updates the badge", () => {
-    seedRequest();
-    render(<ShowingInbox propertyId="prop-1" />);
+beforeEach(() => showingRequestService.__reset());
+
+describe("ShowingInbox", () => {
+  it("shows an empty state and explains that buyers aren't messaged", () => {
+    render(<ShowingInbox requests={[]} onUpdate={() => {}} />);
+    expect(screen.getByText(/no showing requests yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/buyers aren't told when you accept/i)).toBeInTheDocument();
+  });
+
+  it("shows name, preferred time and a mailto/tel link to the buyer", async () => {
+    render(<Harness initial={await seed(2)} />);
+    expect(screen.getByText("Buyer 1")).toBeInTheDocument();
+    expect(screen.getAllByText("Saturday 10am")).toHaveLength(2);
+    expect(screen.getByRole("link", { name: "Contact Buyer 1" })).toHaveAttribute("href", "mailto:b1@example.com");
+    expect(screen.getByRole("link", { name: "Contact Buyer 2" })).toHaveAttribute("href", "tel:4075550100");
+  });
+
+  it("Accept and Decline save the answer and update only that row", async () => {
+    const [a, b] = await seed(2);
+    render(<Harness initial={[a, b]} />);
+    const rows = () => screen.getAllByTestId("showing-row");
+
+    fireEvent.click(within(rows()[0]).getByRole("button", { name: "Accept" }));
+    await waitFor(() => expect(within(rows()[0]).getByText("Accepted")).toBeInTheDocument());
+    expect(within(rows()[1]).getByText("Pending")).toBeInTheDocument();
+
+    fireEvent.click(within(rows()[1]).getByRole("button", { name: "Decline" }));
+    await waitFor(() => expect(within(rows()[1]).getByText("Declined")).toBeInTheDocument());
+    expect((await showingRequestService.getByProperty("prop-1")).map((r) => r.status).sort()).toEqual(["Accepted", "Declined"]);
+  });
+
+  it("Propose Alternate Time ignores a blank time and saves a real one", async () => {
+    render(<Harness initial={await seed(1)} />);
+    fireEvent.click(screen.getByRole("button", { name: /propose alternate time/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save alternate/i }));
     expect(screen.getByText("Pending")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText("Accept"));
-    expect(screen.getByText("Accepted")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Accept")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/alternate time/i), { target: { value: "Sunday 2pm" } });
+    fireEvent.click(screen.getByRole("button", { name: /save alternate/i }));
+    await waitFor(() => expect(screen.getByText("Alternate Proposed")).toBeInTheDocument());
+    expect(screen.getByText(/Alternate: Sunday 2pm/)).toBeInTheDocument();
   });
 
-  it("declines a request and updates the badge", () => {
-    seedRequest();
-    render(<ShowingInbox propertyId="prop-1" />);
-
-    fireEvent.click(screen.getByLabelText("Decline"));
-    expect(screen.getByText("Declined")).toBeInTheDocument();
-  });
-});
-
-describe("ShowingInbox — propose alternate time", () => {
-  it("ignores a blank alternate time", () => {
-    seedRequest();
-    render(<ShowingInbox propertyId="prop-1" />);
-
-    fireEvent.click(screen.getByText("Propose Alternate Time"));
-    fireEvent.click(screen.getByText("Send Alternate"));
-
-    expect(screen.queryByText("Alternate Proposed")).not.toBeInTheDocument();
-    // the form stays open since a blank submission is a no-op, not a cancel
-    expect(screen.getByText("Send Alternate")).toBeInTheDocument();
-  });
-
-  it("submits an alternate time and shows the AlternatePending badge and time", () => {
-    seedRequest();
-    render(<ShowingInbox propertyId="prop-1" />);
-
-    fireEvent.click(screen.getByText("Propose Alternate Time"));
-    fireEvent.change(screen.getByLabelText("Alternate Time"), { target: { value: "Sunday 2pm" } });
-    fireEvent.click(screen.getByText("Send Alternate"));
-
-    expect(screen.getByText("Alternate Proposed")).toBeInTheDocument();
-    expect(screen.getByText("Alternate: Sunday 2pm")).toBeInTheDocument();
-  });
-});
-
-describe("ShowingInbox — feedback", () => {
-  it("offers Request Feedback only once accepted", () => {
-    seedRequest();
-    render(<ShowingInbox propertyId="prop-1" />);
-    expect(screen.queryByLabelText("Request Feedback")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByLabelText("Accept"));
-    expect(screen.getByLabelText("Request Feedback")).toBeInTheDocument();
-  });
-
-  it("shows Feedback Requested after sending, instead of the button", async () => {
-    seedRequest();
-    render(<ShowingInbox propertyId="prop-1" />);
-    fireEvent.click(screen.getByLabelText("Accept"));
-
-    fireEvent.click(screen.getByLabelText("Request Feedback"));
-
-    expect(await screen.findByText("Feedback Requested")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Request Feedback")).not.toBeInTheDocument();
-  });
-});
-
-describe("ShowingInbox — multiple requests", () => {
-  it("only scopes property requests and each row acts independently", () => {
-    seedRequest({ name: "Jamie Rivera" });
-    seedRequest({ name: "Sam Lee" });
-    seedRequest({ propertyId: "prop-2", name: "Other Property Buyer" });
-
-    render(<ShowingInbox propertyId="prop-1" />);
-    expect(screen.getByText("Jamie Rivera")).toBeInTheDocument();
-    expect(screen.getByText("Sam Lee")).toBeInTheDocument();
-    expect(screen.queryByText("Other Property Buyer")).not.toBeInTheDocument();
-
-    const acceptButtons = screen.getAllByLabelText("Accept");
-    fireEvent.click(acceptButtons[0]);
-
-    const jamieRow = screen.getByText("Jamie Rivera").closest("div")!.parentElement!.parentElement!;
-    const samRow = screen.getByText("Sam Lee").closest("div")!.parentElement!.parentElement!;
-    expect(within(jamieRow).getByText("Accepted")).toBeInTheDocument();
-    expect(within(samRow).getByText("Pending")).toBeInTheDocument();
+  it("shows the error when saving fails", async () => {
+    const [a] = await seed(1);
+    showingRequestService.__reset(); // the request is gone from the store
+    render(<Harness initial={[a]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/no longer exists/i);
   });
 });

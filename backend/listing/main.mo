@@ -333,6 +333,8 @@ persistent actor Listing {
   private let fsboOffers       = Map.empty<Text, [FsboOffer]>();
   /// propertyId → (showing requests in the current day, day start).
   private let showingDayWindow = Map.empty<Text, (Nat, Int)>();
+  /// propertyIds whose seller hid the HomeGentic score from the public listing.
+  private let fsboScoreHidden  = Map.empty<Text, ()>();
 
   /// Push/email outbox read by the notification relay (shared/Notify.mo):
   /// "showing_request" to the seller when a buyer asks to see the home.
@@ -1235,7 +1237,7 @@ persistent actor Listing {
     };
 
     var resolvedScore : ?Nat = null;
-    if (marketCanisterId != "") {
+    if (marketCanisterId != "" and fsboScoreHidden.get(listing.propertyId) == null) {
       let marketActor = actor(marketCanisterId) : actor { computePropertyScore : (Text) -> async ?Nat };
       resolvedScore := await marketActor.computePropertyScore(listing.propertyId);
     };
@@ -1310,6 +1312,7 @@ persistent actor Listing {
     fsboShowings.remove(propertyId);
     fsboOffers.remove(propertyId);
     showingDayWindow.remove(propertyId);
+    fsboScoreHidden.remove(propertyId);
   };
 
   /// The seller of a property's FSBO state: the draft's owner, or the live
@@ -1385,6 +1388,41 @@ persistent actor Listing {
         #ok(updated)
       };
     }
+  };
+
+  /// Show or hide the HomeGentic score on the seller's live listing. Showing it
+  /// again asks the market canister for the current score.
+  public shared(msg) func setFsboScoreVisible(propertyId: Text, visible: Bool) : async Result.Result<PublicFsboListing, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let l = switch (fsboListings.get(propertyId)) { case null { return #err(#NotFound) }; case (?l) l };
+    if (l.homeowner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (not visible) {
+      fsboScoreHidden.add(propertyId, ());
+      let updated = { l with score = null };
+      fsboListings.add(propertyId, updated);
+      return #ok(updated);
+    };
+    fsboScoreHidden.remove(propertyId);
+    var score : ?Nat = null;
+    if (marketCanisterId != "") {
+      let marketActor = actor(marketCanisterId) : actor { computePropertyScore : (Text) -> async ?Nat };
+      score := await marketActor.computePropertyScore(propertyId);
+    };
+    // The listing may have changed during the await.
+    switch (fsboListings.get(propertyId)) {
+      case null #err(#NotFound);
+      case (?cur) {
+        let updated = { cur with score };
+        fsboListings.add(propertyId, updated);
+        #ok(updated)
+      };
+    }
+  };
+
+  /// Whether the seller hid the score (true) on this listing. Seller only.
+  public query(msg) func isFsboScoreHidden(propertyId: Text) : async Bool {
+    if (not isFsboSeller(propertyId, msg.caller)) return false;
+    fsboScoreHidden.get(propertyId) != null
   };
 
   // ─── FSBO showings ───────────────────────────────────────────────────────────

@@ -8,9 +8,12 @@
  *   10.5.3 — Net proceeds per offer
  *   10.5.4 — Counter-offer thread per offer
  *   10.5.5 — Accept → Under Contract
+ *
+ * Offers reach the seller outside HomeGentic (email, paper, a buyer's agent);
+ * the seller logs them here. Nothing on this panel contacts the buyer.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   fsboOfferService,
@@ -19,7 +22,6 @@ import {
   type FsboOffer,
   type LogFsboOfferInput,
 } from "@/services/fsboOffer";
-import { fsboService } from "@/services/fsbo";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { formatCents } from "@/utils/format";
 
@@ -53,41 +55,58 @@ interface OfferRowProps {
   offer:            FsboOffer;
   underContract:    boolean;
   onUpdate:         (updated: FsboOffer) => void;
-  onContractUpdate: () => void;
+  /** Accepting rejects the listing's other open offers, so the panel reloads them all. */
+  onAccepted:       () => void;
 }
 
-function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRowProps) {
+function OfferRow({ offer, underContract, onUpdate, onAccepted }: OfferRowProps) {
   const [countering,     setCountering]     = useState(false);
   const [counterAmount,  setCounterAmount]  = useState("");
   const [counterNotes,   setCounterNotes]   = useState("");
+  const [counterFrom,    setCounterFrom]    = useState<"seller" | "buyer">("seller");
+  const [busy,           setBusy]           = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
 
   const net  = computeFsboNetProceeds(offer.offerAmountCents);
   const risk = computeContingencyRisk(offer.contingencies);
 
-  async function handleAccept() {
-    const updated = await fsboOfferService.accept(offer.id);
-    onUpdate(updated);
-    fsboService.setUnderContract(offer.propertyId);
-    onContractUpdate();
+  async function act(action: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  async function handleReject() {
-    onUpdate(await fsboOfferService.reject(offer.id));
+  function handleAccept() {
+    void act(async () => {
+      onUpdate(await fsboOfferService.accept(offer.propertyId, offer.id));
+      onAccepted();
+    });
   }
 
-  async function handleCounterSubmit(e: React.FormEvent) {
+  function handleReject() {
+    void act(async () => onUpdate(await fsboOfferService.reject(offer.propertyId, offer.id)));
+  }
+
+  function handleCounterSubmit(e: React.FormEvent) {
     e.preventDefault();
     const cents = Math.round(parseFloat(counterAmount) * 100);
     if (!cents || cents <= 0) return;
-    const updated = await fsboOfferService.addCounter(offer.id, {
-      amountCents: cents,
-      notes:       counterNotes,
-      fromSeller:  true,
+    void act(async () => {
+      onUpdate(await fsboOfferService.addCounter(offer.propertyId, offer.id, {
+        amountCents: cents,
+        notes:       counterNotes,
+        fromSeller:  counterFrom === "seller",
+      }));
+      setCountering(false);
+      setCounterAmount("");
+      setCounterNotes("");
     });
-    onUpdate(updated);
-    setCountering(false);
-    setCounterAmount("");
-    setCounterNotes("");
   }
 
   return (
@@ -136,6 +155,7 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
         <div style={{ borderTop: `1px solid ${UI.rule}`, paddingTop: "0.5rem", marginBottom: "0.5rem" }}>
           {offer.counters.map((c) => (
             <div key={c.id} style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.ink, marginBottom: "0.25rem" }}>
+              <span style={{ color: UI.inkLight }}>{c.fromSeller ? "You" : "Buyer"}: </span>
               <strong>{formatCents(c.amountCents)}</strong>
               {c.notes && <span style={{ color: UI.inkLight }}> — {c.notes}</span>}
             </div>
@@ -144,10 +164,11 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
       )}
 
       {/* Actions (hidden once Under Contract) */}
-      {!underContract && offer.status === "Active" && (
+      {!underContract && (offer.status === "Active" || offer.status === "Countered") && (
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button
             onClick={handleAccept}
+            disabled={busy}
             aria-label="Accept Offer"
             style={{ padding: "0.3rem 0.75rem", background: "#188038", color: "#fff", border: "none", fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
           >
@@ -155,6 +176,7 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
           </button>
           <button
             onClick={handleReject}
+            disabled={busy}
             aria-label="Reject Offer"
             style={{ padding: "0.3rem 0.75rem", background: "#c0392b", color: "#fff", border: "none", fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
           >
@@ -165,7 +187,7 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
               onClick={() => setCountering(true)}
               style={{ padding: "0.3rem 0.75rem", background: "transparent", color: UI.ink, border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
             >
-              Counter
+              Log Counter
             </button>
           )}
         </div>
@@ -185,11 +207,28 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
                 id={`ca-${offer.id}`}
                 type="number"
                 min="1"
-                step="1000"
+                step="any"
                 value={counterAmount}
                 onChange={(e) => setCounterAmount(e.target.value)}
                 style={{ padding: "0.35rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.8rem", width: "10rem" }}
               />
+            </div>
+            <div>
+              <label
+                htmlFor={`cf-${offer.id}`}
+                style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}
+              >
+                From
+              </label>
+              <select
+                id={`cf-${offer.id}`}
+                value={counterFrom}
+                onChange={(e) => setCounterFrom(e.target.value as "seller" | "buyer")}
+                style={{ padding: "0.35rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.sans, fontSize: "0.8rem" }}
+              >
+                <option value="seller">Me</option>
+                <option value="buyer">The buyer</option>
+              </select>
             </div>
             <div style={{ flex: 1, minWidth: "12rem" }}>
               <label
@@ -209,11 +248,16 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
           </div>
           <button
             type="submit"
+            disabled={busy}
             style={{ alignSelf: "flex-start", padding: "0.35rem 0.75rem", background: UI.ink, color: "#fff", border: "none", fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
           >
-            Send Counter
+            Save Counter
           </button>
         </form>
+      )}
+
+      {error && (
+        <p role="alert" style={{ fontFamily: UI.sans, fontSize: "0.75rem", color: "#c0392b", margin: "0.5rem 0 0" }}>{error}</p>
       )}
     </div>
   );
@@ -222,13 +266,16 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
 // ─── Main panel ────────────────────────────────────────────────────────────────
 
 export interface FsboOfferPanelProps {
-  propertyId:     string;
-  listPriceCents: number;
+  propertyId:      string;
+  listPriceCents:  number;
+  /** Called whenever the offer list changes (the manager page shows the count). */
+  onOffersChange?: (offers: FsboOffer[]) => void;
 }
 
-export default function FsboOfferPanel({ propertyId }: FsboOfferPanelProps) {
-  const [offers,        setOffers]        = useState<FsboOffer[]>(() => fsboOfferService.getByProperty(propertyId));
-  const [underContract, setUnderContract] = useState(false);
+export default function FsboOfferPanel({ propertyId, onOffersChange }: FsboOfferPanelProps) {
+  const [offers,        setOffers]        = useState<FsboOffer[]>([]);
+  const [loadError,     setLoadError]     = useState<string | null>(null);
+  const underContract = offers.some((o) => o.status === "Accepted");
 
   // Form state
   const [buyerName,     setBuyerName]     = useState("");
@@ -239,9 +286,14 @@ export default function FsboOfferPanel({ propertyId }: FsboOfferPanelProps) {
   const [escalation,    setEscalation]    = useState(false);
   const [submitting,    setSubmitting]    = useState(false);
 
-  useEffect(() => {
-    setOffers(fsboOfferService.getByProperty(propertyId));
+  const load = useCallback(() => {
+    fsboOfferService.getByProperty(propertyId)
+      .then((xs) => { setOffers(xs); setLoadError(null); })
+      .catch((err) => setLoadError(err instanceof Error ? err.message : "Couldn't load offers."));
   }, [propertyId]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { onOffersChange?.(offers); }, [offers, onOffersChange]);
 
   function toggleContingency(val: string) {
     setContingencies((prev) =>
@@ -265,11 +317,14 @@ export default function FsboOfferPanel({ propertyId }: FsboOfferPanelProps) {
     };
 
     setSubmitting(true);
+    setLoadError(null);
     try {
       const offer = await fsboOfferService.logOffer(propertyId, input);
       setOffers((prev) => [...prev, offer]);
       setBuyerName(""); setOfferAmount(""); setEarnestMoney("");
       setCloseDate(""); setContingencies([]); setEscalation(false);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Couldn't log the offer.");
     } finally {
       setSubmitting(false);
     }
@@ -288,7 +343,7 @@ export default function FsboOfferPanel({ propertyId }: FsboOfferPanelProps) {
       {/* Under Contract banner */}
       {underContract && (
         <div style={{ background: "#f0faf4", border: "1px solid #c3e6cb", padding: "0.75rem 1rem", marginBottom: "1rem", fontFamily: UI.sans, fontWeight: 600, color: "#188038" }}>
-          Under Contract — offer accepted. Your listing is no longer active.
+          Under Contract — offer accepted. Your other open offers were marked rejected. The listing stays up until you take it down.
         </div>
       )}
       {underContract && (
@@ -298,6 +353,10 @@ export default function FsboOfferPanel({ propertyId }: FsboOfferPanelProps) {
             Set up the handoff →
           </Link>
         </div>
+      )}
+
+      {loadError && (
+        <p role="alert" style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: "#c0392b", margin: "0 0 1rem" }}>{loadError}</p>
       )}
 
       {/* Offer list */}
@@ -313,7 +372,7 @@ export default function FsboOfferPanel({ propertyId }: FsboOfferPanelProps) {
               offer={o}
               underContract={underContract}
               onUpdate={handleUpdate}
-              onContractUpdate={() => setUnderContract(true)}
+              onAccepted={load}
             />
           ))}
         </div>
@@ -345,7 +404,7 @@ export default function FsboOfferPanel({ propertyId }: FsboOfferPanelProps) {
               <label htmlFor="fo-amount" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>
                 Offer Amount ($)
               </label>
-              <input id="fo-amount" type="number" min="1" step="1000" value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)}
+              <input id="fo-amount" type="number" min="1" step="any" value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)}
                 style={{ padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.875rem", width: "10rem" }} />
             </div>
 
@@ -354,7 +413,7 @@ export default function FsboOfferPanel({ propertyId }: FsboOfferPanelProps) {
               <label htmlFor="fo-earnest" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>
                 Earnest Money ($)
               </label>
-              <input id="fo-earnest" type="number" min="0" step="500" value={earnestMoney} onChange={(e) => setEarnestMoney(e.target.value)}
+              <input id="fo-earnest" type="number" min="0" step="any" value={earnestMoney} onChange={(e) => setEarnestMoney(e.target.value)}
                 style={{ padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.875rem", width: "10rem" }} />
             </div>
 

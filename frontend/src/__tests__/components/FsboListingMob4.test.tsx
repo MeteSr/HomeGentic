@@ -136,7 +136,7 @@ describe("ShowingRequestForm — input width", () => {
 describe("ShowingRequestForm — labels", () => {
   it("shows Your Name label", async () => {
     await renderForm(390);
-    expect(screen.getByText(/your name/i)).toBeInTheDocument();
+    expect(screen.getByText(/^your name$/i)).toBeInTheDocument();
   });
 
   it("shows Email or Phone label", async () => {

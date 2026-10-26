@@ -28,6 +28,7 @@ vi.mock("playcanvas", () => ({
 const {
   mockProperty,
   mockFsboRecord,
+  mockPublicListing,
   mockPanoramas,
 } = vi.hoisted(() => ({
   mockProperty: {
@@ -39,6 +40,12 @@ const {
   mockFsboRecord: {
     propertyId: "prop-308", isFsbo: true, listPriceCents: 50_000_000,
     activatedAt: Date.now(), step: "done" as const, hasReport: false,
+  },
+  mockPublicListing: {
+    propertyId: "prop-308", listPriceCents: 50_000_000, activatedAt: Date.now(),
+    address: "7 Oak Lane", city: "Denver", state: "CO", zipCode: "80203",
+    propertyType: "SingleFamily" as const, yearBuilt: 2005, squareFeet: 1800, bedrooms: 3, bathrooms: 2,
+    verificationLevel: "Basic" as const, score: 80, verifiedJobCount: 2, hasPublicReport: false, systemHighlights: [],
   },
   mockPanoramas: [
     { roomLabel: "Living Room",    photoId: "PH_360_1" },
@@ -56,21 +63,22 @@ vi.mock("@/services/job", () => ({
   jobService: { getByProperty: vi.fn().mockResolvedValue([]), getAll: vi.fn().mockResolvedValue([]) },
 }));
 vi.mock("@/services/photo", () => ({
-  photoService: { getByProperty: vi.fn().mockResolvedValue([]), getListingPhotos: vi.fn().mockResolvedValue([]) },
+  photoService: {
+    getByProperty: vi.fn().mockResolvedValue([]), getListingPhotos: vi.fn().mockResolvedValue([]),
+    uploadListingPhoto: vi.fn().mockResolvedValue({ id: "PH_NEW" }),
+  },
 }));
 vi.mock("@/services/report", () => ({
   reportService: { listShareLinks: vi.fn().mockResolvedValue([]) },
 }));
 vi.mock("@/services/showingRequest", () => ({
-  showingRequestService: { create: vi.fn(), getByProperty: vi.fn().mockReturnValue([]) },
+  showingRequestService: { create: vi.fn(), getByProperty: vi.fn().mockResolvedValue([]) },
+  contactHref: () => null,
 }));
-vi.mock("@/services/notifications", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/notifications")>();
-  return { ...actual, notificationService: { create: vi.fn(), getAll: vi.fn().mockReturnValue([]) } };
+vi.mock("@/services/fsboOffer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/fsboOffer")>();
+  return { ...actual, fsboOfferService: { getByProperty: vi.fn().mockResolvedValue([]) } };
 });
-vi.mock("@/services/fsboOffer", () => ({
-  fsboOfferService: { getByProperty: vi.fn().mockReturnValue([]) },
-}));
 
 vi.mock("@/services/listing", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/listing")>();
@@ -91,13 +99,12 @@ vi.mock("@/services/fsbo", async (importOriginal) => {
   return {
     ...actual,
     fsboService: {
-      getRecord:       vi.fn().mockReturnValue(mockFsboRecord),
-      setFsboMode:     vi.fn(),
-      advanceStep:     vi.fn(),
-      deactivate:      vi.fn(),
-      getPriceHistory: vi.fn().mockReturnValue([]),
-      updatePrice:     vi.fn(),
-      logPriceChange:  vi.fn(),
+      getRecord:        vi.fn().mockResolvedValue(mockFsboRecord),
+      getPublicListing: vi.fn().mockResolvedValue(mockPublicListing),
+      getPriceHistory:  vi.fn().mockResolvedValue([]),
+      isScoreHidden:    vi.fn().mockResolvedValue(false),
+      deactivate:       vi.fn(),
+      updatePrice:      vi.fn(),
     },
   };
 });
@@ -106,6 +113,7 @@ import FsboListingPage from "@/pages/FsboListingPage";
 import FsboListingManagerPage from "@/pages/FsboListingManagerPage";
 import { listingService } from "@/services/listing";
 import { fsboService } from "@/services/fsbo";
+import { photoService } from "@/services/photo";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -134,7 +142,7 @@ function renderManagerPage(propertyId = "prop-308") {
 describe("FsboListingPage — 360° viewer (issue #308)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(fsboService.getRecord).mockReturnValue(mockFsboRecord);
+    vi.mocked(fsboService.getPublicListing).mockResolvedValue(mockPublicListing);
     vi.mocked(listingService.getPanoramas).mockResolvedValue(mockPanoramas);
   });
 
@@ -174,7 +182,7 @@ describe("FsboListingPage — 360° viewer (issue #308)", () => {
 describe("FsboListingManagerPage — panorama management (issue #308)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(fsboService.getRecord).mockReturnValue({ ...mockFsboRecord, step: "done" });
+    vi.mocked(fsboService.getRecord).mockResolvedValue({ ...mockFsboRecord, step: "done" });
     vi.mocked(listingService.getPanoramas).mockResolvedValue(mockPanoramas);
   });
 
@@ -220,5 +228,25 @@ describe("FsboListingManagerPage — panorama management (issue #308)", () => {
       expect(screen.getByLabelText(/room label|room name/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/360.*photo|panorama.*photo/i)).toBeInTheDocument();
     });
+  });
+
+  it("Add to Tour uploads the photo and adds it to the tour under the room label", async () => {
+    renderManagerPage();
+    const label = await screen.findByLabelText(/room label/i);
+    fireEvent.change(label, { target: { value: "Den" } });
+    const file = new File(["x"], "den.jpg", { type: "image/jpeg" });
+    fireEvent.change(screen.getByLabelText(/360.*photo/i), { target: { files: [file] } });
+    fireEvent.click(screen.getByTestId("add-panorama-btn"));
+    await waitFor(() => {
+      expect(vi.mocked(photoService.uploadListingPhoto)).toHaveBeenCalledWith(file, "prop-308", "360° Den");
+      expect(vi.mocked(listingService.addPanorama)).toHaveBeenCalledWith("prop-308", "Den", "PH_NEW");
+    });
+  });
+
+  it("Add to Tour asks for a label and a photo first", async () => {
+    renderManagerPage();
+    fireEvent.click(await screen.findByTestId("add-panorama-btn"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/room label and choose a 360/i);
+    expect(vi.mocked(listingService.addPanorama)).not.toHaveBeenCalled();
   });
 });

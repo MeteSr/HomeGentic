@@ -14,6 +14,10 @@
  * A review_request (a contractor co-signed a job) goes to the homeowner only
  * when the contractor has ContractorPro; summary carries the contractor.
  *
+ * A showing_request (listing canister) goes to the FSBO seller; refId is the
+ * property and summary the buyer's name. The buyer's contact stays on the
+ * canister, readable only by the seller on My Listing.
+ *
  * Lead alerts go out at once to ContractorPro and FREE_LEAD_DELAY_MS later to
  * everyone else (notBefore); the poller holds the late ones. The lead itself
  * is visible in the app to every matching contractor straight away.
@@ -90,6 +94,12 @@ export function payloadFor(event: OutboxEvent, zipCode?: string | null): PushPay
         title: "How did your contractor do?",
         body:  "Your job is verified. A short review helps other homeowners pick a contractor.",
         route: `review/${event.summary}/${event.refId}`,
+      };
+    case "showing_request":
+      return {
+        title: "New showing request",
+        body:  `${event.summary || "A buyer"} asked to see your home. Reply to them from My Listing.`,
+        route: `my-listing/${event.refId}`,
       };
     case "new_lead":
       return {

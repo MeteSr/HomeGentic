@@ -1,226 +1,138 @@
 /**
- * FsboOfferPanel — real logic worth locking down:
- *   - the intake form silently blocks submission with no buyer name or
- *     a non-positive offer amount, otherwise converts dollars to cents,
- *     defaults earnest money to 0 and close date to now when blank
- *   - each offer row shows net proceeds (offer minus 2% closing costs)
- *     and a pluralized contingency-risk count
- *   - accept calls both fsboOfferService.accept and
- *     fsboService.setUnderContract, then hides the intake form and all
- *     row actions (even on other offers) behind an Under Contract banner
- *   - reject updates the offer's status in place
- *   - the counter form ignores a non-positive amount and otherwise adds
- *     a counter to the thread and resets itself
+ * FsboOfferPanel (10.5) with the real fsboOfferService on its in-memory store:
+ * logging offers, comparison figures, counters from either side, accept /
+ * reject, and the under-contract state.
  */
-
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import FsboOfferPanel from "@/components/FsboOfferPanel";
-import type { FsboOffer } from "@/services/fsboOffer";
+import { fsboOfferService, type LogFsboOfferInput } from "@/services/fsboOffer";
 
-const { mockGetByProperty, mockLogOffer, mockAccept, mockReject, mockAddCounter } = vi.hoisted(() => ({
-  mockGetByProperty: vi.fn(),
-  mockLogOffer: vi.fn(),
-  mockAccept: vi.fn(),
-  mockReject: vi.fn(),
-  mockAddCounter: vi.fn(),
-}));
-vi.mock("@/services/fsboOffer", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/fsboOffer")>();
-  return {
-    ...actual,
-    fsboOfferService: {
-      getByProperty: mockGetByProperty,
-      logOffer: mockLogOffer,
-      accept: mockAccept,
-      reject: mockReject,
-      addCounter: mockAddCounter,
-    },
-  };
-});
+const INPUT: LogFsboOfferInput = {
+  buyerName: "Alice", offerAmountCents: 48_000_000, earnestMoneyCents: 1_000_000,
+  contingencies: ["inspection", "financing"], closeDateMs: Date.UTC(2027, 0, 15), hasEscalationClause: false,
+};
 
-const { mockSetUnderContract } = vi.hoisted(() => ({ mockSetUnderContract: vi.fn() }));
-vi.mock("@/services/fsbo", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/fsbo")>();
-  return { ...actual, fsboService: { setUnderContract: mockSetUnderContract } };
-});
-
-function makeOffer(overrides: Partial<FsboOffer> = {}): FsboOffer {
-  return {
-    id: "fo-1", propertyId: "prop-1", buyerName: "Jamie Rivera", offerAmountCents: 500_000_00,
-    earnestMoneyCents: 10_000_00, contingencies: [], closeDateMs: Date.now(),
-    hasEscalationClause: false, status: "Active", loggedAt: Date.now(), counters: [],
-    ...overrides,
-  };
+function renderPanel(onOffersChange = vi.fn()) {
+  render(<MemoryRouter><FsboOfferPanel propertyId="prop-1" listPriceCents={50_000_000} onOffersChange={onOffersChange} /></MemoryRouter>);
+  return onOffersChange;
 }
 
-function renderPanel() {
-  return render(<MemoryRouter><FsboOfferPanel propertyId="prop-1" listPriceCents={500_000_00} /></MemoryRouter>);
-}
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  mockGetByProperty.mockReturnValue([]);
-});
+beforeEach(() => fsboOfferService.__reset());
 
-describe("FsboOfferPanel — empty state", () => {
-  it("shows the empty-offers message", () => {
+describe("FsboOfferPanel — logging offers (10.5.1)", () => {
+  it("shows an empty state", async () => {
     renderPanel();
-    expect(screen.getByText("No offers logged yet.")).toBeInTheDocument();
-  });
-});
-
-describe("FsboOfferPanel — intake form", () => {
-  it("blocks submission with no buyer name", () => {
-    renderPanel();
-    fireEvent.change(screen.getByLabelText("Offer Amount ($)"), { target: { value: "500000" } });
-    fireEvent.submit(screen.getByLabelText("Log Offer"));
-    expect(mockLogOffer).not.toHaveBeenCalled();
+    expect(await screen.findByText(/no offers logged yet/i)).toBeInTheDocument();
   });
 
-  it("blocks submission with a zero or blank offer amount", () => {
-    renderPanel();
-    fireEvent.change(screen.getByLabelText("Buyer Name"), { target: { value: "Jamie Rivera" } });
-    fireEvent.submit(screen.getByLabelText("Log Offer"));
-    expect(mockLogOffer).not.toHaveBeenCalled();
-  });
-
-  it("converts dollars to cents and defaults earnest money and close date", async () => {
-    mockLogOffer.mockResolvedValue(makeOffer());
-    renderPanel();
-
-    fireEvent.change(screen.getByLabelText("Buyer Name"), { target: { value: "Jamie Rivera" } });
-    fireEvent.change(screen.getByLabelText("Offer Amount ($)"), { target: { value: "500000" } });
-    fireEvent.submit(screen.getByLabelText("Log Offer"));
-
-    await waitFor(() => expect(mockLogOffer).toHaveBeenCalledWith("prop-1", expect.objectContaining({
-      buyerName: "Jamie Rivera",
-      offerAmountCents: 50_000_000,
-      earnestMoneyCents: 0,
-      hasEscalationClause: false,
-    })));
-    const [, input] = mockLogOffer.mock.calls[0];
-    expect(input.closeDateMs).toBeGreaterThan(Date.now() - 5000);
-  });
-
-  it("includes checked contingencies and the escalation flag", async () => {
-    mockLogOffer.mockResolvedValue(makeOffer());
-    renderPanel();
-
-    fireEvent.change(screen.getByLabelText("Buyer Name"), { target: { value: "Jamie Rivera" } });
-    fireEvent.change(screen.getByLabelText("Offer Amount ($)"), { target: { value: "500000" } });
+  it("logs an offer in cents with contingencies and escalation, then clears the form", async () => {
+    const onChange = renderPanel();
+    fireEvent.change(screen.getByLabelText(/buyer name/i), { target: { value: " Bob " } });
+    fireEvent.change(screen.getByLabelText(/offer amount/i), { target: { value: "475000" } });
+    fireEvent.change(screen.getByLabelText(/earnest money/i), { target: { value: "5000" } });
+    fireEvent.change(screen.getByLabelText(/close date/i), { target: { value: "2027-02-01" } });
     fireEvent.click(screen.getByLabelText("Inspection"));
-    fireEvent.click(screen.getByLabelText("Financing"));
-    fireEvent.click(screen.getByLabelText("Escalation Clause"));
-    fireEvent.submit(screen.getByLabelText("Log Offer"));
+    fireEvent.click(screen.getByLabelText(/escalation clause/i));
+    fireEvent.submit(screen.getByRole("form", { name: /log offer/i }));
 
-    await waitFor(() => expect(mockLogOffer).toHaveBeenCalledWith("prop-1", expect.objectContaining({
-      contingencies: ["inspection", "financing"],
-      hasEscalationClause: true,
-    })));
+    expect(await screen.findByText("Bob")).toBeInTheDocument();
+    const [o] = await fsboOfferService.getByProperty("prop-1");
+    expect(o).toMatchObject({
+      buyerName: "Bob", offerAmountCents: 47_500_000, earnestMoneyCents: 500_000,
+      contingencies: ["inspection"], hasEscalationClause: true, closeDateMs: new Date("2027-02-01").getTime(),
+    });
+    expect(screen.getByLabelText(/buyer name/i)).toHaveValue("");
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ buyerName: "Bob" })]));
   });
 
-  it("clears the form fields after a successful submit", async () => {
-    mockLogOffer.mockResolvedValue(makeOffer());
+  it("needs a buyer name and a positive amount", async () => {
     renderPanel();
-
-    fireEvent.change(screen.getByLabelText("Buyer Name"), { target: { value: "Jamie Rivera" } });
-    fireEvent.change(screen.getByLabelText("Offer Amount ($)"), { target: { value: "500000" } });
-    fireEvent.submit(screen.getByLabelText("Log Offer"));
-
-    await waitFor(() => expect(screen.getByLabelText("Buyer Name")).toHaveValue(""));
-    expect(screen.getByLabelText("Offer Amount ($)")).toHaveValue(null);
+    fireEvent.change(screen.getByLabelText(/offer amount/i), { target: { value: "475000" } });
+    fireEvent.submit(screen.getByRole("form", { name: /log offer/i }));
+    fireEvent.change(screen.getByLabelText(/buyer name/i), { target: { value: "Bob" } });
+    fireEvent.change(screen.getByLabelText(/offer amount/i), { target: { value: "0" } });
+    fireEvent.submit(screen.getByRole("form", { name: /log offer/i }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(await fsboOfferService.getByProperty("prop-1")).toEqual([]);
   });
 });
 
-describe("FsboOfferPanel — offer display", () => {
-  it("shows net proceeds after 2% closing costs and a pluralized contingency count", () => {
-    mockGetByProperty.mockReturnValue([
-      makeOffer({ offerAmountCents: 100_000_00, contingencies: ["inspection", "financing"] }),
-    ]);
+describe("FsboOfferPanel — comparison (10.5.2 / 10.5.3)", () => {
+  it("shows amount, net after 2% closing costs, earnest money and contingency count", async () => {
+    await fsboOfferService.logOffer("prop-1", INPUT);
+    await fsboOfferService.logOffer("prop-1", { ...INPUT, buyerName: "Bob", contingencies: ["appraisal"], hasEscalationClause: true });
     renderPanel();
-
-    // net = 10,000,000 - 2% (200,000) = 9,800,000 cents = $98,000
-    expect(screen.getByText("$98,000")).toBeInTheDocument();
+    await screen.findByText("Alice");
+    expect(screen.getAllByText("$480,000").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$470,400").length).toBeGreaterThan(0); // 480,000 − 2%
+    expect(screen.getAllByText("$10,000").length).toBeGreaterThan(0);
     expect(screen.getByText("2 contingencies")).toBeInTheDocument();
-  });
-
-  it("uses singular wording for exactly one contingency", () => {
-    mockGetByProperty.mockReturnValue([makeOffer({ contingencies: ["appraisal"] })]);
-    renderPanel();
     expect(screen.getByText("1 contingency")).toBeInTheDocument();
-  });
-
-  it("shows the escalation badge only when hasEscalationClause is true", () => {
-    mockGetByProperty.mockReturnValue([makeOffer({ hasEscalationClause: true })]);
-    renderPanel();
-    expect(screen.getByText("Escalation")).toBeInTheDocument();
+    expect(screen.getAllByText("Escalation")).toHaveLength(1);
   });
 });
 
-describe("FsboOfferPanel — accept / reject", () => {
-  it("accepts an offer, marks the property under contract, and hides actions on other offers", async () => {
-    mockGetByProperty.mockReturnValue([
-      makeOffer({ id: "fo-1", buyerName: "Jamie Rivera" }),
-      makeOffer({ id: "fo-2", buyerName: "Sam Lee" }),
-    ]);
-    mockAccept.mockResolvedValue(makeOffer({ id: "fo-1", status: "Accepted" }));
+describe("FsboOfferPanel — counters and decisions (10.5.4 / 10.5.5)", () => {
+  it("logs counters from either side and keeps the offer open", async () => {
+    await fsboOfferService.logOffer("prop-1", INPUT);
     renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: /log counter/i }));
+    fireEvent.change(screen.getByLabelText(/counter amount/i), { target: { value: "0" } });
+    fireEvent.submit(screen.getByRole("form", { name: /counter offer form/i }));
+    expect((await fsboOfferService.getByProperty("prop-1"))[0].counters).toHaveLength(0);
 
-    const acceptButtons = screen.getAllByLabelText("Accept Offer");
-    fireEvent.click(acceptButtons[0]);
+    fireEvent.change(screen.getByLabelText(/counter amount/i), { target: { value: "490000" } });
+    fireEvent.change(screen.getByLabelText(/counter notes/i), { target: { value: "Split the difference" } });
+    fireEvent.submit(screen.getByRole("form", { name: /counter offer form/i }));
+    expect(await screen.findByText("$490,000")).toBeInTheDocument();
+    expect(screen.getByText(/You:/)).toBeInTheDocument();
 
-    await waitFor(() => expect(mockAccept).toHaveBeenCalledWith("fo-1"));
-    expect(mockSetUnderContract).toHaveBeenCalledWith("prop-1");
-    await waitFor(() => expect(screen.getByText(/Under Contract/)).toBeInTheDocument());
-    expect(screen.queryByLabelText("Accept Offer")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Reject Offer")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Log Offer")).not.toBeInTheDocument();
-    // …and points the seller at the record handoff for closing.
-    expect(screen.getByRole("link", { name: /set up the handoff/i })).toHaveAttribute("href", "/properties/prop-1?tab=settings#handoff");
+    fireEvent.click(screen.getByRole("button", { name: /log counter/i }));
+    fireEvent.change(screen.getByLabelText(/^from$/i), { target: { value: "buyer" } });
+    fireEvent.change(screen.getByLabelText(/counter amount/i), { target: { value: "485000" } });
+    fireEvent.submit(screen.getByRole("form", { name: /counter offer form/i }));
+    expect(await screen.findByText(/Buyer:/)).toBeInTheDocument();
+
+    const [o] = await fsboOfferService.getByProperty("prop-1");
+    expect(o.status).toBe("Countered");
+    expect(o.counters.map((c) => [c.amountCents, c.fromSeller])).toEqual([[49_000_000, true], [48_500_000, false]]);
+    // a countered offer can still be accepted
+    expect(screen.getByRole("button", { name: /accept offer/i })).toBeInTheDocument();
   });
 
-  it("rejects an offer and reflects the new status", async () => {
-    mockGetByProperty.mockReturnValue([makeOffer({ id: "fo-1", status: "Active" })]);
-    mockReject.mockResolvedValue(makeOffer({ id: "fo-1", status: "Rejected" }));
+  it("rejecting marks only that offer", async () => {
+    await fsboOfferService.logOffer("prop-1", INPUT);
     renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: /reject offer/i }));
+    expect(await screen.findByText("Rejected")).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByLabelText("Reject Offer"));
+  it("accepting puts the home under contract, rejects the other open offers and hides actions", async () => {
+    await fsboOfferService.logOffer("prop-1", INPUT);
+    await fsboOfferService.logOffer("prop-1", { ...INPUT, buyerName: "Bob" });
+    renderPanel();
+    await screen.findByText("Bob");
+    fireEvent.click(screen.getAllByRole("button", { name: /accept offer/i })[0]);
 
-    await waitFor(() => expect(mockReject).toHaveBeenCalledWith("fo-1"));
+    expect(await screen.findByText(/under contract — offer accepted/i)).toBeInTheDocument();
+    expect(screen.getByText(/listing stays up until you take it down/i)).toBeInTheDocument();
+    expect(screen.getByTestId("handoff-prompt")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /accept offer/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: /log offer/i })).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("Rejected")).toBeInTheDocument());
-  });
-});
-
-describe("FsboOfferPanel — counter offers", () => {
-  it("ignores a non-positive counter amount", () => {
-    mockGetByProperty.mockReturnValue([makeOffer({ id: "fo-1" })]);
-    renderPanel();
-    fireEvent.click(screen.getByText("Counter"));
-
-    fireEvent.submit(screen.getByLabelText("Counter Offer Form"));
-
-    expect(mockAddCounter).not.toHaveBeenCalled();
+    expect((await fsboOfferService.getByProperty("prop-1")).map((o) => o.status)).toEqual(["Accepted", "Rejected"]);
   });
 
-  it("submits a counter and resets the form", async () => {
-    mockGetByProperty.mockReturnValue([makeOffer({ id: "fo-1" })]);
-    mockAddCounter.mockResolvedValue(makeOffer({
-      id: "fo-1",
-      counters: [{ id: "ctr-1", offerId: "fo-1", amountCents: 51_000_000, notes: "Counter note", fromSeller: true, createdAt: Date.now() }],
-    }));
+  it("shows the error when a save fails", async () => {
+    const o = await fsboOfferService.logOffer("prop-1", INPUT);
     renderPanel();
-    fireEvent.click(screen.getByText("Counter"));
-
-    fireEvent.change(screen.getByLabelText("Counter Amount ($)"), { target: { value: "510000" } });
-    fireEvent.change(screen.getByLabelText("Counter Notes"), { target: { value: "Counter note" } });
-    fireEvent.submit(screen.getByLabelText("Counter Offer Form"));
-
-    await waitFor(() => expect(mockAddCounter).toHaveBeenCalledWith("fo-1", {
-      amountCents: 51_000_000, notes: "Counter note", fromSeller: true,
-    }));
-    await waitFor(() => expect(screen.getByText(/Counter note/)).toBeInTheDocument());
-    expect(screen.queryByLabelText("Counter Amount ($)")).not.toBeInTheDocument(); // form collapsed
+    await screen.findByText("Alice");
+    vi.spyOn(fsboOfferService, "reject").mockRejectedValueOnce(new Error("This offer is closed"));
+    fireEvent.click(screen.getByRole("button", { name: /reject offer/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("This offer is closed");
+    expect((await fsboOfferService.getByProperty("prop-1"))[0].id).toBe(o.id);
   });
 });

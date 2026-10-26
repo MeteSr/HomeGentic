@@ -42,14 +42,17 @@ const outboxIdl = ({ IDL }: any) => {
     createdAt: IDL.Int,
   });
   const Page = IDL.Record({ events: IDL.Vec(Event), latestSeq: IDL.Nat });
-  // Only the tag matters to the relay; the record lists every tag job and
-  // quote can return so decoding never fails.
+  // Only the tag matters to the relay; the record lists every tag job, quote
+  // and listing can return so decoding never fails.
   const Error = IDL.Variant({
     NotFound:         IDL.Null,
     NotAuthorized:    IDL.Null,
     InvalidInput:     IDL.Text,
     AlreadyVerified:  IDL.Null,
     TierLimitReached: IDL.Text,
+    AlreadyCancelled: IDL.Null,
+    DeadlinePassed:   IDL.Null,
+    SlotsFull:        IDL.Null,
   });
   return IDL.Service({
     getNotificationEvents: IDL.Func([IDL.Nat, IDL.Nat], [IDL.Variant({ ok: Page, err: Error })], ["query"]),

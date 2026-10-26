@@ -76,23 +76,6 @@ vi.mock("@/components/ListingPhotoManager", () => ({
   default: () => null,
 }));
 
-vi.mock("@/services/fsbo", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/fsbo")>();
-  return {
-    ...actual,
-    fsboService: {
-      getRecord:   vi.fn().mockReturnValue(null),
-      setFsboMode: vi.fn(),
-      advanceStep: vi.fn(),
-      deactivate:  vi.fn(),
-    },
-  };
-});
-
-vi.mock("@/services/mlsService", () => ({
-  mlsService: { submit: vi.fn().mockResolvedValue({ listingId: "x", url: "u", status: "submitted" }) },
-}));
-
 vi.mock("@/services/property", () => ({
   propertyService: {
     getAll:          vi.fn().mockResolvedValue([]),
@@ -129,6 +112,8 @@ function renderFsboPanel() {
         score={72}
         verifiedJobCount={3}
         hasReport={true}
+        record={null}
+        onChange={() => {}}
       />
     </MemoryRouter>
   );

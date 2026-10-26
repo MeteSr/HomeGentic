@@ -4,21 +4,22 @@
  * Public, unauthenticated page at /for-sale/:propertyId.
  * Shows list price, property details, HomeGentic score badge,
  * verified job summary, photo gallery, and a showing-request form.
+ *
+ * Everything comes from the live listing on the listing canister (address,
+ * price, details, score, verified job count), plus the public report for the
+ * address when the owner has shared one. A buyer's showing request goes to the
+ * same canister, which notifies the seller.
  */
 
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { PageHead } from "@/components/PageHead";
 import { ShieldCheck } from "lucide-react";
-import { propertyService, type Property } from "@/services/property";
-import { jobService, type Job } from "@/services/job";
-import { fsboService, type FsboRecord } from "@/services/fsbo";
-import { reportService, type ShareLink } from "@/services/report";
+import { fsboService, type FsboPublicListing } from "@/services/fsbo";
+import { reportService } from "@/services/report";
 import ListingPhotoManager from "@/components/ListingPhotoManager";
-import { computeScore } from "@/services/scoreService";
 import { listingService, type PanoramaEntry } from "@/services/listing";
 import { showingRequestService } from "@/services/showingRequest";
-import { notificationService } from "@/services/notifications";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { isValidEmailOrPhone } from "@/utils/validators";
@@ -41,7 +42,7 @@ function formatPrice(cents: number): string {
   return "$" + (cents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
-function formatSqFt(sqFt: bigint): string {
+function formatSqFt(sqFt: number): string {
   return Number(sqFt).toLocaleString("en-US");
 }
 
@@ -56,25 +57,30 @@ export function ShowingRequestForm({ propertyId }: { propertyId: string }) {
   const [contact, setContact] = useState("");
   const [time,    setTime]    = useState("");
   const [sent,    setSent]    = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
   const { isMobile } = useBreakpoint();
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isValidEmailOrPhone(contact)) return;
-    showingRequestService.create({ propertyId, name, contact, preferredTime: time });
-    notificationService.create({
-      type: "ShowingRequest",
-      message: `New showing request from ${name} (${contact})`,
-      propertyId,
-    });
-    setSent(true);
+    setSending(true);
+    setError(null);
+    try {
+      await showingRequestService.create({ propertyId, name, contact, preferredTime: time });
+      setSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't send your request. Please try again.");
+    } finally {
+      setSending(false);
+    }
   }
 
   if (sent) {
     return (
       <div style={{ padding: "1.25rem", background: "#f0faf4", border: "1px solid #c3e6cb", textAlign: "center" }}>
         <p style={{ fontFamily: UI.sans, fontWeight: 600, color: "#188038", margin: 0 }}>
-          Request sent — we'll be in touch shortly!
+          Request sent. The seller has your contact details and will reply to you directly.
         </p>
       </div>
     );
@@ -142,8 +148,17 @@ export function ShowingRequestForm({ propertyId }: { propertyId: string }) {
         />
       </div>
 
+      {error && (
+        <p role="alert" style={{ color: V2_COLORS.coral, fontSize: "0.8rem", margin: 0, fontFamily: V2_FONTS.body }}>{error}</p>
+      )}
+
+      <p style={{ fontFamily: UI.sans, fontSize: "0.75rem", color: UI.inkLight, margin: 0 }}>
+        We pass your name, contact and preferred time to the seller, who replies to you directly.
+      </p>
+
       <button
         type="submit"
+        disabled={sending}
         style={{
           background:  UI.sage,
           color:       V2_COLORS.paper,
@@ -156,7 +171,7 @@ export function ShowingRequestForm({ propertyId }: { propertyId: string }) {
           alignSelf:   isMobile ? "stretch" : "flex-start",
         }}
       >
-        Request a Showing
+        {sending ? "Sending…" : "Request a Showing"}
       </button>
     </form>
   );
@@ -168,49 +183,39 @@ export default function FsboListingPage() {
   const { propertyId } = useParams<{ propertyId: string }>();
   const { isMobile } = useBreakpoint();
 
-  const [loading,    setLoading]    = useState(true);
-  const [property,   setProperty]   = useState<Property | null>(null);
-  const [jobs,       setJobs]       = useState<Job[]>([]);
-  const [fsbo,       setFsbo]       = useState<FsboRecord | null | undefined>(undefined);
-  const [reportLink, setReportLink] = useState<ShareLink | null>(null);
-  const [panoramas,  setPanoramas]  = useState<PanoramaEntry[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [listing,     setListing]     = useState<FsboPublicListing | null>(null);
+  const [reportToken, setReportToken] = useState<string | null>(null);
+  const [panoramas,   setPanoramas]   = useState<PanoramaEntry[]>([]);
 
-  // getProperty returns the street only to the owner; others see the city.
-  const displayAddress = property ? (property.address || `${property.city}, ${property.state}`) : "";
+  const displayAddress = listing?.address || (listing ? `${listing.city}, ${listing.state}` : "");
 
-  const helmetTitle = property && fsbo
+  const helmetTitle = listing
     ? `${displayAddress} — For Sale by Owner | HomeGentic™`
     : "For Sale by Owner | HomeGentic™";
-  const helmetDesc = property && fsbo
-    ? `${displayAddress} — $${(fsbo.listPriceCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} · ${property.city}, ${property.state}. Verified maintenance history on HomeGentic.`
-    : "Browse verified FSBO listings with blockchain-backed maintenance history on HomeGentic.";
+  const helmetDesc = listing
+    ? `${displayAddress} — $${(listing.listPriceCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} · ${listing.city}, ${listing.state}. Maintenance history on HomeGentic.`
+    : "Browse FSBO listings with their maintenance history on HomeGentic.";
 
   useEffect(() => {
     if (!propertyId) { setLoading(false); return; }
+    let cancelled = false;
 
-    const record = fsboService.getRecord(propertyId);
-    setFsbo(record);
-
-    const fetches: Promise<any>[] = [
-      propertyService.getProperty(propertyId),
-      jobService.getByProperty(propertyId),
-      listingService.getPanoramas(propertyId),
-    ];
-
-    if (record?.hasReport) {
-      fetches.push(reportService.listShareLinks(propertyId));
-    }
-
-    Promise.all(fetches).then(([prop, propJobs, pans, shareLinks]) => {
-      setProperty(prop);
-      setJobs(propJobs);
+    Promise.all([
+      fsboService.getPublicListing(propertyId),
+      listingService.getPanoramas(propertyId).catch(() => [] as PanoramaEntry[]),
+    ]).then(async ([live, pans]) => {
+      if (cancelled) return;
+      setListing(live);
       setPanoramas(pans ?? []);
-      if (shareLinks) {
-        const active = (shareLinks as ShareLink[]).find((l) => l.isActive) ?? null;
-        setReportLink(active);
-      }
       setLoading(false);
-    }).catch(() => setLoading(false));
+      if (live?.hasPublicReport) {
+        const match = await reportService.findPublicReport(`${live.address}, ${live.city}, ${live.state} ${live.zipCode}`).catch(() => null);
+        if (!cancelled && match) setReportToken(match.token);
+      }
+    }).catch(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
   }, [propertyId]);
 
   const outerStyle: React.CSSProperties = {
@@ -244,7 +249,7 @@ export default function FsboListingPage() {
   }
 
   // ── Not for sale ───────────────────────────────────────────────────────────
-  if (!fsbo || !fsbo.isFsbo || !property) {
+  if (!listing) {
     return (
       <>
         <PageHead>
@@ -266,9 +271,6 @@ export default function FsboListingPage() {
       </>
     );
   }
-
-  const verifiedJobs = jobs.filter((j) => j.verified);
-  const score        = computeScore(jobs, [property]);
 
   return (
     <>
@@ -315,22 +317,24 @@ export default function FsboListingPage() {
       {/* ── Price + address ────────────────────────────────────────────────── */}
       <div style={{ marginBottom: "1.5rem" }}>
         <div style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", color: UI.ink, marginBottom: "0.25rem" }}>
-          {formatPrice(fsbo.listPriceCents)}
+          {formatPrice(listing.listPriceCents)}
         </div>
         <div style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "1.15rem", color: UI.ink }}>
           {displayAddress}
         </div>
         <div style={{ fontFamily: UI.sans, fontSize: "0.95rem", color: UI.inkLight }}>
-          {property.city}, {property.state} {property.zipCode}
+          {listing.city}, {listing.state} {listing.zipCode}
         </div>
       </div>
 
       {/* ── Details grid ────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", marginBottom: "1.5rem", borderTop: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, padding: "1rem 0" }}>
         {[
-          { label: "Type",       value: humanType(property.propertyType) },
-          { label: "Year Built", value: String(property.yearBuilt) },
-          { label: "Sq Ft",      value: formatSqFt(property.squareFeet) },
+          { label: "Type",       value: humanType(listing.propertyType) },
+          { label: "Bedrooms",   value: String(listing.bedrooms) },
+          { label: "Bathrooms",  value: String(listing.bathrooms) },
+          { label: "Year Built", value: String(listing.yearBuilt) },
+          { label: "Sq Ft",      value: formatSqFt(listing.squareFeet) },
         ].map(({ label, value }) => (
           <div key={label}>
             <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.08em", color: UI.inkLight, marginBottom: "0.15rem" }}>{label}</div>
@@ -340,40 +344,42 @@ export default function FsboListingPage() {
       </div>
 
       {/* ── Seller description ──────────────────────────────────────────────── */}
-      {fsbo.description && (
+      {listing.description && (
         <div style={{ marginBottom: "1.5rem" }}>
           <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.08em", color: UI.inkLight, marginBottom: "0.5rem" }}>
             About This Home
           </div>
           <p style={{ fontFamily: UI.sans, fontSize: "0.95rem", color: UI.ink, lineHeight: 1.65, margin: 0 }}>
-            {fsbo.description}
+            {listing.description}
           </p>
         </div>
       )}
 
-      {/* ── HomeGentic score badge ─────────────────────────────────────────────── */}
-      <section
-        aria-label="HomeGentic Score"
-        style={{ border: `1.5px solid ${UI.sage}`, padding: "1rem 1.25rem", marginBottom: "1.5rem", background: V2_COLORS.lblue }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
-          <div style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2.5rem", color: UI.ink, lineHeight: 1 }}>
-            {score}
-          </div>
-          <div>
-            <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.08em", color: UI.inkLight, marginBottom: "0.15rem" }}>
-              HomeGentic Score
+      {/* ── HomeGentic score badge (hidden when the seller opted out) ─────────── */}
+      {listing.score != null && (
+        <section
+          aria-label="HomeGentic Score"
+          style={{ border: `1.5px solid ${UI.sage}`, padding: "1rem 1.25rem", marginBottom: "1.5rem", background: V2_COLORS.lblue }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
+            <div style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2.5rem", color: UI.ink, lineHeight: 1 }}>
+              {listing.score}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.sage }}>
-              <ShieldCheck size={13} />
-              Verified on ICP Blockchain
+            <div>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.08em", color: UI.inkLight, marginBottom: "0.15rem" }}>
+                HomeGentic Score
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.sage }}>
+                <ShieldCheck size={13} />
+                Calculated by HomeGentic from this home's records
+              </div>
             </div>
           </div>
-        </div>
-        <p style={{ fontFamily: UI.sans, fontSize: "0.78rem", color: UI.inkLight, margin: 0 }}>
-          Maintenance data is stored on-chain. Jobs signed off by both homeowner and contractor can't be edited afterwards.
-        </p>
-      </section>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.78rem", color: UI.inkLight, margin: 0 }}>
+            Maintenance data is stored on-chain. Jobs signed off by both homeowner and contractor can't be edited afterwards.
+          </p>
+        </section>
+      )}
 
       {/* ── Verified jobs summary ────────────────────────────────────────────── */}
       <div style={{ marginBottom: "1.5rem" }}>
@@ -381,24 +387,22 @@ export default function FsboListingPage() {
           Maintenance Record
         </div>
         <div style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.ink, marginBottom: "0.5rem" }}>
-          <strong>{verifiedJobs.length} verified</strong> maintenance job{verifiedJobs.length !== 1 ? "s" : ""} on record
+          <strong>{listing.verifiedJobCount} verified</strong> maintenance job{listing.verifiedJobCount !== 1 ? "s" : ""} on record
         </div>
-        {verifiedJobs.length > 0 && (
+        {(listing.systemHighlights ?? []).length > 0 && (
           <ul style={{ margin: 0, padding: "0 0 0 1.1rem", display: "flex", flexDirection: "column", gap: "0.2rem" }}>
-            {verifiedJobs.map((j) => (
-              <li key={j.id} style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight }}>
-                {j.serviceType} — {j.date ? new Date(j.date).toLocaleDateString("en-US", { year: "numeric", month: "short" }) : ""}
-              </li>
+            {listing.systemHighlights!.map((h) => (
+              <li key={h} style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight }}>{h}</li>
             ))}
           </ul>
         )}
       </div>
 
       {/* ── Full report link (10.3.3) ───────────────────────────────────────── */}
-      {reportLink && (
+      {reportToken && (
         <div style={{ marginBottom: "1.5rem" }}>
           <a
-            href={`/report/${reportLink.token}`}
+            href={`/report/${reportToken}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.875rem", color: UI.sage, textDecoration: "underline" }}
