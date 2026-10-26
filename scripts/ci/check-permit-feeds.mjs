@@ -1,25 +1,30 @@
 #!/usr/bin/env node
-// Discovery pass: print the schemas and sample rows of the public permit feeds.
+// Discovery pass 2.
 const get = async (url) => {
   const r = await fetch(url, { headers: { accept: "application/json" } });
   const t = await r.text();
   console.log(`\n=== ${r.status} ${url}`);
-  try { return JSON.parse(t); } catch { console.log(t.slice(0, 2000)); return null; }
+  try { return JSON.parse(t); } catch { console.log(t.slice(0, 1500)); return null; }
 };
-const show = (x) => console.log(JSON.stringify(x, null, 1).slice(0, 12000));
+const show = (x) => console.log(JSON.stringify(x).slice(0, 6000));
+const O = "https://data.cityoforlando.net/resource/ryhf-m453.json";
+show(await get(`${O}?$select=application_status,count(*)&$group=application_status&$order=count(*)%20DESC&$limit=40`));
+show(await get(`${O}?$where=application_type%3D'Building%20Permit'%20AND%20worktype%3D'Roof'&$order=issue_permit_date%20DESC&$limit=2`));
+show(await get(`${O}?$where=upper(permit_address)%20like%20'1%20%25'&$select=permit_address&$limit=15`));
+show(await get(`${O}?$select=min(issue_permit_date),max(issue_permit_date),min(processed_date)`));
 
-const orl = await get("https://data.cityoforlando.net/api/views/ryhf-m453.json");
-if (orl) show({ name: orl.name, rowsUpdatedAt: orl.rowsUpdatedAt, columns: (orl.columns ?? []).map((c) => [c.fieldName, c.name, c.dataTypeName]) });
-show(await get("https://data.cityoforlando.net/resource/ryhf-m453.json?$limit=3&$order=:id%20DESC"));
-show(await get("https://data.cityoforlando.net/resource/ryhf-m453.json?$select=application_type,count(*)&$group=application_type&$order=count(*)%20DESC&$limit=40"));
-show(await get("https://data.cityoforlando.net/resource/ryhf-m453.json?$select=worktype,count(*)&$group=worktype&$order=count(*)%20DESC&$limit=40"));
-
-show(await get("https://gis.lakecountyfl.gov/lakegis/rest/services/PropertyAppraiser?f=json"));
-const lake = "https://gis.lakecountyfl.gov/lakegis/rest/services/PropertyAppraiser/PermitMap_Working/MapServer/1";
-const lk = await get(`${lake}?f=json`);
-if (lk) show({ name: lk.name, type: lk.type, description: lk.description, maxRecordCount: lk.maxRecordCount, fields: (lk.fields ?? []).map((f) => [f.name, f.alias, f.type]) });
-show(await get(`${lake}/query?where=1%3D1&outFields=*&returnGeometry=false&resultRecordCount=3&f=json`));
-for (const fld of ["CITY", "SITE_CITY", "JURISDICTION", "PERMIT_TYPE", "TYPE", "STATUS"]) {
-  show(await get(`${lake}/query?where=1%3D1&outFields=${fld}&returnGeometry=false&returnDistinctValues=true&resultRecordCount=60&f=json`));
+const L = "https://gis.lakecountyfl.gov/lakegis/rest/services";
+const root = await get(`${L}?f=json`);
+show(root);
+for (const f of root?.folders ?? []) {
+  const d = await get(`${L}/${f}?f=json`);
+  show((d?.services ?? []).map((s) => `${s.name} ${s.type}`));
 }
-show(await get(`${lake}/query?where=1%3D1&returnCountOnly=true&f=json`));
+const P = `${L}/PropertyAppraiser/PermitMap_Working/MapServer/1/query`;
+const stat = (on, type) => encodeURIComponent(JSON.stringify([{ statisticType: type, onStatisticField: on, outStatisticFieldName: `${type}_v` }]));
+show(await get(`${P}?where=1%3D1&outStatistics=${stat("BpmttIssDate", "min")}&f=json`));
+show(await get(`${P}?where=1%3D1&outStatistics=${stat("BpmttIssDate", "max")}&f=json`));
+show(await get(`${P}?where=1%3D1&outStatistics=${stat("OBJECTID", "count")}&groupByFieldsForStatistics=BRDescription&f=json`));
+show(await get(`${P}?where=1%3D1&outStatistics=${stat("OBJECTID", "count")}&groupByFieldsForStatistics=Bld_Permit_Type&f=json`));
+show(await get(`${P}?where=1%3D1&outStatistics=${stat("OBJECTID", "count")}&groupByFieldsForStatistics=Appraiser&f=json`));
+show(await get(`${L}/PropertyAppraiser/PermitMap_Working/MapServer?f=json`));
