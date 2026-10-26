@@ -1,30 +1,23 @@
 #!/usr/bin/env node
-// Discovery pass 2.
+// Discovery pass 3.
 const get = async (url) => {
   const r = await fetch(url, { headers: { accept: "application/json" } });
   const t = await r.text();
   console.log(`\n=== ${r.status} ${url}`);
   try { return JSON.parse(t); } catch { console.log(t.slice(0, 1500)); return null; }
 };
-const show = (x) => console.log(JSON.stringify(x).slice(0, 6000));
+const show = (x) => console.log(JSON.stringify(x).slice(0, 5000));
 const O = "https://data.cityoforlando.net/resource/ryhf-m453.json";
-show(await get(`${O}?$select=application_status,count(*)&$group=application_status&$order=count(*)%20DESC&$limit=40`));
-show(await get(`${O}?$where=application_type%3D'Building%20Permit'%20AND%20worktype%3D'Roof'&$order=issue_permit_date%20DESC&$limit=2`));
-show(await get(`${O}?$where=upper(permit_address)%20like%20'1%20%25'&$select=permit_address&$limit=15`));
-show(await get(`${O}?$select=min(issue_permit_date),max(issue_permit_date),min(processed_date)`));
+show(await get(`${O}?$where=plan_review_type%3D'Residential'%20AND%20issue_permit_date%20IS%20NOT%20NULL&$order=issue_permit_date%20DESC&$limit=4`));
+show(await get(`${O}?$select=plan_review_type,count(*)&$group=plan_review_type&$limit=20`));
+show(await get(`${O}?$where=upper(permit_address)%20like%20'1%20E%20YALE%25'%20AND%20application_type%20in('Building%20Permit','Electrical','Plumbing','Mechanical%20Permit','GAS')&$select=permit_number,application_type,worktype,application_status,issue_permit_date,final_date,project_name,contractor&$order=issue_permit_date%20DESC&$limit=8`));
 
 const L = "https://gis.lakecountyfl.gov/lakegis/rest/services";
-const root = await get(`${L}?f=json`);
-show(root);
-for (const f of root?.folders ?? []) {
-  const d = await get(`${L}/${f}?f=json`);
-  show((d?.services ?? []).map((s) => `${s.name} ${s.type}`));
+for (const s of ["Planning/CD_Plus_AppRequets", "Individual/Search_GIS", "LocalGov/ParcelPublicAccess", "OpenData/OpenData1", "OpenData/OpenData2", "OpenData/OpenData3"]) {
+  const d = await get(`${L}/${s}/MapServer?f=json`);
+  show((d?.layers ?? []).map((l) => `${l.id} ${l.name}`));
 }
-const P = `${L}/PropertyAppraiser/PermitMap_Working/MapServer/1/query`;
-const stat = (on, type) => encodeURIComponent(JSON.stringify([{ statisticType: type, onStatisticField: on, outStatisticFieldName: `${type}_v` }]));
-show(await get(`${P}?where=1%3D1&outStatistics=${stat("BpmttIssDate", "min")}&f=json`));
-show(await get(`${P}?where=1%3D1&outStatistics=${stat("BpmttIssDate", "max")}&f=json`));
-show(await get(`${P}?where=1%3D1&outStatistics=${stat("OBJECTID", "count")}&groupByFieldsForStatistics=BRDescription&f=json`));
-show(await get(`${P}?where=1%3D1&outStatistics=${stat("OBJECTID", "count")}&groupByFieldsForStatistics=Bld_Permit_Type&f=json`));
-show(await get(`${P}?where=1%3D1&outStatistics=${stat("OBJECTID", "count")}&groupByFieldsForStatistics=Appraiser&f=json`));
-show(await get(`${L}/PropertyAppraiser/PermitMap_Working/MapServer?f=json`));
+const cd = await get(`${L}/Planning/CD_Plus_AppRequets/MapServer/0?f=json`);
+show({ name: cd?.name, fields: (cd?.fields ?? []).map((f) => f.name) });
+show(await get(`${L}/Planning/CD_Plus_AppRequets/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=false&resultRecordCount=3&f=json`));
+show(await get(`${L}/Planning/CD_Plus_AppRequets/MapServer/0/query?where=1%3D1&returnCountOnly=true&f=json`));
