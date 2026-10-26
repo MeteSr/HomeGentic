@@ -18,7 +18,10 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import Random    "mo:core/Random";
 import Index     "../shared/Index";
+import Notify    "../shared/Notify";
+import Uuid      "../shared/Uuid";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
@@ -205,6 +208,73 @@ persistent actor Listing {
     systemHighlights:  [Text];
   };
 
+  /// The seller's own FSBO state for a property, before and after it goes
+  /// live: the asking price and description they set, and which setup step
+  /// they're on (1 price, 2 report, 3 go live, 4 live). Seller-only.
+  public type FsboDraft = {
+    owner:          Principal;
+    listPriceCents: Nat;
+    description:    ?Text;
+    step:           Nat;
+    startedAt:      Time.Time;
+    updatedAt:      Time.Time;
+  };
+
+  public type FsboPricePoint = { priceCents: Nat; recordedAt: Time.Time };
+
+  public type ShowingStatus = { #Pending; #Accepted; #Declined; #AlternateProposed };
+
+  /// A buyer's request to see a live FSBO listing. `contact` is the email or
+  /// phone the buyer typed; the seller replies to them directly.
+  public type ShowingRequest = {
+    id:            Text;
+    propertyId:    Text;
+    requester:     Principal;
+    name:          Text;
+    contact:       Text;
+    preferredTime: Text;
+    createdAt:     Time.Time;
+    status:        ShowingStatus;
+    alternateTime: ?Text;
+  };
+
+  public type ShowingResponse = { #Accept; #Decline; #ProposeAlternate: Text };
+
+  public type FsboOfferStatus = { #Active; #Countered; #Accepted; #Rejected };
+
+  public type FsboCounter = {
+    id:          Text;
+    amountCents: Nat;
+    notes:       Text;
+    fromSeller:  Bool;
+    createdAt:   Time.Time;
+  };
+
+  /// An offer the seller received and logged (buyers make offers outside the
+  /// app, on paper or through their agent). Seller-only.
+  public type FsboOffer = {
+    id:                  Text;
+    propertyId:          Text;
+    buyerName:           Text;
+    offerAmountCents:    Nat;
+    earnestMoneyCents:   Nat;
+    contingencies:       [Text];
+    closeDate:           Time.Time;
+    hasEscalationClause: Bool;
+    status:              FsboOfferStatus;
+    loggedAt:            Time.Time;
+    counters:            [FsboCounter];
+  };
+
+  public type FsboOfferInput = {
+    buyerName:           Text;
+    offerAmountCents:    Nat;
+    earnestMoneyCents:   Nat;
+    contingencies:       [Text];
+    closeDate:           Time.Time;
+    hasEscalationClause: Bool;
+  };
+
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private var bidCounter:      Nat = 0;
@@ -253,6 +323,22 @@ persistent actor Listing {
   private let photoReviews   = Map.empty<Text, PhotoReviewState>(); // photoId -> review state
   /// propertyId → active public FSBO listing (absent when not FSBO-active)
   private let fsboListings   = Map.empty<Text, PublicFsboListing>();
+  /// propertyId → the seller's FSBO setup and asking price (see FsboDraft).
+  private let fsboDrafts       = Map.empty<Text, FsboDraft>();
+  /// propertyId → asking-price history, oldest first (at most MAX_PRICE_POINTS).
+  private let fsboPriceHistory = Map.empty<Text, [FsboPricePoint]>();
+  /// propertyId → buyers' showing requests, oldest first.
+  private let fsboShowings     = Map.empty<Text, [ShowingRequest]>();
+  /// propertyId → offers the seller logged, oldest first.
+  private let fsboOffers       = Map.empty<Text, [FsboOffer]>();
+  /// propertyId → (showing requests in the current day, day start).
+  private let showingDayWindow = Map.empty<Text, (Nat, Int)>();
+
+  /// Push/email outbox read by the notification relay (shared/Notify.mo):
+  /// "showing_request" to the seller when a buyer asks to see the home.
+  private let notifyLog       = Map.empty<Nat, Notify.Event>();
+  private var notifyLatestSeq : Nat         = 0;
+  private var notifierEntries : [Principal] = [];
   /// propertyId → ordered list of photo IDs (first = cover image)
   private let listingPhotos      = Map.empty<Text, [Text]>();
   /// propertyId → the principal who first added a photo (owner lock)
@@ -285,6 +371,15 @@ persistent actor Listing {
   private transient let MAX_PROPOSALS_PER_REQUEST : Nat = 5;   // "up to five agents" — invariant surface
   private transient let SEAL_REVEAL_COUNT : Nat = 3;           // invariant 02
   private transient let LETTERS : [Text] = ["A", "B", "C", "D", "E"];
+
+  private transient let MAX_PRICE_POINTS          : Nat = 50;
+  private transient let MAX_SHOWINGS_PER_PROPERTY : Nat = 100;
+  private transient let MAX_SHOWINGS_PER_DAY      : Nat = 25;
+  private transient let MAX_SHOWINGS_PER_BUYER    : Nat = 3;   // open requests per buyer per listing
+  private transient let MAX_OFFERS_PER_PROPERTY   : Nat = 50;
+  private transient let MAX_COUNTERS_PER_OFFER    : Nat = 20;
+  private transient let FSBO_LIVE_STEP            : Nat = 4;
+  private transient let DAY_NS                    : Int = 86_400_000_000_000;
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
@@ -1151,6 +1246,16 @@ persistent actor Listing {
       verifiedJobCount = resolvedVerifiedJobCount; hasPublicReport = resolvedHasPublicReport;
     };
     fsboListings.add(listing.propertyId, stamped);
+    addPricePoint(listing.propertyId, listing.listPriceCents);
+    let now = Time.now();
+    fsboDrafts.add(listing.propertyId, {
+      owner          = msg.caller;
+      listPriceCents = listing.listPriceCents;
+      description    = listing.description;
+      step           = FSBO_LIVE_STEP;
+      startedAt      = switch (fsboDrafts.get(listing.propertyId)) { case (?d) d.startedAt; case null now };
+      updatedAt      = now;
+    });
     #ok(())
   };
 
@@ -1161,6 +1266,7 @@ persistent actor Listing {
       case (?existing) {
         if (existing.homeowner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
         ignore fsboListings.remove(propertyId);
+        clearFsboState(propertyId);
         #ok(())
       };
     }
@@ -1173,6 +1279,274 @@ persistent actor Listing {
 
   public query func listActiveFsboListingsPage(from: Nat, limit: Nat) : async [PublicFsboListing] {
     page(fsboListings.values(), from, limit)
+  };
+
+  /// One live listing, for its public page (/for-sale/:propertyId).
+  public query func getFsboListing(propertyId: Text) : async ?PublicFsboListing {
+    fsboListings.get(propertyId)
+  };
+
+  /// Asking-price history of a live listing, oldest first. Public, like the price.
+  public query func getFsboPriceHistory(propertyId: Text) : async [FsboPricePoint] {
+    if (fsboListings.get(propertyId) == null) return [];
+    switch (fsboPriceHistory.get(propertyId)) { case null []; case (?h) h }
+  };
+
+  // ─── FSBO seller state ──────────────────────────────────────────────────────
+
+  private func addPricePoint(propertyId: Text, priceCents: Nat) {
+    let h = switch (fsboPriceHistory.get(propertyId)) { case null []; case (?h) h };
+    let last = if (h.size() == 0) null else ?h[h.size() - 1].priceCents;
+    if (last == ?priceCents) return;
+    let next = h.concat([{ priceCents; recordedAt = Time.now() }]);
+    fsboPriceHistory.add(propertyId, if (next.size() > MAX_PRICE_POINTS) next.sliceToArray(-MAX_PRICE_POINTS, next.size()) else next);
+  };
+
+  /// Everything FSBO keeps for a property besides the public listing: run when
+  /// the listing comes down, so buyers' contact details don't outlive it.
+  private func clearFsboState(propertyId: Text) {
+    fsboDrafts.remove(propertyId);
+    fsboPriceHistory.remove(propertyId);
+    fsboShowings.remove(propertyId);
+    fsboOffers.remove(propertyId);
+    showingDayWindow.remove(propertyId);
+  };
+
+  /// The seller of a property's FSBO state: the draft's owner, or the live
+  /// listing's homeowner. Queries use it (they can't ask the property canister).
+  private func fsboSeller(propertyId: Text) : ?Principal {
+    switch (fsboListings.get(propertyId)) {
+      case (?l) ?l.homeowner;
+      case null { switch (fsboDrafts.get(propertyId)) { case (?d) ?d.owner; case null null } };
+    }
+  };
+
+  private func isFsboSeller(propertyId: Text, caller: Principal) : Bool {
+    fsboSeller(propertyId) == ?caller
+  };
+
+  /// Start or continue FSBO setup: the asking price, optional description and
+  /// the step the seller is on (1–3; going live is activateFsboListing).
+  /// Property owner only.
+  public shared(msg) func saveFsboDraft(propertyId: Text, listPriceCents: Nat, description: ?Text, step: Nat) : async Result.Result<FsboDraft, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (Text.size(propertyId) == 0 or tooLong(propertyId, MAX_SHORT_TEXT)) return #err(#InvalidInput("invalid propertyId"));
+    if (listPriceCents == 0) return #err(#InvalidInput("listPriceCents must be positive"));
+    if (step < 1 or step > 3) return #err(#InvalidInput("step must be 1, 2 or 3"));
+    switch (description) {
+      case (?d) { if (Text.size(d) > 5000) return #err(#InvalidInput("description exceeds 5000 characters")) };
+      case null {};
+    };
+    if (not isAdmin(msg.caller) and not (await isPropertyOwner(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (fsboListings.get(propertyId) != null) return #err(#InvalidInput("This listing is already live; change the price with updateFsboPrice"));
+    let now = Time.now();
+    let draft : FsboDraft = {
+      owner          = msg.caller;
+      listPriceCents;
+      description;
+      step;
+      startedAt      = switch (fsboDrafts.get(propertyId)) { case (?d) d.startedAt; case null now };
+      updatedAt      = now;
+    };
+    fsboDrafts.add(propertyId, draft);
+    #ok(draft)
+  };
+
+  /// The seller's FSBO state for a property (null when they haven't started). Seller only.
+  public query(msg) func getFsboDraft(propertyId: Text) : async ?FsboDraft {
+    if (not isFsboSeller(propertyId, msg.caller) and not isAdmin(msg.caller)) return null;
+    fsboDrafts.get(propertyId)
+  };
+
+  /// Stop FSBO setup before going live (a live listing comes down with deactivateFsboListing).
+  public shared(msg) func discardFsboDraft(propertyId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not isFsboSeller(propertyId, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (fsboListings.get(propertyId) != null) return #err(#InvalidInput("This listing is live; take it down instead"));
+    clearFsboState(propertyId);
+    #ok(())
+  };
+
+  /// Change a live listing's asking price; the change goes into its price history.
+  public shared(msg) func updateFsboPrice(propertyId: Text, listPriceCents: Nat) : async Result.Result<PublicFsboListing, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (listPriceCents == 0) return #err(#InvalidInput("listPriceCents must be positive"));
+    switch (fsboListings.get(propertyId)) {
+      case null { #err(#NotFound) };
+      case (?l) {
+        if (l.homeowner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+        let updated = { l with listPriceCents };
+        fsboListings.add(propertyId, updated);
+        addPricePoint(propertyId, listPriceCents);
+        switch (fsboDrafts.get(propertyId)) {
+          case (?d) fsboDrafts.add(propertyId, { d with listPriceCents; updatedAt = Time.now() });
+          case null {};
+        };
+        #ok(updated)
+      };
+    }
+  };
+
+  // ─── FSBO showings ───────────────────────────────────────────────────────────
+
+  /// A buyer asks to see a live listing. Any signed-in caller (the public page
+  /// signs with a per-browser key); the seller gets a "showing_request"
+  /// notification and replies to the buyer at `contact`. Bounded per listing,
+  /// per day and per buyer.
+  public shared(msg) func requestShowing(propertyId: Text, name: Text, contact: Text, preferredTime: Text) : async Result.Result<ShowingRequest, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let listing = switch (fsboListings.get(propertyId)) { case null { return #err(#NotFound) }; case (?l) l };
+    if (Text.size(name) == 0 or tooLong(name, MAX_SHORT_TEXT)) return #err(#InvalidInput("Enter your name (up to 200 characters)"));
+    if (Text.size(contact) < 5 or tooLong(contact, MAX_EMAIL_TEXT)) return #err(#InvalidInput("Enter an email or phone number"));
+    if (Text.size(preferredTime) == 0 or tooLong(preferredTime, MAX_SHORT_TEXT)) return #err(#InvalidInput("Enter a preferred time (up to 200 characters)"));
+    if (msg.caller == listing.homeowner) return #err(#InvalidInput("You can't request a showing of your own listing"));
+
+    let id = Uuid.fromBlob(await Random.blob());
+    // State checks after the await.
+    if (fsboListings.get(propertyId) == null) return #err(#NotFound);
+    let existing = switch (fsboShowings.get(propertyId)) { case null []; case (?xs) xs };
+    let open = existing.filter(func(r : ShowingRequest) : Bool { r.requester == msg.caller and r.status != #Declined });
+    if (open.size() >= MAX_SHOWINGS_PER_BUYER) return #err(#InvalidInput("You already have requests open for this home"));
+    let now = Time.now();
+    let (count, dayStart) = switch (showingDayWindow.get(propertyId)) {
+      case (?(n, start)) { if (now - start < DAY_NS) (n, start) else (0, now) };
+      case null (0, now);
+    };
+    if (count >= MAX_SHOWINGS_PER_DAY) return #err(#InvalidInput("This home has had a lot of requests today; please try again tomorrow"));
+    // Keep the newest MAX_SHOWINGS_PER_PROPERTY: drop the oldest answered ones first.
+    var kept = existing;
+    if (kept.size() >= MAX_SHOWINGS_PER_PROPERTY) {
+      switch (kept.findIndex(func(r : ShowingRequest) : Bool { r.status != #Pending })) {
+        case (?i) { kept := kept.sliceToArray(0, i).concat(kept.sliceToArray(i + 1, kept.size())) };
+        case null { return #err(#InvalidInput("This home has too many pending requests right now")) };
+      };
+    };
+    let req : ShowingRequest = {
+      id; propertyId; requester = msg.caller; name; contact; preferredTime;
+      createdAt = now; status = #Pending; alternateTime = null;
+    };
+    fsboShowings.add(propertyId, kept.concat([req]));
+    showingDayWindow.add(propertyId, (count + 1, dayStart));
+    notifyLatestSeq := Notify.record(notifyLog, notifyLatestSeq, "showing_request", ?listing.homeowner, propertyId, name);
+    #ok(req)
+  };
+
+  /// Showing requests for the seller's listing, newest first. Seller only.
+  public query(msg) func getShowingRequests(propertyId: Text) : async Result.Result<[ShowingRequest], Error> {
+    if (not isFsboSeller(propertyId, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let xs = switch (fsboShowings.get(propertyId)) { case null []; case (?xs) xs };
+    #ok(xs.reverse())
+  };
+
+  /// The seller's answer to a request, for their own tracking: HomeGentic
+  /// doesn't message the buyer, the seller replies at the buyer's contact.
+  public shared(msg) func respondToShowing(propertyId: Text, requestId: Text, response: ShowingResponse) : async Result.Result<ShowingRequest, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not isFsboSeller(propertyId, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    switch (response) {
+      case (#ProposeAlternate(t)) { if (Text.size(t) == 0 or tooLong(t, MAX_SHORT_TEXT)) return #err(#InvalidInput("Enter the alternate time (up to 200 characters)")) };
+      case _ {};
+    };
+    let xs = switch (fsboShowings.get(propertyId)) { case null { return #err(#NotFound) }; case (?xs) xs };
+    var found : ?ShowingRequest = null;
+    let next = xs.map(func(r : ShowingRequest) : ShowingRequest {
+      if (r.id != requestId) return r;
+      let u : ShowingRequest = switch (response) {
+        case (#Accept)              { { r with status = #Accepted; alternateTime = null } };
+        case (#Decline)             { { r with status = #Declined; alternateTime = null } };
+        case (#ProposeAlternate(t)) { { r with status = #AlternateProposed; alternateTime = ?t } };
+      };
+      found := ?u;
+      u
+    });
+    switch (found) {
+      case null { #err(#NotFound) };
+      case (?u) { fsboShowings.add(propertyId, next); #ok(u) };
+    }
+  };
+
+  // ─── FSBO offers (logged by the seller) ─────────────────────────────────────
+
+  private func validOfferInput(o: FsboOfferInput) : ?Text {
+    if (Text.size(o.buyerName) == 0 or tooLong(o.buyerName, MAX_SHORT_TEXT)) return ?"Enter the buyer's name";
+    if (o.offerAmountCents == 0) return ?"Enter the offer amount";
+    if (listTooBig(o.contingencies)) return ?"Too many contingencies";
+    null
+  };
+
+  public shared(msg) func logFsboOffer(propertyId: Text, input: FsboOfferInput) : async Result.Result<FsboOffer, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not isFsboSeller(propertyId, msg.caller)) return #err(#NotAuthorized);
+    switch (validOfferInput(input)) { case (?m) return #err(#InvalidInput(m)); case null {} };
+    let id = Uuid.fromBlob(await Random.blob());
+    if (not isFsboSeller(propertyId, msg.caller)) return #err(#NotAuthorized);
+    let xs = switch (fsboOffers.get(propertyId)) { case null []; case (?xs) xs };
+    if (xs.size() >= MAX_OFFERS_PER_PROPERTY) return #err(#InvalidInput("Offer limit reached for this listing"));
+    let offer : FsboOffer = {
+      id; propertyId;
+      buyerName           = input.buyerName;
+      offerAmountCents    = input.offerAmountCents;
+      earnestMoneyCents   = input.earnestMoneyCents;
+      contingencies       = input.contingencies;
+      closeDate           = input.closeDate;
+      hasEscalationClause = input.hasEscalationClause;
+      status              = #Active;
+      loggedAt            = Time.now();
+      counters            = [];
+    };
+    fsboOffers.add(propertyId, xs.concat([offer]));
+    #ok(offer)
+  };
+
+  public query(msg) func getFsboOffers(propertyId: Text) : async Result.Result<[FsboOffer], Error> {
+    if (not isFsboSeller(propertyId, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(switch (fsboOffers.get(propertyId)) { case null []; case (?xs) xs })
+  };
+
+  private func updateOffer(caller: Principal, propertyId: Text, offerId: Text, f: FsboOffer -> Result.Result<FsboOffer, Error>) : Result.Result<FsboOffer, Error> {
+    if (not isFsboSeller(propertyId, caller)) return #err(#NotAuthorized);
+    let xs = switch (fsboOffers.get(propertyId)) { case null { return #err(#NotFound) }; case (?xs) xs };
+    let current = switch (xs.find(func(o : FsboOffer) : Bool { o.id == offerId })) { case null { return #err(#NotFound) }; case (?o) o };
+    if (current.status == #Accepted or current.status == #Rejected) return #err(#InvalidInput("This offer is closed"));
+    switch (f(current)) {
+      case (#err(e)) #err(e);
+      case (#ok(u)) {
+        fsboOffers.add(propertyId, xs.map(func(o : FsboOffer) : FsboOffer { if (o.id == offerId) u else o }));
+        #ok(u)
+      };
+    }
+  };
+
+  /// Record a counter-offer in the thread (from the seller or the buyer).
+  public shared(msg) func counterFsboOffer(propertyId: Text, offerId: Text, amountCents: Nat, notes: Text, fromSeller: Bool) : async Result.Result<FsboOffer, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (amountCents == 0) return #err(#InvalidInput("Enter the counter amount"));
+    if (tooLong(notes, MAX_LONG_TEXT)) return #err(#InvalidInput("notes too long"));
+    let id = Uuid.fromBlob(await Random.blob());
+    updateOffer(msg.caller, propertyId, offerId, func(o) {
+      if (o.counters.size() >= MAX_COUNTERS_PER_OFFER) return #err(#InvalidInput("Counter limit reached for this offer"));
+      #ok({ o with status = #Countered; counters = o.counters.concat([{ id; amountCents; notes; fromSeller; createdAt = Time.now() }]) })
+    })
+  };
+
+  /// Accept one offer: the home is under contract and every other open offer is rejected.
+  public shared(msg) func acceptFsboOffer(propertyId: Text, offerId: Text) : async Result.Result<FsboOffer, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (updateOffer(msg.caller, propertyId, offerId, func(o) { #ok({ o with status = #Accepted }) })) {
+      case (#err(e)) #err(e);
+      case (#ok(accepted)) {
+        let xs = switch (fsboOffers.get(propertyId)) { case null []; case (?xs) xs };
+        fsboOffers.add(propertyId, xs.map(func(o : FsboOffer) : FsboOffer {
+          if (o.id != offerId and (o.status == #Active or o.status == #Countered)) { { o with status = #Rejected } } else o
+        }));
+        #ok(accepted)
+      };
+    }
+  };
+
+  public shared(msg) func rejectFsboOffer(propertyId: Text, offerId: Text) : async Result.Result<FsboOffer, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    updateOffer(msg.caller, propertyId, offerId, func(o) { #ok({ o with status = #Rejected }) })
   };
 
   // ─── Account Deletion ────────────────────────────────────────────────────────
@@ -1288,7 +1662,27 @@ persistent actor Listing {
       .filter(func(l) { l.homeowner == caller })
       .map(func(l) { l.propertyId })
       .toArray();
-    for (pid in fsboIds.values()) { fsboListings.remove(pid); removed += 1 };
+    for (pid in fsboIds.values()) { fsboListings.remove(pid); clearFsboState(pid); removed += 1 };
+    // FSBO setups that never went live.
+    let draftIds = fsboDrafts.entries()
+      .filter(func((_, d)) { d.owner == caller })
+      .map(func((pid, _)) { pid })
+      .toArray();
+    for (pid in draftIds.values()) { clearFsboState(pid); removed += 1 };
+    // Showing requests the caller made as a buyer.
+    let showingProps = fsboShowings.keys().toArray();
+    for (pid in showingProps.values()) {
+      switch (fsboShowings.get(pid)) {
+        case (?xs) {
+          let mine = xs.filter(func(r : ShowingRequest) : Bool { r.requester == caller });
+          if (mine.size() > 0) {
+            fsboShowings.add(pid, xs.filter(func(r : ShowingRequest) : Bool { r.requester != caller }));
+            removed += mine.size();
+          };
+        };
+        case null {};
+      };
+    };
 
     func dropPhoto(photoId: Text) {
       listingPhotoProperty.remove(photoId);
@@ -1318,6 +1712,29 @@ persistent actor Listing {
     };
 
     #ok(removed)
+  };
+
+  // ─── Notification outbox ─────────────────────────────────────────────────────
+
+  private func isNotifier(p: Principal) : Bool { Admin.contains(notifierEntries, p) };
+
+  public shared(msg) func addNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    notifierEntries := Admin.add(notifierEntries, p);
+    #ok(())
+  };
+
+  public shared(msg) func removeNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    notifierEntries := Admin.remove(notifierEntries, p);
+    #ok(())
+  };
+
+  /// Outbox events with seq > afterSeq, oldest first (at most 200 per call).
+  /// Notifiers and admins only.
+  public query(msg) func getNotificationEvents(afterSeq: Nat, limit: Nat) : async Result.Result<Notify.Page, Error> {
+    if (not isNotifier(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(Notify.page(notifyLog, notifyLatestSeq, afterSeq, limit))
   };
 
   // ─── Admin Controls ───────────────────────────────────────────────────────────
