@@ -62,11 +62,11 @@ export default function QuoteRequestPage() {
   const [showRequirements, setShowRequirements] = useState(false);
   const [shareUsage,  setShareUsage]  = useState(false);
   const [form, setForm] = useState({
-    propertyId:       properties[0] ? String(properties[0].id) : "",
+    propertyId:       prefill?.propertyId ?? (properties[0] ? String(properties[0].id) : ""),
     serviceType:      prefill?.serviceType ?? SERVICE_TYPES[0],
     subCategory:      "",
     urgency:          "medium" as Urgency,
-    description:      "",
+    description:      prefill?.description ?? "",
     budgetMin:        "",
     budgetMax:        "",
     minRating:        "",   // 1–5 stars; maps to trustScore 0–100
