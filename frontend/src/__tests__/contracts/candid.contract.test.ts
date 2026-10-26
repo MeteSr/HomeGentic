@@ -79,9 +79,11 @@ describe("auth IDL factory", () => {
     const svc = extractService(authIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
       "completeOnboarding",
+      "deleteMyData",
       "getMetrics",
       "getNotificationContact",
       "getProfile",
+      "getPulseRecipients",
       "getUserStats",
       "hasRole",
       "isAdminPrincipal",
@@ -100,7 +102,7 @@ describe("auth IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getMetrics", "getNotificationContact", "getProfile", "getUserStats", "hasRole", "isAdminPrincipal", "resolveAgentSession"]);
+    expect(queries).toEqual(["getMetrics", "getNotificationContact", "getProfile", "getPulseRecipients", "getUserStats", "hasRole", "isAdminPrincipal", "resolveAgentSession"]);
   });
 
   it("UserRole variant includes Builder", () => {
@@ -142,11 +144,13 @@ describe("payment IDL factory", () => {
       "createStripeCheckoutSession",
       "getAllPricing",
       "getMyAgentCredits",
+      "getMyHandoffGrant",
       "getMySubscription",
       "getPriceQuote",
       "getPricing",
       "getSubscriptionStats",
       "getTierForPrincipal",
+      "grantHandoffYear",
       "grantSubscription",
       "initAdmins",
       "isStripeConfigured",
@@ -169,7 +173,7 @@ describe("payment IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getAllPricing", "getMyAgentCredits", "getMySubscription", "getPricing", "getSubscriptionStats", "getTierForPrincipal", "isStripeConfigured", "listPendingGifts", "listStripeRelays"]);
+    expect(queries).toEqual(["getAllPricing", "getMyAgentCredits", "getMyHandoffGrant", "getMySubscription", "getPricing", "getSubscriptionStats", "getTierForPrincipal", "isStripeConfigured", "listPendingGifts", "listStripeRelays"]);
   });
 
   it("getSubscriptionStats returns all tier breakdown fields", () => {
@@ -191,17 +195,23 @@ describe("job IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(jobIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "addInboxRelay",
       "approveJobProposal",
       "createInviteToken",
       "createJob",
       "createJobProposal",
+      "deleteMyData",
+      "dismissEmailDraft",
       "getCertificationData",
       "getJob",
       "getJobByInviteToken",
       "getJobSnapshotsForProperty",
+      "getJobsByOwner",
       "getJobsForProperty",
       "getJobsPendingMySignature",
       "getMetrics",
+      "getMyEmailDrafts",
+      "getMyInboxToken",
       "getMyReferralJobs",
       "getPendingProposals",
       "getReferralJobs",
@@ -209,6 +219,10 @@ describe("job IDL factory", () => {
       "linkContractor",
       "redeemInviteToken",
       "rejectJobProposal",
+      "relayAddEmailDraft",
+      "removeInboxRelay",
+      "resetMyInboxToken",
+      "setFeeCanisterId",
       "setPropertyCanisterId",
       "updateJobStatus",
       "verifyJob",
@@ -226,9 +240,11 @@ describe("job IDL factory", () => {
       "getJob",
       "getJobByInviteToken",
       "getJobSnapshotsForProperty",
+      "getJobsByOwner",
       // getJobsForProperty is an update call (has inter-canister await for ownership check)
       "getJobsPendingMySignature",
       "getMetrics",
+      "getMyEmailDrafts",
       "getMyReferralJobs",
       "getPendingProposals",
       // getReferralJobs is an admin-only update call returning a Result
@@ -251,6 +267,7 @@ describe("property IDL factory", () => {
       "cancelTransfer",
       "claimManagerRole",
       "claimTransfer",
+      "deleteMyData",
       "dismissNotifications",
       "getAccessRole",
       "getApprovals",
@@ -271,6 +288,7 @@ describe("property IDL factory", () => {
       "getPropertyManagers",
       "getPropertyOwner",
       "getPropertyYearBuilt",
+      "getPulseProperties",
       "getRoomsByProperty",
       "getVerificationLevel",
       "getVerifyStatus",
@@ -281,6 +299,7 @@ describe("property IDL factory", () => {
       "markIdentityCleared",
       "recordManagerActivity",
       "registerProperty",
+      "relayMarkIdentityCleared",
       "removeManager",
       "requestApproval",
       "resignAsManager",
@@ -316,6 +335,7 @@ describe("property IDL factory", () => {
       "getPropertyManagers",
       "getPropertyOwner",
       "getPropertyYearBuilt",
+      "getPulseProperties",
       "getRoomsByProperty",
       "getVerificationLevel",
       "getVerifyStatus",
@@ -342,6 +362,7 @@ describe("listing IDL factory", () => {
       "cancelBidRequest",
       "createBidRequest",
       "deactivateFsboListing",
+      "deleteMyData",
       "flagPhotoForReview",
       "getBidProgress",
       "getBidRequest",
@@ -450,6 +471,7 @@ describe("quote IDL factory", () => {
       "closeQuoteRequest",
       "createQuoteRequest",
       "createSealedBidRequest",
+      "deleteMyData",
       "getIbePublicKey",
       "getMyBid",
       "getMyQuoteRequests",
@@ -464,6 +486,7 @@ describe("quote IDL factory", () => {
       "removeUsageSummary",
       "revealBids",
       "revealBidsEncrypted",
+      "setFeeCanisterId",
       "setPropertyCanisterId",
       "submitQuote",
       "submitSealedBid",
@@ -514,17 +537,29 @@ describe("contractor IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(contractorIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "addLicenseRelay",
       "createOrLinkGuestProfile",
+      "deleteMyData",
       "getAll",
       "getBySpecialty",
       "getContractor",
       "getCredentials",
+      "getLeadAlertTargets",
+      "getLicenseCheck",
       "getMyProfile",
+      "getMyProfilePrivacy",
       "getPage",
+      "getPortfolio",
+      "getProfilePrivacies",
       "getReviewsForContractor",
       "recordJobVerified",
       "register",
+      "relayRecordLicenseCheck",
+      "removeLicenseRelay",
       "setJobCanisterId",
+      "setPaymentCanisterId",
+      "setPortfolio",
+      "setProfilePrivacy",
       "submitReview",
       "updateNotificationPrefs",
       "updateProfile",
@@ -543,8 +578,13 @@ describe("contractor IDL factory", () => {
       "getBySpecialty",
       "getContractor",
       "getCredentials",
+      "getLeadAlertTargets",
+      "getLicenseCheck",
       "getMyProfile",
+      "getMyProfilePrivacy",
       "getPage",
+      "getPortfolio",
+      "getProfilePrivacies",
       "getReviewsForContractor",
     ]);
   });
@@ -571,6 +611,9 @@ describe("photo IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(photoIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "addPhotoRelay",
+      "beginUpload",
+      "deleteMyData",
       "deletePhoto",
       "getListingPhotoDataBatch",
       "getPhotoDataBatch",
@@ -578,6 +621,8 @@ describe("photo IDL factory", () => {
       "getPhotosByProperty",
       "getPhotosByRoom",
       "getPublicListingPhotos",
+      "photoAccess",
+      "removePhotoRelay",
       "setPropertyCanisterId",
       "uploadPhoto",
     ]);
@@ -609,14 +654,23 @@ describe("report IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(reportIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "deleteMyData",
       "generateReport",
       "generateRiskProfile",
+      "getAllowPublicReports",
+      "getAttestationKey",
       "getBillsSummary",
+      "getCertAttestation",
       "getReport",
+      "getReportAttestation",
+      "getReportScore",
       "getRiskProfile",
       "hasActivePublicShareLink",
       "listShareLinks",
+      "refreshAttestationKey",
       "revokeShareLink",
+      "setAllowPublicReports",
+      "setAttestationKeyName",
     ]);
   });
 
@@ -642,6 +696,7 @@ describe("sensor IDL factory", () => {
     const svc = extractService(sensorIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
       "deactivateDevice",
+      "deleteMyData",
       "getDevicesForProperty",
       "getEventsForProperty",
       "getPendingAlerts",
@@ -690,6 +745,7 @@ describe("maintenance IDL factory", () => {
     const svc = extractService(maintenanceIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
       "createScheduleEntry",
+      "deleteMyData",
       "getScheduleByProperty",
       "markCompleted",
     ]);
@@ -720,6 +776,7 @@ describe("bills IDL factory", () => {
       "addBill",
       "addRecurringExpense",
       "deleteBill",
+      "deleteMyData",
       "deleteRecurringExpense",
       "getBillsForProperty",
       "getRecurringExpensesForProperty",

@@ -190,8 +190,10 @@ test.describe("SensorPage — /sensors", () => {
       await expect(page.getByText("Offline")).toBeVisible();
     });
 
-    test("shows BATTERY label on device cards", async ({ page }) => {
-      await expect(page.getByText("BATTERY").first()).toBeVisible();
+    // Devices report no battery level, so the cards must not invent one.
+    test("does not show a battery level on device cards", async ({ page }) => {
+      await expect(page.getByText("Online").first()).toBeVisible();
+      await expect(page.getByText("BATTERY")).toHaveCount(0);
     });
 
     test("shows '+ Register another device' button when devices exist", async ({ page }) => {

@@ -28,6 +28,7 @@ const mockProperty = {
 vi.mock("@/services/report", () => ({
   reportService: {
     listShareLinks:  vi.fn().mockResolvedValue([]),
+    getAllowPublicReports: vi.fn().mockResolvedValue(true),
     generateReport:  vi.fn().mockResolvedValue(mockShareLink),
     shareUrl:        vi.fn().mockReturnValue("https://example.com/report/tok-123"),
     revokeShareLink: vi.fn().mockResolvedValue(undefined),

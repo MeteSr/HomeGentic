@@ -3,16 +3,18 @@ import express, { Request, Response } from "express";
 import cors                           from "cors";
 import rateLimit                      from "express-rate-limit";
 import webpush                        from "web-push";
-import { createHmac, randomBytes, timingSafeEqual } from "crypto";
-import { getTokensForPrincipal, registerToken, removeToken } from "./store";
-import { findSubscription, getSubscriptionsForPrincipal, registerSubscription, removeSubscription } from "./vapidStore";
+import { forgetPrincipalTokens, getTokensForPrincipal, registerToken, removeToken } from "./store";
+import { findSubscription, forgetPrincipalSubscriptions, getSubscriptionsForPrincipal, registerSubscription, removeSubscription } from "./vapidStore";
 import { dispatchToUser }             from "./dispatcher";
 import { startPoller }                from "./poller";
 import { requestPrincipal }           from "./session";
-import { clearPhone, publicPrefs, setPrefs, setVerifiedPhone } from "./prefs";
+import { clearPhone, forgetPrefs, publicPrefs, setPrefs, setVerifiedPhone } from "./prefs";
 import { emailConfigured }            from "./email";
 import { E164, allowCodeRequest, allowCodeToPhone, checkVerification, smsConfigured, startVerification } from "./sms";
 import { relayIdentity }              from "./icp";
+import { emailUnsubscribeId, safeEqual, unsubscribeTokenFor, validUnsubscribeToken } from "./unsubscribe";
+import { startPulse }                 from "./pulse";
+import { EMAIL_PREF_KEYS, type EmailPrefKey } from "./channels";
 import type { Platform, PushPayload } from "./types";
 import type { PushSubscription }      from "web-push";
 
@@ -29,23 +31,8 @@ const VAPID_SUBJECT     = process.env.VAPID_SUBJECT     ?? "mailto:admin@homegen
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-export function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  return ab.length === bb.length && timingSafeEqual(ab, bb);
-}
-
-// Unsubscribe tokens: HMAC over the device token / endpoint, returned on
-// registration so a client can drop its own registration later (e.g. after
-// its session has ended) without anyone else being able to.
-const UNSUB_SECRET = process.env.UNSUBSCRIBE_SECRET || process.env.INTERNAL_API_KEY || randomBytes(32).toString("hex");
-export function unsubscribeTokenFor(kind: "device" | "web", id: string): string {
-  return createHmac("sha256", UNSUB_SECRET).update(`unsub:${kind}:${id}`).digest("hex");
-}
-function validUnsubscribeToken(kind: "device" | "web", id: string, supplied: unknown): boolean {
-  return typeof supplied === "string" && safeEqual(supplied, unsubscribeTokenFor(kind, id));
-}
+// safeEqual and unsubscribeTokenFor moved to unsubscribe.ts; re-exported for existing importers.
+export { safeEqual, unsubscribeTokenFor };
 
 // ── App factory ───────────────────────────────────────────────────────────────
 // Exported so tests can call buildApp() without side-effects (no listen, no poller).
@@ -272,6 +259,21 @@ export function buildApp() {
     res.json({ prefs: publicPrefs(principal), channels: channels() });
   });
 
+  // ── DELETE /api/account ─────────────────────────────────────────────────────
+  // Account deletion: forget the caller's device tokens, browser push
+  // subscriptions, notification preferences and phone number.
+  app.delete("/api/account", async (req: Request, res: Response): Promise<void> => {
+    const principal = await requestPrincipal(req);
+    if (!principal) {
+      res.status(401).json({ error: "session_required" });
+      return;
+    }
+    forgetPrincipalTokens(principal);
+    forgetPrincipalSubscriptions(principal);
+    forgetPrefs(principal);
+    res.json({ ok: true });
+  });
+
   // ── GET /api/push/vapid-public-key ──────────────────────────────────────────
   // Returns the VAPID public key for the frontend to use when subscribing.
   app.get("/api/push/vapid-public-key", (_req: Request, res: Response): void => {
@@ -336,6 +338,43 @@ export function buildApp() {
     res.json({ ok: true });
   });
 
+  // ── /api/email/unsubscribe ──────────────────────────────────────────────────
+  // The link in each weekly Home Pulse email: ?u=<principal>&k=<email pref>&t=<token>.
+  // GET shows a confirm button (mail scanners prefetch links, so GET changes
+  // nothing); POST turns that one email preference off. Mail apps' one-click
+  // unsubscribe (RFC 8058) POSTs "List-Unsubscribe=One-Click" to the same URL.
+  const unsubTarget = (req: Request): { principal: string; key: EmailPrefKey } | null => {
+    const { u, k, t } = req.query as Record<string, unknown>;
+    if (typeof u !== "string" || typeof k !== "string" || !EMAIL_PREF_KEYS.includes(k as EmailPrefKey)) return null;
+    return validUnsubscribeToken("email", emailUnsubscribeId(k, u), t) ? { principal: u, key: k as EmailPrefKey } : null;
+  };
+  const page = (title: string, body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
+<body style="font-family:system-ui,sans-serif;color:#0B0D1A;max-width:32rem;margin:4rem auto;padding:0 1rem;line-height:1.5">
+<h1 style="font-size:1.375rem">${title}</h1>${body}</body></html>`;
+  const settingsLink = () =>
+    `<p><a href="${(process.env.APP_URL ?? "https://homegentic.app").replace(/\/$/, "")}/settings?tab=notifications" style="color:#2B34FF">Notification settings</a></p>`;
+
+  app.get("/api/email/unsubscribe", (req: Request, res: Response): void => {
+    if (!unsubTarget(req)) {
+      res.status(400).type("html").send(page("This link doesn't work", `<p>It may be incomplete. You can change emails in your settings.</p>${settingsLink()}`));
+      return;
+    }
+    res.type("html").send(page("Stop the weekly Home Pulse email?",
+      `<p>You'll stop getting the Monday email about your home. Other notifications don't change.</p>
+<form method="post"><button type="submit" style="background:#2B34FF;color:#fff;border:0;border-radius:100px;padding:.625rem 1.25rem;font:inherit;font-weight:600;cursor:pointer">Unsubscribe</button></form>`));
+  });
+
+  app.post("/api/email/unsubscribe", express.urlencoded({ extended: false }), (req: Request, res: Response): void => {
+    const target = unsubTarget(req);
+    if (!target) {
+      res.status(400).type("html").send(page("This link doesn't work", `<p>You can change emails in your settings.</p>${settingsLink()}`));
+      return;
+    }
+    setPrefs(target.principal, { email: { [target.key]: false } });
+    res.type("html").send(page("You're unsubscribed", `<p>No more weekly Home Pulse emails. You can turn it back on in your settings.</p>${settingsLink()}`));
+  });
+
   // ── GET /health ─────────────────────────────────────────────────────────────
   app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "homegentic-notifications" });
@@ -351,10 +390,11 @@ if (require.main === module) {
   app.listen(port, () => {
     console.log(`HomeGentic notification relay → http://localhost:${port}`);
     try {
-      // Allowlist this on job and quote: addNotifier(principal), or
+      // Allowlist this on auth, property, job and quote: addNotifier(principal), or
       // NOTIFIER_PRINCIPAL=<it> when running scripts/deploy.sh.
       console.log(`[notifications] relay principal: ${relayIdentity().getPrincipal().toText()}`);
       startPoller();
+      startPulse();
     } catch (err) {
       if (process.env.NODE_ENV === "production") throw err;
       console.warn(`[notifications] ${err instanceof Error ? err.message : err} — not polling canisters`);

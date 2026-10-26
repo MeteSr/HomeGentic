@@ -777,6 +777,10 @@ if [ -n "$QUOTE_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> quote..."
   bg_call quote    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV"
 fi
+if [ -n "$CONTRACTOR_ID" ] && [ -n "$PAYMENT_ID" ];  then
+  echo "  Wiring payment -> contractor..."
+  bg_call contractor setPaymentCanisterId  "(principal \"$PAYMENT_ID\")" -e "$ENV"
+fi
 
 if [ -n "$BILLS_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> bills..."
@@ -827,10 +831,14 @@ fi
 # doesn't stop the deploy.
 #   NOTIFIER_PRINCIPAL      — the notification relay (its RELAY_IDENTITY_SEED;
 #                             agents/notifications logs it on start). Allowlisted
-#                             to read notification events (job, quote) and email
-#                             addresses (auth).
+#                             to read notification events (job, quote), email
+#                             addresses and Home Pulse recipients (auth), and the
+#                             Home Pulse property summaries and jobs (property, job).
 #   VOICE_WORKER_PRINCIPAL  — the voice Worker's DFX_IDENTITY_PEM. Made a payment
 #                             Stripe relay so it can activate subscriptions after checkout.
+#                             Also a photo relay, for photoAccess checks on /photos/*,
+#                             and the job inbox relay, which files forwarded invoices
+#                             as drafts (job.relayAddEmailDraft).
 grant() {  # grant <canister> <method> <principal> <description>
   local out
   echo "  $4 on $1..."
@@ -842,7 +850,7 @@ grant() {  # grant <canister> <method> <principal> <description>
   fi
 }
 if [ -n "${NOTIFIER_PRINCIPAL:-}" ]; then
-  for c in auth job quote; do
+  for c in auth property job quote; do
     grant "$c" addNotifier "$NOTIFIER_PRINCIPAL" "Allowlisting notification relay"
   done
 fi
@@ -853,6 +861,10 @@ if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
   grant payment addStripeRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker activate Stripe-paid subscriptions and credits"
   grant monitoring addReporter "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker report errors and cycle checks"
   grant agent addContactReader "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker read agent emails for Bid to List mail"
+  grant photo addPhotoRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker check who may read off-chain photos"
+  grant job addInboxRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker file forwarded invoices as drafts"
+  grant contractor addLicenseRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker record Florida DBPR licence lookups"
+  grant fee addReferralRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker save referral-fee cards and record charges"
 fi
 if [ -n "${IOT_GATEWAY_PRINCIPAL:-}" ]; then
   # Once a gateway is registered, sensor refuses self-asserted registerDevice
@@ -916,6 +928,18 @@ fi
 if [ -n "$FEE_ID" ]        && [ -n "$LISTING_ID" ]; then
   echo "  Wiring listing -> fee (recordFeeOwed trust)..."
   bg_call fee        setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV"
+fi
+# Contractor Free referral fee: quote and job report bids, acceptances and
+# verified jobs to fee, and fee only accepts them from those two canisters.
+if [ -n "$FEE_ID" ]        && [ -n "$QUOTE_ID" ]; then
+  echo "  Wiring quote <-> fee (referral fee bids and acceptances)..."
+  bg_call fee        setQuoteCanisterId      "(\"$QUOTE_ID\")"            -e "$ENV"
+  bg_call quote      setFeeCanisterId        "(principal \"$FEE_ID\")"    -e "$ENV"
+fi
+if [ -n "$FEE_ID" ]        && [ -n "$JOB_ID" ]; then
+  echo "  Wiring job <-> fee (referral fee on verified jobs)..."
+  bg_call fee        setJobCanisterId        "(\"$JOB_ID\")"              -e "$ENV"
+  bg_call job        setFeeCanisterId        "(\"$FEE_ID\")"              -e "$ENV"
 fi
 if [ -n "$MARKET_ID" ]     && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> market (score computation)..."
@@ -1043,6 +1067,22 @@ if [ "$ENV" = "ic" ]; then
     icp canister call "$canister" setVetkdKeyName '("key_1")' -e "$ENV" >/dev/null \
       || { echo "❌ could not set the vetKD key on $canister"; exit 1; }
   done
+fi
+
+# ── Report signing key ───────────────────────────────────────────────────────
+# report signs report links and score certificates with threshold Ed25519
+# (Schnorr). It defaults to the test key; mainnet must use key_1. Then cache
+# the public key so /verify-record can show it (best effort: signing still
+# works without it, and the first signature fetches it).
+if [ "$ENV" = "ic" ]; then
+  echo "  report: signing key → key_1"
+  icp canister call report setAttestationKeyName '("key_1")' -e "$ENV" >/dev/null \
+    || { echo "❌ could not set the signing key on report"; exit 1; }
+fi
+if out=$(icp canister call report refreshAttestationKey -e "$ENV" 2>&1) && [[ "$out" == *"variant { ok"* ]]; then
+  echo "  ✓ report signing key published"
+else
+  echo "  ⚠️  report.refreshAttestationKey failed (records still get signed): $out"
 fi
 
 # ── AI Proxy canister — wire API keys from environment ────────────────────────

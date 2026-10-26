@@ -143,6 +143,15 @@ export const idlFactory = ({ IDL }: any) => {
     asOf:  IDL.Text,
   });
 
+  // Signed statement over a report or score certificate (see report/main.mo
+  // "Signed attestations"): message is the exact JSON that was signed.
+  const Attestation = IDL.Record({
+    message:   IDL.Text,
+    signature: IDL.Vec(IDL.Nat8),
+    publicKey: IDL.Vec(IDL.Nat8),
+    keyName:   IDL.Text,
+    signedAt:  IDL.Int,
+  });
   return IDL.Service({
     // Params 1-6 match the original interface; 7-12 are new trailing opt args.
     generateReport: IDL.Func(
@@ -161,12 +170,15 @@ export const idlFactory = ({ IDL }: any) => {
     ),
     getBillsSummary: IDL.Func([IDL.Text], [IDL.Opt(BillsSummary)], ["query"]),
     hasActivePublicShareLink: IDL.Func([IDL.Text], [IDL.Bool], ["query"]),
+    setAllowPublicReports: IDL.Func([IDL.Bool], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getAllowPublicReports: IDL.Func([], [IDL.Bool], ["query"]),
     listShareLinks: IDL.Func([IDL.Text], [IDL.Vec(ShareLink)], []),
     revokeShareLink: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     generateRiskProfile: IDL.Func(
       [IDL.Text, IDL.Opt(IDL.Nat), IDL.Text],
       [IDL.Variant({ ok: RiskProfile, err: RiskProfileError })],
@@ -177,5 +189,15 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: RiskProfile, err: RiskProfileError })],
       ["query"]
     ),
+    getReportAttestation: IDL.Func([IDL.Text], [IDL.Opt(Attestation)], ["query"]),
+    getReportScore:       IDL.Func([IDL.Text], [IDL.Opt(IDL.Nat)], ["query"]),
+    getCertAttestation:   IDL.Func([IDL.Text], [IDL.Opt(Attestation)], ["query"]),
+    getAttestationKey:    IDL.Func(
+      [],
+      [IDL.Opt(IDL.Record({ keyName: IDL.Text, publicKey: IDL.Vec(IDL.Nat8) }))],
+      ["query"]
+    ),
+    refreshAttestationKey: IDL.Func([], [IDL.Variant({ ok: IDL.Vec(IDL.Nat8), err: Error })], []),
+    setAttestationKeyName: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
   });
 };

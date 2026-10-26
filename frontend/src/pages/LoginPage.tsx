@@ -89,7 +89,7 @@ function IcpLogoIcon({ size = 22 }: { size?: number }) {
 
 const FEATURES = [
   { Icon: ShieldIcon, title: "Secure & Private",     sub: "Your data is encrypted and stored on the Internet Computer (ICP)." },
-  { Icon: ChainIcon,  title: "Blockchain Verified",  sub: "Immutable records you can trust. Verified by ICP." },
+  { Icon: ChainIcon,  title: "Records You Can Check", sub: "Signed-off jobs can't be edited, and shared reports carry a signature anyone can check." },
   { Icon: SparkIcon,  title: "AI-Powered Insights",  sub: "Get answers, recommendations, and insights about your home." },
   { Icon: HomeIcon,   title: "Built for Homeowners", sub: "Everything you need to maintain, protect, and grow your property value." },
 ];
@@ -287,7 +287,7 @@ export default function LoginPage() {
           {[
             { kicker: "INFRASTRUCTURE", title: "Built on ICP",        sub: "Decentralized. Scalable. Unstoppable." },
             { kicker: "OWNERSHIP",      title: "Your Data, Yours",     sub: "You own your data. Always." },
-            { kicker: "INTEGRITY",      title: "Verified & Immutable", sub: "Every important record is permanently verified." },
+            { kicker: "INTEGRITY",      title: "Signed & Checkable",   sub: "Reports and certificates are signed, so anyone can check a copy." },
           ].map((b) => (
             <div key={b.title} style={{
               background: "rgba(255,255,255,0.05)",
@@ -321,14 +321,7 @@ export default function LoginPage() {
             <IcpLogoIcon size={28} />
             <div>
               <div style={{ color: C.white, fontWeight: 600, fontSize: "0.9375rem" }}>Built on the Internet Computer Protocol (ICP)</div>
-              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.8125rem" }}>Your data is yours. Permanently stored. Tamper-proof. Future-proof.</div>
-            </div>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ color: C.white, fontWeight: 600, fontSize: "0.9375rem" }}>Quorum HOA members save 10%</div>
-            <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.8125rem" }}>
-              Use code:{" "}
-              <span style={{ color: C.yellow, fontWeight: 700, letterSpacing: "0.05em" }}>QUORUM10</span>
+              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.8125rem" }}>Your records are yours, and you can export them at any time.</div>
             </div>
           </div>
           <button

@@ -15,7 +15,7 @@ import type { QuoteRequest } from "@/services/quote";
 import type { RecurringService, VisitLog } from "@/services/recurringService";
 import type { Room } from "@/services/room";
 import type { SensorDevice, SensorEvent } from "@/services/sensor";
-import type { ScoreBreakdown } from "@/services/scoreService";
+import { scoreChange, type ScoreBreakdown } from "@/services/scoreService";
 import type { AtRiskWarning, DecayEvent } from "@/services/scoreDecayService";
 import type { ScoreEvent } from "@/services/scoreEventService";
 import { PLANS, type PlanTier } from "@/services/planConstants";
@@ -111,12 +111,19 @@ function fullPageRow(lead: string, sub: string, path: string, ctx: PanelCtx): Pa
 
 // ── AWAITING ───────────────────────────────────────────────────────────────
 
+/** What approving `p` does to the score, worked out with the real formula. */
+function approvalGainLabel(p: Job, ctx: PanelCtx): string {
+  const props = ctx.activeProperty ? [ctx.activeProperty] : [];
+  const gain = scoreChange(ctx.jobs, [...ctx.jobs, { ...p, verified: true, status: "verified" }], props);
+  return gain > 0 ? `+${gain} pts` : "Joins record";
+}
+
 function buildAwaiting(ctx: PanelCtx): PanelData {
   const rows: PanelRow[] = ctx.pendingProposals.map((p) => ({
     id: p.id,
     lead: p.serviceType,
     sub: `${p.isDiy ? "SELF-LOGGED" : "VERIFIED PRO"} · ${p.contractorName ?? "Homeowner"} · ${shortDate(p.date)} · ${moneyCents(p.amount)}`,
-    right: "+4 pts",
+    right: approvalGainLabel(p, ctx),
     tone: GOOD,
     hasActions: true,
     approve: () => ctx.approveProposal(p.id),
@@ -128,7 +135,7 @@ function buildAwaiting(ctx: PanelCtx): PanelData {
     count: n ? String(n) : "",
     asked: n === 1 ? "One job is waiting on your approval" : "Jobs waiting on your approval",
     title: n === 0 ? "Nothing is waiting on you" : n === 1 ? "One contractor submitted work" : `${n} contractors submitted work`,
-    sub: "Approve and it joins the record and earns points. Decline and it never existed.",
+    sub: "Approve and it joins your record; the points it adds are shown beside it. Decline and it never existed.",
     cta: n > 1 ? "Approve all" : "Approve",
     ctaFlow: undefined,
     rows,
@@ -144,18 +151,19 @@ function buildScore(ctx: PanelCtx): PanelData {
     tone: val >= max ? INK : WARN, hasBar: true, pct: `${Math.round((val / max) * 100)}%`,
     barColor: val >= max ? "#2B34FF" : WARN, go,
   });
-  const gapPts = 100 - (b.verifiedJobPts + b.valuePts + b.verificationPts + b.diversityPts);
+  const gapPts = 100 - (b.maintenancePts + b.modernizationPts + b.verificationPts);
+  const covered = ["HVAC", "Roofing", "Plumbing", "Electrical", "Windows"].filter((s) => ctx.jobs.some((j) => j.serviceType === s)).length;
+  const verified = ctx.jobs.filter((j) => j.verified && !j.contractorUnverified).length;
   return {
     chip: "SCORE", count: String(ctx.score),
     asked: `Your score is ${ctx.score} out of 100`,
     title: gapPts > 0 ? `Grade ${ctx.grade} — ${gapPts} points still on the table` : `Grade ${ctx.grade} — every component maxed`,
-    sub: "Four components, 100 points: verified jobs, documented value, property verification and job diversity.",
+    sub: "Three parts, 100 points: which key systems have work on record, how much life those systems have left, and how many of your jobs are verified.",
     cta: "See how to earn them",
     rows: [
-      row("Verified jobs", `${ctx.jobs.filter((j) => j.verified).length} VERIFIED JOBS · 4 PTS EACH`, b.verifiedJobPts, 40),
-      row("Documented value", `${formatCents(ctx.jobs.reduce((s, j) => s + j.amount, 0))} DOCUMENTED · 1 PT PER $2,500`, b.valuePts, 20, "docs"),
-      row("Property verification", `${ctx.properties.filter((p) => p.verificationLevel === "Basic" || p.verificationLevel === "Premium").length} OF ${ctx.properties.length} PROPERTIES VERIFIED`, b.verificationPts, 20, "property"),
-      row("Job diversity", `${new Set(ctx.jobs.map((j) => j.serviceType)).size} TRADES LOGGED · 4 PTS EACH`, b.diversityPts, 20, "jobs"),
+      row("Maintenance coverage", `${covered} OF 5 KEY SYSTEMS ON RECORD · BEST JOB PER SYSTEM COUNTS`, b.maintenancePts, 40, "jobs"),
+      row("System modernization", "REMAINING LIFE OF HVAC, ROOF, PLUMBING, ELECTRICAL, WINDOWS, FLOORS", b.modernizationPts, 35, "maint"),
+      row("Verification depth", `${verified} OF ${ctx.jobs.length} JOBS VERIFIED`, b.verificationPts, 25, "awaiting"),
     ],
   };
 }

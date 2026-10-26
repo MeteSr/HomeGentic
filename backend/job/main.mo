@@ -27,6 +27,7 @@ import Index        "../shared/Index";
 import Uuid         "../shared/Uuid";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
+import Score "../shared/Score";
 import Canisters "../shared/Canisters";
 
 persistent actor Job {
@@ -147,6 +148,10 @@ persistent actor Job {
   /// Currently unused: the product has no per-tier job cap (see CLAUDE.md
   /// tier table); storage is bounded by MAX_JOBS_PER_PROPERTY instead.
   private var payCanisterId:      Text        = "";
+  /// Fee canister ID — set post-deploy via setFeeCanisterId(). When set, a
+  /// job verified by both parties is reported for the Contractor Free
+  /// referral fee.
+  private var feeCanisterId:      Text        = "";
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
@@ -258,6 +263,15 @@ persistent actor Job {
     );
   };
 
+  /// Ask the homeowner to review the contractor on a newly co-signed job. The
+  /// relay only sends it when the contractor has ContractorPro. summary holds
+  /// the contractor's principal (Notify.mo).
+  private func notifyReviewRequest(job: Job, contractor: Principal) {
+    notifyLatestSeq := Notify.record(
+      notifyLog, notifyLatestSeq, "review_request", ?job.homeowner, job.id, contractor.toText()
+    );
+  };
+
   /// Tell the homeowner a critical sensor reading opened a job for them.
   private func notifySensorAlert(job: Job) {
     notifyLatestSeq := Notify.record(
@@ -339,6 +353,18 @@ persistent actor Job {
   /// Text label for a ServiceType, used where it crosses a canister boundary
   /// as Text (the contractor canister, job snapshots).
   private func serviceTypeText(s: ServiceType) : Text { ServiceTypes.toText(s) };
+
+  /// Reports a job both parties verified to `fee`, which decides whether a
+  /// referral fee is now due. Failures are printed: the job stays verified.
+  private func reportReferralJob(job: Job, contractor: Principal) : async* () {
+    if (feeCanisterId == "") return;
+    try {
+      switch (await Canisters.fee(feeCanisterId).recordReferralJobVerified(job.id, contractor, job.propertyId, serviceTypeText(job.serviceType))) {
+        case (#err(_)) { Debug.print("job: fee.recordReferralJobVerified rejected " # job.id) };
+        case (#ok(_)) {};
+      };
+    } catch (_) { Debug.print("job: fee.recordReferralJobVerified failed " # job.id) };
+  };
 
   /// R2: a verified job counts toward scores / certificates / reports only when
   /// it is DIY (homeowner-only), or its contractor signature came from a
@@ -482,13 +508,11 @@ persistent actor Job {
   /// Returns a lightweight snapshot of all jobs for a property, suitable for
   /// cross-canister consumption by the market canister's computePropertyScore.
   public query func getJobSnapshotsForProperty(propertyId: Text) : async [JobSnapshot] {
-    let secsPerYear : Nat = 31_536_000;
     Iter.toArray(Index.records(jobsByProperty, propertyId, jobs).map(
       func(j: Job) : JobSnapshot {
-        let secsSince1970 = Int.abs(j.completedDate) / 1_000_000_000;
         {
           serviceType   = serviceTypeText(j.serviceType);
-          completedYear = 1970 + secsSince1970 / secsPerYear;
+          completedYear = Score.yearOf(j.completedDate);
           amountCents   = j.amount;
           isDiy         = j.isDiy;
           isVerified    = countsAsVerified(j);
@@ -515,7 +539,8 @@ persistent actor Job {
   /// canisters get the list; anyone else gets [].
   public query(msg) func getJobsByOwner(owner: Principal) : async [Job] {
     if (msg.caller.isAnonymous()) return [];
-    if (msg.caller != owner and not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return [];
+    // Notifiers: the relay builds the weekly Home Pulse email from these.
+    if (msg.caller != owner and not isAdmin(msg.caller) and not isTrustedCanister(msg.caller) and not isNotifier(msg.caller)) return [];
     Index.records(jobsByHomeowner, owner.toText(), jobs).toArray(
       
     )
@@ -776,6 +801,19 @@ persistent actor Job {
           };
         };
 
+        if (fullyVerified and not existing2.verified) {
+          switch (existing2.contractor) {
+            case (?con) { notifyReviewRequest(updated, con) };
+            case null {};
+          };
+        };
+        if (fullyVerified and not existing2.isDiy) {
+          switch (existing2.contractor) {
+            case (?con) { await* reportReferralJob(updated, con) };
+            case null {};
+          };
+        };
+
         // Notify contractor canister when job becomes fully verified
         if (fullyVerified and Text.size(contrCanisterId) > 0) {
           switch (existing2.contractor) {
@@ -876,6 +914,14 @@ persistent actor Job {
   public shared(msg) func setContractorCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     contrCanisterId := id;
+    #ok(())
+  };
+
+  /// Wire the job canister to the fee canister for the Contractor Free
+  /// referral fee. fee.setJobCanisterId must name this canister too.
+  public shared(msg) func setFeeCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    feeCanisterId := id;
     #ok(())
   };
 
@@ -1357,7 +1403,10 @@ persistent actor Job {
     };
     inviteTokens.add(token, usedInvite);
 
-    if (bothSigned) notifyJobVerified(updated) else notifyAwaitingSignature(updated);
+    if (bothSigned) {
+      notifyJobVerified(updated);
+      notifyReviewRequest(updated, msg.caller);
+    } else notifyAwaitingSignature(updated);
 
     // Notify contractor canister when the job becomes fully verified —
     // mirrors verifyJob()'s cross-call exactly, same try/catch so a trap or
@@ -1373,6 +1422,12 @@ persistent actor Job {
       try {
         ignore await contrActor2.recordJobVerified(msg.caller, updated.id, svcText, updated.homeowner);
       } catch (_e) {};
+    };
+    if (bothSigned) {
+      switch (updated.contractor) {
+        case (?con) { await* reportReferralJob(updated, con) };
+        case null {};
+      };
     };
 
     #ok(updated)
@@ -1581,6 +1636,218 @@ persistent actor Job {
     Index.delete(jobs, jobIndexes, jobId);
     contractorAttest.remove(jobId);
     #ok(())
+  };
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Deletes every job whose homeowner is the caller, plus the invite tokens,
+  /// contractor attestations and push-outbox events tied to those jobs, and
+  /// any queued push addressed to the caller. Jobs where the caller is only
+  /// the linked contractor belong to the homeowner's record and are kept.
+  /// Returns how many jobs were removed. Synchronous, so nothing interleaves.
+  // ─── Email inbox: forwarded invoices become draft jobs ─────────────────────
+  //
+  // Each homeowner can get a private forwarding address (h-<token>@<inbox
+  // domain>). Mail sent there reaches the voice Worker's email handler, which
+  // reads the invoice and calls relayAddEmailDraft. A draft is not a job: it
+  // sits in getMyEmailDrafts until the homeowner logs it (createJob, then
+  // dismissEmailDraft) or dismisses it. New stable vars only (no change to
+  // stored record types).
+
+  public type EmailDraft = {
+    id            : Text;
+    owner         : Principal;
+    receivedAt    : Int;
+    fromAddress   : Text;
+    subject       : Text;
+    title         : Text;
+    serviceType   : Text;    // display label, "" when unknown
+    contractorName: Text;
+    amountCents   : Nat;
+    completedDate : Text;    // YYYY-MM-DD, "" when unknown
+    warrantyMonths: Nat;     // 0 when none
+    description   : Text;
+  };
+
+  public type EmailDraftInput = {
+    fromAddress   : Text;
+    subject       : Text;
+    title         : Text;
+    serviceType   : Text;
+    contractorName: Text;
+    amountCents   : Nat;
+    completedDate : Text;
+    warrantyMonths: Nat;
+    description   : Text;
+  };
+
+  private let inboxTokens      = Map.empty<Text, Principal>();   // token → owner
+  private let inboxByOwner     = Map.empty<Text, Text>();        // owner → token
+  private let emailDrafts      = Map.empty<Text, EmailDraft>();  // id → draft
+  private let inboxDayCounts   = Map.empty<Text, (Int, Nat)>();  // owner → (day, drafts that day)
+  private var inboxRelayEntries : [Principal] = [];
+  private transient let draftsByOwner = Index.empty();
+  private transient let draftIndexes : [Index.Keyed<EmailDraft>] = Index.indexed(emailDrafts, [
+    (draftsByOwner, func(d : EmailDraft) : ?Text { ?d.owner.toText() }),
+  ]);
+
+  private transient let MAX_OPEN_DRAFTS     : Nat = 50;
+  private transient let MAX_DRAFTS_PER_DAY  : Nat = 30;
+
+  private func newInboxToken() : async Text {
+    let b = (await Random.blob()).toArray();
+    let HEX = "0123456789abcdef".chars().toArray();
+    var out = "";
+    var i = 0;
+    while (i < 10 and i < b.size()) {
+      let n = b[i].toNat();
+      out #= HEX[n / 16].toText() # HEX[n % 16].toText();
+      i += 1;
+    };
+    out
+  };
+
+  private func clip(t : Text, n : Nat) : Text {
+    if (t.size() <= n) t else Text.fromIter(t.chars().take(n))
+  };
+
+  private func draftsOf(owner : Principal) : [EmailDraft] {
+    Index.records(draftsByOwner, owner.toText(), emailDrafts).toArray()
+  };
+
+  /// The caller's forwarding token, created on first call. The address is
+  /// "h-" # token # "@" # the inbox domain (the frontend knows the domain).
+  public shared(msg) func getMyInboxToken() : async Result.Result<Text, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (inboxByOwner.get(msg.caller.toText())) {
+      case (?t) return #ok(t);
+      case null {};
+    };
+    let t = await newInboxToken();
+    // Re-check after the await: a concurrent call may have created one.
+    switch (inboxByOwner.get(msg.caller.toText())) {
+      case (?existing) return #ok(existing);
+      case null {};
+    };
+    inboxTokens.add(t, msg.caller);
+    inboxByOwner.add(msg.caller.toText(), t);
+    #ok(t)
+  };
+
+  /// Replace the caller's forwarding address; mail to the old one is dropped.
+  public shared(msg) func resetMyInboxToken() : async Result.Result<Text, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let t = await newInboxToken();
+    switch (inboxByOwner.get(msg.caller.toText())) {
+      case (?old) inboxTokens.remove(old);
+      case null {};
+    };
+    inboxTokens.add(t, msg.caller);
+    inboxByOwner.add(msg.caller.toText(), t);
+    #ok(t)
+  };
+
+  /// Inbox relay (the voice Worker) only: file a draft for the owner of
+  /// `token`. #NotFound for an unknown token; #InvalidInput when the owner
+  /// has too many open drafts or hit today's cap.
+  public shared(msg) func relayAddEmailDraft(token : Text, input : EmailDraftInput) : async Result.Result<Text, Error> {
+    if (not Admin.contains(inboxRelayEntries, msg.caller)) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    let owner = switch (inboxTokens.get(token)) { case (?o) o; case null return #err(#NotFound) };
+    if (Index.count(draftsByOwner, owner.toText()) >= MAX_OPEN_DRAFTS) return #err(#InvalidInput("too many open drafts"));
+    let day = Time.now() / 86_400_000_000_000;
+    let (d, n) = inboxDayCounts.get(owner.toText()).get((day, 0));
+    let today = if (d == day) n else 0;
+    if (today >= MAX_DRAFTS_PER_DAY) return #err(#InvalidInput("daily draft limit reached"));
+    if (input.amountCents > MAX_JOB_AMOUNT_CENTS) return #err(#InvalidInput("amount too large"));
+    let id = await newJobId();
+    // State may have changed during the await (token reset, account deleted).
+    switch (inboxTokens.get(token)) { case (?o) { if (o != owner) return #err(#NotFound) }; case null return #err(#NotFound) };
+    if (Index.count(draftsByOwner, owner.toText()) >= MAX_OPEN_DRAFTS) return #err(#InvalidInput("too many open drafts"));
+    let todayNow = switch (inboxDayCounts.get(owner.toText())) { case (?(d2, n2)) { if (d2 == day) n2 else 0 }; case null 0 };
+    if (todayNow >= MAX_DRAFTS_PER_DAY) return #err(#InvalidInput("daily draft limit reached"));
+    Index.put(emailDrafts, draftIndexes, id, {
+      id;
+      owner;
+      receivedAt     = Time.now();
+      fromAddress    = clip(input.fromAddress, 200);
+      subject        = clip(input.subject, 200);
+      title          = clip(input.title, 120);
+      serviceType    = clip(input.serviceType, 40);
+      contractorName = clip(input.contractorName, 120);
+      amountCents    = input.amountCents;
+      completedDate  = clip(input.completedDate, 10);
+      warrantyMonths = Nat.min(input.warrantyMonths, 600);
+      description    = clip(input.description, 1000);
+    });
+    inboxDayCounts.add(owner.toText(), (day, todayNow + 1));
+    #ok(id)
+  };
+
+  /// The caller's open drafts, newest first.
+  public query(msg) func getMyEmailDrafts() : async [EmailDraft] {
+    draftsOf(msg.caller).sort(func(a : EmailDraft, b : EmailDraft) : { #less; #equal; #greater } {
+      Int.compare(b.receivedAt, a.receivedAt)
+    })
+  };
+
+  /// Remove one of the caller's drafts (after logging it as a job, or to discard it).
+  public shared(msg) func dismissEmailDraft(id : Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (emailDrafts.get(id)) {
+      case (?d) { if (d.owner != msg.caller) return #err(#NotFound) };
+      case null return #err(#NotFound);
+    };
+    Index.delete(emailDrafts, draftIndexes, id);
+    #ok(())
+  };
+
+  public shared(msg) func addInboxRelay(p : Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    inboxRelayEntries := Admin.add(inboxRelayEntries, p);
+    #ok(())
+  };
+
+  public shared(msg) func removeInboxRelay(p : Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    inboxRelayEntries := Admin.remove(inboxRelayEntries, p);
+    #ok(())
+  };
+
+  private func forgetInbox(owner : Principal) {
+    switch (inboxByOwner.get(owner.toText())) {
+      case (?t) { inboxTokens.remove(t); inboxByOwner.remove(owner.toText()) };
+      case null {};
+    };
+    for (d in draftsOf(owner).values()) { Index.delete(emailDrafts, draftIndexes, d.id) };
+    inboxDayCounts.remove(owner.toText());
+  };
+
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+
+    let ids = Index.ids(jobsByHomeowner, msg.caller.toText()).toArray();
+    let idSet = Map.empty<Text, ()>();
+    for (id in ids.values()) {
+      Index.delete(jobs, jobIndexes, id);
+      contractorAttest.remove(id);
+      idSet.add(id, ());
+    };
+
+    let tokens = inviteTokens.entries()
+      .filter(func((_, t)) = idSet.containsKey(t.jobId))
+      .map(func((k, _)) = k)
+      .toArray();
+    for (k in tokens.values()) { inviteTokens.remove(k) };
+
+    let events = notifyLog.entries()
+      .filter(func((_, e)) = idSet.containsKey(e.refId) or e.recipient == ?msg.caller)
+      .map(func((seq, _)) = seq)
+      .toArray();
+    for (seq in events.values()) { notifyLog.remove(seq) };
+    forgetInbox(msg.caller);
+
+    #ok(ids.size())
   };
 
   /// Returns all jobs that were sourced via a HomeGentic quote request.

@@ -66,7 +66,7 @@ get_principal() {
 }
 
 HO2_PRINCIPAL=$(get_principal seed-homeowner-2)
-C1_PRINCIPAL=$(get_principal seed-contractor-1)
+C1_PRINCIPAL=$C1_PRINCIPAL
 C2_PRINCIPAL=$(get_principal seed-contractor-2)
 RE_PRINCIPAL=$(get_principal seed-realtor-1)
 
@@ -303,6 +303,12 @@ if [ -n "$PROP1_ID" ]; then
     VALID_UNTIL=$(python3 -c "import time; print(int((time.time()+30*86400)*1e9))" 2>/dev/null \
       || node -e "process.stdout.write(String(BigInt(Math.floor((Date.now()+30*86400000))*1000000)))" 2>/dev/null \
       || echo "1893456000000000000")
+    # Contractor Free bids need a saved referral-fee card; the deployer (a fee
+    # admin) saves a test one the way the voice Worker does after Stripe Checkout.
+    call fee relaySetReferralCard "(principal \"$C1_PRINCIPAL\", record {
+      customerId = \"cus_seed\"; paymentMethodId = \"pm_seed\"; brand = \"visa\"; last4 = \"4242\";
+      agreedAt = 0; termsVersion = \"2026-10-26\";
+    })" >/dev/null 2>&1 || true
     call_as seed-contractor-1 quote submitQuote "(
       \"$REQ1_ID\",
       38000,

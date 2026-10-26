@@ -22,6 +22,7 @@ and where in the codebase each integration lives.
 | [Moen Flo](#8-moen-flo) | Water sensor webhooks | `MOEN_FLO_WEBHOOK_SECRET` | Free | No |
 | [Rentcast](#9-rentcast) | Property year built & sq ft lookup | `VITE_RENTCAST_API_KEY` | Free 50/mo | No — fields default to manual entry |
 | [Volusia County ArcGIS](#10-volusia-county-arcgis) | Building permits (Volusia County, FL) | None | Free (public) | No |
+| [City of Orlando Socrata](#10a-city-of-orlando-socrata) | Building permits (City of Orlando, FL) | None | Free (public) | No |
 | [OpenPermit](#11-openpermit) | Building permits (20+ US cities) | `OPEN_PERMIT_API_KEY` | Paid | No |
 
 ---
@@ -357,15 +358,49 @@ The lookup fires client-side when the user advances from the address step.
 **Pricing:** Free (public government data).
 
 **Used in:**
-- `frontend/src/services/volusiaPermits.ts` — client-side permit lookup
-- `backend/ai_proxy/main.mo` — server-side IC HTTP outcall
+- `agents/voice/src/offchainOutcalls.ts` — `importPermits` (POST /api/permits/import)
+- `frontend/src/services/permitImport.ts` — parses the `arcgis` source
 - Endpoint: `https://maps5.vcgov.org/arcgis/rest/services/CurrentProjects/MapServer/1/query`
+
+---
+
+## 10a. City of Orlando Socrata
+
+**Purpose:** Building, electrical, plumbing, mechanical, gas and demolition
+permits issued by the City of Orlando (Orange County, FL), from the city's
+"Permit Applications" open dataset (`ryhf-m453`, updated daily, back to the
+1900s). Only permits with an issue date are returned.
+
+**Coverage caveat:** City of Orlando permits only. Unincorporated Orange County
+and other cities (Winter Park, Maitland…) aren't in it, though many of those
+homes have an Orlando mailing address; the coverage badge says so.
+
+**Env var:** None — public, no authentication.
+
+**Matching:** `upper(permit_address) like '<house number> <direction> <street name>%'`
+(the suffix is dropped because people spell it several ways); the homeowner
+reviews the matches before any are logged.
+
+**Used in:**
+- `agents/voice/src/offchainOutcalls.ts` — `importPermits`, `orlandoAddressPrefix`
+- `frontend/src/services/permitImport.ts` — `parseOrlandoPermit`
+- Endpoint: `https://data.cityoforlando.net/resource/ryhf-m453.json`
+
+**Other counties next to Volusia (checked 2026-10-26):** Seminole, Brevard,
+Flagler, Putnam and unincorporated Orange County only offer permit search
+portals, with no public feed. Lake County's Property Appraiser permit layer
+(`PropertyAppraiser/PermitMap_Working`) holds 2021 permits only, with no address
+field.
+
+**Monitoring:** `.github/workflows/permit-feeds.yml` runs
+`scripts/ci/check-permit-feeds.mjs` weekly and fails if either feed loses a field
+the import uses.
 
 ---
 
 ## 11. OpenPermit
 
-**Purpose:** Queries building permits for 20+ major US cities beyond Volusia County.
+**Purpose:** Queries building permits for 20+ major US cities beyond Volusia County and Orlando.
 
 **Env var:** `OPEN_PERMIT_API_KEY`
 

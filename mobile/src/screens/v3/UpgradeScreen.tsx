@@ -137,7 +137,7 @@ export default function UpgradeScreen({ navigation }: Props) {
           <Text style={{ fontFamily: family.display, fontSize: 26, lineHeight: 30, letterSpacing: -0.78, color: v3.ink, marginTop: 20 }}>You're on {tierName(app.tier)}.</Text>
           <Text style={[type.body, { fontSize: 13.5, lineHeight: 21.6, marginTop: 10 }]}>
             {contractor
-              ? "Your account picked up the upgrade from the web. Lead notifications and reviews are on now, and referral fees stop with your next winning bid."
+              ? "Your account picked up the upgrade from the web. Lead alerts now reach you as soon as a job posts, your portfolio and automatic review requests are on, and referral fees stop with your next winning bid."
               : "Your account picked up the upgrade from the web. 20 properties, shared access and PDF export are unlocked."}
           </Text>
           <Card style={{ marginTop: 22, borderRadius: 20 }}>

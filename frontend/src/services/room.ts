@@ -195,15 +195,28 @@ function unwrap<T>(result: any): T {
 
 // ─── Service factory ──────────────────────────────────────────────────────────
 
+/** E2E: window.__e2e_rooms (plain Room objects) replaces the canister. */
+function e2eRooms(): Room[] | null {
+  return typeof window !== "undefined" ? (window as any).__e2e_rooms ?? null : null;
+}
+
 function createRoomService() {
   return {
   async getRoomsByProperty(propertyId: string): Promise<Room[]> {
+    const mock = e2eRooms();
+    if (mock) return mock.filter((r) => String(r.propertyId) === String(propertyId));
     const actor = await getActor();
     const result = await (actor as any).getRoomsByProperty(propertyId);
     return (result as any[]).map(mapRoom);
   },
 
   async createRoom(args: CreateRoomArgs): Promise<Room> {
+    const mock = e2eRooms();
+    if (mock) {
+      const room: Room = { ...args, id: `ROOM_${mock.length + 1}`, owner: "", fixtures: [], createdAt: 0n, updatedAt: 0n };
+      mock.push(room);
+      return room;
+    }
     const actor = await getActor();
     return mapRoom(unwrap(await (actor as any).createRoom(args)));
   },
@@ -219,6 +232,12 @@ function createRoomService() {
   },
 
   async addFixture(roomId: string, args: AddFixtureArgs): Promise<Room> {
+    const mock = e2eRooms();
+    const room = mock?.find((r) => r.id === roomId);
+    if (room) {
+      room.fixtures = [...room.fixtures, { ...args, id: `FIX_${room.fixtures.length + 1}` }];
+      return room;
+    }
     const actor = await getActor();
     return mapRoom(unwrap(await (actor as any).addFixture(roomId, args)));
   },

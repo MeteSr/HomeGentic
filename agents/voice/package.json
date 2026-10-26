@@ -24,7 +24,12 @@
       "!jest.config.ts"
     ],
     "coverageDirectory": "./coverage",
-    "coverageReporters": ["text", "html", "lcov", "json-summary"],
+    "coverageReporters": [
+      "text",
+      "html",
+      "lcov",
+      "json-summary"
+    ],
     "coverageThreshold": {
       "global": {
         "lines": 42,
@@ -35,9 +40,9 @@
     }
   },
   "dependencies": {
-    "@anthropic-ai/sdk": ">=0.126.0",
+    "@anthropic-ai/sdk": "^0.126.0",
     "@icp-sdk/core": "^5.4.0",
-    "dotenv": "^17.3.1",
+    "postal-mime": "4.0.5",
     "resend": "^6.28.1",
     "stripe": "^22.6.2"
   },
@@ -52,8 +57,9 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^26.6.3",
     "babel-jest": "^30.5.0",
+    "dotenv": "^17.3.1",
     "jest": "^30.5.2",
     "typescript": "^6.0.2",
-    "wrangler": "^4.147.0"
+    "wrangler": "^4.151.2"
   }
 }

@@ -85,10 +85,10 @@ export default function VerifyClaimPage() {
           {/* Main column */}
           <div>
             <h1 style={{ fontFamily: V2_FONTS.display, fontSize: 36, fontWeight: 900, color: V2_COLORS.ink, marginBottom: 12, lineHeight: 1.1 }}>
-              Two proofs, three days.
+              Two proofs, one week.
             </h1>
             <p style={{ fontFamily: V2_FONTS.body, fontSize: 15, color: V2_COLORS.muted, lineHeight: 1.6, marginBottom: 32, maxWidth: 540 }}>
-              Verify who you are and that the address is yours. Both are due within 72 hours of adding the property, and until they clear the record is marked unverified.
+              Verify who you are and that the address is yours. Finish both within 7 days of the first claim on this address. Until they clear, the record is marked unverified, and after 7 days someone else can register the address too.
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 32 }}>

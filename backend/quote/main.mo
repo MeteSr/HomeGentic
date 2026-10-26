@@ -5,6 +5,7 @@
  */
 
 import Array    "mo:core/Array";
+import Debug    "mo:core/Debug";
 import Blob     "mo:core/Blob";
 import Char     "mo:core/Char";
 import Map      "mo:core/Map";
@@ -16,6 +17,7 @@ import Nat32    "mo:core/Nat32";
 import Option   "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
+import Set      "mo:core/Set";
 import Text     "mo:core/Text";
 import Time     "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
@@ -174,6 +176,10 @@ persistent actor Quote {
   /// Contractor canister ID — set post-deploy via setContractorCanisterId().
   /// When set, getOpenRequestsForMe() filters requests by the caller's serviceZips.
   private var contrCanisterId: Text = "";
+  /// Fee canister ID — set post-deploy via setFeeCanisterId(). When set, a
+  /// contractor without ContractorPro needs a saved card to bid, and each of
+  /// their bids and acceptances is recorded for the 3% referral fee.
+  private var feeCanisterId: Text = "";
 
   private var reqCounter: Nat = 0;
   private var quoteCounter: Nat = 0;
@@ -642,6 +648,36 @@ persistent actor Quote {
     )
   };
 
+  /// Whether `caller`'s bid carries the referral fee (the plan at bid time
+  /// decides), or why they can't bid yet. No fee while `fee` isn't wired.
+  private func referralGate(caller: Principal) : async* Result.Result<Bool, Error> {
+    if (feeCanisterId == "") return #ok(false);
+    let tier : SubscriptionTier = if (payCanisterId != "") {
+      await Canisters.payment(payCanisterId).getTierForPrincipal(caller)
+    } else { #ContractorFree };
+    if (tier == #ContractorPro) return #ok(false);
+    switch (await Canisters.fee(feeCanisterId).referralBidAllowed(caller)) {
+      case (#ok)        { #ok(true) };
+      case (#needsCard) { #err(#InvalidInput("Save a card for the 3% referral fee before you bid (Settings, Subscription on the HomeGentic website).")) };
+      case (#overdue)   { #err(#InvalidInput("A referral fee invoice is more than 30 days overdue. Pay it (Settings, Subscription) to bid again.")) };
+    }
+  };
+
+  /// Tells `fee` about a bid that carries the referral fee. A failed call is
+  /// printed, not returned: the bid is already stored.
+  private func recordReferralBid(q: Quote, req: QuoteRequest) : async* () {
+    try {
+      switch (await Canisters.fee(feeCanisterId).recordReferralBid({
+        quoteId = q.id; requestId = req.id; contractor = q.contractor; homeowner = req.homeowner;
+        propertyId = req.propertyId; serviceType = ServiceTypes.toText(req.serviceType);
+        bidCents = q.amount; bidAt = q.createdAt;
+      })) {
+        case (#err(_)) { Debug.print("quote: fee.recordReferralBid rejected " # q.id) };
+        case (#ok(())) {};
+      };
+    } catch (_) { Debug.print("quote: fee.recordReferralBid failed " # q.id) };
+  };
+
   /// Submit a quote for an open request.
   /// Subject to 20-submissions-per-day limit per contractor.
   public shared(msg) func submitQuote(
@@ -656,6 +692,10 @@ persistent actor Quote {
     switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?r0) { if (not (await canBidOn(r0, msg.caller))) return #err(#NotAuthorized) };
+    };
+    let carriesFee = switch (await* referralGate(msg.caller)) {
+      case (#err(e)) { return #err(e) };
+      case (#ok(b))  { b };
     };
 
     // Everything below re-reads state after the await (TOCTOU).
@@ -732,6 +772,7 @@ persistent actor Quote {
           };
           putRequest(updated);
         };
+        if (carriesFee) await* recordReferralBid(q, req);
 
         #ok(q)
       };
@@ -843,6 +884,16 @@ persistent actor Quote {
                       maxBids          = freshReq.maxBids;
                     };
                     putRequest(closed);
+
+                    // Opens the referral fee when the bid carried one.
+                    if (feeCanisterId != "") {
+                      try {
+                        switch (await Canisters.fee(feeCanisterId).recordReferralAccepted(quoteId)) {
+                          case (#err(_)) { Debug.print("quote: fee.recordReferralAccepted rejected " # quoteId) };
+                          case (#ok(_)) {};
+                        };
+                      } catch (_) { Debug.print("quote: fee.recordReferralAccepted failed " # quoteId) };
+                    };
 
                     #ok(accepted)
                   };
@@ -1040,6 +1091,9 @@ persistent actor Quote {
       case null { return #err(#NotFound) };
       case (?r0) { if (not (await canBidOn(r0, msg.caller))) return #err(#NotAuthorized) };
     };
+    // Sealed amounts stay encrypted, so no fee is recorded for them, but the
+    // same card and overdue rules apply before a contractor can bid.
+    switch (await* referralGate(msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
 
     // Everything below re-reads state after the await (TOCTOU).
     switch (requests.get(requestId)) {
@@ -1417,6 +1471,121 @@ persistent actor Quote {
     #ok(usageSummaries.get(requestId))
   };
 
+  // ─── Account Deletion ────────────────────────────────────────────────────────
+
+  /// Removes one sealed bid and its by-request / by-contractor index entries.
+  private func deleteSealedBid(bidId: Text) {
+    switch (sealedBids.get(bidId)) {
+      case null {};
+      case (?b) {
+        sealedBids.remove(bidId);
+        sealedBidsByContractor.remove(b.contractor.toText() # ":" # b.requestId);
+        switch (sealedBidsByRequest.get(b.requestId)) {
+          case null {};
+          case (?xs) {
+            let rest = xs.filter(func(x) { x != bidId });
+            if (rest.size() == 0) sealedBidsByRequest.remove(b.requestId)
+            else sealedBidsByRequest.add(b.requestId, rest);
+          };
+        };
+      };
+    };
+  };
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Returns how many records were removed.
+  ///
+  ///   - Quote requests the caller made as homeowner, with every quote, sealed
+  ///     bid, revealed-bid snapshot and usage summary on them.
+  ///   - Quotes and sealed bids the caller placed as a contractor, but only on
+  ///     requests still taking bids (#Open/#Quoted, sealed-bid window not
+  ///     closed, not yet revealed). Bids on accepted/closed/cancelled or
+  ///     revealed requests are kept: they are the other homeowner's record of
+  ///     who bid what.
+  ///   - Push-outbox events addressed to the caller or about deleted records.
+  ///
+  /// Kept on purpose: the caller's entries in contractorRateLimits /
+  /// updateCallLimits (rate-limit windows; deleting them would reset limits).
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+    let now = Time.now();
+    var removed = 0;
+    let deletedRefs = Set.empty<Text>();
+
+    // 1. The caller's own requests and everything on them.
+    let myRequestIds = Index.ids(requestsByHomeowner, caller.toText()).toArray();
+    for (reqId in myRequestIds.values()) {
+      let quoteIds = quotesFor(reqId).map(func(q) { q.id }).toArray();
+      for (qid in quoteIds.values()) {
+        Index.delete(quotes, quoteIndexes, qid);
+        deletedRefs.add(qid);
+        removed += 1;
+      };
+      let bidIds = switch (sealedBidsByRequest.get(reqId)) { case null []; case (?xs) xs };
+      for (bidId in bidIds.values()) { deleteSealedBid(bidId); removed += 1 };
+      sealedBidsByRequest.remove(reqId);
+      revealedBids.remove(reqId);
+      usageSummaries.remove(reqId);
+      Index.delete(requests, requestIndexes, reqId);
+      deletedRefs.add(reqId);
+      removed += 1;
+    };
+
+    // 2. Bids the caller placed on other homeowners' requests that are still open.
+    func stillOpen(reqId: Text) : Bool {
+      switch (requests.get(reqId)) {
+        case null { false };
+        case (?r) { r.status == #Open or r.status == #Quoted };
+      }
+    };
+    let myQuoteIds = Index.records(quotesByContractor, caller.toText(), quotes)
+      .filter(func(q) { stillOpen(q.requestId) and q.status == #Pending })
+      .map(func(q) { q.id })
+      .toArray();
+    for (qid in myQuoteIds.values()) {
+      switch (quotes.get(qid)) {
+        case null {};
+        case (?q) {
+          Index.delete(quotes, quoteIndexes, qid);
+          deletedRefs.add(qid);
+          removed += 1;
+          // A #Quoted request with no quotes left goes back to #Open.
+          switch (requests.get(q.requestId)) {
+            case (?r) {
+              if (r.status == #Quoted and Option.isNull(quotesFor(r.id).next())) {
+                putRequest({ r with status = #Open });
+              };
+            };
+            case null {};
+          };
+        };
+      };
+    };
+    let mySealedBidIds = sealedBids.values()
+      .filter(func(b) {
+        b.contractor == caller and stillOpen(b.requestId)
+          and Option.isNull(revealedBids.get(b.requestId))
+          and (switch (requests.get(b.requestId)) {
+                 case (?r) { switch (r.closeAt) { case (?c) now < c; case null true } };
+                 case null false;
+               })
+      })
+      .map(func(b) { b.id })
+      .toArray();
+    for (bidId in mySealedBidIds.values()) { deleteSealedBid(bidId); removed += 1 };
+
+    // 3. Outbox events addressed to the caller or about deleted records.
+    let eventSeqs = notifyLog.values()
+      .filter(func(e) { e.recipient == ?caller or deletedRefs.contains(e.refId) })
+      .map(func(e) { e.seq })
+      .toArray();
+    for (seq in eventSeqs.values()) { notifyLog.remove(seq) };
+
+    #ok(removed)
+  };
+
 
   /// Select the vetKD master key ("key_1" in production). Admin only.
   public shared(msg) func setVetkdKeyName(name: Text) : async Result.Result<(), Error> {
@@ -1442,6 +1611,14 @@ persistent actor Quote {
   public shared(msg) func setContractorCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     contrCanisterId := id.toText();
+    #ok(())
+  };
+
+  /// Wire the quote canister to the fee canister for the Contractor Free
+  /// referral fee. fee.setQuoteCanisterId must name this canister too.
+  public shared(msg) func setFeeCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    feeCanisterId := id.toText();
     #ok(())
   };
 

@@ -58,14 +58,14 @@ For a picture of how these pieces connect, see the
 
 - [icp-cli](https://www.npmjs.com/package/@icp-sdk/icp-cli): `npm install -g @icp-sdk/icp-cli`
 - [mops](https://mops.one) (Motoko packages)
-- Node.js >= 20
+- Node.js >= 22
 - npm >= 9
 
 ### 1. Install dependencies
 
 ```bash
 # Frontend
-cd frontend && npm install && cd ..
+npm install   # root workspace, includes frontend/
 
 # Voice agent proxy
 cd agents/voice && npm install && cd ../..
@@ -346,4 +346,4 @@ ICP storage costs are currently paid in cycles (stable memory at ~$5/GB/year). A
 
 ## License
 
-MIT © HomeGentic 2026
+Source-available, all rights reserved © HomeGentic 2026. You can read and audit the code, but using, copying, deploying or redistributing it needs written permission. See [LICENSE](LICENSE).

@@ -7,7 +7,7 @@
  *   - Tier Manager: blank-principal validation, tier selection, success
  *     clears the input
  *   - Cycles dashboard: runway-based at-risk banner, critical/warning counts
- *   - Referral pipeline: pending vs collected fee totals, floor badge
+ *   - Referral fees: pending / owed / collected totals, floor badge, waive with a note
  */
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -16,7 +16,7 @@ import { MemoryRouter } from "react-router-dom";
 import AdminDashboardPage from "@/pages/AdminDashboardPage";
 import type { Property } from "@/services/property";
 import type { CanisterMetrics, CycleLevelResult } from "@/services/monitoringService";
-import type { Job } from "@/services/job";
+import type { ReferralFee } from "@/services/fee";
 import type { ContractorProfile } from "@/services/contractor";
 
 const { mockUseAuthStore } = vi.hoisted(() => ({ mockUseAuthStore: vi.fn() }));
@@ -67,10 +67,10 @@ vi.mock("@/services/monitoringService", async (importOriginal) => {
   };
 });
 
-const { mockGetReferralJobs } = vi.hoisted(() => ({ mockGetReferralJobs: vi.fn() }));
-vi.mock("@/services/job", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/job")>();
-  return { ...actual, jobService: { getReferralJobs: mockGetReferralJobs } };
+const { mockGetAllReferralFees, mockWaiveReferralFee } = vi.hoisted(() => ({ mockGetAllReferralFees: vi.fn(), mockWaiveReferralFee: vi.fn() }));
+vi.mock("@/services/fee", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/fee")>();
+  return { ...actual, feeService: { getAllReferralFees: mockGetAllReferralFees, waiveReferralFee: mockWaiveReferralFee } };
 });
 
 const { mockSearch, mockVerifyContractor } = vi.hoisted(() => ({
@@ -116,14 +116,13 @@ function makeLevel(overrides: Partial<CycleLevelResult> = {}): CycleLevelResult 
   return { id: "canister-1", name: "property", cycles: 2_000_000_000_000, status: "ok", fromCache: false, ...overrides };
 }
 
-function makeJob(overrides: Partial<Job> = {}): Job {
+function makeFee(overrides: Partial<ReferralFee> = {}): ReferralFee {
   return {
-    id: "job-1", propertyId: "prop-1", homeowner: "p-owner", serviceType: "HVAC",
-    amount: 100_000, date: "2024-06-01", description: "", isDiy: false,
-    status: "Completed" as any, verified: false, homeownerSigned: true, contractorSigned: true,
-    photos: [], createdAt: Date.now(), sourceQuoteId: "quote-1",
+    id: "RF_1", quoteId: "QUOTE_1", requestId: "REQ_1", contractor: "ctr-principal", homeowner: "h", propertyId: "p",
+    serviceType: "HVAC", bidCents: 100_000, feeCents: 3_000, status: "Pending", reason: "verified_job",
+    acceptedAt: Date.now(), jobId: null, dueAt: null, paymentRef: "", payUrl: "", failedAt: null, createdAt: Date.now(),
     ...overrides,
-  } as Job;
+  };
 }
 
 function makeContractor(overrides: Partial<ContractorProfile> = {}): ContractorProfile {
@@ -151,7 +150,7 @@ beforeEach(() => {
   mockGetAllCanisterMetrics.mockResolvedValue([]);
   mockGetMetrics.mockResolvedValue({ totalCanisters: 0, activeAlerts: 0, criticalAlerts: 0, isPaused: false, cyclesPerCall: [] });
   mockCheckCycleLevels.mockResolvedValue([]);
-  mockGetReferralJobs.mockResolvedValue([]);
+  mockGetAllReferralFees.mockResolvedValue([]);
   mockSearch.mockResolvedValue([]);
 });
 
@@ -355,40 +354,48 @@ describe("AdminDashboardPage — cycles dashboard tab", () => {
   });
 });
 
-describe("AdminDashboardPage — referral pipeline tab", () => {
+describe("AdminDashboardPage — referral fees tab", () => {
   async function goToReferrals() {
     renderPage();
     await waitFor(() => expect(screen.getByText("Admin Dashboard")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Referral Fees"));
   }
 
-  it("shows the empty state with no referral jobs", async () => {
+  it("shows the empty state with no referral fees", async () => {
     await goToReferrals();
-    await waitFor(() => expect(screen.getByText(/No referral jobs yet/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/No referral fees yet/)).toBeInTheDocument());
   });
 
-  it("splits pending (unverified) vs collected (verified) fee totals", async () => {
-    mockGetReferralJobs.mockResolvedValue([
-      makeJob({ id: "j1", amount: 100_000, verified: false }), // pending: 3% of $1000 = $30
-      makeJob({ id: "j2", amount: 200_000, verified: true }),  // collected: 3% of $2000 = $60
+  it("splits pending, owed and collected totals", async () => {
+    mockGetAllReferralFees.mockResolvedValue([
+      makeFee({ id: "RF_1", feeCents: 3_000, status: "Pending" }),
+      makeFee({ id: "RF_2", feeCents: 6_000, status: "Paid", bidCents: 200_000 }),
+      makeFee({ id: "RF_3", feeCents: 4_500, status: "PaymentFailed", payUrl: "https://invoice.stripe.com/i/3", bidCents: 150_000 }),
     ]);
     await goToReferrals();
-
-    await waitFor(() => expect(screen.getByText("$30.00")).toBeInTheDocument());
-    // "$60.00" appears twice: once in the summary card, once in the verified job's table row fee column
-    expect(screen.getAllByText("$60.00")).toHaveLength(2);
-    expect(screen.getByText("1 awaiting verification")).toBeInTheDocument();
-    expect(screen.getByText("1 verified jobs")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("1 awaiting verification")).toBeInTheDocument());
+    expect(screen.getByText("1 charging or declined")).toBeInTheDocument();
+    expect(screen.getByText("1 paid")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Invoice" })).toHaveAttribute("href", "https://invoice.stripe.com/i/3");
+    // Paid fees can't be waived; the other two can.
+    expect(screen.getAllByRole("button", { name: "Waive" })).toHaveLength(2);
   });
 
-  it("shows the MIN badge for a job under the fee floor and 'Pending' for unverified rows", async () => {
-    mockGetReferralJobs.mockResolvedValue([
-      makeJob({ id: "j1", amount: 10_000, verified: true }),  // 3% of $100 = $3, floored to $20
-      makeJob({ id: "j2", amount: 50_000, verified: false }),
-    ]);
+  it("shows the MIN badge for a bid under the fee floor", async () => {
+    mockGetAllReferralFees.mockResolvedValue([makeFee({ bidCents: 10_000, feeCents: 2_000 })]);
     await goToReferrals();
-
     await waitFor(() => expect(screen.getByText("MIN")).toBeInTheDocument());
-    expect(screen.getByText("Pending")).toBeInTheDocument();
+  });
+
+  it("waives a fee with the admin's note", async () => {
+    mockGetAllReferralFees.mockResolvedValue([makeFee()]);
+    mockWaiveReferralFee.mockResolvedValue(makeFee({ status: "Waived", reason: "Job cancelled" }));
+    vi.spyOn(window, "prompt").mockReturnValue("Job cancelled");
+    await goToReferrals();
+    fireEvent.click(await screen.findByRole("button", { name: "Waive" }));
+    await waitFor(() => expect(mockWaiveReferralFee).toHaveBeenCalledWith("RF_1", "Job cancelled"));
+    expect(await screen.findByText("Job cancelled")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Waive" })).not.toBeInTheDocument();
   });
 });
+

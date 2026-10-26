@@ -60,10 +60,9 @@ export function buildSystemPrompt(ctx: AgentContext): string {
         const bd = s.breakdown;
         const parts = [
           `\nHomeGentic Score: ${s.score}/100 (grade ${s.grade})`,
-          `  Breakdown — verified jobs: ${bd.verifiedJobPts}/40 pts, ` +
-            `documented value: ${bd.valuePts}/20 pts, ` +
-            `property verification: ${bd.verificationPts}/20 pts, ` +
-            `job diversity: ${bd.diversityPts}/20 pts`,
+          `  Breakdown — maintenance coverage (key systems with work on record): ${bd.maintenancePts ?? 0}/40 pts, ` +
+            `system modernization (remaining life of major systems): ${bd.modernizationPts ?? 0}/35 pts, ` +
+            `verification depth (share of jobs verified): ${bd.verificationPts ?? 0}/25 pts`,
         ];
         if (s.recentEvents.length > 0) {
           parts.push(

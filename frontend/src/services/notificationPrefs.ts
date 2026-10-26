@@ -19,7 +19,7 @@ export type PushPrefKind =
   | "bid_declined";
 
 /** One key per Settings email row (agents/notifications/channels.ts). */
-export type EmailPrefKey = "new_lead" | "bid_outcome" | "job_verified" | "quote_received" | "job_updates";
+export type EmailPrefKey = "new_lead" | "bid_outcome" | "job_verified" | "quote_received" | "job_updates" | "weekly_pulse";
 
 export interface NotificationPrefs {
   push:  Record<PushPrefKind, boolean>;
@@ -116,4 +116,10 @@ export function confirmSms(phone: string, code: string): Promise<PrefsState> {
 /** Forget the confirmed number and turn SMS alerts off. */
 export function removeSmsPhone(): Promise<PrefsState> {
   return call<PrefsState>("/api/sms", { method: "DELETE" }, "Couldn't remove that number");
+}
+
+/** Account deletion: the relay forgets this user's devices, preferences and phone number. */
+export async function forgetNotificationAccount(): Promise<void> {
+  if (!RELAY_URL) return;
+  await call<{ ok: true }>("/api/account", { method: "DELETE" }, "Couldn't remove your notification settings");
 }

@@ -1,241 +1,203 @@
 /**
  * ContractorBillingPanel
  *
- * Covers the Contractor Plan & Billing screen: the on-Free referral-fee
- * ledger (3% of awarded value, $20 floor) and the on-Pro fees-waived panel.
+ * Covers the Contractor Plan & Billing screen: on Free, the saved card and the
+ * referral-fee ledger from the fee canister (3% of the bid, $20 floor); on
+ * Pro, the fees-waived panel built from accepted bids.
  *
  * Tests:
- *   - Shows a loading spinner while the referral-job fetch is in flight
- *   - Free tier: empty-cycle state when there are no bids won this month
- *   - Free tier: ledger rows only include verified jobs from the current cycle
- *   - Free tier: 3% fee computed correctly; $20 floor applied on small jobs (MIN badge)
+ *   - Shows a loading spinner while the fetch is in flight
+ *   - Free tier: asks for a card (with the terms checkbox) before bidding; shows a saved card
+ *   - Free tier: each fee's status — pending with its fallback date, paid, declined with the invoice link
+ *   - Free tier: waived fees are left out; 3% fee and $20 floor (MIN badge)
  *   - Free tier: savings headline flips between "Free is cheaper" and "Pro would have saved you"
  *   - Free tier: Upgrade CTA calls onUpgradeClick
- *   - Pro tier: stats (work won / fees waived / net position) computed correctly
- *   - Pro tier: waived-fees ledger mirrors the same fee math, struck through
- *   - Pro tier: Cancel plan button calls onCancelClick
- *   - Pro tier: renders "Next invoice {date}" when renewDate is provided, else a generic label
+ *   - Pro tier: stats (work won / fees waived / net position) from this month's accepted bids
+ *   - Pro tier: Cancel plan button and renew date
  *   - Gracefully falls back to an empty ledger when the fetch fails
  */
 
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { Job } from "@/services/job";
+import type { ReferralFee } from "@/services/fee";
+import type { Quote } from "@/services/quote";
 
-vi.mock("@/services/job", () => ({
-  jobService: {
-    getMyReferralJobs: vi.fn(),
+vi.mock("@/services/fee", () => ({
+  REFERRAL_FALLBACK_DAYS: 60,
+  feeService: {
+    getMyReferralFees:      vi.fn(),
+    getMyReferralCard:      vi.fn(),
+    startReferralCardSetup: vi.fn(),
   },
 }));
+vi.mock("@/services/quote", () => ({
+  quoteService: { getMyBids: vi.fn() },
+}));
 
-import { jobService } from "@/services/job";
+import { feeService } from "@/services/fee";
+import { quoteService } from "@/services/quote";
 import ContractorBillingPanel from "@/components/ContractorBillingPanel";
 
-const mockGetMyReferralJobs = jobService.getMyReferralJobs as unknown as ReturnType<typeof vi.fn>;
+const mockFees  = feeService.getMyReferralFees as unknown as ReturnType<typeof vi.fn>;
+const mockCard  = feeService.getMyReferralCard as unknown as ReturnType<typeof vi.fn>;
+const mockSetup = feeService.startReferralCardSetup as unknown as ReturnType<typeof vi.fn>;
+const mockBids  = quoteService.getMyBids as unknown as ReturnType<typeof vi.fn>;
 
-// Dates are computed relative to the real current date (not faked — vitest's
-// fake timers deadlock RTL's setTimeout-based waitFor/findBy* polling) so the
-// suite stays valid regardless of when it runs.
-const REAL_NOW = new Date();
-function dateInCycle(monthsFromNow: number, day: number): string {
-  const d = new Date(REAL_NOW.getFullYear(), REAL_NOW.getMonth() + monthsFromNow, day);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-const THIS_CYCLE_DATE = dateInCycle(0, 6);
-const LAST_CYCLE_DATE = dateInCycle(-1, 28);
-const NEXT_CYCLE_DATE = dateInCycle(1, 2);
+const NOW = Date.now();
+const DAY = 86_400_000;
+const LAST_MONTH = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 15).getTime();
+const CARD = { brand: "visa", last4: "4242", agreedAt: NOW - 3 * DAY, termsVersion: "2026-10-26" };
 
-function makeJob(overrides: Partial<Job> = {}): Job {
+function makeFee(over: Partial<ReferralFee> = {}): ReferralFee {
   return {
-    id:               "job-1",
-    propertyId:       "prop-1",
-    homeowner:        "aaaaa-aa",
-    serviceType:      "HVAC",
-    description:      "Water heater replacement",
-    amount:            184_000, // $1,840.00 in cents
-    date:             THIS_CYCLE_DATE,
-    isDiy:            false,
-    status:           "verified",
-    verified:         true,
-    homeownerSigned:  true,
-    contractorSigned: true,
-    photos:           [],
-    createdAt:        Date.now(),
-    sourceQuoteId:    "QUOTE-1",
-    ...overrides,
+    id: "RF_1", quoteId: "QUOTE_1", requestId: "REQ_1", contractor: "c", homeowner: "h", propertyId: "p",
+    serviceType: "HVAC", bidCents: 184_000, feeCents: 5_520, status: "Pending", reason: "verified_job",
+    acceptedAt: NOW, jobId: null, dueAt: null, paymentRef: "", payUrl: "", failedAt: null, createdAt: NOW,
+    ...over,
   };
+}
+
+function makeBid(over: Partial<Quote> = {}): Quote {
+  return { id: "QUOTE_1", requestId: "REQ_1", contractor: "c", amount: 184_000, timeline: 3, validUntil: NOW + DAY, status: "accepted", createdAt: NOW, ...over } as Quote;
 }
 
 function renderPanel(props: Partial<React.ComponentProps<typeof ContractorBillingPanel>> = {}) {
   const onUpgradeClick = vi.fn();
   const onCancelClick  = vi.fn();
   const utils = render(
-    <ContractorBillingPanel
-      tier="ContractorFree"
-      renewDate={null}
-      onUpgradeClick={onUpgradeClick}
-      onCancelClick={onCancelClick}
-      {...props}
-    />
+    <MemoryRouter>
+      <ContractorBillingPanel tier="ContractorFree" renewDate={null} onUpgradeClick={onUpgradeClick} onCancelClick={onCancelClick} {...props} />
+    </MemoryRouter>
   );
   return { ...utils, onUpgradeClick, onCancelClick };
 }
 
 beforeEach(() => {
-  mockGetMyReferralJobs.mockReset();
+  mockFees.mockReset().mockResolvedValue([]);
+  mockCard.mockReset().mockResolvedValue(CARD);
+  mockSetup.mockReset();
+  mockBids.mockReset().mockResolvedValue([]);
 });
-
-// ── Loading ──────────────────────────────────────────────────────────────────
 
 describe("ContractorBillingPanel — loading", () => {
   it("shows a spinner while the fetch is in flight", () => {
-    mockGetMyReferralJobs.mockReturnValue(new Promise(() => {})); // never resolves
+    mockFees.mockReturnValue(new Promise(() => {}));
     const { container } = renderPanel();
     expect(container.querySelector(".spinner-lg")).toBeInTheDocument();
   });
 });
 
-// ── Free tier ──────────────────────────────────────────────────────────────────
+describe("ContractorBillingPanel — Free tier card", () => {
+  it("asks for a card before bidding, and only opens Stripe once the terms are ticked", async () => {
+    mockCard.mockResolvedValue(null);
+    mockSetup.mockResolvedValue("https://checkout.stripe.com/c/x");
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", { value: { ...window.location, assign, origin: "https://app.test", search: "" }, writable: true });
+    renderPanel();
+    expect(await screen.findByText("Save a card before you bid")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: "Save card with Stripe" });
+    expect(button).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(button);
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://checkout.stripe.com/c/x"));
+    expect(mockSetup).toHaveBeenCalledWith("https://app.test/settings?tab=subscription");
+  });
 
-describe("ContractorBillingPanel — Free tier", () => {
-  it("shows the empty-cycle message when there are no bids won this month", async () => {
-    mockGetMyReferralJobs.mockResolvedValue([]);
-    renderPanel({ tier: "ContractorFree" });
-    expect(await screen.findByText("No bids won yet this cycle.")).toBeInTheDocument();
+  it("shows the saved card", async () => {
+    renderPanel();
+    expect(await screen.findByText(/ending 4242/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Replace card" })).toBeInTheDocument();
+  });
+});
+
+describe("ContractorBillingPanel — Free tier ledger", () => {
+  it("shows the empty state when there are no fees", async () => {
+    renderPanel();
+    expect(await screen.findByText("No referral fees yet.")).toBeInTheDocument();
     expect(screen.getByText("Contractor Free")).toBeInTheDocument();
-    expect(screen.getByText("ACTIVE")).toBeInTheDocument();
   });
 
-  it("excludes jobs outside the current calendar month", async () => {
-    mockGetMyReferralJobs.mockResolvedValue([
-      makeJob({ id: "in-cycle",  date: THIS_CYCLE_DATE, description: "In this cycle" }),
-      makeJob({ id: "last-mo",   date: LAST_CYCLE_DATE, description: "Last month" }),
-      makeJob({ id: "next-mo",   date: NEXT_CYCLE_DATE, description: "Next month" }),
+  it("says when a pending fee will be charged", async () => {
+    mockFees.mockResolvedValue([makeFee()]);
+    renderPanel();
+    const fallback = new Date(NOW + 60 * DAY).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    expect(await screen.findByText(new RegExp(`Charged when the job is verified, or on ${fallback}`))).toBeInTheDocument();
+  });
+
+  it("links a declined fee's invoice and leaves out waived fees", async () => {
+    mockFees.mockResolvedValue([
+      makeFee({ id: "RF_2", status: "PaymentFailed", failedAt: NOW, payUrl: "https://invoice.stripe.com/i/2" }),
+      makeFee({ id: "RF_3", status: "Waived", serviceType: "Roofing" }),
+      makeFee({ id: "RF_4", status: "Paid", serviceType: "Plumbing", reason: "off_app_job" }),
     ]);
-    renderPanel({ tier: "ContractorFree" });
-    expect(await screen.findByText("In this cycle")).toBeInTheDocument();
-    expect(screen.queryByText("Last month")).not.toBeInTheDocument();
-    expect(screen.queryByText("Next month")).not.toBeInTheDocument();
+    renderPanel();
+    expect(await screen.findByRole("link", { name: "Pay invoice" })).toHaveAttribute("href", "https://invoice.stripe.com/i/2");
+    expect(screen.getByText(/Card declined/)).toBeInTheDocument();
+    expect(screen.getByText("Plumbing bid (job verified without an accepted bid)")).toBeInTheDocument();
+    expect(screen.queryByText(/Roofing/)).not.toBeInTheDocument();
   });
 
-  it("excludes unverified jobs even when sourced via a quote request this cycle", async () => {
-    mockGetMyReferralJobs.mockResolvedValue([
-      makeJob({ id: "unverified", verified: false, description: "Still pending" }),
-    ]);
-    renderPanel({ tier: "ContractorFree" });
-    expect(await screen.findByText("No bids won yet this cycle.")).toBeInTheDocument();
-    expect(screen.queryByText("Still pending")).not.toBeInTheDocument();
-  });
-
-  it("charges 3% of awarded value on a job well above the floor", async () => {
-    // $1,840 awarded — 3% = $55.20, well above the $20 floor.
-    mockGetMyReferralJobs.mockResolvedValue([makeJob({ amount: 184_000 })]);
-    renderPanel({ tier: "ContractorFree" });
-    // "$55.20" appears twice — once on the row, once in the "Due" total (single row = same value).
-    await waitFor(() => expect(screen.getAllByText("$55.20").length).toBeGreaterThan(0));
-    expect(screen.queryByText("MIN")).not.toBeInTheDocument();
-  });
-
-  it("applies the $20 floor and shows a MIN badge on a small job", async () => {
-    // $185 awarded — 3% would be $5.55, so the $20 floor applies.
-    mockGetMyReferralJobs.mockResolvedValue([makeJob({ amount: 18_500, description: "Service call" })]);
-    renderPanel({ tier: "ContractorFree" });
+  it("applies the $20 floor and shows a MIN badge on a small bid", async () => {
+    mockFees.mockResolvedValue([makeFee({ bidCents: 18_500, feeCents: 2_000 })]);
+    renderPanel();
     await waitFor(() => expect(screen.getAllByText("$20.00").length).toBeGreaterThan(0));
     expect(screen.getByText("MIN")).toBeInTheDocument();
   });
 
-  it("shows 'Pro would have saved you' when this cycle's fees exceed the Pro price", async () => {
-    // 3 jobs at $1,840 each => $55.20 fee each => $165.60 total, well over $40.
-    mockGetMyReferralJobs.mockResolvedValue([
-      makeJob({ id: "a", amount: 184_000 }),
-      makeJob({ id: "b", amount: 184_000 }),
-      makeJob({ id: "c", amount: 184_000 }),
-    ]);
-    renderPanel({ tier: "ContractorFree" });
+  it("shows 'Pro would have saved you' when this month's fees exceed the Pro price", async () => {
+    mockFees.mockResolvedValue([makeFee({ id: "a" }), makeFee({ id: "b" }), makeFee({ id: "c" }), makeFee({ id: "old", acceptedAt: LAST_MONTH })]);
+    renderPanel();
     expect(await screen.findByText(/Pro would have saved you \$125\.60 this cycle/)).toBeInTheDocument();
   });
 
-  it("shows 'Free is still the cheaper plan' when this cycle's fees are under the Pro price", async () => {
-    // One small job floored at $20 — well under the $40 Pro price.
-    mockGetMyReferralJobs.mockResolvedValue([makeJob({ amount: 18_500 })]);
-    renderPanel({ tier: "ContractorFree" });
+  it("shows 'Free is still the cheaper plan' when this month's fees are under the Pro price", async () => {
+    mockFees.mockResolvedValue([makeFee({ bidCents: 18_500, feeCents: 2_000 })]);
+    renderPanel();
     expect(await screen.findByText("Free is still the cheaper plan at your volume")).toBeInTheDocument();
   });
 
   it("calls onUpgradeClick when the Upgrade to Pro button is clicked", async () => {
-    mockGetMyReferralJobs.mockResolvedValue([]);
-    const { onUpgradeClick } = renderPanel({ tier: "ContractorFree" });
+    const { onUpgradeClick } = renderPanel();
     fireEvent.click(await screen.findByText("Upgrade to Pro — $40/mo"));
     expect(onUpgradeClick).toHaveBeenCalledTimes(1);
   });
 });
 
-// ── Pro tier ───────────────────────────────────────────────────────────────────
-
 describe("ContractorBillingPanel — Pro tier", () => {
-  it("computes work-won, fees-waived, and net-position stats", async () => {
-    // $1,840 awarded, 3% = $55.20 waived. Net position vs. $40 Pro price = +$15.20.
-    mockGetMyReferralJobs.mockResolvedValue([makeJob({ amount: 184_000 })]);
+  it("computes work-won, fees-waived, and net-position stats from this month's accepted bids", async () => {
+    mockBids.mockResolvedValue([makeBid(), makeBid({ id: "Q2", status: "rejected" }), makeBid({ id: "Q3", createdAt: LAST_MONTH })]);
     renderPanel({ tier: "ContractorPro" });
-
-    expect(await screen.findByText("$1,840")).toBeInTheDocument();      // work won this cycle
-    // "$55.20" appears in the stat card, the ledger row, and the ledger total.
+    expect(await screen.findByText("$1,840")).toBeInTheDocument();
     expect(screen.getAllByText("$55.20").length).toBeGreaterThan(0);
-    expect(screen.getByText("+$15.20")).toBeInTheDocument();            // net position, ahead of Free
-    expect(screen.getByText("Contractor Pro")).toBeInTheDocument();
+    expect(screen.getByText("+$15.20")).toBeInTheDocument();
     expect(screen.getByText("NO 3% FEE")).toBeInTheDocument();
+    expect(mockFees).not.toHaveBeenCalled();
   });
 
-  it("shows a negative net position when waived fees are under the Pro price", async () => {
-    // Floored $20 fee waived, still behind the $40/mo Pro price this cycle.
-    mockGetMyReferralJobs.mockResolvedValue([makeJob({ amount: 18_500 })]);
-    renderPanel({ tier: "ContractorPro" });
-    expect(await screen.findByText("-$20.00")).toBeInTheDocument();
-  });
-
-  it("mirrors the ledger as a waived, struck-through amount", async () => {
-    mockGetMyReferralJobs.mockResolvedValue([makeJob({ amount: 18_500, description: "Service call" })]);
-    renderPanel({ tier: "ContractorPro" });
-    await screen.findByText("Service call");
-    // "$20.00" appears in the stat card, the struck-through row, and the ledger total.
-    expect(screen.getAllByText("$20.00").length).toBeGreaterThan(0);
-    expect(screen.getByText("Waived on Pro")).toBeInTheDocument();
-  });
-
-  it("shows the empty-cycle message when there are no bids won this month", async () => {
-    mockGetMyReferralJobs.mockResolvedValue([]);
+  it("shows the empty-cycle message when no bid was accepted this month", async () => {
     renderPanel({ tier: "ContractorPro" });
     expect(await screen.findByText("No bids won yet this cycle.")).toBeInTheDocument();
   });
 
   it("calls onCancelClick when Cancel plan is clicked", async () => {
-    mockGetMyReferralJobs.mockResolvedValue([]);
     const { onCancelClick } = renderPanel({ tier: "ContractorPro" });
     fireEvent.click(await screen.findByText("Cancel plan"));
     expect(onCancelClick).toHaveBeenCalledTimes(1);
   });
 
   it("shows 'Next invoice {date}' when renewDate is provided", async () => {
-    mockGetMyReferralJobs.mockResolvedValue([]);
     renderPanel({ tier: "ContractorPro", renewDate: "Oct 15, 2026" });
     expect(await screen.findByText("Next invoice Oct 15, 2026")).toBeInTheDocument();
   });
-
-  it("falls back to a generic label when renewDate is null", async () => {
-    mockGetMyReferralJobs.mockResolvedValue([]);
-    renderPanel({ tier: "ContractorPro", renewDate: null });
-    expect(await screen.findByText("Active subscription")).toBeInTheDocument();
-  });
 });
-
-// ── Fetch failure ────────────────────────────────────────────────────────────
 
 describe("ContractorBillingPanel — fetch failure", () => {
   it("falls back to an empty ledger and shows a notice instead of crashing", async () => {
-    mockGetMyReferralJobs.mockRejectedValue(new Error("canister unreachable"));
-    renderPanel({ tier: "ContractorFree" });
-    expect(await screen.findByText(/Couldn't load this cycle's bids/)).toBeInTheDocument();
-    expect(screen.getByText("No bids won yet this cycle.")).toBeInTheDocument();
+    mockFees.mockRejectedValue(new Error("canister unreachable"));
+    renderPanel();
+    expect(await screen.findByText(/Couldn't load your billing history/)).toBeInTheDocument();
+    expect(screen.getByText("No referral fees yet.")).toBeInTheDocument();
   });
 });

@@ -17,6 +17,7 @@ import Blob     "mo:core/Blob";
 import List     "mo:core/List";
 import Map      "mo:core/Map";
 import Int      "mo:core/Int";
+import Iter     "mo:core/Iter";
 import Nat      "mo:core/Nat";
 import Option   "mo:core/Option";
 import Order    "mo:core/Order";
@@ -26,6 +27,7 @@ import Text     "mo:core/Text";
 import Time     "mo:core/Time";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
+import Score "../shared/Score";
 import Canisters "../shared/Canisters";
 
 persistent actor MarketIntelligence {
@@ -306,11 +308,7 @@ persistent actor MarketIntelligence {
     #ok(())
   };
 
-  private func currentYear() : Nat {
-    let secsPerYear : Nat = 31_536_000;
-    let secsSinceEpoch = Int.abs(Time.now()) / 1_000_000_000;
-    1970 + secsSinceEpoch / secsPerYear
-  };
+  private func currentYear() : Nat { Score.yearOf(Time.now()) };
 
   private func scoreGrade(score: Nat) : Text {
     if      (score >= 90) "A"
@@ -328,90 +326,14 @@ persistent actor MarketIntelligence {
     else                  "Needs attention — little or no verifiable history"
   };
 
-  // Maintenance score: weighted coverage of key systems.
-  // Each system has a weight; documented + verified jobs earn full weight.
-  private func maintenanceScore(jobs: [JobSummary]) : Nat {
-    let systems : [(Text, Nat)] = [
-      ("HVAC",       25),
-      ("Roofing",    25),
-      ("Plumbing",   15),
-      ("Electrical", 15),
-      ("Windows",    10),
-      ("other",      10),
-    ];
-
-    var total : Nat = 0;
-
-    for ((sysName, weight) in systems.values()) {
-      // Find best job for this system (prefer verified)
-      let match = jobs.find(func(j) {
-        if (sysName == "other") {
-          not (j.serviceType == "HVAC"       or
-               j.serviceType == "Roofing"    or
-               j.serviceType == "Plumbing"   or
-               j.serviceType == "Electrical" or
-               j.serviceType == "Windows")
-        } else {
-          j.serviceType == sysName
-        }
-      });
-      switch (match) {
-        case null    { /* no job — 0 contribution */ };
-        case (?job)  {
-          // verified = full points, completed/DIY = 80%, other statuses = 50%
-          let factor = if (job.isVerified) 10
-                       else if (job.isDiy) 8  // DIY homeowner verified = trusted
-                       else 5;
-          total += weight * factor / 10;
-        };
-      };
-    };
-    total  // 0-100
-  };
-
-  // Modernization score: weighted freshness of each key system.
+  // The score formula lives in shared/Score.mo (mirrored by
+  // packages/shared/src/score.ts for the apps), so every surface agrees.
+  private func maintenanceScore(jobs: [JobSummary]) : Nat { Score.maintenance(jobs) };
   private func modernizationScore(jobs: [JobSummary], yearBuilt: Nat) : Nat {
-    let year = currentYear();
-    var weightedSum : Nat = 0;
-    var totalWeight : Nat = 0;
-
-    for (sys in SYSTEM_LIFESPANS.values()) {
-      totalWeight += sys.weight;
-
-      // Find most recent job year for this system
-      let lastYear : Nat = switch (
-        jobs.find(func(j) { j.serviceType == sys.category })
-      ) {
-        case null    { yearBuilt };   // assume original if never replaced
-        case (?job)  { job.completedYear };
-      };
-
-      let ageInt : Int = (year : Int) - (lastYear : Int);
-      let age    : Nat = if (ageInt > 0) Int.abs(ageInt) else 0;
-
-      // Score = remaining life fraction × 100, clamped to 0-100
-      let fraction : Nat = if (age >= sys.lifespanYears) {
-        0
-      } else {
-        (sys.lifespanYears - age) * 100 / sys.lifespanYears
-      };
-      weightedSum += sys.weight * fraction;
-    };
-
-    if (totalWeight == 0) 0 else weightedSum / totalWeight
+    Score.modernization(jobs, yearBuilt, currentYear())
   };
-
-  // Verification depth: % of jobs that are on-chain verified.
-  private func verificationDepth(jobs: [JobSummary]) : Nat {
-    if (jobs.size() == 0) return 0;
-    let verified = jobs.filter(func(j) { j.isVerified }).size();
-    verified * 100 / jobs.size()
-  };
-
-  // Composite score: maintenance 40 %, modernization 35 %, verification 25 %.
-  private func compositeScore(m: Nat, mod: Nat, v: Nat) : Nat {
-    (m * 40 + mod * 35 + v * 25) / 100
-  };
+  private func verificationDepth(jobs: [JobSummary]) : Nat { Score.verification(jobs) };
+  private func compositeScore(m: Nat, mod: Nat, v: Nat) : Nat { Score.combine(m, mod, v) };
 
   // ─── Core: Competitive Analysis ───────────────────────────────────────────────
 
@@ -807,6 +729,34 @@ persistent actor MarketIntelligence {
       zipCode      = stored.zipCode;
       updatedAt    = stored.updatedAt;
     })
+  };
+
+  // ─── Account Deletion ─────────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Returns how many records were removed.
+  ///
+  /// Deletes the caller's stored neighbourhood score and drops the caller from
+  /// every zip index entry. The per-day vetKD derive counter (deriveLimits) is
+  /// kept until it expires so deletion can't be used to reset the cycle cap.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+
+    var removed = 0;
+    switch (scoreStore.get(caller)) {
+      case (?_) { scoreStore.remove(caller); removed += 1 };
+      case null {};
+    };
+    let zips = Iter.toArray(zipIndex.entries()
+      .filter(func((_, ps)) = Admin.contains(ps, caller))
+      .map(func((z, _)) = z));
+    for (z in zips.values()) {
+      let trimmed = zipIndex.get(z).get([]).filter(func(p) { p != caller });
+      if (trimmed.size() == 0) zipIndex.remove(z) else zipIndex.add(z, trimmed);
+    };
+    #ok(removed)
   };
 
   // ─── Admin Functions ──────────────────────────────────────────────────────────

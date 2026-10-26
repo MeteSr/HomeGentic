@@ -25,7 +25,7 @@ has_method() {
 
 # moc-wrapper (installed by ic-mops) delegates to mops moc 1.16.1.
 # That moc still needs aaaaa-aa.did in the --actor-idl directory for
-# canisters that import ic:aaaaa-aa (e.g. caffeineai-http-outcalls).
+# canisters that import ic:aaaaa-aa.
 mkdir -p .dfx/local/canisters/idl/
 cp did/aaaaa-aa.did .dfx/local/canisters/idl/
 
@@ -77,6 +77,9 @@ dfx canister call job         setPaymentCanisterId    "(\"$PAYMENT_ID\")"
 dfx canister call property    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
 dfx canister call photo       setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
 dfx canister call quote       setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
+if has_method contractor setPaymentCanisterId; then
+  dfx canister call contractor setPaymentCanisterId  "(principal \"$PAYMENT_ID\")"
+fi
 dfx canister call bills       setPaymentCanisterId    "(\"$PAYMENT_ID\")"
 dfx canister call referrals   setPaymentCanisterId    "(\"$PAYMENT_ID\")"
 dfx canister call payment     setReferralsCanisterId  "(\"$REFERRALS_ID\")"
@@ -118,6 +121,16 @@ if has_method property setJobCanisterId; then
   dfx canister call property  setJobCanisterId        "(principal \"$JOB_ID\")"
 fi
 dfx canister call recurring   setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
+if has_method fee setQuoteCanisterId; then
+  dfx canister call fee       setQuoteCanisterId      "(\"$QUOTE_ID\")"
+  dfx canister call fee       setJobCanisterId        "(\"$JOB_ID\")"
+fi
+if has_method quote setFeeCanisterId; then
+  dfx canister call quote     setFeeCanisterId        "(principal \"$FEE_ID\")"
+fi
+if has_method job setFeeCanisterId; then
+  dfx canister call job       setFeeCanisterId        "(\"$FEE_ID\")"
+fi
 
 # ── Trusted canister lists ───────────────────────────────────────────
 dfx canister call payment    addTrustedCanister "(principal \"$JOB_ID\")"

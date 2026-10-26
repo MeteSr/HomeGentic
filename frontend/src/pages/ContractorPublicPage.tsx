@@ -6,12 +6,19 @@
  */
 
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { PageHead } from "@/components/PageHead";
 import { ArrowLeft, Star, ShieldCheck, Wrench, MessageSquare, Mail, Phone, Award } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
-import { contractorService, ContractorProfile, JobCredential } from "@/services/contractor";
+import { contractorService, ContractorProfile, JobCredential, DEFAULT_PROFILE_PRIVACY, type ProfilePrivacy, type LicenseCheck } from "@/services/contractor";
+import { LicenseCheckBadge } from "@/components/LicenseCheck";
+import { FeaturedWork } from "@/components/ContractorPortfolio";
+import { paymentService } from "@/services/payment";
+import { quoteService, type QuoteRequest } from "@/services/quote";
+import { openRequestInTrades } from "@/services/contactGate";
+import { useAuthStore } from "@/store/authStore";
+import type { PortfolioItem } from "@/services/contractor";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
@@ -54,13 +61,22 @@ export default function ContractorPublicPage() {
   const { isMobile } = useBreakpoint();
   const [contractor,   setContractor]   = useState<ContractorProfile | null>(null);
   const [credentials,  setCredentials]  = useState<JobCredential[]>([]);
+  // Hidden until loaded, so a contractor who hid their numbers never sees them flash.
+  const [privacy,      setPrivacy]      = useState<ProfilePrivacy | null>(null);
   const [reviews,      setReviews]      = useState<{ id: string; rating: number; comment: string; jobId: string; createdAt: number }[]>([]);
+  const [licenseCheck, setLicenseCheck] = useState<LicenseCheck | null>(null);
+  const [portfolio,    setPortfolio]    = useState<PortfolioItem[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [rating,       setRating]       = useState(0);
   const [comment,      setComment]      = useState("");
-  const [jobId,        setJobId]        = useState("");
+  // A review-request email links here with ?review=<jobId>#review.
+  const [searchParams] = useSearchParams();
+  const [jobId,        setJobId]        = useState(() => searchParams.get("review") ?? "");
   const [submitting,   setSubmitting]   = useState(false);
   const [submitted,    setSubmitted]    = useState(false);
+  // undefined while loading, so contact details never flash before the check.
+  const [openTradeRequest, setOpenTradeRequest] = useState<QuoteRequest | null | undefined>(undefined);
+  const { isAuthenticated, principal } = useAuthStore();
 
   useEffect(() => {
     if (!id) return;
@@ -68,9 +84,21 @@ export default function ContractorPublicPage() {
       .then((c) => {
         setContractor(c);
         if (c) {
+          contractorService.getProfilePrivacies([c.id])
+            .then((ps) => setPrivacy(ps[c.id] ?? DEFAULT_PROFILE_PRIVACY))
+            .catch((e) => console.error("[ContractorPublicPage] privacy load failed:", e));
           contractorService.getCredentials(c.id)
             .then(setCredentials)
             .catch((e) => console.error("[ContractorPublicPage] credentials load failed:", e));
+          // The portfolio is a ContractorPro feature: shown only while they have it.
+          Promise.all([paymentService.getTierFor(c.id), contractorService.getPortfolio(c.id)])
+            .then(([tier, items]) => setPortfolio(tier === "ContractorPro" ? items : []))
+            .catch((e) => console.error("[ContractorPublicPage] portfolio load failed:", e));
+          if (c.licenseNumber) {
+            contractorService.getLicenseCheck(c.id)
+              .then(setLicenseCheck)
+              .catch((e) => console.error("[ContractorPublicPage] licence check load failed:", e));
+          }
           contractorService.getReviewsForContractor(c.id)
             .then((rs) => setReviews(rs.sort((a, b) => b.createdAt - a.createdAt)))
             .catch((e) => console.error("[ContractorPublicPage] reviews load failed:", e));
@@ -79,6 +107,16 @@ export default function ContractorPublicPage() {
       .catch((e) => console.error("[ContractorPublicPage] contractor load failed:", e))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!contractor) return;
+    if (!isAuthenticated || principal === contractor.id) { setOpenTradeRequest(null); return; }
+    let cancelled = false;
+    quoteService.getRequests()
+      .then((rs) => { if (!cancelled) setOpenTradeRequest(openRequestInTrades(rs, contractor.specialties)); })
+      .catch(() => { if (!cancelled) setOpenTradeRequest(null); });
+    return () => { cancelled = true; };
+  }, [contractor, isAuthenticated, principal]);
 
   const handleSubmit = async () => {
     if (!id) return;
@@ -106,7 +144,9 @@ export default function ContractorPublicPage() {
   const helmetName = contractor?.name ?? "Contractor";
   const helmetTitle = `${helmetName} — Verified Contractor | HomeGentic™`;
   const helmetDesc = contractor
-    ? `${helmetName} is a verified contractor on HomeGentic with a trust score of ${contractor.trustScore ?? 0}. View credentials, reviews, and verified job history.`
+    ? privacy?.showTrustScore
+      ? `${helmetName} is a verified contractor on HomeGentic with a trust score of ${contractor.trustScore ?? 0}. View credentials, reviews, and verified job history.`
+      : `${helmetName} is a contractor on HomeGentic. View their profile and reviews.`
     : "Verified contractor profile on HomeGentic.";
 
   if (loading) {
@@ -186,12 +226,14 @@ export default function ContractorPublicPage() {
                   </p>
                 )}
               </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ width: "3rem", height: "3rem", border: `2px solid ${UI.rust}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: UI.paper }}>{contractor.trustScore}</span>
-                  <span style={{ fontFamily: UI.mono, fontSize: "0.45rem", color: V2_COLORS.mutedOnDark }}>/100</span>
+              {privacy?.showTrustScore && (
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ width: "3rem", height: "3rem", border: `2px solid ${UI.rust}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: UI.paper }}>{contractor.trustScore}</span>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.45rem", color: V2_COLORS.mutedOnDark }}>/100</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -202,10 +244,12 @@ export default function ContractorPublicPage() {
               </div>
             )}
             <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
-              <div>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.15rem" }}>Jobs Completed</p>
-                <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.125rem" }}>{contractor.jobsCompleted}</p>
-              </div>
+              {privacy?.showJobsCompleted && (
+                <div>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.15rem" }}>Jobs Completed</p>
+                  <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.125rem" }}>{contractor.jobsCompleted}</p>
+                </div>
+              )}
               {contractor.licenseNumber && (
                 <div>
                   <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.15rem" }}>License</p>
@@ -213,11 +257,18 @@ export default function ContractorPublicPage() {
                 </div>
               )}
             </div>
+            {contractor.licenseNumber && licenseCheck && <LicenseCheckBadge check={licenseCheck} />}
             {contractor.bio && (
               <p style={{ fontSize: "0.85rem", fontWeight: 300, color: UI.inkLight, lineHeight: 1.6 }}>{contractor.bio}</p>
             )}
-            {/* Contact info */}
-            {(contractor.email || contractor.phone) && (
+            {/* Contact info: held back while the viewer has an open request in this contractor's trade */}
+            {openTradeRequest && (contractor.email || contractor.phone) && (
+              <p data-testid="contact-held" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, paddingTop: "0.75rem", borderTop: `1px solid ${UI.rule}`, margin: 0, lineHeight: 1.6 }}>
+                You have an open {openTradeRequest.serviceType} request, so {contractor.name}'s phone and email show once you accept a bid or close it.{" "}
+                <a href={`/quotes/${openTradeRequest.id}`} style={{ color: UI.ink }}>Compare bids</a>
+              </p>
+            )}
+            {openTradeRequest === null && (contractor.email || contractor.phone) && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", paddingTop: "0.75rem", borderTop: `1px solid ${UI.rule}` }}>
                 {contractor.email && (
                   <a href={`mailto:${contractor.email}`} style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, textDecoration: "none" }}>
@@ -252,7 +303,10 @@ export default function ContractorPublicPage() {
           </button>
         </div>
 
-        {/* Verified Work Portfolio */}
+        <FeaturedWork items={portfolio} />
+
+        {/* Verified Work Portfolio — it lists every completed job, so it hides with the count */}
+        {privacy?.showJobsCompleted && (
         <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, marginBottom: "1.5rem" }}>
           <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.paper, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
@@ -300,6 +354,7 @@ export default function ContractorPublicPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Reviews */}
         <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, marginBottom: "1.5rem" }}>
@@ -362,7 +417,7 @@ export default function ContractorPublicPage() {
         </div>
 
         {/* Review form */}
-        <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
+        <div id="review" style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
           <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
             <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
               Leave a Review

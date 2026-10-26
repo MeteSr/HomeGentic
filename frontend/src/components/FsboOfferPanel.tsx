@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   fsboOfferService,
   computeFsboNetProceeds,
@@ -288,6 +289,14 @@ export default function FsboOfferPanel({ propertyId }: FsboOfferPanelProps) {
       {underContract && (
         <div style={{ background: "#f0faf4", border: "1px solid #c3e6cb", padding: "0.75rem 1rem", marginBottom: "1rem", fontFamily: UI.sans, fontWeight: 600, color: "#188038" }}>
           Under Contract — offer accepted. Your listing is no longer active.
+        </div>
+      )}
+      {underContract && (
+        <div data-testid="handoff-prompt" style={{ border: `1px solid ${UI.rule}`, padding: "0.75rem 1rem", marginBottom: "1rem", fontFamily: UI.sans, fontSize: "0.875rem", color: UI.ink, lineHeight: 1.5 }}>
+          At closing, hand this home's record to your buyer. They get its maintenance history, photos and bills with one link.{" "}
+          <Link to={`/properties/${propertyId}?tab=settings#handoff`} style={{ color: "var(--hg-blue, #2B34FF)", fontWeight: 600 }}>
+            Set up the handoff →
+          </Link>
         </div>
       )}
 

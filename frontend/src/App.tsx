@@ -29,6 +29,7 @@ const TermsOfServicePage         = React.lazy(() => publicPages().then((m) => ({
 const SupportPage                = React.lazy(() => publicPages().then((m) => ({ default: m.SupportPage })));
 const FAQPage                    = React.lazy(() => publicPages().then((m) => ({ default: m.FAQPage })));
 const GiftPage                   = React.lazy(() => publicPages().then((m) => ({ default: m.GiftPage })));
+const RedeemGiftPage             = React.lazy(() => publicPages().then((m) => ({ default: m.RedeemGiftPage })));
 const ContractorVerifyPage       = React.lazy(() => publicPages().then((m) => ({ default: m.ContractorVerifyPage })));
 const ForProsPage                = React.lazy(() => publicPages().then((m) => ({ default: m.ForProsPage })));
 const PaymentSuccessPage         = React.lazy(() => publicPages().then((m) => ({ default: m.PaymentSuccessPage })));
@@ -60,6 +61,7 @@ const MarketIntelligencePage     = React.lazy(() => import("@/pages/MarketIntell
 const ReportPage                 = React.lazy(() => import("@/pages/ReportPage"));
 const BadgePage                  = React.lazy(() => import("@/pages/BadgePage"));
 const ScoreCertPage              = React.lazy(() => import("@/pages/ScoreCertPage"));
+const VerifyRecordPage           = React.lazy(() => import("@/pages/VerifyRecordPage"));
 const PredictiveMaintenancePage  = React.lazy(() => import("@/pages/PredictiveMaintenancePage"));
 const AdminDashboardPage         = React.lazy(() => import("@/pages/AdminDashboardPage"));
 const SensorPage                 = React.lazy(() => import("@/pages/SensorPage"));
@@ -175,6 +177,7 @@ export default function App() {
           <Route path="/support"     element={<SupportPage />} />
           <Route path="/faq"         element={<FAQPage />} />
           <Route path="/gift"             element={<GiftPage />} />
+          <Route path="/gift/redeem"      element={<RedeemGiftPage />} />
           <Route path="/for-pros"         element={<ForProsPage />} />
           <Route path="/payment-success" element={<PaymentSuccessPage />} />
           <Route path="/payment-failure" element={<PaymentFailurePage />} />
@@ -260,6 +263,7 @@ export default function App() {
           <Route path="/report/:token"         element={<ReportPage />} />
           <Route path="/badge/:token"          element={<BadgePage />} />
           <Route path="/cert/:token"           element={<ScoreCertPage />} />
+          <Route path="/verify-record"         element={<VerifyRecordPage />} />
           {/* /neighborhood/:zipCode removed — NeighborhoodHealthPage kept in codebase for future re-enable */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

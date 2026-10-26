@@ -44,12 +44,26 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
     propertyService.getPropertyManagers(property.id).then(setManagers).catch((e) => console.error("[SettingsTab] managers load failed:", e));
   }, [property.id, currentPrincipal]);
 
+  // The FSBO "Set up the handoff" link lands on #handoff.
+  React.useEffect(() => {
+    if (window.location.hash === "#handoff") document.getElementById("handoff")?.scrollIntoView({ block: "start" });
+  }, []);
+
   const inviteUrl = inviteToken
     ? `${window.location.origin}/manage/claim/${inviteToken}`
     : null;
 
   const claimUrl = transferToken
     ? `${window.location.origin}/transfer/claim/${transferToken}`
+    : null;
+
+  const verified = property.verificationLevel === "Basic" || property.verificationLevel === "Premium";
+
+  const handoffMailto = claimUrl
+    ? `mailto:?subject=${encodeURIComponent(`The HomeGentic record for ${property.address}`)}&body=${encodeURIComponent(
+        `I'm handing over this home's maintenance record on HomeGentic. Open this link, sign in, and accept it:\n\n${claimUrl}\n\n` +
+        (transferExpiry ? `The link works until ${transferExpiry.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}.` : ""),
+      )}`
     : null;
 
   const verificationNext =
@@ -144,15 +158,21 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
         </div>
       </Panel>
 
-      {/* Transfer Ownership */}
+      {/* Hand the record to the buyer (ownership transfer) */}
+      <div id="handoff">
       <Panel style={{ border: "1px solid var(--hg-blue-edge)", overflow: "hidden" }}>
-        {section("Transfer Ownership")}
+        {section("Hand the record to your buyer")}
         <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
 
           {transferStep === "idle" && (
             <>
               <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", fontWeight: 300, lineHeight: 1.6 }}>
-                Generate a secure link and share it with the buyer. They'll use it to claim this property — all history, photos, and maintenance records transfer to them automatically.
+                Selling? Give the buyer a secure link at closing. When they sign in and accept it, the home's record becomes theirs: maintenance history, photos, rooms and appliances, utility bills, and verification status. You'll no longer see the home in your account.
+              </p>
+              <p data-testid="handoff-pro-note" style={{ fontSize: "0.8rem", color: "var(--hg-ink)", lineHeight: 1.6 }}>
+                {verified
+                  ? "Because this home's ownership is verified, the buyer also gets a free year of HomeGentic Pro (one per account, not if they already pay for a plan)."
+                  : "Verify ownership first and the buyer also gets a free year of HomeGentic Pro."}
               </p>
               <p style={{ fontFamily: MONO, fontSize: "0.65rem", color: "var(--hg-muted)", lineHeight: 1.5 }}>
                 The link expires in <strong>90 days</strong>. Ownership only transfers when the buyer claims it — generating the link doesn't move anything yet.
@@ -215,6 +235,11 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                   {copied ? "Copied!" : "Copy"}
                 </button>
               </div>
+              {handoffMailto && (
+                <a href={handoffMailto} style={{ alignSelf: "flex-start", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-blue)" }}>
+                  Email the link to your buyer →
+                </a>
+              )}
               {transferExpiry && (
                 <p style={{ fontFamily: MONO, fontSize: "0.6rem", color: "var(--hg-muted)" }}>
                   Expires {transferExpiry.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
@@ -245,6 +270,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
 
         </div>
       </Panel>
+      </div>
 
       {/* Ownership History */}
       {historyRecords.length > 0 && (

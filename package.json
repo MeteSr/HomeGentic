@@ -37,11 +37,6 @@
     "typescript": "^5.3.3"
   },
   "overrides": {
-    "@dfinity/agent": "2.1.3",
-    "@dfinity/auth-client": "2.1.3",
-    "@dfinity/candid": "2.1.3",
-    "@dfinity/identity": "2.1.3",
-    "@dfinity/principal": "2.1.3",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   }

@@ -1,7 +1,8 @@
 version: 2
 updates:
+  # Root workspace: frontend app, Playwright and a11y tooling
   - package-ecosystem: "npm"
-    directory: "/frontend"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -9,6 +10,13 @@ updates:
     labels:
       - "dependencies"
       - "frontend"
+    groups:
+      dev-tooling:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      runtime:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "npm"
     directory: "/agents/voice"
@@ -19,6 +27,126 @@ updates:
     labels:
       - "dependencies"
       - "voice-agent"
+    groups:
+      dev-tooling:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      runtime:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/agents/email"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "email-relay"
+    groups:
+      dev-tooling:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      runtime:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/agents/notifications"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "notifications"
+    groups:
+      dev-tooling:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      runtime:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/agents/iot-gateway"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "iot-gateway"
+    groups:
+      dev-tooling:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      runtime:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/dashboard"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "dashboard"
+    groups:
+      dev-tooling:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      runtime:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/mobile"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "mobile"
+    # Expo SDK packages must move together with `npx expo install --fix`;
+    # Dependabot would bump them one at a time past the installed SDK.
+    ignore:
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "jest-expo"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
+      - dependency-name: "react"
+      - dependency-name: "react-test-renderer"
+      - dependency-name: "@types/react"
+    groups:
+      dev-tooling:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      runtime:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/tests/upgrade"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "tests"
+    groups:
+      dev-tooling:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      runtime:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

@@ -22,7 +22,9 @@ export type NotificationKind =
   | "bid_accepted"
   | "bid_declined"
   | "quote_received"
-  | "new_lead";
+  | "new_lead"
+  | "review_request"
+  | "weekly_pulse";
 
 export interface NotificationEvent {
   type:      NotificationKind;
@@ -33,6 +35,11 @@ export interface NotificationEvent {
    * (the contractor profile's notifyPush); everything else is true.
    */
   pushOptIn: boolean;
+  /**
+   * Don't send before this time (ms). Set on new-lead alerts for contractors
+   * without ContractorPro, who get them FREE_LEAD_DELAY_MS after Pro.
+   */
+  notBefore?: number;
 }
 
 /** One entry from a canister's push outbox (backend/shared/Notify.mo). */
@@ -70,4 +77,37 @@ export interface ContractorInfo {
   trustScore:    number;
   jobsCompleted: number;
   isVerified:    boolean;
+}
+
+// ── Weekly Home Pulse ─────────────────────────────────────────────────────────
+
+export interface PulseRecipient {
+  principal: string;
+  email:     string;
+}
+
+export interface PulseProperty {
+  id:        string;
+  address:   string;
+  city:      string;
+  state:     string;
+  zipCode:   string;
+  yearBuilt: number;
+}
+
+/** The job fields the weekly email reads. */
+export interface PulseJob {
+  id:               string;
+  propertyId:       string;
+  title:            string;
+  serviceType:      string;   // display label, e.g. "HVAC"
+  contractorName:   string | null;
+  amountCents:      number;
+  completedAtMs:    number;
+  warrantyMonths:   number | null;
+  isDiy:            boolean;
+  status:           string;   // JobStatus tag
+  verified:         boolean;
+  homeownerSigned:  boolean;
+  contractorSigned: boolean;
 }

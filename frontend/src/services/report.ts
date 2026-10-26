@@ -354,6 +354,7 @@ function fromRiskProfile(raw: any): RiskProfile {
 function createReportService() {
   const mockSnapshots = new Map<string, ReportSnapshot>();
   const mockLinks     = new Map<string, ShareLink>();
+  let mockAllowPublic = true;
 
   const getActor = lazyActor(idlFactory, REPORT_CANISTER_ID);
 
@@ -448,6 +449,20 @@ function createReportService() {
     const a = await getActor();
     const result = await a.getBillsSummary(token) as any[];
     return result.length > 0 ? fromBillsSummary(result[0]) : null;
+  },
+
+  /** Settings → Privacy: while off, every Public link of the caller needs a signed-in viewer. */
+  async getAllowPublicReports(): Promise<boolean> {
+    if (!REPORT_CANISTER_ID || (typeof window !== "undefined" && (window as any).__e2e_properties)) return mockAllowPublic;
+    const a = await getActor();
+    return await a.getAllowPublicReports() as boolean;
+  },
+
+  async setAllowPublicReports(allow: boolean): Promise<void> {
+    if (!REPORT_CANISTER_ID || (typeof window !== "undefined" && (window as any).__e2e_properties)) { mockAllowPublic = allow; return; }
+    const a = await getActor();
+    const result = await a.setAllowPublicReports(allow);
+    if ("err" in result) throw new Error(Object.keys(result.err)[0]);
   },
 
   async listShareLinks(propertyId: string): Promise<ShareLink[]> {

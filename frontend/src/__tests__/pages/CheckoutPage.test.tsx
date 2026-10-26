@@ -73,7 +73,7 @@ describe("CheckoutPage — auth gating", () => {
     );
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ clientSecret: "cs_test", subscriptionId: "sub_1" }) });
     renderAt("/checkout?tier=Pro&billing=Monthly");
-    expect(screen.getByText("Identity verified")).toBeInTheDocument();
+    expect(screen.getByText("Signed in")).toBeInTheDocument();
     expect(screen.getByText("Card")).toBeInTheDocument();
     expect(screen.getByText("ICP")).toBeInTheDocument();
   });

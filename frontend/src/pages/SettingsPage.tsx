@@ -8,8 +8,10 @@ import { Badge } from "@/components/Badge";
 import { authService } from "@/services/auth";
 import { PLANS, type PlanTier } from "@/services/planConstants";
 import { paymentService } from "@/services/payment";
+import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { winBackService } from "@/services/winBackService";
-import { contractorService } from "@/services/contractor";
+import { contractorService, DEFAULT_PROFILE_PRIVACY, type ProfilePrivacy } from "@/services/contractor";
+import { reportService } from "@/services/report";
 import { getPushStatus, enablePush, disablePush, type PushStatus } from "@/services/pushNotifications";
 import {
   notificationsConfigured, getNotificationPrefs, setNotificationPrefs, startSmsVerification, confirmSms,
@@ -193,7 +195,6 @@ function SubscriptionTab({ profile }: { profile: any }) {
   const [subLoaded,        setSubLoaded]        = useState(cachedTier !== null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [cancelStep,       setCancelStep]       = useState<"idle" | "confirm" | "loading" | "done">("idle");
-  const [pauseState,       setPauseState]       = useState(paymentService.getPauseState());
 
   useEffect(() => {
     paymentService.getMySubscription().then((sub) => {
@@ -206,18 +207,6 @@ function SubscriptionTab({ profile }: { profile: any }) {
       }
     }).catch((e) => console.error("[SettingsPage] subscription load failed:", e)).finally(() => setSubLoaded(true));
   }, []);
-
-  const handlePause = (months: 1 | 2 | 3) => {
-    paymentService.pause(months);
-    setPauseState(paymentService.getPauseState());
-    toast.success(`Subscription paused for ${months} month${months > 1 ? "s" : ""}`);
-  };
-
-  const handleResume = () => {
-    paymentService.resume();
-    setPauseState(null);
-    toast.success("Subscription resumed");
-  };
 
   const currentPlan = PLANS.find((p) => p.tier === tier) ?? PLANS[0];
   const isPaid      = tier !== "Free" && tier !== "ContractorFree";
@@ -270,7 +259,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.375rem 1.5rem" }}>
             {(profile?.role === "Contractor"
-              ? ["Contractor profile listing", "Lead notifications", "Job completion certificates", "Trust score display", "Customer reviews", "Earnings dashboard"]
+              ? ["Instant lead alerts", "50 photos per job", "Featured portfolio", "Automatic review requests", "Earnings view", "No referral fees"]
               : ["Score Breakdown", "Insurance Defense Mode", "Resale Ready"]
             ).map((f) => (
               <span key={f} style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, display: "flex", alignItems: "center", gap: "0.35rem" }}>
@@ -347,25 +336,6 @@ function SubscriptionTab({ profile }: { profile: any }) {
         </>
       )}
 
-      {/* Pause status */}
-      {isPaid && pauseState && (
-        <>
-          <SectionDivider />
-          <SectionHeading>Subscription Paused</SectionHeading>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
-            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted }}>
-              {pauseState.daysLeft} day{pauseState.daysLeft !== 1 ? "s" : ""} remaining — resumes {new Date(pauseState.pausedUntil).toLocaleDateString()}
-            </p>
-            <button
-              onClick={handleResume}
-              style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, padding: "0.4rem 1rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.paper, color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm, whiteSpace: "nowrap" }}
-            >
-              Resume now
-            </button>
-          </div>
-        </>
-      )}
-
       {/* Cancellation */}
       {isPaid && cancelStep !== "done" && (
         <>
@@ -374,25 +344,9 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
           {cancelStep === "idle" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6 }}>
-                Not ready to cancel? You can pause your subscription for up to 3 months — your records and score stay active, billing stops.
-              </p>
-              {!pauseState && (
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {([1, 2, 3] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => handlePause(m)}
-                      style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.4rem 0.875rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.lblue, color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm }}
-                    >
-                      Pause {m} month{m > 1 ? "s" : ""}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div style={{ borderTop: `1px solid ${V2_COLORS.border}`, paddingTop: "0.875rem" }}>
+              <div>
                 <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "0.75rem" }}>
-                  You keep full access until the end of your current billing period{expiresAt ? ` (${new Date(expiresAt).toLocaleDateString()})` : ""}. After that, access to the platform is removed.
+                  Your plan stops renewing and you won't be charged again. You keep full access until the end of your current billing period{expiresAt ? ` (${new Date(expiresAt).toLocaleDateString()})` : ""}, then your account moves to the Free plan.
                 </p>
                 <button
                   onClick={() => setCancelStep("confirm")}
@@ -420,11 +374,11 @@ function SubscriptionTab({ profile }: { profile: any }) {
               </div>
               <div style={{ padding: "0.875rem 1rem", background: V2_COLORS.lblue, borderRadius: V2_RADIUS.sm }}>
                 <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.blue, lineHeight: 1.6 }}>
-                  <strong>Your ICP records are permanent.</strong> All your maintenance history, verified jobs, and blockchain records remain on the Internet Computer after cancellation.
+                  <strong>Your records stay in your account.</strong> Everything you've logged is still there on the Free plan, and you can export it from Settings at any time.
                 </p>
               </div>
               <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted }}>
-                Your access continues until{expiresAt ? ` ${new Date(expiresAt).toLocaleDateString()}` : " the end of your billing period"}, then your account is closed. Or pause instead — keeps your account active without billing.
+                Your access continues until{expiresAt ? ` ${new Date(expiresAt).toLocaleDateString()}` : " the end of your billing period"}, then your account moves to the Free plan. You won't be charged again.
               </p>
               <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                 <button
@@ -433,14 +387,6 @@ function SubscriptionTab({ profile }: { profile: any }) {
                 >
                   Confirm Cancellation
                 </button>
-                {!pauseState && (
-                  <button
-                    onClick={() => { handlePause(1); setCancelStep("idle"); }}
-                    style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.5rem 1.25rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.lblue, color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm }}
-                  >
-                    Pause 1 month instead
-                  </button>
-                )}
                 <button
                   onClick={() => setCancelStep("idle")}
                   style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.5rem 1.25rem", border: `1px solid ${V2_COLORS.border}`, background: "none", color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm }}
@@ -487,8 +433,8 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
 // ── Toggle row ────────────────────────────────────────────────────────────────
 
-function ToggleRow({ label, desc, value, onChange, last = false, children }: {
-  label: string; desc?: string; value: boolean; onChange: (v: boolean) => void; last?: boolean; children?: React.ReactNode;
+function ToggleRow({ label, desc, value, onChange, last = false, disabled = false, children }: {
+  label: string; desc?: string; value: boolean; onChange: (v: boolean) => void; last?: boolean; disabled?: boolean; children?: React.ReactNode;
 }) {
   return (
     <div style={{ padding: "0.875rem 0", borderBottom: last ? "none" : `1px solid ${V2_COLORS.border}` }}>
@@ -502,8 +448,9 @@ function ToggleRow({ label, desc, value, onChange, last = false, children }: {
           role="switch"
           aria-checked={value}
           aria-label={label}
+          disabled={disabled}
           onClick={() => onChange(!value)}
-          style={{ width: "2.5rem", height: "1.25rem", background: value ? V2_COLORS.blue : V2_COLORS.border, cursor: "pointer", position: "relative", flexShrink: 0, borderRadius: V2_RADIUS.pill, border: "none", padding: 0 }}
+          style={{ width: "2.5rem", height: "1.25rem", background: value ? V2_COLORS.blue : V2_COLORS.border, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1, position: "relative", flexShrink: 0, borderRadius: V2_RADIUS.pill, border: "none", padding: 0 }}
         >
           <span style={{ position: "absolute", top: "0.125rem", left: value ? "1.375rem" : "0.125rem", width: "1rem", height: "1rem", background: V2_COLORS.paper, transition: "left 0.15s", borderRadius: "50%" }} />
         </button>
@@ -804,12 +751,13 @@ function NotificationsTab() {
   }
 
   const rows = [
-    { label: "Weekly Home Pulse",     desc: "In-app maintenance tips on your dashboard",   value: pulseEnabled, onChange: setLocal("homegentic_pulse_enabled", setPulseEnabled) },
+    { label: "Dashboard: Home Pulse tips", desc: "Maintenance tips on your dashboard, in this browser", value: pulseEnabled, onChange: setLocal("homegentic_pulse_enabled", setPulseEnabled) },
     { label: "Score Change Alerts",   desc: "Banner when your HomeGentic Score increases", value: scoreAlerts,  onChange: setLocal("homegentic_score_alerts", setScoreAlerts) },
     ...emailRows(relay, [
       { key: "job_verified",   label: "Email: Job Verified",   desc: "When a contractor signs off and a job is verified" },
       { key: "quote_received", label: "Email: Quote Received", desc: "When a contractor submits a quote" },
       { key: "job_updates",    label: "Email: Job Updates",    desc: "When a job needs your signature or a sensor opens one" },
+      { key: "weekly_pulse",   label: "Email: Weekly Home Pulse", desc: "Mondays: jobs to sign, warranties ending, aging systems and the season's jobs" },
     ]),
   ];
   const hasSms = !!relay.state?.channels.sms;
@@ -826,17 +774,55 @@ function NotificationsTab() {
 
 // ── Privacy tabs ──────────────────────────────────────────────────────────────
 
+function PrivacyIntro() {
+  return (
+    <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, lineHeight: 1.6, marginBottom: "0.5rem" }}>
+      Changes save as you make them.
+    </p>
+  );
+}
+
+/** Shown under privacy switches that couldn't be loaded, so they stay off-limits. */
+function PrivacyLoadError() {
+  return (
+    <p role="alert" style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, marginTop: "0.75rem" }}>
+      Couldn't load your privacy settings. Reload the page to try again.
+    </p>
+  );
+}
+
 function ContractorPrivacyTab() {
-  const [profileVisible, setProfileVisible] = useState(true);
-  const [showTrustScore, setShowTrustScore] = useState(true);
-  const [showJobCount,   setShowJobCount]   = useState(true);
-  const [analyticsShare, setAnalyticsShare] = useState(false);
-  const [exporting,      setExporting]      = useState(false);
+  const [privacy,    setPrivacy]    = useState<ProfilePrivacy | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [exporting,  setExporting]  = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    contractorService.getMyProfilePrivacy()
+      .then((p) => { if (live) setPrivacy(p); })
+      .catch(() => { if (live) setLoadFailed(true); });
+    return () => { live = false; };
+  }, []);
+
+  // Saved to the contractor canister as each switch changes; rolled back if
+  // the save fails.
+  const change = (key: keyof ProfilePrivacy) => async (v: boolean) => {
+    if (!privacy) return;
+    const before = privacy;
+    const next = { ...before, [key]: v };
+    setPrivacy(next);
+    try {
+      await contractorService.setProfilePrivacy(next);
+    } catch (err) {
+      setPrivacy(before);
+      toast.error(err instanceof Error ? err.message : "Couldn't save privacy settings");
+    }
+  };
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const payload = { exportedAt: new Date().toISOString(), note: "Bid history, credentials, and reviews are permanently stored on the Internet Computer blockchain." };
+      const payload = { exportedAt: new Date().toISOString(), note: "Bid history, credentials and reviews are stored on HomeGentic's canisters on the Internet Computer." };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
@@ -846,38 +832,59 @@ function ContractorPrivacyTab() {
     } catch { toast.error("Export failed"); } finally { setExporting(false); }
   };
 
+  const p = privacy ?? DEFAULT_PROFILE_PRIVACY;
   const rows = [
-    { label: "Public Profile",      desc: "Appear in homeowner contractor searches and the contractor directory", value: profileVisible, onChange: setProfileVisible },
-    { label: "Show Trust Score",    desc: "Display your trust score on your public profile",                     value: showTrustScore, onChange: setShowTrustScore },
-    { label: "Show Jobs Completed", desc: "Display your completed job count on your public profile",             value: showJobCount,   onChange: setShowJobCount },
-    { label: "Share Analytics",     desc: "Help improve HomeGentic with anonymous usage data",                   value: analyticsShare, onChange: setAnalyticsShare },
+    { label: "Listed in the Directory", desc: "Appear when homeowners browse or search for contractors. Off: you're left out of the directory, but homeowners still see your profile on quotes you send.", value: p.listed,            onChange: change("listed") },
+    { label: "Show Trust Score",        desc: "Show your trust score on your public profile and directory card",                                                                                 value: p.showTrustScore,    onChange: change("showTrustScore") },
+    { label: "Show Jobs Completed",     desc: "Show your completed job count and verified work portfolio on your public profile and directory card",                                             value: p.showJobsCompleted, onChange: change("showJobsCompleted") },
   ];
 
   return (
     <div>
       <SectionHeading>Privacy</SectionHeading>
-      {rows.map((r, i) => <ToggleRow key={r.label} {...r} last={i === rows.length - 1} />)}
-      <div style={{ marginTop: "1.25rem" }}>
-        <Button onClick={() => toast.success("Privacy settings saved")}>Save Privacy Settings</Button>
-      </div>
+      <PrivacyIntro />
+      {rows.map((r, i) => <ToggleRow key={r.label} {...r} disabled={!privacy} last={i === rows.length - 1} />)}
+      {loadFailed && <PrivacyLoadError />}
 
       <SectionDivider />
       <SectionHeading>Export Your Data</SectionHeading>
       <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
-        Download your contractor record as JSON. Your bids, job credentials, and reviews are also permanently stored on the Internet Computer blockchain — you own them regardless of your subscription status.
+        Download your contractor record as JSON. You can export it at any time, whatever plan you're on.
       </p>
       <Button loading={exporting} onClick={handleExport} icon={<Download size={13} />} variant="outline">
         Download My Data (JSON)
       </Button>
+
+      <SectionDivider />
+      <DeleteAccountSection />
     </div>
   );
 }
 
 function PrivacyTab() {
-  const [publicReport,   setPublicReport]   = useState(true);
-  const [contractorView, setContractorView] = useState(true);
-  const [analyticsShare, setAnalyticsShare] = useState(false);
-  const [exporting,      setExporting]      = useState(false);
+  const [publicReport, setPublicReport] = useState<boolean | null>(null);
+  const [loadFailed,   setLoadFailed]   = useState(false);
+  const [exporting,    setExporting]    = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    reportService.getAllowPublicReports()
+      .then((v) => { if (live) setPublicReport(v); })
+      .catch(() => { if (live) setLoadFailed(true); });
+    return () => { live = false; };
+  }, []);
+
+  // Saved to the report canister, which then enforces it on every share link.
+  async function togglePublicReport(next: boolean) {
+    if (publicReport === null) return;
+    setPublicReport(next);
+    try {
+      await reportService.setAllowPublicReports(next);
+    } catch (err) {
+      setPublicReport(!next);
+      toast.error(err instanceof Error ? err.message : "Couldn't save privacy settings");
+    }
+  }
   const { properties } = usePropertyStore();
   const { jobs }       = useJobStore();
 
@@ -909,24 +916,24 @@ function PrivacyTab() {
     } catch { toast.error("Export failed"); } finally { setExporting(false); }
   };
 
-  const rows = [
-    { label: "Public HomeGentic Report", desc: "Allow anyone with the link to view your property history", value: publicReport,   onChange: setPublicReport },
-    { label: "Contractor Visibility",    desc: "Allow contractors to find and view your properties",       value: contractorView, onChange: setContractorView },
-    { label: "Share Analytics",          desc: "Help improve HomeGentic with anonymous usage data",        value: analyticsShare, onChange: setAnalyticsShare },
-  ];
-
   return (
     <div>
       <SectionHeading>Privacy</SectionHeading>
-      {rows.map((r, i) => <ToggleRow key={r.label} {...r} last={i === rows.length - 1} />)}
-      <div style={{ marginTop: "1.25rem" }}>
-        <Button onClick={() => toast.success("Privacy settings saved")}>Save Privacy Settings</Button>
-      </div>
+      <PrivacyIntro />
+      <ToggleRow
+        label="Public HomeGentic Report"
+        desc="Anyone with one of your report links can view it without signing in. Off: viewers must sign in to HomeGentic first, on links you've already shared too."
+        value={publicReport ?? true}
+        onChange={togglePublicReport}
+        disabled={publicReport === null}
+        last
+      />
+      {loadFailed && <PrivacyLoadError />}
 
       <SectionDivider />
       <SectionHeading>Export Your Data</SectionHeading>
       <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
-        Download all your property and job records as JSON. Your data is yours — no lock-in, no expiration. Records are also permanently stored on the Internet Computer blockchain.
+        Download all your property and job records as JSON. Your data is yours, and you can export it at any time.
       </p>
       <Button loading={exporting} onClick={handleExport} icon={<Download size={13} />} variant="outline">
         Download My Data (JSON)
@@ -934,6 +941,9 @@ function PrivacyTab() {
       <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, marginTop: "0.5rem" }}>
         Includes {properties.length} propert{properties.length !== 1 ? "ies" : "y"} and {jobs.length} job record{jobs.length !== 1 ? "s" : ""}.
       </p>
+
+      <SectionDivider />
+      <DeleteAccountSection />
     </div>
   );
 }

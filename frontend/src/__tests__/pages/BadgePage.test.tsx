@@ -1,17 +1,17 @@
 /**
  * BadgePage — real logic worth locking down:
  *   - loading -> error state (missing token, or a rejected getReport)
- *   - the composite score formula: verified jobs (capped 40) + spend tier
- *     (capped 20) + verification-level bonus + distinct service types
- *     (capped 20)
+ *   - the score: the one the canister stored with the report, else the
+ *     shared formula over the snapshot's jobs
  *   - embed mode (?embed=1) renders only the badge card, no page chrome
  *   - full mode shows the report link and the HTML embed snippet
  *   - copy-to-clipboard shows "Copied!" feedback
  *   - expiry label reflects the share link's expiresAt
  */
 
+import { scoreFromReportJobs } from "@/services/scoreService";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import BadgePage from "@/pages/BadgePage";
 import type { ReportSnapshot, ShareLink, JobInput } from "@/services/report";
@@ -87,59 +87,34 @@ describe("BadgePage — loading and error states", () => {
   });
 });
 
-describe("BadgePage — score formula", () => {
-  it("computes the composite score from verified jobs, spend, verification level, and service variety", async () => {
-    mockGetReport.mockResolvedValue({
-      link: makeLink(),
-      snapshot: makeSnapshot({
-        verifiedJobCount: 5,             // min(5*4, 40) = 20
-        totalAmountCents: 500_000,       // $5000 -> floor(5000/2500) = 2
-        verificationLevel: "Premium",    // +10
-        jobs: [
-          makeJob({ serviceType: "HVAC" }),
-          makeJob({ serviceType: "Roofing" }),
-          makeJob({ serviceType: "Plumbing" }),
-        ], // 3 distinct -> min(3*4, 20) = 12
-      }),
-    });
-    renderAt("/badge/tok-1");
+describe("BadgePage — score", () => {
+  afterEach(() => { delete (window as any).__e2e_report_score; });
 
-    // 20 + 2 + 10 + 12 = 44
-    await waitFor(() => expect(screen.getByText("44")).toBeInTheDocument());
+  it("shows the score the canister stored with the report", async () => {
+    (window as any).__e2e_report_score = 77;
+    mockGetReport.mockResolvedValue({ link: makeLink(), snapshot: makeSnapshot({ jobs: [makeJob({ serviceType: "HVAC" })] }) });
+    renderAt("/badge/tok-1");
+    await waitFor(() => expect(screen.getByText("77")).toBeInTheDocument());
   });
 
-  it("caps each term independently rather than the sum exceeding each cap", async () => {
-    mockGetReport.mockResolvedValue({
-      link: makeLink(),
-      snapshot: makeSnapshot({
-        verifiedJobCount: 50,            // capped at 40
-        totalAmountCents: 100_000_000,   // capped at 20
-        verificationLevel: "Premium",    // +10
-        jobs: Array.from({ length: 10 }, (_, i) => makeJob({ serviceType: `Type${i}` })), // capped at 20
-      }),
+  it("falls back to the shared formula over the snapshot's jobs", async () => {
+    (window as any).__e2e_report_score = null;
+    const snapshot = makeSnapshot({
+      jobs: [makeJob({ serviceType: "HVAC" }), makeJob({ serviceType: "Roofing" }), makeJob({ serviceType: "Plumbing" })],
     });
+    mockGetReport.mockResolvedValue({ link: makeLink(), snapshot });
     renderAt("/badge/tok-1");
-
-    // 40 + 20 + 10 + 20 = 90
-    await waitFor(() => expect(screen.getByText("90")).toBeInTheDocument());
+    const expected = scoreFromReportJobs(snapshot.jobs, Number(snapshot.yearBuilt));
+    await waitFor(() => expect(screen.getByText(String(expected))).toBeInTheDocument());
   });
 
-  it("gives a smaller bonus for Basic verification than Premium", async () => {
-    mockGetReport.mockResolvedValue({
-      link: makeLink(),
-      snapshot: makeSnapshot({ verificationLevel: "Basic", verifiedJobCount: 0, totalAmountCents: 0, jobs: [] }),
-    });
-    renderAt("/badge/tok-1");
-    await waitFor(() => expect(screen.getByText("5")).toBeInTheDocument());
-  });
-
-  it("gives no verification bonus for an unverified property", async () => {
+  it("shows 0 for a report with no jobs", async () => {
+    (window as any).__e2e_report_score = null;
     mockGetReport.mockResolvedValue({
       link: makeLink(),
       snapshot: makeSnapshot({ verificationLevel: "None", verifiedJobCount: 0, totalAmountCents: 0, jobs: [] }),
     });
     renderAt("/badge/tok-1");
-    // "0" also appears for verified-jobs and total-records counts (empty jobs list)
     await waitFor(() => expect(screen.getAllByText("0").length).toBeGreaterThanOrEqual(3));
   });
 });

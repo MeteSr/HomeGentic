@@ -13,8 +13,6 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
-import OutCall   "mo:caffeineai-http-outcalls/outcall";
-import IC        "ic:aaaaa-aa";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
@@ -187,13 +185,6 @@ persistent actor Payment {
     icrc2_transfer_from : shared (TransferFromArgs) -> async { #Ok: Nat; #Err: TransferFromError };
   } = actor "ryjl3-tyaaa-aaaaa-aaaba-cai";
 
-  // ─── IC Management Canister (HTTP outcalls for Stripe) ───────────────────────
-
-  /// Transform function required by caffeineai-http-outcalls for subnet consensus.
-  public query func transform(args: OutCall.TransformationInput) : async OutCall.TransformationOutput {
-    OutCall.transform(args)
-  };
-
   // ─── Price helpers ───────────────────────────────────────────────────────────
 
   /// USD price for each tier (whole dollars).
@@ -275,6 +266,11 @@ persistent actor Payment {
   // Stripe
   private var stripeConfig        : ?StripeConfig                  = null;
   private let pendingGifts        = Map.empty<Text, PendingGift>();  // key = giftToken
+  /// Free Pro year for a buyer who accepts a home's record at closing
+  /// (grantHandoffYear): when each buyer got theirs, and when each property
+  /// last gave one.
+  private let handoffGrantsByBuyer    = Map.empty<Principal, Int>();
+  private let handoffGrantsByProperty = Map.empty<Text, Int>();
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
@@ -602,6 +598,46 @@ persistent actor Payment {
         #ok(sub)
       };
     }
+  };
+
+  // ─── Record handoff at closing ────────────────────────────────────────────
+
+  private transient let HANDOFF_YEAR_NS : Int = 365 * 24 * 60 * 60 * 1_000_000_000;
+
+  /// A year of Pro for the buyer who just claimed a home's record through a
+  /// transfer link. Called by the property canister (a trusted canister) after
+  /// the claim, and only for homes whose ownership was verified. Granted once
+  /// per buyer, at most once a year per property, and only when the buyer has
+  /// no paid plan running (a paid plan is never shortened or replaced).
+  public shared(msg) func grantHandoffYear(buyer: Principal, propertyId: Text) : async Result.Result<Subscription, Error> {
+    if (not isTrustedCanister(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (buyer.isAnonymous()) return #err(#InvalidInput("anonymous buyer"));
+    let now = Time.now();
+    if (handoffGrantsByBuyer.containsKey(buyer)) return #err(#InvalidInput("already granted to this buyer"));
+    switch (handoffGrantsByProperty.get(propertyId)) {
+      case (?at) { if (now - at < HANDOFF_YEAR_NS) return #err(#InvalidInput("already granted for this home this year")) };
+      case null {};
+    };
+    switch (subscriptions.get(buyer)) {
+      case (?s) {
+        let running = s.expiresAt == 0 or s.expiresAt > now;
+        if (running and s.tier != #Free and s.tier != #ContractorFree) return #err(#InvalidInput("buyer already has a paid plan"));
+      };
+      case null {};
+    };
+    let sub : Subscription = {
+      owner = buyer; tier = #Pro; expiresAt = now + HANDOFF_YEAR_NS; createdAt = now; cancelledAt = null;
+    };
+    subscriptions.add(buyer, sub);
+    handoffGrantsByBuyer.add(buyer, now);
+    handoffGrantsByProperty.add(propertyId, now);
+    try { ignore await auditLog("HandoffYearGranted", ?buyer, "property=" # propertyId) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    #ok(sub)
+  };
+
+  /// When the caller got a free Pro year for accepting a home's record, if ever.
+  public query(msg) func getMyHandoffGrant() : async ?Int {
+    handoffGrantsByBuyer.get(msg.caller)
   };
 
   /// Admin: list all pending (unredeemed) gifts.

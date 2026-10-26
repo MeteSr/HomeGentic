@@ -130,7 +130,7 @@ describe("ResaleReadyPage — record stats", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText("Verified Records")).toBeInTheDocument());
-    expect(screen.getByText("Verified Records").previousElementSibling).toHaveTextContent("blockchain-signed");
+    expect(screen.getByText("Verified Records").previousElementSibling).toHaveTextContent("signed off");
     expect(screen.getByText("Verified Records").parentElement).toHaveTextContent("2");
     // total value across ALL jobs (350000 cents), not just verified ones
     expect(screen.getByText("Value Documented").parentElement).toHaveTextContent("$3,500");

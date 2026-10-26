@@ -31,9 +31,11 @@ unpause(0) -> (1)"
 
 exports[`Candid contract snapshots — method arity > auth 1`] = `
 "completeOnboarding(0) -> (0)
+deleteMyData(0) -> (1)
 getMetrics(0) -> (1) [query]
 getNotificationContact(1) -> (1) [query]
 getProfile(0) -> (1) [query]
+getPulseRecipients(2) -> (1) [query]
 getUserStats(0) -> (1) [query]
 hasRole(1) -> (1) [query]
 isAdminPrincipal(1) -> (1) [query]
@@ -49,6 +51,7 @@ exports[`Candid contract snapshots — method arity > bills 1`] = `
 "addBill(1) -> (1)
 addRecurringExpense(2) -> (1)
 deleteBill(1) -> (1)
+deleteMyData(0) -> (1)
 deleteRecurringExpense(1) -> (1)
 getBillsForProperty(1) -> (1)
 getRecurringExpensesForProperty(1) -> (1)
@@ -58,17 +61,29 @@ updateRecurringExpense(2) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > contractor 1`] = `
-"createOrLinkGuestProfile(7) -> (1)
+"addLicenseRelay(1) -> (1)
+createOrLinkGuestProfile(7) -> (1)
+deleteMyData(0) -> (1)
 getAll(0) -> (1) [query]
 getBySpecialty(1) -> (1) [query]
 getContractor(1) -> (1) [query]
 getCredentials(1) -> (1) [query]
+getLeadAlertTargets(0) -> (1) [query]
+getLicenseCheck(1) -> (1) [query]
 getMyProfile(0) -> (1) [query]
+getMyProfilePrivacy(0) -> (1) [query]
 getPage(2) -> (1) [query]
+getPortfolio(1) -> (1) [query]
+getProfilePrivacies(1) -> (1) [query]
 getReviewsForContractor(1) -> (1) [query]
 recordJobVerified(4) -> (1)
 register(1) -> (1)
+relayRecordLicenseCheck(2) -> (1)
+removeLicenseRelay(1) -> (1)
 setJobCanisterId(1) -> (1)
+setPaymentCanisterId(1) -> (1)
+setPortfolio(1) -> (1)
+setProfilePrivacy(1) -> (1)
 submitReview(4) -> (1)
 updateNotificationPrefs(1) -> (1)
 updateProfile(1) -> (1)
@@ -76,17 +91,23 @@ verifyContractor(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > job 1`] = `
-"approveJobProposal(1) -> (1)
+"addInboxRelay(1) -> (1)
+approveJobProposal(1) -> (1)
 createInviteToken(2) -> (1)
 createJob(11) -> (1)
 createJobProposal(9) -> (1)
+deleteMyData(0) -> (1)
+dismissEmailDraft(1) -> (1)
 getCertificationData(1) -> (1) [query]
 getJob(1) -> (1) [query]
 getJobByInviteToken(1) -> (1) [query]
+getJobsByOwner(1) -> (1) [query]
 getJobsForProperty(1) -> (1)
 getJobSnapshotsForProperty(1) -> (1) [query]
 getJobsPendingMySignature(0) -> (1) [query]
 getMetrics(0) -> (1) [query]
+getMyEmailDrafts(0) -> (1) [query]
+getMyInboxToken(0) -> (1)
 getMyReferralJobs(0) -> (1) [query]
 getPendingProposals(0) -> (1) [query]
 getReferralJobs(0) -> (1)
@@ -94,6 +115,10 @@ getUnattestedJobIds(1) -> (1) [query]
 linkContractor(2) -> (1)
 redeemInviteToken(5) -> (1)
 rejectJobProposal(1) -> (1)
+relayAddEmailDraft(2) -> (1)
+removeInboxRelay(1) -> (1)
+resetMyInboxToken(0) -> (1)
+setFeeCanisterId(1) -> (1)
 setPropertyCanisterId(1) -> (1)
 updateJobStatus(2) -> (1)
 verifyJob(1) -> (1)"
@@ -107,6 +132,7 @@ addPanorama(3) -> (1)
 cancelBidRequest(1) -> (1)
 createBidRequest(13) -> (1)
 deactivateFsboListing(1) -> (1)
+deleteMyData(0) -> (1)
 flagPhotoForReview(1) -> (1)
 getBidProgress(1) -> (1) [query]
 getBidRequest(1) -> (1) [query]
@@ -143,6 +169,7 @@ withdrawProposal(1) -> (1)"
 
 exports[`Candid contract snapshots — method arity > maintenance 1`] = `
 "createScheduleEntry(6) -> (1)
+deleteMyData(0) -> (1)
 getScheduleByProperty(1) -> (1)
 markCompleted(1) -> (1)"
 `;
@@ -175,11 +202,13 @@ consumeAgentCredit(1) -> (1)
 createStripeCheckoutSession(3) -> (1)
 getAllPricing(0) -> (1) [query]
 getMyAgentCredits(0) -> (1) [query]
+getMyHandoffGrant(0) -> (1) [query]
 getMySubscription(0) -> (1) [query]
 getPriceQuote(1) -> (1)
 getPricing(1) -> (1) [query]
 getSubscriptionStats(0) -> (1) [query]
 getTierForPrincipal(1) -> (1) [query]
+grantHandoffYear(2) -> (1)
 grantSubscription(2) -> (1)
 initAdmins(2) -> (1)
 isStripeConfigured(0) -> (1) [query]
@@ -196,13 +225,18 @@ verifyStripeSession(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > photo 1`] = `
-"deletePhoto(1) -> (1)
+"addPhotoRelay(1) -> (1)
+beginUpload(6) -> (1)
+deleteMyData(0) -> (1)
+deletePhoto(1) -> (1)
 getListingPhotoDataBatch(1) -> (1) [query]
 getPhotoDataBatch(1) -> (1)
 getPhotosByJob(1) -> (1)
 getPhotosByProperty(1) -> (1)
 getPhotosByRoom(1) -> (1)
 getPublicListingPhotos(1) -> (1) [query]
+photoAccess(2) -> (1) [composite_query]
+removePhotoRelay(1) -> (1)
 setPropertyCanisterId(1) -> (1)
 uploadPhoto(6) -> (1)"
 `;
@@ -212,6 +246,7 @@ exports[`Candid contract snapshots — method arity > property 1`] = `
 cancelTransfer(1) -> (1)
 claimManagerRole(1) -> (1)
 claimTransfer(1) -> (1)
+deleteMyData(0) -> (1)
 dismissNotifications(1) -> (1)
 getAccessRole(2) -> (1) [query]
 getApprovals(1) -> (1) [query]
@@ -232,6 +267,7 @@ getPropertyLimitForTier(1) -> (1) [query]
 getPropertyManagers(1) -> (1) [query]
 getPropertyOwner(1) -> (1) [query]
 getPropertyYearBuilt(1) -> (1) [query]
+getPulseProperties(1) -> (1) [query]
 getRoomsByProperty(1) -> (1) [query]
 getVerificationLevel(1) -> (1) [query]
 getVerifyStatus(1) -> (1) [query]
@@ -242,6 +278,7 @@ isAuthorized(3) -> (1) [query]
 markIdentityCleared(3) -> (1)
 recordManagerActivity(2) -> (1)
 registerProperty(1) -> (1)
+relayMarkIdentityCleared(4) -> (1)
 removeManager(2) -> (1)
 requestApproval(3) -> (1)
 resignAsManager(1) -> (1)
@@ -258,6 +295,7 @@ cancelQuoteRequest(1) -> (1)
 closeQuoteRequest(1) -> (1)
 createQuoteRequest(9) -> (1)
 createSealedBidRequest(10) -> (1)
+deleteMyData(0) -> (1)
 getIbePublicKey(0) -> (1)
 getMyBid(1) -> (1) [query]
 getMyQuoteRequests(0) -> (1) [query]
@@ -272,6 +310,7 @@ getUsageSummary(1) -> (1)
 removeUsageSummary(1) -> (1)
 revealBids(1) -> (1)
 revealBidsEncrypted(2) -> (1)
+setFeeCanisterId(1) -> (1)
 setPropertyCanisterId(1) -> (1)
 submitQuote(4) -> (1)
 submitSealedBid(3) -> (1)"
@@ -281,6 +320,7 @@ exports[`Candid contract snapshots — method arity > recurring 1`] = `
 "addVisitLog(3) -> (1)
 attachContractDoc(2) -> (1)
 createRecurringService(9) -> (1)
+deleteMyData(0) -> (1)
 getByProperty(1) -> (1)
 getMetrics(0) -> (1) [query]
 getRecurringService(1) -> (1)
@@ -289,18 +329,28 @@ updateStatus(2) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > report 1`] = `
-"generateReport(12) -> (1)
+"deleteMyData(0) -> (1)
+generateReport(12) -> (1)
 generateRiskProfile(3) -> (1)
+getAllowPublicReports(0) -> (1) [query]
+getAttestationKey(0) -> (1) [query]
 getBillsSummary(1) -> (1) [query]
+getCertAttestation(1) -> (1) [query]
 getReport(1) -> (1)
+getReportAttestation(1) -> (1) [query]
+getReportScore(1) -> (1) [query]
 getRiskProfile(1) -> (1) [query]
 hasActivePublicShareLink(1) -> (1) [query]
 listShareLinks(1) -> (1)
-revokeShareLink(1) -> (1)"
+refreshAttestationKey(0) -> (1)
+revokeShareLink(1) -> (1)
+setAllowPublicReports(1) -> (1)
+setAttestationKeyName(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > sensor 1`] = `
 "deactivateDevice(1) -> (1)
+deleteMyData(0) -> (1)
 getDevicesForProperty(1) -> (1) [composite_query]
 getEventsForProperty(2) -> (1)
 getPendingAlerts(1) -> (1)

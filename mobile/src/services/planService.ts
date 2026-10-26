@@ -46,10 +46,10 @@ export const PRO_FEATURES = [
 
 export const CONTRACTOR_PRO_FEATURES = [
   "No referral fees on winning bids",
-  "Lead notifications",
-  "Customer reviews",
-  "Earnings dashboard",
-  "Trust score display",
+  "Instant lead alerts (30 minutes sooner)",
+  "Featured portfolio of co-signed jobs",
+  "Automatic review requests",
+  "Earnings view with CSV export (on the web)",
   "50 photos per job",
 ];
 

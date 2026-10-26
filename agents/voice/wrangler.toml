@@ -10,6 +10,10 @@ DFX_NETWORK = "ic"
 BIDTOLIST_RESEND_FROM = "noreply@bidtolist.com"
 BIDTOLIST_ICP_HOST = "https://ic0.app"
 HOMEGENTIC_ICP_HOST = "https://ic0.app"
+# Domain of the invoice forwarding addresses (h-<token>@INBOX_DOMAIN). Needs an
+# Email Routing catch-all to this Worker (docs/DEPLOYMENT.md). Empty → inbound
+# mail is ignored.
+INBOX_DOMAIN = ""
 
 # Persisted Workers Logs (otherwise logs exist only in a live `wrangler tail`).
 [observability]
@@ -34,8 +38,17 @@ class_name = "RateLimiterDO"
 tag               = "v1-rate-limiter-do"
 new_sqlite_classes = ["RateLimiterDO"]
 
+# R2 bucket for off-chain photo bytes (/photos/*, src/photos.ts). Left
+# commented until the bucket exists, because a deploy that binds a missing
+# bucket fails; until then /photos/* answers 503 and the app keeps photos
+# on-chain. To enable: `npx wrangler r2 bucket create homegentic-photos`,
+# then uncomment.
+# [[r2_buckets]]
+# binding     = "PHOTOS"
+# bucket_name = "homegentic-photos"
+
 [triggers]
-crons = ["0 * * * *"]   # every hour — fires scheduledBidtolist (deadline reminders)
+crons = ["0 * * * *"]   # every hour — scheduledBidtolist (deadline reminders) and the referral-fee charge run
 
 # ── Secrets — never stored here, set via `wrangler secret put <NAME>` ────────
 #
@@ -50,6 +63,12 @@ crons = ["0 * * * *"]   # every hour — fires scheduledBidtolist (deadline remi
 #   CANISTER_ID_PAYMENT
 #   CANISTER_ID_AUTH              resolves x-agent-session tokens (401 without it)
 #   CANISTER_ID_JOB               contractor-invite email (/api/email/contractor-invite)
+#   CANISTER_ID_PHOTO             photo access checks for /photos/* (deploy.sh registers the
+#                                 DFX_IDENTITY_PEM principal with photo.addPhotoRelay)
+#   CANISTER_ID_CONTRACTOR        records Florida DBPR licence lookups (/api/license/check;
+#                                 deploy.sh registers the principal with contractor.addLicenseRelay)
+#   CANISTER_ID_FEE               Contractor Free referral fees: card setup, the hourly charge run
+#                                 (deploy.sh registers the principal with fee.addReferralRelay)
 #   RESEND_API_KEY                transactional email (moved off ai_proxy)
 #   RESEND_FROM                   sender on a Resend-verified domain
 #   ATTOM_API_KEY                 property-record lookups (/api/property/details)
@@ -111,3 +130,9 @@ class_name = "RateLimiterDO"
 [[env.testnet.migrations]]
 tag               = "v1-rate-limiter-do"
 new_sqlite_classes = ["RateLimiterDO"]
+
+# R2 isn't inherited either. `npx wrangler r2 bucket create homegentic-photos-testnet`
+# first, then uncomment.
+# [[env.testnet.r2_buckets]]
+# binding     = "PHOTOS"
+# bucket_name = "homegentic-photos-testnet"

@@ -11,6 +11,7 @@
 import type { Job } from "../../services/jobService";
 import type { Property } from "../../services/propertyService";
 import { computeBreakdown, computeScore, getAtRisk, rawScore, scoreHint, SCORE_DECAY_FLOOR } from "../../services/scoreService";
+import { scoreBreakdown } from "@homegentic/shared/score";
 import { buildUpkeep, isOverdue, nextDue, summariseSensors, type RecurringService } from "../../services/upkeepService";
 import { PLAN_LIMITS, referralFeeCents, isFeeFloored, tierForRole, tierName } from "../../services/planService";
 import { buildLedger } from "../../services/contractorService";
@@ -39,20 +40,27 @@ const prop: Property = {
 // ── Score ─────────────────────────────────────────────────────────────────────
 
 describe("SCORE — rubric and decay", () => {
-  it("SCORE.1 sums verified jobs, value, verification and diversity like the web", () => {
+  it("SCORE.1 uses the shared formula, like the web and the canisters", () => {
     const jobs = [
       job({ id: "a", serviceType: "Roofing", amountCents: 500_000 }),
       job({ id: "b", serviceType: "HVAC", amountCents: 250_000 }),
       job({ id: "c", serviceType: "HVAC", amountCents: 0, verified: false }),
     ];
-    expect(computeBreakdown(jobs, prop)).toEqual({ verifiedJobPts: 8, valuePts: 3, verificationPts: 10, diversityPts: 8 });
-    expect(rawScore(jobs, prop)).toBe(29);
+    const year = new Date().getFullYear();
+    const shared = scoreBreakdown([
+      { serviceType: "Roofing", completedYear: 2026, amountCents: 500_000, isDiy: false, isVerified: true },
+      { serviceType: "HVAC", completedYear: 2026, amountCents: 250_000, isDiy: false, isVerified: true },
+      { serviceType: "HVAC", completedYear: 2026, amountCents: 0, isDiy: false, isVerified: false },
+    ], 1961, year);
+    expect(rawScore(jobs, prop)).toBe(shared.total);
+    const b = computeBreakdown(jobs, prop);
+    expect(b.maintenancePts).toBe(Math.floor(shared.maintenance * 40 / 100));
   });
 
-  it("SCORE.2 caps each pillar", () => {
-    const jobs = Array.from({ length: 15 }, (_, i) => job({ id: `j${i}`, amountCents: 10_000_000 }));
-    expect(computeBreakdown(jobs, prop).verifiedJobPts).toBe(40);
-    expect(computeBreakdown(jobs, prop).valuePts).toBe(20);
+  it("SCORE.2 counts each key system once", () => {
+    const many = Array.from({ length: 15 }, (_, i) => job({ id: `j${i}`, serviceType: "HVAC", amountCents: 9_000 }));
+    const roof = [job({ serviceType: "Roofing", amountCents: 1_400_000 })];
+    expect(rawScore(roof, prop)).toBeGreaterThan(rawScore(many, prop));
   });
 
   it("SCORE.3 lapsed warranties, inactivity and overdue tasks reduce the score", () => {
@@ -64,7 +72,7 @@ describe("SCORE — rubric and decay", () => {
 
   it("SCORE.4 decay larger than the score floors at 30", () => {
     const tiny = { ...prop, verificationLevel: "Unverified" as const };
-    const j = job({ completedDate: "2024-01-01", warrantyMonths: 1, amountCents: 0 });
+    const j = job({ completedDate: "2024-01-01", warrantyMonths: 1, amountCents: 0, verified: false });
     expect(computeScore([j], tiny, NOW, 5)).toBe(SCORE_DECAY_FLOOR);
   });
 
@@ -73,8 +81,8 @@ describe("SCORE — rubric and decay", () => {
     expect(scoreHint(jobs, prop, NOW)).toMatch(/^2 jobs are waiting on a signature\. Verifying them moves you to \d+\.$/);
   });
 
-  it("SCORE.6 hint suggests verification when nothing else is pending", () => {
-    expect(scoreHint([job()], { ...prop, verificationLevel: "Basic" }, NOW)).toContain("Premium");
+  it("SCORE.6 hint names a key system with nothing on record, and what it adds", () => {
+    expect(scoreHint([job()], prop, NOW)).toMatch(/^HVAC has nothing on record yet\. A verified HVAC job adds \d+ points?\.$/);
   });
 
   it("SCORE.7 at-risk lists warranties expiring within 30 days", () => {
@@ -230,7 +238,7 @@ describe("CTX — homeowner agent context", () => {
 
   it("CTX.3 carries the plan and score", () => {
     expect(ctx.plan).toMatchObject({ tier: "Free", propertyLimit: 1 });
-    expect(ctx.score?.breakdown.verificationPts).toBe(10);
+    expect(ctx.score?.breakdown.maintenancePts).toBeGreaterThan(0);
     expect(ctx.role).toBe("Homeowner");
   });
 });

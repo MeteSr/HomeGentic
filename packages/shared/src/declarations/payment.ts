@@ -139,6 +139,12 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: Subscription, err: Error })],
       []
     ),
+    grantHandoffYear: IDL.Func(
+      [IDL.Principal, IDL.Text],
+      [IDL.Variant({ ok: Subscription, err: Error })],
+      []
+    ),
+    getMyHandoffGrant: IDL.Func([], [IDL.Opt(IDL.Int)], ["query"]),
     listPendingGifts: IDL.Func(
       [],
       [IDL.Variant({ ok: IDL.Vec(PendingGift), err: Error })],

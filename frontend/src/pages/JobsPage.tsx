@@ -9,6 +9,10 @@ import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { MobileJobsPage } from "@/pages/MobileJobsPage";
 import { Panel, Pill, spinnerVars } from "@/components/hud";
 import { LoadError } from "@/components/LoadError";
+import type { ContractorProfile } from "@/services/contractor";
+import { useContractorProfiles, verifiedJobsLabel, earliestCloseAt } from "@/hooks/useContractorProfiles";
+import toast from "react-hot-toast";
+import { ForwardedInvoices } from "@/components/ForwardedInvoices";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
 const BODY = "'Hanken Grotesk',sans-serif";
@@ -22,17 +26,17 @@ interface BidRowProps {
   verified:     boolean;
   verifiedLabel?: string;
   detail:       string;
-  earliest:     string;
+  timeline:     string;
   amount:       string;
   isTablet:     boolean;
   onDecline:    () => void;
   onAccept:     () => void;
 }
 
-function BidRow({ initials, name, verified, verifiedLabel, detail, earliest, amount, isTablet, onDecline, onAccept }: BidRowProps) {
+function BidRow({ initials, name, verified, verifiedLabel, detail, timeline, amount, isTablet, onDecline, onAccept }: BidRowProps) {
   const declineBtn = (
     <button onClick={onDecline} style={{ fontFamily: BODY, fontSize: 13, color: "var(--hg-muted)", background: "var(--hg-fill)", border: "1px solid var(--hg-line-2)", borderRadius: 100, padding: "7px 14px", cursor: "pointer" }}>
-      Decline
+      Hide
     </button>
   );
   const acceptBtn = (
@@ -55,7 +59,7 @@ function BidRow({ initials, name, verified, verifiedLabel, detail, earliest, amo
               {verified && <Pill tone="info">{verifiedLabel ?? "VERIFIED PRO"}</Pill>}
               <span style={{ fontFamily: BODY, fontSize: 15, fontWeight: 700, color: "var(--hg-ink)", whiteSpace: "nowrap", marginLeft: "auto" }}>{amount}</span>
             </div>
-            <div style={{ fontFamily: BODY, fontSize: 12, color: "var(--hg-muted)", marginTop: 1 }}>{detail} · {earliest}</div>
+            <div style={{ fontFamily: BODY, fontSize: 12, color: "var(--hg-muted)", marginTop: 1 }}>{detail ? `${detail} · ${timeline}` : timeline}</div>
           </div>
         </div>
         {/* Row 2: action buttons */}
@@ -78,10 +82,10 @@ function BidRow({ initials, name, verified, verifiedLabel, detail, earliest, amo
           <span style={{ fontFamily: BODY, fontSize: 14, fontWeight: 700, color: "var(--hg-ink)" }}>{name}</span>
           {verified && <Pill tone="info">{verifiedLabel ?? "VERIFIED PRO"}</Pill>}
         </div>
-        <div style={{ fontFamily: BODY, fontSize: 12, color: "var(--hg-muted)", marginTop: 1 }}>{detail}</div>
+        {detail && <div style={{ fontFamily: BODY, fontSize: 12, color: "var(--hg-muted)", marginTop: 1 }}>{detail}</div>}
       </div>
-      {/* Earliest */}
-      <span style={{ fontFamily: MONO, fontSize: 12, color: "var(--hg-muted)", whiteSpace: "nowrap" }}>{earliest}</span>
+      {/* Timeline */}
+      <span style={{ fontFamily: MONO, fontSize: 12, color: "var(--hg-muted)", whiteSpace: "nowrap" }}>{timeline}</span>
       {/* Amount */}
       <span style={{ fontFamily: BODY, fontSize: 15, fontWeight: 700, color: "var(--hg-ink)", whiteSpace: "nowrap" }}>{amount}</span>
       {/* Actions */}
@@ -93,10 +97,11 @@ function BidRow({ initials, name, verified, verifiedLabel, detail, earliest, amo
 
 // ── Job card ───────────────────────────────────────────────────────────────────
 
-function JobCard({ job, bids, isTablet, onAccept, onDecline }: {
+function JobCard({ job, bids, quotes, profiles, isTablet, onAccept, onDecline }: {
   job:        Job;
   bids:       Quote[];
   quotes:     QuoteRequest[];
+  profiles:   Record<string, ContractorProfile | null>;
   propAddress: string;
   isTablet:   boolean;
   onAccept:   (bidId: string) => void;
@@ -106,6 +111,7 @@ function JobCard({ job, bids, isTablet, onAccept, onDecline }: {
   const bidRange = amounts.length > 0
     ? `$${Math.min(...amounts) / 100}–$${Math.max(...amounts) / 100}`
     : null;
+  const closeAt = earliestCloseAt(quotes);
 
   return (
     <Panel style={{ marginBottom: 16, overflow: "hidden" }}>
@@ -118,12 +124,12 @@ function JobCard({ job, bids, isTablet, onAccept, onDecline }: {
             {bids.length === 0 && <Pill tone="neutral">AWAITING BIDS</Pill>}
           </div>
           <div style={{ fontFamily: MONO, fontSize: 10, color: "var(--hg-muted)", letterSpacing: "0.08em", marginBottom: 8 }}>
-            {job.serviceType.toUpperCase()} · POSTED {new Date(job.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase()} · WITHIN A MONTH
+            {job.serviceType.toUpperCase()} · POSTED {new Date(job.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase()}
           </div>
           <p style={{ fontFamily: BODY, fontSize: 13, color: "var(--hg-muted)", margin: 0, lineHeight: 1.5 }}>{job.description}</p>
           {bids.length === 0 && job.description && (
             <p style={{ fontFamily: BODY, fontSize: 12, color: "var(--hg-muted)", margin: "8px 0 0", lineHeight: 1.5 }}>
-              Sent to {Math.ceil(Math.random() * 3 + 3)} pros within 10 miles. Two have opened the post. Bids usually land within 48 hours.
+              Contractors in your area can see this request and bid on it.
             </p>
           )}
         </div>
@@ -132,7 +138,8 @@ function JobCard({ job, bids, isTablet, onAccept, onDecline }: {
             <div style={{ fontFamily: MONO, fontSize: 9, color: "var(--hg-muted)", letterSpacing: "0.08em", marginBottom: 2 }}>BID RANGE</div>
             <div style={{ fontFamily: DISPLAY, fontSize: 20, fontWeight: 900, color: "var(--hg-ink)" }}>{bidRange}</div>
             <div style={{ fontFamily: MONO, fontSize: 10, color: "var(--hg-muted)", marginTop: 2 }}>
-              {bids.length} bid{bids.length !== 1 ? "s" : ""} · closes {new Date(Date.now() + 7 * 86400000).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              {bids.length} bid{bids.length !== 1 ? "s" : ""}
+              {closeAt && ` · closes ${new Date(closeAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
             </div>
           </div>
         )}
@@ -143,23 +150,24 @@ function JobCard({ job, bids, isTablet, onAccept, onDecline }: {
         <div>
           {!isTablet && (
             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto auto", gap: 14, padding: "8px 24px", background: "var(--hg-fill)" }}>
-              {["CONTRACTOR", "", "EARLIEST", "BID", "", ""].map((h, i) => (
+              {["CONTRACTOR", "", "TIMELINE", "BID", "", ""].map((h, i) => (
                 <span key={i} style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.1em" }}>{h}</span>
               ))}
             </div>
           )}
           {bids.map((bid) => {
-            const ctrName = bid.contractor ?? "Contractor";
+            const profile = profiles[bid.contractor];
+            const ctrName = profile?.name ?? "Contractor";
             const initials = ctrName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
             return (
               <BidRow
                 key={bid.id}
                 initials={initials}
                 name={ctrName}
-                verified={true}
+                verified={profile?.isVerified === true}
                 verifiedLabel="VERIFIED PRO"
-                detail={`${Math.floor(Math.random() * 60 + 10)} verified jobs`}
-                earliest={new Date(Date.now() + Math.floor(Math.random() * 10 + 3) * 86400000).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                detail={verifiedJobsLabel(profile) ?? ""}
+                timeline={`${bid.timeline} day${bid.timeline === 1 ? "" : "s"}`}
                 amount={`$${Math.round(bid.amount / 100).toLocaleString()}`}
                 isTablet={isTablet}
                 onDecline={() => onDecline(bid.id)}
@@ -214,14 +222,32 @@ export default function JobsPage() {
     return m;
   }, [properties]);
 
+  const bidderIds = useMemo(
+    () => Object.values(bidsMap).flatMap(bids => bids.map(b => b.contractor)),
+    [bidsMap]
+  );
+  const profiles = useContractorProfiles(bidderIds);
+
+  // Accepting closes the request and rejects the other bids, so drop every
+  // bid on that request from the list.
   const handleAccept = async (bidId: string) => {
+    try {
+      await quoteService.accept(bidId);
+    } catch (err) {
+      toast.error(err instanceof Error ? `Couldn't accept bid: ${err.message}` : "Couldn't accept bid");
+      return;
+    }
+    toast.success("Bid accepted. The other bidders have been told.");
     setBidsMap(prev => {
       const next = { ...prev };
-      for (const k of Object.keys(next)) next[k] = next[k].filter(b => b.id !== bidId);
+      for (const k of Object.keys(next)) {
+        if (next[k].some(b => b.id === bidId)) delete next[k];
+      }
       return next;
     });
   };
 
+  // There's no decline on the backend: this only hides the bid on this page.
   const handleDecline = async (bidId: string) => {
     setBidsMap(prev => {
       const next = { ...prev };
@@ -233,6 +259,7 @@ export default function JobsPage() {
   if (isMobile) {
     return (
       <Layout>
+        <ForwardedInvoices mobile />
         <MobileJobsPage />
       </Layout>
     );
@@ -264,6 +291,8 @@ export default function JobsPage() {
           </div>
         </div>
 
+        <ForwardedInvoices />
+
         {loading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
             <div className="spinner-lg" style={spinnerVars} />
@@ -275,7 +304,7 @@ export default function JobsPage() {
         ) : openJobs.length === 0 && requests.length === 0 ? (
           <Panel style={{ padding: "3rem", textAlign: "center" }}>
             <p style={{ fontFamily: BODY, fontSize: 15, fontWeight: 600, color: "var(--hg-ink)", marginBottom: 6 }}>No open jobs</p>
-            <p style={{ fontFamily: BODY, fontSize: 13, color: "var(--hg-muted)", marginBottom: 20 }}>Post a job to get quotes from verified contractors.</p>
+            <p style={{ fontFamily: BODY, fontSize: 13, color: "var(--hg-muted)", marginBottom: 20 }}>Post a job to get quotes from contractors in your area.</p>
             <button onClick={() => navigate("/jobs/new")} style={{ fontFamily: BODY, fontSize: 14, fontWeight: 700, color: "#FCFCFD", background: "var(--hg-blue)", border: "none", borderRadius: 100, padding: "10px 24px", cursor: "pointer" }}>
               Post your first job
             </button>
@@ -293,6 +322,7 @@ export default function JobsPage() {
                   job={job}
                   bids={jobBids}
                   quotes={jobRequests}
+                  profiles={profiles}
                   propAddress={propMap[job.propertyId] ?? ""}
                   isTablet={isTablet}
                   onAccept={handleAccept}
@@ -308,9 +338,9 @@ export default function JobsPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr 1fr" : "repeat(3, 1fr)", gap: 24 }}>
                 {[
-                  { num: "01", title: "Post the work", desc: "Trade, room, description and photos. Your address stays hidden until you accept." },
+                  { num: "01", title: "Post the work", desc: "Describe the job, and contractors who serve your ZIP code can bid on it." },
                   { num: "02", title: "Compare bids",  desc: "Every pro shows their countersigned job count, so price sits next to a track record." },
-                  { num: "03", title: "Accept and it files itself", desc: "The accepted bid becomes a scheduled job, and the invoice lands on the property record once countersigned." },
+                  { num: "03", title: "Accept a bid", desc: "The other bidders are told. Once the work is done and you both sign, the job lands on the property record." },
                 ].map(({ num, title, desc }) => (
                   <div key={num}>
                     <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: "var(--hg-blue-ink)", marginBottom: 6 }}>{num}</div>

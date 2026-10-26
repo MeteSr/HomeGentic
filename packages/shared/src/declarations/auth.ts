@@ -53,6 +53,7 @@ export const idlFactory = ({ IDL }: any) => {
       [],
     ),
     revokeAgentSession:  IDL.Func([], [], []),
+    deleteMyData:        IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     resolveAgentSession: IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
     hasRole:       IDL.Func([UserRole], [IDL.Bool], ["query"]),
     getUserStats:  IDL.Func([], [UserStats], ["query"]),
@@ -61,6 +62,12 @@ export const idlFactory = ({ IDL }: any) => {
     getNotificationContact: IDL.Func(
       [IDL.Principal],
       [IDL.Variant({ ok: IDL.Opt(IDL.Record({ email: IDL.Text })), err: Error })],
+      ["query"]
+    ),
+    // Homeowners for the weekly Home Pulse email, paged by principal (allow-listed callers only).
+    getPulseRecipients: IDL.Func(
+      [IDL.Opt(IDL.Principal), IDL.Nat],
+      [IDL.Variant({ ok: IDL.Vec(IDL.Record({ principal: IDL.Principal, email: IDL.Text })), err: Error })],
       ["query"]
     ),
     getMetrics: IDL.Func(

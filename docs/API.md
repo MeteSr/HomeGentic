@@ -24,7 +24,8 @@ Signatures and query/update types in this file are generated from the Motoko sou
 | `revokeAgentSession` | update | `()` | Revoke the caller's voice-agent session. |
 | `resolveAgentSession` | query | `(token: Text)` | Principal owning a live session token, or null. Called by the voice Worker. |
 | `getNotificationContact` | query | `(p: Principal)` | Notifier/admin: `?{ email }` for an active user with an email on file, else null — read by the notification relay to send notification email |
-| `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) calling `getNotificationContact` |
+| `getPulseRecipients` | query | `(after: ?Principal, limit: Nat)` | Notifier/admin: `{ principal; email }` for active homeowners with an email, in principal order after `after` (max 200 per page) — the weekly Home Pulse email's recipient list |
+| `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) calling `getNotificationContact` and `getPulseRecipients` |
 
 **UserRole:** `#Homeowner | #Contractor | #Realtor | #Builder`
 
@@ -52,13 +53,15 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `verifyProperty` | update | `(id: Text, level: VerificationLevel, method: ?Text)` | Admin: approve verification |
 | `bulkRegisterProperties` | update | `(rows: [RegisterPropertyArgs])` | Admin: bulk seed |
 | `isAdminPrincipal` | query | `(p: Principal)` | Check if principal is admin |
+| `getPulseProperties` | query | `(owner: Principal)` | Notifier/admin: `{ id; address; city; state; zipCode; yearBuilt }` for the owner's active properties — the weekly Home Pulse email. No identity or verification evidence |
+| `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the notification relay's) calling `getPulseProperties` |
 
 ### Ownership Transfer
 
 | Method | Type | Signature | Description |
 |---|---|---|---|
 | `initiateTransfer` | update | `(propertyId: Text)` | Seller generates a bearer token for handing the property to a buyer |
-| `claimTransfer` | update | `(token: Text)` | Buyer claims the property with the transfer token |
+| `claimTransfer` | update | `(token: Text)` | Buyer claims the property with the transfer token. For a Basic/Premium-verified home it then asks `payment.grantHandoffYear` for the buyer's free Pro year (the claim stands either way). |
 | `getPendingTransferByToken` | query | `(token: Text)` | Looks up a pending transfer by its bearer token. |
 | `cancelTransfer` | update | `(propertyId: Text)` | Cancel a pending transfer |
 | `getPendingTransfer` | query | `(propertyId: Text)` | Get pending transfer record |
@@ -114,7 +117,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `createJob` | update | `(propertyId: Text, title: Text, serviceType: ServiceType, description: Text, contractorName: ?Text, amount: Nat, completedDate: Time.Time, permitNumber: ?Text, warrantyMonths: ?Nat, isDiy: Bool, sourceQuoteId: ?Text)` | Create a maintenance job |
 | `getJob` | query | `(jobId: Text)` | Get job by ID |
 | `getJobsForProperty` | update | `(propertyId: Text)` | All jobs for a property |
-| `getJobsByOwner` | query | `(owner: Principal)` | All jobs for an owner |
+| `getJobsByOwner` | query | `(owner: Principal)` | All jobs for an owner (the owner, admins, trusted canisters and notifiers — the relay builds the weekly Home Pulse email from them) |
 | `getJobsPendingMySignature` | query | `()` | Jobs awaiting caller's signature |
 | `updateJobStatus` | update | `(jobId: Text, status: JobStatus)` | Update job status |
 | `linkContractor` | update | `(jobId: Text, contractorPrincipal: Principal)` | Link a contractor to a job |
@@ -128,10 +131,18 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `createJobProposal` | update | `(propertyId: Text, title: Text, serviceType: ServiceType, description: Text, contractorName: ?Text, amount: Nat, completedDate: Time.Time, permitNumber: ?Text, warrantyMonths: ?Nat)` | Called by a contractor to propose a completed job for homeowner approval. |
 | `approveJobProposal` | update | `(jobId: Text)` | Homeowner approves a pending contractor proposal. |
 | `rejectJobProposal` | update | `(jobId: Text)` | Homeowner rejects a pending contractor proposal. |
-| `getJobSnapshotsForProperty` | query | `(propertyId: Text)` | Returns a lightweight snapshot of all jobs for a property, suitable for cross-canister consumption by the market canister's computePropertyScore. |
+| `getJobSnapshotsForProperty` | query | `(propertyId: Text)` | The score inputs for each of a property's jobs (`{ serviceType; completedYear; amountCents; isDiy; isVerified }`), read by the market canister's `computePropertyScore` and the weekly Home Pulse email. |
 | `getReferralJobs` | update | `()` | Returns all jobs that were sourced via a HomeGentic quote request. |
 | `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: notification outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |
 | `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) reading the outbox |
+| `getMyInboxToken` | update | `()` → `Result<Text>` | The caller's invoice-forwarding token (created on first call); the address is `h-<token>@INBOX_DOMAIN` |
+| `resetMyInboxToken` | update | `()` → `Result<Text>` | A new token; mail to the old address is dropped from then on |
+| `relayAddEmailDraft` | update | `(token: Text, input: EmailDraftInput)` → `Result<Text>` | Inbox relay (the voice Worker) only: file a draft read from a forwarded invoice. `#NotFound` for an unknown token; `#InvalidInput` past 30 drafts a day or 50 open |
+| `getMyEmailDrafts` | query | `()` → `[EmailDraft]` | The caller's drafts, newest first. A draft never becomes a job by itself |
+| `dismissEmailDraft` | update | `(id: Text)` | Delete one of the caller's drafts (the app also does this after the homeowner logs it) |
+| `addInboxRelay` / `removeInboxRelay` | update | `(p: Principal)` | Admin: allow or revoke the principal that files drafts |
+
+**EmailDraft:** `{ id; owner; receivedAt: Int; fromAddress; subject; title; serviceType: Text (label, "" if unknown); contractorName; amountCents: Nat; completedDate: Text (YYYY-MM-DD or ""); warrantyMonths: Nat; description }`. `EmailDraftInput` is the same without `id`, `owner` and `receivedAt`. `deleteMyData` removes the caller's token and drafts.
 
 **JobStatus:** `#Pending | #InProgress | #Completed | #Verified | #PendingHomeownerApproval | #RejectedByHomeowner`
 
@@ -148,9 +159,13 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `register` | update | `(args: RegisterArgs)` | Register as a contractor; initializes `serviceZips=[]` |
 | `getMyProfile` | query | `()` | Caller's contractor profile |
 | `getContractor` | query | `(c: Principal)` | Get contractor by principal |
-| `getAll` | query | `()` | List all contractors |
-| `getBySpecialty` | query | `(s: ServiceType)` | Filter contractors by specialty |
-| `getByZip` | query | `(zipCode: Text)` | Contractors who explicitly list that zip code in `serviceZips` |
+| `getAll` | query | `()` | List contractors in the directory (unlisted profiles are left out except for themselves, admins and trusted canisters; same for `getPage`, `getBySpecialty`, `getByZip`) |
+| `getBySpecialty` | query | `(s: ServiceType)` | Filter listed contractors by specialty |
+| `getByZip` | query | `(zipCode: Text)` | Listed contractors who explicitly list that zip code in `serviceZips` |
+| `getLeadAlertTargets` | query | `()` | Lead-matching fields for every contractor, listed or not, without name or contact details; used by the notification relay |
+| `setProfilePrivacy` | update | `(p: ProfilePrivacy)` | Settings → Privacy; `ProfilePrivacy = { listed: Bool, showTrustScore: Bool, showJobsCompleted: Bool }` (caller needs a profile) |
+| `getMyProfilePrivacy` | query | `()` | Caller's privacy settings (defaults: all true) |
+| `getProfilePrivacies` | query | `(ps: [Principal])` | Privacy settings for up to 500 contractors, in order; the public profile and directory card use them to hide the trust score and job count |
 | `updateProfile` | update | `(args: UpdateArgs)` | Update contractor profile; `UpdateArgs` includes `serviceZips: [Text]` (max 50, each exactly 5 digits) |
 | `submitReview` | update | `(contractorPrincipal: Principal, rating: Nat, comment: Text, jobId: Text)` | Submit a review (rate-limited: 10/day/user) |
 | `getReviewsForContractor` | query | `(c: Principal)` | All reviews for a contractor |
@@ -161,10 +176,15 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `createOrLinkGuestProfile` | update | `(contractorPrincipal: Principal, name: Text, phone: Text, email: Text, licenseNumber: ?Text, serviceTypeText: Text, originJobId: Text)` | #518 — Called by the Job canister (cross-canister) when a guest (no-account) contractor redeems an invite token. |
 | `getContractorStats` | query | `(p: Principal)` | Lightweight stats query used by the quote canister to check visibility thresholds. |
 | `getPage` | query | `(from: Nat, limit: Nat)` | Paginated contractor list |
+| `relayRecordLicenseCheck` | update | `(contractor: Principal, input: LicenseCheckInput)` | Licence relay (the voice Worker) or admin: record what Florida DBPR's licensee file says about the contractor's licence number. Refused when `input.licenseNumber` isn't the profile's current number (compared uppercased, without spaces or dashes) |
+| `getLicenseCheck` | query | `(contractor: Principal)` | Public: the last DBPR lookup (`LicenseCheck`: number, found, licensee and DBA name, licence type, status, active, expiry, nameMatches, DBPR file date, checkedAt), or null when never checked or the number has changed since |
+| `addLicenseRelay` / `removeLicenseRelay` | update | `(p: Principal)` | Admin: allow or revoke a principal recording licence checks |
+| `setPortfolio` | update | `(entries: [PortfolioInput])` | ContractorPro only (tier read live from `payment`; refused when payment isn't wired): replace the caller's featured jobs. `PortfolioInput = { credentialId: Nat, title: Text (1–80), description: Text (≤600) }`; each credential must be the caller's own, at most 12, no repeats. Returns `[PortfolioItem]` |
+| `getPortfolio` | query | `(contractor: Principal)` | Public: featured jobs in order, each with the credential's `serviceType` and `verifiedAt`. The public page shows them only while `payment.getTierForPrincipal` says ContractorPro |
 
 **ContractorProfile new fields (after #279):** `notifyEmail: ?Text` (override email for alerts; null = use profile email), `notifyPush: ?Bool` (opt-in to new-lead push alerts on the contractor's phones and browsers), `alertZips: [Text]` (subset of serviceZips to receive alerts for; empty = all serviceZips).
 
-**Admin / Lifecycle:** `setJobCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `addTrustedCanister(p: Principal)` · `removeTrustedCanister(p: Principal)` · `getTrustedCanisters()` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
+**Admin / Lifecycle:** `setJobCanisterId(id: Text)` · `setPaymentCanisterId(id: Principal)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `addTrustedCanister(p: Principal)` · `removeTrustedCanister(p: Principal)` · `getTrustedCanisters()` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
 
 ---
 
@@ -247,6 +267,8 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | `getPriceQuote` | update | `(tier: Tier)` | Returns the subscription price in e8s with a 5% buffer. |
 | `cancelSubscription` | update | `()` | Mark the caller's subscription as cancelled-at-end-of-period. |
 | `redeemGift` | update | `(giftToken: Text)` | Redeem a pending gift. |
+| `grantHandoffYear` | update | `(buyer: Principal, propertyId: Text)` | Trusted canister (property) or admin: a year of Pro for the buyer who claimed a verified home's record. Once per buyer, once a year per property, never over a running paid plan. |
+| `getMyHandoffGrant` | query | `()` | When the caller got a handoff Pro year (ns), if ever. |
 | `adminActivateStripeSubscription` | update | `(userPrincipal: Principal, tier: Tier, months: Nat)` | Called by the voice Worker after Stripe confirms payment. |
 | `adminGrantAgentCredits` | update | `(user: Principal, amount: Nat)` | Admin: grant agent credits to a principal after a verified Stripe payment. |
 | `consumeAgentCredit` | update | `(user: Principal)` | Admin: atomically decrement 1 agent credit for a user. |
@@ -280,7 +302,9 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | Method | Type | Signature | Description |
 |---|---|---|---|
 | `generateReport` | update | `(propertyId: Text, property: PropertyInput, jobs: [JobInput], recurringServices: [RecurringServiceInput], expiryDays: ?Nat, visibility: VisibilityLevel, rooms: ?[RoomInput], hideAmounts: ?Bool, hideContractors: ?Bool, hidePermits: ?Bool, hideDescriptions: ?Bool, billsSummary: ?BillsSummary)` | Generate an immutable report snapshot and share link |
-| `getReport` | update | `(token: Text)` | Fetch report by share token (checks visibility + expiry) |
+| `getReport` | update | `(token: Text)` | Fetch report by share token (checks visibility + expiry); a Public link of an owner with public reports off is treated as BuyerOnly |
+| `setAllowPublicReports` | update | `(allow: Bool)` | Settings → Privacy. While false, every Public link the caller created needs a signed-in viewer (also in `getBillsSummary` and `hasActivePublicShareLink`) |
+| `getAllowPublicReports` | query | `()` | Caller's setting (default true) |
 | `listShareLinks` | update | `(propertyId: Text)` | List all share links for a property |
 | `revokeShareLink` | update | `(token: Text)` | Revoke a share link |
 | `issueCert` | update | `(propertyId: Text, payload: Text)` | Admin: issue an on-chain certificate |
@@ -289,6 +313,14 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | `getRiskProfile` | query | `(token: Text)` | Retrieve a previously generated risk profile by token. |
 | `getBillsSummary` | query | `(token: Text)` | The cost summary attached to a report, if the owner included one. |
 | `hasActivePublicShareLink` | query | `(propertyId: Text)` | Returns true if the property has at least one active, non-expired share link with Public visibility. |
+| `getReportAttestation` | query | `(token: Text)` | `?Attestation`: the signed statement behind a share link (same visibility and expiry checks as `getReport`), or null when the report predates signing |
+| `getReportScore` | query | `(token: Text)` | `?Nat`: the HomeGentic Score the market canister computed when the report was generated |
+| `getCertAttestation` | query | `(certId: Text)` | `?Attestation` for a score certificate |
+| `getAttestationKey` | query | `()` | `?{ keyName; publicKey }`: the Ed25519 key reports are signed with now (shown on `/verify-record`) |
+| `refreshAttestationKey` | update | `()` | Admin: fetch and cache the signing public key (`scripts/deploy.sh` runs it) |
+| `setAttestationKeyName` | update | `(name: Text)` | Admin: `key_1` (mainnet), `test_key_1` (default) or `dfx_test_key` |
+
+**Signed records.** `generateReport` and `issueCert` sign a JSON statement of exactly what the link or certificate shows (fields the owner hid are left out) with threshold Ed25519 (`sign_with_schnorr`, derivation path `hg-attest-v1`). **Attestation:** `{ message: Text; signature: Blob; publicKey: Blob; keyName: Text; signedAt: Int }`. Signing costs about 26B cycles per record on `key_1`; it's skipped (the record is still created, unsigned) when the canister holds less than twice that. Check a downloaded copy at `/verify-record`, or with any Ed25519 library over `message`'s UTF-8 bytes.
 
 **VisibilityLevel:** `#Public | #BuyerOnly`
 
@@ -524,7 +556,24 @@ Bid to List platform-fee ledger. A fee is recorded Owed when a homeowner accepts
 | `getAllFees` | query | `()` | Admin: all fee records |
 | `getFeesDue` | query | `()` | Admin: fees still Owed or Invoiced |
 
-**Admin / Lifecycle:** `setListingCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `initAdmins(newAdmins: [Principal], nonce: Text)` · `addAdmin(newAdmin: Principal)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
+**Contractor Free referral fee** (3% of an accepted bid, $20 minimum). `quote` records bids and acceptances, `job` reports verified jobs, and the voice Worker (a referral relay) saves cards and reports charges. Status: `Pending` (accepted, job not verified) → `Due` → `Paid`, or `PaymentFailed` (card declined, invoice sent) → `Paid`; an admin can `Waive` anything unpaid.
+
+| Method | Type | Signature | Description |
+|---|---|---|---|
+| `referralBidAllowed` | query | `(contractor: Principal)` | `#ok`, `#needsCard`, or `#overdue` (a declined fee unpaid 30 days). Asked by `quote` before a non-ContractorPro bid; a contractor may ask about themselves |
+| `recordReferralBid` | update | `(bid: ReferralBid)` | `quote` only: a bid that carries the fee (the plan at bid time decides) |
+| `recordReferralAccepted` | update | `(quoteId: Text)` | `quote` only: opens a `Pending` fee for an accepted bid that carries one |
+| `recordReferralJobVerified` | update | `(jobId: Text, contractor: Principal, propertyId: Text, serviceType: Text)` | `job` only: makes the matching pending fee `Due`; with none, a bid by the same contractor on the same home and trade in the last 180 days becomes a `Due` fee (`reason = "off_app_job"`) |
+| `takeDueReferralFees` | update | `()` | Relay: moves pending fees 60 days past acceptance to `Due`, then returns every `Due` fee with the card to charge |
+| `relayMarkReferralFeePaid` | update | `(feeId: Text, paymentRef: Text)` | Relay: charge or invoice settled (idempotent) |
+| `relayMarkReferralFeeFailed` | update | `(feeId: Text, paymentRef: Text, payUrl: Text)` | Relay: card declined; `payUrl` is the Stripe invoice sent instead |
+| `relaySetReferralCard` | update | `(contractor: Principal, card: ReferralCard)` | Relay: card saved through Stripe Checkout (setup mode), with the terms version agreed |
+| `getMyReferralCard` | query | `()` | Caller's saved card (brand, last four, when agreed) |
+| `getMyReferralFees` | query | `()` | Caller's referral fees |
+| `getAllReferralFees` | query | `()` | Admin: every referral fee |
+| `waiveReferralFee` | update | `(feeId: Text, note: Text)` | Admin: cancel an unpaid fee; the note is shown to the contractor |
+
+**Admin / Lifecycle:** `setQuoteCanisterId(id: Text)` · `setJobCanisterId(id: Text)` · `addReferralRelay(p: Principal)` · `removeReferralRelay(p: Principal)` · `setListingCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `initAdmins(newAdmins: [Principal], nonce: Text)` · `addAdmin(newAdmin: Principal)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
 
 ---
 

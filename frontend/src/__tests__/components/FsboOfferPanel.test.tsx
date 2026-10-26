@@ -15,6 +15,7 @@
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import FsboOfferPanel from "@/components/FsboOfferPanel";
 import type { FsboOffer } from "@/services/fsboOffer";
 
@@ -55,7 +56,7 @@ function makeOffer(overrides: Partial<FsboOffer> = {}): FsboOffer {
 }
 
 function renderPanel() {
-  return render(<FsboOfferPanel propertyId="prop-1" listPriceCents={500_000_00} />);
+  return render(<MemoryRouter><FsboOfferPanel propertyId="prop-1" listPriceCents={500_000_00} /></MemoryRouter>);
 }
 
 beforeEach(() => {
@@ -176,6 +177,8 @@ describe("FsboOfferPanel — accept / reject", () => {
     expect(screen.queryByLabelText("Accept Offer")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Reject Offer")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Log Offer")).not.toBeInTheDocument();
+    // …and points the seller at the record handoff for closing.
+    expect(screen.getByRole("link", { name: /set up the handoff/i })).toHaveAttribute("href", "/properties/prop-1?tab=settings#handoff");
   });
 
   it("rejects an offer and reflects the new status", async () => {

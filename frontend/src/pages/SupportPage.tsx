@@ -36,7 +36,7 @@ const FAQS: FaqItem[] = [
     q: "What happens to my data after I cancel?",
     a: (
       <>
-        Your property records and maintenance history on the Internet Computer Protocol (ICP) blockchain remain readable and downloadable — they're yours forever. Tier-gated features (additional properties, extra photos, more quote slots) revert to Free limits. If you later resubscribe, your full history is waiting for you exactly as you left it.
+        Your property records and maintenance history stay in your account, and you can still export them from Settings → Privacy. Tier-gated features (additional properties, extra photos, more quote slots) revert to Free limits. If you later resubscribe, your full history is waiting for you exactly as you left it.
       </>
     ),
   },
@@ -54,11 +54,11 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Why is my HomeGentic Score lower than I expected?",
-    a: "Your score reflects documented, verified maintenance records — jobs without receipts or contractor signatures carry less weight. To improve your score: add photos and receipts to existing jobs, ask your contractor to co-sign completed work, and fill in your home system ages (HVAC install year, roof replace year, etc.) in Property → Systems.",
+    a: "Your score has three parts: which key systems (HVAC, roof, plumbing, electrical, windows) have work on record, how much rated life your major systems have left, and what share of your jobs are verified. To raise it: ask your contractor to sign off on completed work, log service on key systems that have nothing on record yet, and log it when you replace a major system. The Score panel on your dashboard shows each part and what the next step adds.",
   },
   {
     q: "Can I share my HomeGentic Report without sharing everything?",
-    a: "Yes. When you generate a report from your property dashboard, you choose the visibility level: Public (anyone with the link), Link-only (no search indexing), or Private (only you). You can revoke a share link at any time. Individual jobs can be excluded from the shared report before you generate it.",
+    a: "Yes. When you generate a report link you can hide job amounts, contractor names, permit numbers and job descriptions, and you can revoke a link at any time. Anyone with the link can view the report unless you turn off Public HomeGentic Report in Settings → Privacy; then viewers must sign in first.",
   },
   {
     q: "How does the voice assistant work? Is my conversation stored?",
@@ -72,7 +72,7 @@ const FAQS: FaqItem[] = [
     q: "How do I delete my account?",
     a: (
       <>
-        Email <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a> with the subject "Account Deletion Request". We'll remove your profile and application-layer data within 30 days. Note that records already written to the ICP blockchain cannot be fully erased from the protocol's history — see our <Link to="/privacy#icp-blockchain" style={{ color: C.blue }}>Privacy Policy</Link> for details.
+        Go to Settings → Privacy and choose Delete My Account (on the mobile app, Account → Delete account opens it). It stops your subscription from renewing and deletes your records straight away. You can also email <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a> and we'll do it for you within 30 days. Our <Link to="/privacy#data-retention" style={{ color: C.blue }}>Privacy Policy</Link> lists the billing records we keep.
       </>
     ),
   },

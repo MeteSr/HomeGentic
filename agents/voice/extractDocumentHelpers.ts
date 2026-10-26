@@ -6,6 +6,7 @@
  */
 
 export type DocumentType =
+  | "appliance_label"
   | "appliance_manual"
   | "warranty"
   | "receipt"
@@ -23,11 +24,22 @@ export interface DocumentExtraction {
   purchaseDate?:  string;        // YYYY-MM-DD or omit
   warrantyMonths?: number;
   serviceType?:   string;
+  /** appliance_label only: what the appliance is, e.g. "Water Heater". */
+  applianceType?: ApplianceType;
+  /** appliance_label only: year made, printed or decoded from the serial; omitted when unsure. */
+  manufactureYear?: number;
   confidence:     ExtractionConfidence;
   description:    string;
 }
 
+export const APPLIANCE_TYPES = [
+  "Water Heater", "HVAC", "Refrigerator", "Dishwasher", "Washer", "Dryer", "Range", "Microwave",
+  "Garbage Disposal", "Water Softener", "Other",
+] as const;
+export type ApplianceType = typeof APPLIANCE_TYPES[number];
+
 export const SUPPORTED_DOC_TYPES: DocumentType[] = [
+  "appliance_label",
   "appliance_manual",
   "warranty",
   "receipt",
@@ -87,6 +99,20 @@ export function normalizePurchaseDate(raw: unknown): string | undefined {
   return /^\d{4}-\d{2}-\d{2}$/.test(raw.trim()) ? raw.trim() : undefined;
 }
 
+// ─── normalizeManufactureYear ─────────────────────────────────────────────────
+
+/** A plausible four-digit year (1950 to next year), else undefined. */
+export function normalizeManufactureYear(raw: unknown, now = new Date()): number | undefined {
+  const n = typeof raw === "string" ? parseInt(raw, 10) : Number(raw);
+  if (!Number.isInteger(n) || n < 1950 || n > now.getFullYear() + 1) return undefined;
+  return n;
+}
+
+export function normalizeApplianceType(raw: unknown): ApplianceType | undefined {
+  if (typeof raw !== "string") return undefined;
+  return APPLIANCE_TYPES.find((t) => t.toLowerCase() === raw.trim().toLowerCase());
+}
+
 // ─── normalizeExtraction ──────────────────────────────────────────────────────
 
 /**
@@ -102,6 +128,8 @@ export function normalizeExtraction(raw: Record<string, unknown>): DocumentExtra
     purchaseDate:  normalizePurchaseDate(raw.purchaseDate),
     warrantyMonths: normalizeWarrantyMonths(raw.warrantyMonths),
     serviceType:   typeof raw.serviceType  === "string" && raw.serviceType  ? raw.serviceType  : undefined,
+    applianceType:   normalizeApplianceType(raw.applianceType),
+    manufactureYear: normalizeManufactureYear(raw.manufactureYear),
     confidence:    normalizeConfidence(raw.confidence),
     description:   typeof raw.description  === "string" ? raw.description   : "No description provided",
   };
@@ -111,18 +139,20 @@ export function normalizeExtraction(raw: Record<string, unknown>): DocumentExtra
 
 export function buildDocumentSystemPrompt(): string {
   return `You are a home document extractor for the HomeGentic home management platform.
-Extract structured data from the uploaded document (appliance manual, warranty card, receipt, permit, or inspection report).
+Extract structured data from the uploaded document: a photo of an appliance's rating/data label, an appliance manual, warranty card, receipt, permit, or inspection report.
 Respond ONLY with valid JSON — no markdown, no prose.
 
 JSON shape:
 {
-  "documentType": "<one of: appliance_manual|warranty|receipt|inspection|permit|unknown>",
+  "documentType": "<one of: appliance_label|appliance_manual|warranty|receipt|inspection|permit|unknown>",
   "brand": "<brand/manufacturer name, e.g. LG, Carrier, Rheem — omit if not present>",
   "modelNumber": "<model number — omit if not present>",
   "serialNumber": "<serial number — omit if not present>",
   "purchaseDate": "<YYYY-MM-DD — omit if unclear>",
   "warrantyMonths": <integer warranty duration in months, e.g. 60 for 5 years — omit if not stated>,
   "serviceType": "<one of: HVAC|Plumbing|Electrical|Roofing|Appliance|Other — omit if not applicable>",
+  "applianceType": "<appliance_label only, one of: ${APPLIANCE_TYPES.join("|")} — omit otherwise>",
+  "manufactureYear": <appliance_label only: four-digit year of manufacture if printed on the label, or if you are confident how this brand encodes it in the serial number — omit if unsure>,
   "confidence": "<high|medium|low>",
   "description": "<one sentence describing what you see>"
 }`;

@@ -88,6 +88,7 @@ export const idlFactory = ({ IDL }: any) => {
   });
 
   return IDL.Service({
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     addBill: IDL.Func(
       [AddBillArgs],
       [IDL.Variant({ ok: BillRecord, err: Error })],

@@ -58,8 +58,6 @@ persistent actor Property {
   private transient let SEVEN_DAYS_NS   : Int = 7  * 24 * 3600 * 1_000_000_000;
   /// Nanoseconds in 90 days — the property transfer link expiry window.
   private transient let NINETY_DAYS_NS  : Int = 90 * 24 * 3600 * 1_000_000_000;
-  /// Nanoseconds in 72 hours — the v2 claim submission window.
-  private transient let SEVENTY_TWO_HOURS_NS : Int = 72 * 3600 * 1_000_000_000;
 
   /// M-5: storage caps for caller-supplied collections.
   private transient let MAX_ROOMS_PER_PROPERTY : Nat = 100;
@@ -130,6 +128,15 @@ persistent actor Property {
     conflictWindowEndsAt : ?Time.Time;  // set when both proofs submitted (#PendingReview)
   };
 
+  public type PulseProperty = {
+    id        : Text;
+    address   : Text;
+    city      : Text;
+    state     : Text;
+    zipCode   : Text;
+    yearBuilt : Nat;
+  };
+
   public type RegisterPropertyArgs = {
     address      : Text;
     city         : Text;
@@ -158,7 +165,7 @@ persistent actor Property {
     state                : Text;
     verificationLevel    : VerificationLevel;
     claimStartedAt       : Int;          // nanoseconds — property.createdAt
-    claimWindowEndsAt    : Int;          // claimStartedAt + SEVENTY_TWO_HOURS_NS
+    claimWindowEndsAt    : Int;          // end of the 7-day window addressConflict enforces
     identityVerified     : Bool;
     identityVerifiedAt   : ?Time.Time;
     identitySessionId    : ?Text;
@@ -356,6 +363,12 @@ persistent actor Property {
   private var admins                   : [Principal] = [];
   private var adminInitialized         : Bool        = false;
   private var trustedCanisterEntries   : [Principal] = [];
+  /// The voice Worker's principal: may only record Stripe Identity results
+  /// (relayMarkIdentityCleared), for the property owner Stripe verified.
+  private var identityRelayEntries     : [Principal] = [];
+  /// The notification relay's principal: may read the minimal property
+  /// summaries the weekly Home Pulse email needs (getPulseProperties).
+  private var notifierEntries          : [Principal] = [];
   /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
   /// first addAdmin() call. Consumed on first successful use.
   private var bootstrapNonce           : ?Text       = null;
@@ -598,6 +611,10 @@ persistent actor Property {
 
   private func isTrustedCanister(p: Principal) : Bool {
     Admin.contains(trustedCanisterEntries, p)
+  };
+
+  private func isIdentityRelay(p: Principal) : Bool {
+    Admin.contains(identityRelayEntries, p)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
@@ -1128,7 +1145,9 @@ persistent actor Property {
           state                = p.state;
           verificationLevel    = p.verificationLevel;
           claimStartedAt       = p.createdAt;
-          claimWindowEndsAt    = p.createdAt + SEVENTY_TWO_HOURS_NS;
+          // The window addressConflict actually enforces: 7 days from when
+          // the address's unverified claims began.
+          claimWindowEndsAt    = claimStart(addressKey(p.address, p.city, p.state, p.zipCode), p.createdAt) + SEVEN_DAYS_NS;
           identityVerified     = switch (p.identityVerified) { case (?v) v; case null false };
           identityVerifiedAt   = p.identityVerifiedAt;
           identitySessionId    = p.identitySessionId;
@@ -1167,6 +1186,57 @@ persistent actor Property {
         #ok(updated)
       };
     }
+  };
+
+  /// Stripe Identity webhook path. The Worker (an identity relay) passes the
+  /// principal Stripe's verification session was created for; the result is
+  /// recorded only if that principal still owns the property, so a relay can
+  /// never clear identity on someone else's claim.
+  public shared(msg) func relayMarkIdentityCleared(
+    propertyId : Text,
+    owner      : Principal,
+    sessionId  : Text,
+    name       : Text
+  ) : async Result.Result<(), Error> {
+    if (not isIdentityRelay(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (not sessionId.startsWith(#text "vs_") or sessionId.size() > 255) return #err(#InvalidInput("invalid verification session id"));
+    if (name.size() > 200) return #err(#InvalidInput("name too long"));
+    switch (properties.get(propertyId)) {
+      case null { #err(#NotFound) };
+      case (?existing) {
+        if (existing.owner != owner) return #err(#NotAuthorized);
+        let now = Time.now();
+        putProperty({
+          existing with
+          identityVerified   = ?true;
+          identityVerifiedAt = ?now;
+          identitySessionId  = ?sessionId;
+          nameOnId           = ?name;
+          updatedAt          = now;
+        });
+        #ok(())
+      };
+    }
+  };
+
+  public shared(msg) func addIdentityRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
+    identityRelayEntries := Admin.add(identityRelayEntries, p);
+    try { ignore await auditLog("IdentityRelayAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    #ok(())
+  };
+
+  public shared(msg) func removeIdentityRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    identityRelayEntries := Admin.remove(identityRelayEntries, p);
+    try { ignore await auditLog("IdentityRelayRemoved", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    #ok(())
+  };
+
+  public query(msg) func listIdentityRelays() : async [Principal] {
+    if (not isAdmin(msg.caller)) return [];
+    identityRelayEntries
   };
 
   // ─── Ownership Transfer (Option B — bearer-token link) ───────────────────
@@ -1286,6 +1356,15 @@ persistent actor Property {
                 // Invalidate token
                 pendingTransfers.remove(propertyId);
                 tokenIndex.remove(token);
+
+                // A year of Pro for the buyer when the home's ownership was
+                // verified. payment.grantHandoffYear decides eligibility (once
+                // per buyer, once a year per home, no paid plan running); the
+                // transfer above stands whatever it answers.
+                if (payCanisterId != "" and (prop.verificationLevel == #Basic or prop.verificationLevel == #Premium)) {
+                  let pay : actor { grantHandoffYear : shared (Principal, Text) -> async { #ok : Any; #err : Any } } = actor (payCanisterId);
+                  try { ignore await pay.grantHandoffYear(msg.caller, propertyId) } catch _ { Debug.print("[property] handoff grant call failed") };
+                };
 
                 #ok(updated)
               };
@@ -2032,6 +2111,29 @@ persistent actor Property {
     trustedCanisterEntries
   };
 
+  /// Allow the notification relay to read Home Pulse property summaries. Admin only.
+  public shared(msg) func addNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    notifierEntries := Admin.add(notifierEntries, p);
+    #ok(())
+  };
+
+  public shared(msg) func removeNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    notifierEntries := Admin.remove(notifierEntries, p);
+    #ok(())
+  };
+
+  /// What the weekly Home Pulse email needs about `owner`'s active
+  /// properties: address, zip (for the climate zone) and year built. No
+  /// identity or verification evidence. Notifiers and admins only.
+  public query(msg) func getPulseProperties(owner: Principal) : async Result.Result<[PulseProperty], Error> {
+    if (not Admin.contains(notifierEntries, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(ownedBy(owner).filter(func(p: Property) : Bool { p.isActive }).map(func(p: Property) : PulseProperty {
+      { id = p.id; address = p.address; city = p.city; state = p.state; zipCode = p.zipCode; yearBuilt = p.yearBuilt }
+    }).toArray())
+  };
+
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
@@ -2073,6 +2175,122 @@ persistent actor Property {
       isPaused;
       errorsByMethod          = errsByMethod.entries().toArray();
     }
+  };
+
+  // ─── Account deletion ─────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller.
+  /// Every property the caller owns goes, with its rooms/fixtures, managers,
+  /// manager invites, approval requests, owner notifications, pending
+  /// transfer and transfer history. Identity-check and verification-document
+  /// data live on the Property record itself, so they go with it. The address
+  /// index is re-pointed at another claim on the same address if one exists,
+  /// otherwise the address is released (index + addressClaimSince dropped) so
+  /// someone else can claim it. The caller is also removed as a manager from
+  /// other owners' properties. Synchronous: nothing can interleave.
+  /// Returns how many records were removed.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+    // A registration suspended at an await would write a property after us.
+    if (inFlightRegistrations.get(caller.toText()) != null)
+      return #err(#InvalidInput("A property registration is in progress; try again shortly"));
+
+    var removed = 0;
+    let owned = ownedBy(caller).toArray();
+
+    for (p in owned.values()) {
+      let pid = p.id;
+
+      // Rooms (and their fixtures) on this property.
+      let roomIds = Index.ids(roomsByProperty, pid).toArray();
+      for (rid in roomIds.values()) {
+        Index.delete(rooms, roomIndexes, rid);
+        removed += 1;
+      };
+
+      // Managers, invites (+ token index), approvals, owner notifications.
+      clearDelegatedAccess(pid);
+
+      // Pending transfer and its token index.
+      switch (pendingTransfers.get(pid)) {
+        case (?pt) { tokenIndex.remove(pt.token); pendingTransfers.remove(pid); removed += 1 };
+        case null  {};
+      };
+
+      // Transfer history for this property.
+      let histKeys = transfers.entries()
+        .filter(func((_, r) : (Nat, TransferRecord)) : Bool { r.propertyId == pid })
+        .map(func((k, _) : (Nat, TransferRecord)) : Nat { k })
+        .toArray();
+      for (k in histKeys.values()) { transfers.remove(k); removed += 1 };
+
+      // The property itself (also unfiles it from propertiesByOwner).
+      Index.delete(properties, propertyIndexes, pid);
+      removed += 1;
+
+      // Address index: only touch it if it points at this property.
+      let key = addressKey(p.address, p.city, p.state, p.zipCode);
+      switch (addressIdx.get(key)) {
+        case (?indexedId) {
+          if (indexedId == pid) {
+            // Re-point at the best remaining claim on the same address
+            // (verified wins, else newest — same rule as rekeyAddressIndex).
+            var best : ?Property = null;
+            for (other in properties.values()) {
+              if (addressKey(other.address, other.city, other.state, other.zipCode) == key) {
+                best := switch (best) {
+                  case null ?other;
+                  case (?b) {
+                    if (isVerified(b.verificationLevel) != isVerified(other.verificationLevel)) {
+                      if (isVerified(other.verificationLevel)) ?other else ?b
+                    } else if (other.createdAt > b.createdAt) ?other else ?b
+                  };
+                };
+              };
+            };
+            switch (best) {
+              case (?b) { addressIdx.add(key, b.id) };
+              case null {
+                // No claim left on this address: release it entirely so the
+                // next registrant starts clean and nothing dangles.
+                addressIdx.remove(key);
+                addressClaimSince.remove(key);
+              };
+            };
+          };
+        };
+        case null {
+          // Unindexed address: drop the claim-run start only if no property
+          // at this address remains.
+          let anyLeft = properties.values().find(func(o : Property) : Bool {
+            addressKey(o.address, o.city, o.state, o.zipCode) == key
+          });
+          if (anyLeft == null) { addressClaimSince.remove(key) };
+        };
+      };
+    };
+
+    // Remove the caller as a delegated manager on other owners' properties.
+    let managedIds = managersMap.entries()
+      .filter(func((_, ms) : (Text, [PropertyManager])) : Bool {
+        ms.find(func(m : PropertyManager) : Bool { m.principal == caller }) != null
+      })
+      .map(func((k, _) : (Text, [PropertyManager])) : Text { k })
+      .toArray();
+    for (pid in managedIds.values()) {
+      switch (managersMap.get(pid)) {
+        case (?ms) {
+          managersMap.add(pid, ms.filter(func(m : PropertyManager) : Bool { m.principal != caller }));
+          removed += 1;
+        };
+        case null {};
+      };
+    };
+
+    updateCallLimits.remove(caller.toText());
+    #ok(removed)
   };
 
   // ─── Builder: bulk property import ────────────────────────────────────────

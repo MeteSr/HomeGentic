@@ -22,6 +22,7 @@ import ServiceTypes "../shared/ServiceType";
 import Index        "../shared/Index";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
+import Canisters "../shared/Canisters";
 
 persistent actor Contractor {
 
@@ -56,6 +57,50 @@ persistent actor Contractor {
     notifyPush:    ?Bool;   // opt-in to mobile push for new job matches
     alertZips:     [Text];  // subset of serviceZips to receive alerts for (empty = all serviceZips)
     origin:        ContractorOrigin;
+  };
+
+  /// What Florida DBPR's licensee file said about a contractor's licence
+  /// number when the Worker last looked it up. A record of that lookup, not a
+  /// HomeGentic endorsement.
+  public type LicenseCheck = {
+    licenseNumber: Text;   // as looked up (uppercased, no spaces)
+    found:         Bool;   // the number is in DBPR's file
+    licenseeName:  Text;   // name on the licence ("" when not found)
+    dbaName:       Text;
+    licenseType:   Text;   // DBPR class / occupation, e.g. "Certified General Contractor"
+    status:        Text;   // DBPR primary + secondary status, e.g. "Current, Active"
+    active:        Bool;   // status is current and active
+    expiresOn:     Text;   // YYYY-MM-DD or ""
+    nameMatches:   Bool;   // the licensee or DBA name matches the profile name
+    sourceDate:    Text;   // when DBPR last published the file the Worker read ("" if unknown)
+    checkedAt:     Int;
+  };
+
+  /// A co-signed job a ContractorPro contractor features on their public
+  /// profile, with their own write-up. credentialId is one of their own
+  /// JobCredentials, so only work a homeowner signed off on can be featured.
+  public type PortfolioEntry = {
+    credentialId: Nat;
+    title:        Text;
+    description:  Text;
+    featuredAt:   Int;
+  };
+
+  public type PortfolioInput = { credentialId: Nat; title: Text; description: Text };
+
+  /// A portfolio entry with its credential's facts, for display.
+  public type PortfolioItem = {
+    credentialId: Nat;
+    title:        Text;
+    description:  Text;
+    serviceType:  Text;
+    verifiedAt:   Int;
+    featuredAt:   Int;
+  };
+
+  public type LicenseCheckInput = {
+    licenseNumber: Text; found: Bool; licenseeName: Text; dbaName: Text; licenseType: Text;
+    status: Text; active: Bool; expiresOn: Text; nameMatches: Bool; sourceDate: Text;
   };
 
   /// On-chain credential minted when a job is fully verified.
@@ -103,6 +148,30 @@ persistent actor Contractor {
     alertZips:   [Text];
   };
 
+  /// Settings → Privacy. `listed` controls whether the profile appears in the
+  /// directory queries (getAll, getPage, getByZip, getBySpecialty); the other
+  /// two say whether the public profile page and directory card show those
+  /// numbers. Bids and quote matching are unaffected.
+  public type ProfilePrivacy = {
+    listed:            Bool;
+    showTrustScore:    Bool;
+    showJobsCompleted: Bool;
+  };
+
+  /// What the notification relay needs to match new leads to contractors —
+  /// no name or contact details, and unlisted contractors are included so
+  /// they still get the lead alerts they asked for.
+  public type LeadAlertTarget = {
+    id:            Principal;
+    specialties:   [ServiceType];
+    serviceZips:   [Text];
+    alertZips:     [Text];
+    notifyPush:    ?Bool;
+    trustScore:    Nat;
+    jobsCompleted: Nat;
+    isVerified:    Bool;
+  };
+
   public type Error = {
     #NotFound;
     #AlreadyExists;
@@ -142,10 +211,25 @@ persistent actor Contractor {
   /// Review ids by contractor principal (transient, rebuilt on every upgrade).
   private transient let reviewsByContractor = Index.build(reviews, func(r) { ?r.contractor.toText() });
   private let credentials    = Map.empty<Nat, JobCredential>();
+  /// Privacy settings, only for contractors who changed them from the
+  /// default (everything shown). A side map so ContractorProfile's stored
+  /// type is unchanged.
+  private let profilePrivacy = Map.empty<Principal, ProfilePrivacy>();
   /// compositeKey = "reviewerPrincipal|jobId" → reviewId.
   private let reviewKeys     = Map.empty<Text, Text>();
   /// Daily review rate limits per reviewer.
   private let reviewRateLimits = Map.empty<Text, (Nat, Int)>();
+  /// The latest Florida DBPR lookup of each contractor's licence number,
+  /// written by the voice Worker (relayRecordLicenseCheck). A side map so
+  /// ContractorProfile's stored type is unchanged.
+  private let licenseChecks = Map.empty<Principal, LicenseCheck>();
+  /// Principals (the voice Worker) allowed to record licence checks.
+  private var licenseRelayEntries : [Principal] = [];
+  /// ContractorPro portfolios: featured co-signed jobs per contractor.
+  private let portfolios = Map.empty<Principal, [PortfolioEntry]>();
+  /// Payment canister — set via setPaymentCanisterId(). setPortfolio() reads
+  /// the caller's tier from it; unset means nobody is Pro (fail closed).
+  private var payCanisterId : Text = "";
 
   // ─── Private Helpers ──────────────────────────────────────────────────────────
 
@@ -174,6 +258,20 @@ persistent actor Contractor {
 
   private func isTrustedCanister(p: Principal) : Bool {
     Admin.contains(trustedCanisterEntries, p)
+  };
+
+  private func privacyOf(p: Principal) : ProfilePrivacy {
+    switch (profilePrivacy.get(p)) {
+      case (?v) v;
+      case null { { listed = true; showTrustScore = true; showJobsCompleted = true } };
+    }
+  };
+
+  /// Directory queries leave out unlisted profiles, except for the contractor
+  /// themself, admins and trusted canisters.
+  private func directoryFilter(caller: Principal) : ContractorProfile -> Bool {
+    let all = isAdmin(caller) or isTrustedCanister(caller);
+    func(c: ContractorProfile) : Bool { all or c.id == caller or privacyOf(c.id).listed }
   };
 
   private func isJobCanister(p: Principal) : Bool {
@@ -464,12 +562,49 @@ persistent actor Contractor {
     }
   };
 
-  public query func getAll() : async [ContractorProfile] {
-    contractors.values().take(500).toArray()
+  public query(msg) func getAll() : async [ContractorProfile] {
+    contractors.values().filter(directoryFilter(msg.caller)).take(500).toArray()
   };
 
-  public query func getPage(from : Nat, limit : Nat) : async [ContractorProfile] {
-    contractors.values().drop(from).take(Nat.min(limit, 100)).toArray()
+  public query(msg) func getPage(from : Nat, limit : Nat) : async [ContractorProfile] {
+    contractors.values().filter(directoryFilter(msg.caller)).drop(from).take(Nat.min(limit, 100)).toArray()
+  };
+
+  /// Every contractor's lead-matching fields, for the notification relay.
+  public query func getLeadAlertTargets() : async [LeadAlertTarget] {
+    contractors.values().take(500).map(func(c: ContractorProfile) : LeadAlertTarget {
+      {
+        id            = c.id;
+        specialties   = c.specialties;
+        serviceZips   = c.serviceZips;
+        alertZips     = c.alertZips;
+        notifyPush    = c.notifyPush;
+        trustScore    = c.trustScore;
+        jobsCompleted = c.jobsCompleted;
+        isVerified    = c.isVerified;
+      }
+    }).toArray()
+  };
+
+  // ─── Privacy ───────────────────────────────────────────────────────────────────
+
+  /// Save the caller's Settings → Privacy choices. The caller must have a profile.
+  public shared(msg) func setProfilePrivacy(p: ProfilePrivacy) : async Result.Result<ProfilePrivacy, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    if (contractors.get(msg.caller) == null) return #err(#NotFound);
+    if (p.listed and p.showTrustScore and p.showJobsCompleted) profilePrivacy.remove(msg.caller)
+    else profilePrivacy.add(msg.caller, p);
+    #ok(p)
+  };
+
+  public query(msg) func getMyProfilePrivacy() : async ProfilePrivacy {
+    privacyOf(msg.caller)
+  };
+
+  /// Privacy settings for up to 500 contractors, in the order asked, so a page
+  /// can tell which numbers to show. Unknown principals get the defaults.
+  public query func getProfilePrivacies(ps: [Principal]) : async [ProfilePrivacy] {
+    ps.values().take(500).map(privacyOf).toArray()
   };
 
   public query func getReviewsForContractor(c: Principal) : async [Review] {
@@ -643,6 +778,184 @@ persistent actor Contractor {
     )
   };
 
+  // ─── ContractorPro portfolio ────────────────────────────────────────────────
+
+  let MAX_PORTFOLIO_ENTRIES : Nat = 12;
+
+  /// Replace the caller's portfolio. ContractorPro only (read live from
+  /// payment). Each entry must name one of the caller's own credentials, once.
+  public shared(msg) func setPortfolio(entries: [PortfolioInput]) : async Result.Result<[PortfolioItem], Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    if (contractors.get(msg.caller) == null) return #err(#NotFound);
+    if (entries.size() > MAX_PORTFOLIO_ENTRIES) return #err(#InvalidInput("at most " # MAX_PORTFOLIO_ENTRIES.toText() # " portfolio entries"));
+    let now = Time.now();
+    var seen : [Nat] = [];
+    let stored = Array.tabulate<PortfolioEntry>(entries.size(), func(i) {
+      let e = entries[i];
+      { credentialId = e.credentialId; title = e.title; description = e.description; featuredAt = now }
+    });
+    for (e in entries.values()) {
+      if (e.title.size() == 0 or e.title.size() > 80) return #err(#InvalidInput("title must be 1-80 characters"));
+      if (e.description.size() > 600) return #err(#InvalidInput("description must be at most 600 characters"));
+      switch (credentials.get(e.credentialId)) {
+        case (?c) { if (c.contractorId != msg.caller) return #err(#NotAuthorized) };
+        case null { return #err(#NotFound) };
+      };
+      if (seen.find(func(x : Nat) : Bool { x == e.credentialId }) != null) return #err(#InvalidInput("a job is listed twice"));
+      seen := seen.concat([e.credentialId]);
+    };
+    let tier : Canisters.Tier = if (payCanisterId == "") #Free else {
+      try { await Canisters.payment(payCanisterId).getTierForPrincipal(msg.caller) } catch _ { #Free }
+    };
+    if (tier != #ContractorPro) return #err(#InvalidInput("The portfolio is a ContractorPro feature"));
+    // Keep featuredAt for entries that were already featured.
+    let previous = switch (portfolios.get(msg.caller)) { case (?p) p; case null [] };
+    let merged = stored.map(func(e : PortfolioEntry) : PortfolioEntry {
+      switch (previous.find(func(p : PortfolioEntry) : Bool { p.credentialId == e.credentialId })) {
+        case (?p) { { e with featuredAt = p.featuredAt } };
+        case null e;
+      }
+    });
+    if (merged.size() == 0) portfolios.remove(msg.caller) else portfolios.add(msg.caller, merged);
+    #ok(portfolioItems(merged))
+  };
+
+  private func portfolioItems(entries: [PortfolioEntry]) : [PortfolioItem] {
+    entries.filterMap(func(e : PortfolioEntry) : ?PortfolioItem {
+      switch (credentials.get(e.credentialId)) {
+        case (?c) ?{ credentialId = e.credentialId; title = e.title; description = e.description;
+                     serviceType = c.serviceType; verifiedAt = c.verifiedAt; featuredAt = e.featuredAt };
+        case null null;
+      }
+    })
+  };
+
+  /// A contractor's featured jobs, in their chosen order. Public. Whether to
+  /// show them (the contractor still has ContractorPro) is the page's call,
+  /// from payment.getTierForPrincipal.
+  public query func getPortfolio(contractor: Principal) : async [PortfolioItem] {
+    switch (portfolios.get(contractor)) { case (?p) portfolioItems(p); case null [] }
+  };
+
+  public shared(msg) func setPaymentCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    payCanisterId := id.toText();
+    #ok(())
+  };
+
+  // ─── Account Deletion ──────────────────────────────────────────────────────────
+
+  // ─── Florida DBPR licence checks ────────────────────────────────────────────
+
+  /// Uppercase, no spaces or dashes, as the Worker sends it ("cgc-123 4567" → "CGC1234567").
+  private func normLicense(t: Text) : Text {
+    Text.toUpper(Text.join(Text.split(t, #predicate(func(c : Char) : Bool { c == ' ' or c == '-' })), ""))
+  };
+
+  /// Record the Worker's DBPR lookup of `contractor`'s licence number. Relay
+  /// only. Refused when the number no longer matches the profile, so a check
+  /// can't attach to a number the contractor has since changed.
+  public shared(msg) func relayRecordLicenseCheck(contractor: Principal, input: LicenseCheckInput) : async Result.Result<LicenseCheck, Error> {
+    if (not Admin.contains(licenseRelayEntries, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    let tooLong = func(t: Text) : Bool { t.size() > 200 };
+    if (tooLong(input.licenseNumber) or tooLong(input.licenseeName) or tooLong(input.dbaName)
+        or tooLong(input.licenseType) or tooLong(input.status) or tooLong(input.expiresOn) or tooLong(input.sourceDate)) {
+      return #err(#InvalidInput("field too long"));
+    };
+    switch (contractors.get(contractor)) {
+      case null { #err(#NotFound) };
+      case (?p) {
+        let current = switch (p.licenseNumber) { case (?l) normLicense(l); case null "" };
+        if (current == "" or current != normLicense(input.licenseNumber)) {
+          return #err(#InvalidInput("licence number no longer matches the profile"));
+        };
+        let check : LicenseCheck = {
+          licenseNumber = current; found = input.found; licenseeName = input.licenseeName; dbaName = input.dbaName;
+          licenseType = input.licenseType; status = input.status; active = input.found and input.active;
+          expiresOn = input.expiresOn; nameMatches = input.found and input.nameMatches;
+          sourceDate = input.sourceDate; checkedAt = Time.now();
+        };
+        licenseChecks.add(contractor, check);
+        #ok(check)
+      };
+    }
+  };
+
+  /// The latest DBPR lookup for a contractor's current licence number. Public:
+  /// licence status is a public record. Null when never checked, or when the
+  /// number has changed since the last check.
+  public query func getLicenseCheck(contractor: Principal) : async ?LicenseCheck {
+    switch (contractors.get(contractor), licenseChecks.get(contractor)) {
+      case (?p, ?c) {
+        let current = switch (p.licenseNumber) { case (?l) normLicense(l); case null "" };
+        if (current != "" and current == c.licenseNumber) ?c else null
+      };
+      case _ null;
+    }
+  };
+
+  public shared(msg) func addLicenseRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
+    licenseRelayEntries := Admin.add(licenseRelayEntries, p);
+    #ok(())
+  };
+
+  public shared(msg) func removeLicenseRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    licenseRelayEntries := Admin.remove(licenseRelayEntries, p);
+    #ok(())
+  };
+
+  /// Account deletion: removes everything this canister holds for the caller —
+  /// their contractor profile, reviews about them, reviews they wrote and
+  /// their job credentials. Returns how many records were removed.
+  ///
+  /// Kept on purpose: the "reviewer|jobId" dedupe keys in `reviewKeys` and the
+  /// caller's daily window in `reviewRateLimits`. Dropping them would let a
+  /// reviewer delete their account and re-review the same job, or reset the
+  /// 10/day review limit. They hold only principal text + job id, no content.
+  /// Credentials where the caller was only the homeowner belong to the
+  /// contractor who earned them and are kept.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+    var removed = 0;
+
+    // Reviews about the caller and reviews written by the caller.
+    let reviewIds = reviews.values()
+      .filter(func(r) { r.contractor == caller or r.reviewer == caller })
+      .map(func(r) { r.id })
+      .toArray();
+    for (id in reviewIds.values()) {
+      switch (reviews.get(id)) {
+        case (?r) {
+          Index.remove(reviewsByContractor, r.contractor.toText(), id);
+          reviews.remove(id);
+          removed += 1;
+        };
+        case null {};
+      };
+    };
+
+    // Job credentials minted for the caller as contractor.
+    let credIds = credentials.values()
+      .filter(func(c) { c.contractorId == caller })
+      .map(func(c) { c.id })
+      .toArray();
+    for (id in credIds.values()) { credentials.remove(id); removed += 1 };
+
+    // Profile and its privacy settings.
+    if (contractors.get(caller) != null) { contractors.remove(caller); removed += 1 };
+    if (profilePrivacy.get(caller) != null) { profilePrivacy.remove(caller); removed += 1 };
+    if (licenseChecks.get(caller) != null) { licenseChecks.remove(caller); removed += 1 };
+    if (portfolios.get(caller) != null) { portfolios.remove(caller); removed += 1 };
+
+    #ok(removed)
+  };
+
   // ─── Admin Functions ───────────────────────────────────────────────────────────
 
   /// Wire the contractor canister to the job canister so recordJobVerified()
@@ -803,19 +1116,21 @@ persistent actor Contractor {
 
   /// Return all contractors who have explicitly listed the given zip code in their serviceZips.
   /// Contractors with empty serviceZips are excluded (they haven't configured a service area yet).
-  public query func getByZip(zipCode: Text) : async [ContractorProfile] {
+  public query(msg) func getByZip(zipCode: Text) : async [ContractorProfile] {
+    let listed = directoryFilter(msg.caller);
     Iter.toArray(
       contractors.values().filter(func(c: ContractorProfile) : Bool {
-        Option.isSome(c.serviceZips.find(func(z) { z == zipCode }))
+        listed(c) and Option.isSome(c.serviceZips.find(func(z) { z == zipCode }))
       })
     )
   };
 
   /// Return all contractors who serve a given trade category.
-  public query func getBySpecialty(s: ServiceType) : async [ContractorProfile] {
+  public query(msg) func getBySpecialty(s: ServiceType) : async [ContractorProfile] {
+    let listed = directoryFilter(msg.caller);
     Iter.toArray(
       contractors.values().filter(func(c: ContractorProfile) : Bool {
-        Option.isSome(c.specialties.find(func(t) { t == s }))
+        listed(c) and Option.isSome(c.specialties.find(func(t) { t == s }))
       })
     )
   };

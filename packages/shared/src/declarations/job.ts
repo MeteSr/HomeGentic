@@ -38,7 +38,42 @@ export const idlFactory = ({ IDL }: any) => {
     AlreadyVerified: IDL.Null,
     TierLimitReached: IDL.Text,
   });
+  const EmailDraftInput = IDL.Record({
+    fromAddress:    IDL.Text,
+    subject:        IDL.Text,
+    title:          IDL.Text,
+    serviceType:    IDL.Text,
+    contractorName: IDL.Text,
+    amountCents:    IDL.Nat,
+    completedDate:  IDL.Text,
+    warrantyMonths: IDL.Nat,
+    description:    IDL.Text,
+  });
+  const EmailDraft = IDL.Record({
+    id:             IDL.Text,
+    owner:          IDL.Principal,
+    receivedAt:     IDL.Int,
+    fromAddress:    IDL.Text,
+    subject:        IDL.Text,
+    title:          IDL.Text,
+    serviceType:    IDL.Text,
+    contractorName: IDL.Text,
+    amountCents:    IDL.Nat,
+    completedDate:  IDL.Text,
+    warrantyMonths: IDL.Nat,
+    description:    IDL.Text,
+  });
+  const UnitResult = IDL.Variant({ ok: IDL.Null, err: Error });
+  const TextResult = IDL.Variant({ ok: IDL.Text, err: Error });
   return IDL.Service({
+    getMyInboxToken:    IDL.Func([], [TextResult], []),
+    resetMyInboxToken:  IDL.Func([], [TextResult], []),
+    relayAddEmailDraft: IDL.Func([IDL.Text, EmailDraftInput], [TextResult], []),
+    getMyEmailDrafts:   IDL.Func([], [IDL.Vec(EmailDraft)], ["query"]),
+    dismissEmailDraft:  IDL.Func([IDL.Text], [UnitResult], []),
+    addInboxRelay:      IDL.Func([IDL.Principal], [UnitResult], []),
+    removeInboxRelay:   IDL.Func([IDL.Principal], [UnitResult], []),
+    deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     linkContractor: IDL.Func(
       [IDL.Text, IDL.Principal],
       [IDL.Variant({ ok: Job, err: Error })],
@@ -81,6 +116,8 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: Job, err: Error })],
       ["query"]
     ),
+    // The owner, admins, trusted canisters and the notification relay (weekly Home Pulse email).
+    getJobsByOwner: IDL.Func([IDL.Principal], [IDL.Vec(Job)], ["query"]),
     getJobsForProperty: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Vec(Job), err: Error })],
@@ -193,6 +230,11 @@ export const idlFactory = ({ IDL }: any) => {
     // contractor profile (excluded from scores / certificates / reports).
     getUnattestedJobIds: IDL.Func([IDL.Text], [IDL.Vec(IDL.Text)], ["query"]),
     setPropertyCanisterId: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    setFeeCanisterId: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []

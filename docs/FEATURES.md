@@ -45,6 +45,7 @@ rewiring screens.
 | `/report/:token` | ReportPage | Shareable HomeGentic report (print-ready) |
 | `/badge/:token` | BadgePage | Shareable verified badge |
 | `/cert/:token` | ScoreCertPage | HomeGentic score certificate |
+| `/verify-record` | VerifyRecordPage | Check a signed copy of a report or certificate (in the browser, against the report canister's published key) |
 
 ### Public free tools (no auth required)
 
@@ -147,7 +148,7 @@ The `/agents/*` routes are realtor-only (`RealtorRoute`). `/insurance-defense` a
 
 - **Top bar** — brand, property switcher + add-property, Plus/Pro pill, AI-calls-left counter, light/dark toggle (light is the default), "watching" status, activity bell, avatar menu
 - **Left rail of panel chips** — Awaiting, Score, Property, Market, Forecast, Maint, Jobs, Pros, Sensors, Safety, Docs, Rooms, People (Pro), Spend, Activity, Billing; counts on the right of each chip; the active chip is solid yellow. A dashed **Contractors ↗** chip links out to `/contractors`
-- **Resting stage** — HomeGentic score (with 12-month trend), Home Pulse headline, and the **home brief**: a rule-based list of what needs the homeowner today (sensor alerts, approvals, bids, countersignatures, visits due, payments, decay warnings, end-of-life systems, bill spikes, pending invites)
+- **Resting stage** — HomeGentic score (with 12-month trend), Home Pulse headline, and the **home brief**: a rule-based list of what needs the homeowner today (sensor alerts, possible CPSC recalls for the property's appliances, approvals, bids, countersignatures, visits due, payments, decay warnings, end-of-life systems, bill spikes, pending invites). A recall line appears when an appliance's model number shows up in a CPSC recall for its brand (checked by the voice Worker, `/api/recalls`, cached a day); it says the recall *may* apply and opens the CPSC notice so the homeowner can compare models
 - **Panels** — tapping a chip opens that panel in the stage (e.g. Score breakdown, Forecast, Spend)
 - **Ask bar** — "Ask about your home": type or tap the mic; answers render as answer cards and are read aloud (voice agent)
 - **Flows (modals)** — add room, log job, add receipt, request quote, add recurring service, start listing, review bids, chase a countersignature, upgrade; new users with no property get the Add Property wizard automatically
@@ -179,6 +180,7 @@ Multi-tab page — the main workspace for a property.
 - Room/space inventory with type, notes, photos
 - Add / edit / delete rooms (AddRoomModal)
 - Fixtures per room (add/edit/remove)
+- "Scan the label" in the add-fixture form: a photo of the appliance's data plate fills brand, model and serial. When Claude can tell the year made (printed, or decoded from the serial) on a water heater or HVAC unit, the form offers to use it as that system's install year in the forecast (stored with the other system ages on this device)
 
 **Tab: Documents**
 - Uploaded permits, contracts, receipts, warranties
@@ -191,7 +193,7 @@ Multi-tab page — the main workspace for a property.
 **Tab: Settings**
 - Edit property details (type, year built, sq ft)
 - Verification level display + submit for upgrade
-- Ownership transfer: initiate transfer to another principal
+- Record handoff at closing (ownership transfer): the seller shares a claim link (copy or email) from Settings → "Hand the record to your buyer", and an accepted FSBO offer points them there. The buyer's claim moves the jobs, photos (listed for the current owner and managers, not only the uploader), rooms, bills and verification status; a Basic/Premium-verified home also gives the buyer a free, non-renewing Pro year (`payment.grantHandoffYear`: once per buyer, once a year per home, not over a paid plan)
 - Property claim: initiate / respond to ownership disputes
 
 **Modals triggered from this page**
@@ -210,7 +212,7 @@ Multi-tab page — the main workspace for a property.
 
 - Address autocomplete with public-record lookup (year built, sq ft pre-filled)
 - Property type + details form
-- Permit import trigger (Volusia County supported) with coverage indicator
+- Permit import trigger (Volusia County and the City of Orlando, plus OpenPermit cities) with coverage indicator; Orlando's badge notes it covers City of Orlando permits only
 - Permit import review panel: select which permits to log as jobs
 - System ages import from Instant Forecast params (optional)
 
@@ -243,6 +245,9 @@ Multi-tab page — the main workspace for a property.
 - Warranty months (optional)
 - Photo upload (quota by tier)
 - Post-submission: score delta shown, service-specific follow-up suggestions
+- Can open pre-filled from a forwarded-invoice draft (see below); logging it clears the draft
+
+**Forwarded invoices (Jobs page).** "Show my forwarding address" reveals a private `h-<token>@<domain>` address (job canister `getMyInboxToken`; "New address" replaces it). Mail forwarded there reaches the voice Worker's email handler, which reads the attached PDF/photo (or the message) with Claude and, if it's a record of work done, files a draft (`relayAddEmailDraft`). Drafts list on the Jobs page with "Review and log" (opens `/jobs/new` pre-filled) and "Dismiss". Nothing joins the record until the homeowner submits the form. Hidden unless `VITE_INBOX_DOMAIN` is set.
 
 ---
 
@@ -288,7 +293,7 @@ Multi-tab page — the main workspace for a property.
 - All warranties from logged jobs
 - Status: Active / Expiring Soon (30-day warning) / Expired
 - Days-remaining countdown
-- Upload warranty documents (OCR extracts expiry, coverage, terms)
+- Scan a label, manual or warranty card: Claude reads brand, model, serial, purchase date and warranty term for the homeowner to check, and "Save as appliance" adds it as a fixture to a chosen room (or a new one), with the warranty end date worked out from purchase date + term
 - Filter by status and service type
 - Export to PDF
 
@@ -300,6 +305,8 @@ Multi-tab page — the main workspace for a property.
 - Generate a filtered report of these jobs (sorted by system + date)
 - Print / share for insurance claims
 - Sensor × insurer discount estimator (IoT coverage → potential discount)
+- Florida inspection readiness (Florida properties only; `services/insuranceReadiness.ts`, `components/InsuranceReadiness.tsx`): the 4-point systems (roof, electrical, plumbing incl. water heater, HVAC) and the wind-mitigation credits (building code, roof covering permit, opening protection, attic items), each marked "In your record", "Partly recorded", "Not recorded yet" or "Inspector checks", with the record lines behind it and what's missing. Uses jobs plus the property's system ages (editable there). Panel brand, wiring and pipe material aren't tracked, so those systems are never shown as fully documented. Prints with the report. "Get inspector quotes" opens `/quotes/new` pre-filled (service type Other). It never predicts insurability or premiums.
+- The discount estimate is labelled as an AI estimate whose insurer and program names may be wrong
 
 ---
 
@@ -354,6 +361,23 @@ Multi-tab page — the main workspace for a property.
 **Badge (`/badge/:token`) and Certificate (`/cert/:token`)**
 - Embeddable proof-of-score widgets
 
+**Signed records (`/verify-record`)**
+- The report canister signs each report link and score certificate when it's created (threshold Ed25519)
+- Reports and certificates show "Signed by HomeGentic", checked in the viewer's browser, with **Download signed copy**
+- Anyone can check a signed copy on `/verify-record` or with any Ed25519 tool; the page states what a signature does and doesn't prove
+
+**HomeGentic Score** — one formula (`packages/shared/src/score.ts`, mirrored by `backend/shared/Score.mo`) for the dashboard, reports, certificates and the FSBO index:
+- `(maintenance × 40 + modernization × 35 + verification × 25) / 100`
+- Maintenance coverage: key systems with a job on record, each counted once from its best job (verified 100 %, DIY 80 %, other 50 %)
+- System modernization: remaining rated life per major system, counted from the last major job (above a per-system cost floor) or the year built
+- Verification depth: share of jobs verified
+- The dashboard also applies decay for overdue maintenance; reports and certificates use the plain formula
+
+**Weekly Home Pulse email** (`agents/notifications/pulse.ts`)
+- Mondays from 13:00 UTC, to homeowners who haven't turned it off (Settings → Notifications → Email: Weekly Home Pulse, on by default)
+- Per property: HomeGentic Score, jobs waiting on the homeowner's signature, systems past or near their rated life, warranties ending within 60 days, and the season's priorities for the climate zone with the last matching job
+- One-click unsubscribe (RFC 8058); resumes where it stopped after a restart, never sends twice in a week
+
 ---
 
 ### FSBO Listing (Sell without an agent)
@@ -402,16 +426,34 @@ Multi-tab page — the main workspace for a property.
 - Quote request detail + submit quote modal
 - Active quotes (pending homeowner decision)
 - Completed jobs with homeowner reviews
-- Earnings summary + trust score tracker
+- Earnings total ("Earnings via HG": accepted bid values) + trust score tracker
+- ContractorPro: earnings view, accepted bids by month for the last 12 months (by the month the bid was sent), average accepted bid, CSV of every accepted bid
 
 **Profile (`/contractor/profile`)**
 - Specialties (multi-select)
 - Name, email, phone, bio, license number, service area
-- Public profile preview
+- **Check with Florida DBPR** (every contractor, for a Florida-shaped licence number such as CGC1234567): the voice Worker (`POST /api/license/check`, once an hour per contractor) finds the number in DBPR's free weekly construction licensee file and records what it says on the contractor canister. The page shows the result in DBPR's terms: status, expiry, and whose name the licence is in. A number missing from the file is reported as "isn't in DBPR's file of current Florida construction licences", never as fake, because DBPR leaves lapsed licences out of the file. Changing the number hides the old result
+- ContractorPro: **Portfolio**, pick up to 12 co-signed jobs (job credentials) and give each a title and write-up. Free contractors see what it is
 
 **Public profile (`/contractor/:id`)**
-- Specialties, trust score, jobs completed, license badge, bio, reviews
+- Specialties, trust score, jobs completed, license number, bio, reviews
+- The DBPR result, with the check date and the date of DBPR's file (also on bid cards in `/quotes/:id`)
+- ContractorPro: **Featured work** above the verified-work list (title, write-up, trade and co-signed month; never the address or homeowner), shown only while the contractor has ContractorPro
+- Review form; a review-request link (`?review=<jobId>#review`) fills in the job ID
 - Contact button (for authenticated homeowners)
+
+**ContractorPro vs Contractor Free**
+- New-lead alerts (push, email) go to ContractorPro as soon as the notification relay sees the lead and to everyone else 30 minutes later (`FREE_LEAD_DELAY_MS` in `agents/notifications/events.ts`; held alerts persist in the relay's data file and are dropped if the request closes first). The lead itself shows in every matching contractor's dashboard straight away
+- When a job a ContractorPro contractor co-signed becomes verified, the homeowner gets a review-request email (the job canister's `review_request` outbox event; the relay checks the tier and uses the homeowner's Job Verified email setting)
+- 50 photos per job instead of 5, 10 AI agent calls a day, no referral fee
+
+**Referral fee (Contractor Free)**
+- 3% of each bid a homeowner accepts, $20 minimum; ContractorPro pays none. The plan when the bid is sent decides
+- A card must be saved before bidding: Settings, Subscription, "Save card with Stripe" (terms checkbox first; Stripe Checkout in setup mode via `POST /api/stripe/referral-card`). The quote canister refuses the bid otherwise, and the contractor dashboard shows a reminder
+- Charged when the job is verified by both sides, or 60 days after acceptance if it never is (admins can waive). A job verified for the same home and trade within 180 days of a bid that was never accepted in the app is charged on that bid too
+- The voice Worker's hourly cron charges due fees off-session to the saved card; a declined card gets a Stripe invoice (30 days), and a fee still unpaid 30 days after the decline pauses bidding
+- Settings shows the card and every fee with its status; the admin dashboard's Referral Fees tab lists them all with a Waive button
+- While a homeowner has an open request in a contractor's trade, that contractor's public profile holds back their phone and email (front end only) and points to the bids
 
 **Directory (`/contractors`)**
 - Filter by specialty; sort by trust score or job count
@@ -446,7 +488,7 @@ Realtors compete for homeowners' listings in a sealed-bid auction. Identities st
 
 - **Account tab** — edit email, phone; view role; realtor co-branding link
 - **Subscription tab** — current plan + features; upgrade options; pause (1/2/3 months); cancel with confirmation
-- **Notifications tab** — weekly pulse toggle, score alerts, email/SMS preferences per event type (differs by role)
+- **Notifications tab** — dashboard Home Pulse tips and score alerts (this browser), the weekly Home Pulse email, email/SMS preferences per event type (differs by role)
 - **Privacy tab** — visibility controls (public report, contractor visibility, trust score); export data as JSON
 
 ---
@@ -495,7 +537,7 @@ than daily like every other tier — see `TIER_PERIOD` in
 cost rationale (Free carries $0 revenue to offset the cost, so its
 allowance is both smaller and paced weekly).
 
-Contractor tiers: **ContractorFree** (profile + view leads, 3% referral fee per winning bid, $20 minimum) · **ContractorPro** ($40/mo, quote submissions + earnings dashboard + reviews)
+Contractor tiers: **ContractorFree** (profile, leads and bids with a saved card, 3% referral fee per accepted bid, $20 minimum) · **ContractorPro** ($40/mo, quote submissions + earnings dashboard + reviews)
 
 Realtors have no subscription tier: the winning agent in a Bid to List auction pays a one-time platform fee (`listing.getPlatformFee()`, $399 default).
 

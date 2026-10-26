@@ -200,8 +200,8 @@ test.describe("OnboardingWizard — modal auto-opens on /dashboard", () => {
       await expect(page.getByText(/saved · free tier/i)).toBeVisible();
     });
 
-    test("shows record score", async ({ page }) => {
-      await expect(page.getByText(/record score/i).first()).toBeVisible();
+    test("shows setup progress", async ({ page }) => {
+      await expect(page.getByText(/setup progress/i).first()).toBeVisible();
     });
 
     test("shows 4 optional task card CTAs", async ({ page }) => {

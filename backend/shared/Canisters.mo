@@ -27,6 +27,31 @@ module {
 
   public func property(id : Text) : Property = actor (id);
 
+  public type FeeError = { #NotFound; #NotAuthorized; #AlreadyExists; #InvalidInput : Text };
+
+  /// A bid that carries the Contractor Free referral fee, as `fee` records it.
+  public type ReferralBid = {
+    quoteId     : Text;
+    requestId   : Text;
+    contractor  : Principal;
+    homeowner   : Principal;
+    propertyId  : Text;
+    serviceType : Text;
+    bidCents    : Nat;
+    bidAt       : Int;
+  };
+
+  /// The referral-fee calls `quote` and `job` make. Results name only the
+  /// fee's id; Candid drops the fields left out.
+  public type Fee = actor {
+    referralBidAllowed       : shared query Principal -> async { #ok; #needsCard; #overdue };
+    recordReferralBid        : shared ReferralBid -> async { #ok : (); #err : FeeError };
+    recordReferralAccepted   : shared Text -> async { #ok : ?{ id : Text }; #err : FeeError };
+    recordReferralJobVerified : shared (Text, Principal, Text, Text) -> async { #ok : ?{ id : Text }; #err : FeeError };
+  };
+
+  public func fee(id : Text) : Fee = actor (id);
+
   public type Audit = actor {
     log : shared (Text, Text, ?Principal, Text) -> async { #ok : Nat; #err : { #NotAuthorized; #InvalidInput : Text } };
   };

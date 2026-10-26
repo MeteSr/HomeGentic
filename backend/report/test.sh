@@ -246,6 +246,29 @@ echo "── [7] getReport — unknown token (expect NotFound) ─────�
 dfx canister call report getReport '("RPT_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")' \
   || echo "  ↳ Expected NotFound — ✓"
 
+# ─── Settings → Privacy: public reports off ──────────────────────────────────
+echo ""
+echo "── [7b] setAllowPublicReports false — Public links need a signed-in viewer ─"
+if [ -n "$TOKEN1" ]; then
+  dfx canister call report setAllowPublicReports '(false)' --identity "$OWNER"
+  P_FLAG=$(dfx canister call report getAllowPublicReports --identity "$OWNER")
+  P_ANON=$(dfx canister call report getReport "(\"$TOKEN1\")" --identity anonymous 2>&1 || true)
+  P_SIGNED=$(dfx canister call report getReport "(\"$TOKEN1\")" --identity "$OWNER" 2>&1 || true)
+  P_LISTING=$(dfx canister call report hasActivePublicShareLink "(\"$PROP_R1\")")
+  if echo "$P_FLAG" | grep -q "false" && echo "$P_ANON" | grep -q "NotAuthorized" \
+    && echo "$P_SIGNED" | grep -q "BuyerOnly" && echo "$P_LISTING" | grep -q "false"; then
+    echo "  ↳ anonymous refused, signed-in sees BuyerOnly, no public link for listings — ✓"
+  else
+    echo "  ↳ ❌ Expected the Public link to behave as BuyerOnly"; echo "$P_ANON"; echo "$P_SIGNED"; echo "$P_LISTING"
+  fi
+  dfx canister call report setAllowPublicReports '(true)' --identity "$OWNER"
+  dfx canister call report getReport "(\"$TOKEN1\")" --identity anonymous | grep -q "ok" \
+    && echo "  ↳ turned back on: anonymous can view again — ✓" \
+    || echo "  ↳ ❌ Expected the link to be public again"
+else
+  echo "  ↳ Skipped — TOKEN1 not parsed"
+fi
+
 # ─── listShareLinks ───────────────────────────────────────────────────────────
 echo ""
 echo "── [8] listShareLinks — PROP_R1 (expect 2 links from tests 2+4) ─────────"

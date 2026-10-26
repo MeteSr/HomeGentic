@@ -109,6 +109,20 @@ export const paymentService = {
     };
   },
 
+  /**
+   * Any principal's current tier (payment.getTierForPrincipal, a public
+   * query). Used to show a contractor's Pro-only profile sections.
+   * E2E: window.__e2e_tiers (tier by principal text).
+   */
+  async getTierFor(principalText: string): Promise<PlanTier> {
+    const mock = typeof window !== "undefined" ? (window as any).__e2e_tiers : undefined;
+    if (mock) return mock[principalText] ?? "Free";
+    if (!PAYMENT_CANISTER_ID) return "Free";
+    const { Principal: P } = await import("@icp-sdk/core/principal");
+    const a = await getActor();
+    return Object.keys(await a.getTierForPrincipal(P.fromText(principalText)))[0] as PlanTier;
+  },
+
   /** Activate a subscription tier on-chain. Returns dashboard URL. */
   async initiate(
     tier: PlanTier,
@@ -127,6 +141,16 @@ export const paymentService = {
   },
 
   async cancel(): Promise<{ expiresAt: number | null }> {
+    // Stop Stripe from renewing first (the Worker sets cancel_at_period_end on
+    // the caller's subscriptions); only then mark the canister record, so a
+    // failure here never shows "cancelled" while the card keeps being charged.
+    const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/cancel-subscription`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      throw new Error(data.error ?? "Could not cancel the subscription");
+    }
     const a = await getActor();
     const result = await a.cancelSubscription();
     if ("err" in result) {
@@ -160,27 +184,6 @@ export const paymentService = {
     const raw = localStorage.getItem("homegentic_cancelled_at");
     if (!raw) return null;
     return { cancelledAt: Number(raw) };
-  },
-
-  pause(months: 1 | 2 | 3): void {
-    const resumeAt = Date.now() + months * 30 * 24 * 60 * 60 * 1000;
-    localStorage.setItem("homegentic_sub_paused_until", String(resumeAt));
-  },
-
-  resume(): void {
-    localStorage.removeItem("homegentic_sub_paused_until");
-  },
-
-  getPauseState(): { pausedUntil: number; daysLeft: number } | null {
-    const raw = localStorage.getItem("homegentic_sub_paused_until");
-    if (!raw) return null;
-    const pausedUntil = Number(raw);
-    if (Date.now() >= pausedUntil) {
-      localStorage.removeItem("homegentic_sub_paused_until");
-      return null;
-    }
-    const daysLeft = Math.ceil((pausedUntil - Date.now()) / (24 * 60 * 60 * 1000));
-    return { pausedUntil, daysLeft };
   },
 
   async hasPaidFor(_feature: string): Promise<boolean> {
@@ -281,6 +284,17 @@ export const paymentService = {
   // ── Agent credit top-ups (#89) ────────────────────────────────────────────────
 
   /** Returns the caller's remaining agent credit balance (0 if none or expired). */
+  /** When the caller got a free Pro year for accepting a home's record at closing (ms), or null. */
+  async getMyHandoffGrant(): Promise<number | null> {
+    if (typeof window !== "undefined" && "__e2e_handoff_grant" in (window as any)) {
+      return (window as any).__e2e_handoff_grant ?? null;
+    }
+    if (!PAYMENT_CANISTER_ID) return null;
+    const a = await getActor();
+    const r = await a.getMyHandoffGrant() as [] | [bigint];
+    return r.length ? Number(r[0] / 1_000_000n) : null;
+  },
+
   async getMyAgentCredits(): Promise<number> {
     if ((window as any).__e2e_agent_credits != null) {
       return Number((window as any).__e2e_agent_credits);

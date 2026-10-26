@@ -12,6 +12,9 @@ import { reportService, ReportSnapshot, ShareLink, JobInput, BillsSummary, BILLS
 import { DocumentedValueSection } from "@/components/DocumentedValueSection";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { formatCents, formatIsoDate } from "@/utils/format";
+import { SignedRecordPanel } from "@/components/SignedRecordPanel";
+import { attestationService } from "@/services/attestation";
+import { scoreFromReportJobs } from "@/services/scoreService";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -25,8 +28,8 @@ const UI = {
 };
 
 const VERIFICATION_CONFIG: Record<string, { color: string; bg: string; label: string; description: string }> = {
-  Premium:    { color: UI.sage,        bg: V2_COLORS.lblue, label: "HomeGentic Premium Verified", description: "Comprehensive blockchain-verified maintenance history" },
-  Basic:      { color: V2_COLORS.ink, bg: V2_COLORS.lblue, label: "HomeGentic Basic Verified",   description: "Key maintenance records blockchain-verified" },
+  Premium:    { color: UI.sage,        bg: V2_COLORS.lblue, label: "HomeGentic Premium Verified", description: "Ownership reviewed by HomeGentic, highest verification level" },
+  Basic:      { color: V2_COLORS.ink, bg: V2_COLORS.lblue, label: "HomeGentic Basic Verified",   description: "Ownership reviewed by HomeGentic" },
   Unverified: { color: UI.inkLight,  bg: UI.paper,          label: "Unverified",               description: "Maintenance history self-reported by homeowner" },
 };
 
@@ -129,6 +132,17 @@ export default function ReportPage() {
     return () => { cancelled = true; };
   }, [token, hideAmounts]);
 
+  const [onChainScore, setOnChainScore] = useState<number | null>(null);
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    Promise.resolve().then(() => attestationService.getReportScore(token))
+      .then((n) => { if (!cancelled) setOnChainScore(n); })
+      .catch(() => { /* fall back to the snapshot formula */ });
+    return () => { cancelled = true; };
+  }, [token]);
+  const loadAttestation = React.useCallback(() => attestationService.getForReport(token ?? ""), [token]);
+
   if (state === "loading") {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: UI.paper }}>
@@ -163,15 +177,9 @@ export default function ReportPage() {
   const sortedJobs = [...snapshot.jobs].sort((a, b) => b.date.localeCompare(a.date));
 
   // Certification: score ≥ 88 + 3 verified + 2 key systems
-  const reportScore   = (() => {
-    let s = 0;
-    s += Math.min(snapshot.verifiedJobCount * 4, 40);
-    s += Math.min(Math.floor(snapshot.totalAmountCents / 100 / 2500), 20);
-    if (snapshot.verificationLevel === "Premium") s += 10;
-    else if (snapshot.verificationLevel === "Basic") s += 5;
-    s += Math.min(new Set(snapshot.jobs.map((j) => j.serviceType)).size * 4, 20);
-    return Math.min(Math.round(s), 100);
-  })();
+  // The score the canister computed when the report was made; reports from
+  // before that was stored fall back to the same formula over the snapshot.
+  const reportScore   = onChainScore ?? scoreFromReportJobs(snapshot.jobs, Number(snapshot.yearBuilt));
   const KEY_SYSTEMS = ["HVAC", "Roofing", "Plumbing", "Electrical"];
   const certifiedSystems = KEY_SYSTEMS.filter((sys) =>
     snapshot.jobs.some((j) => j.isVerified && j.serviceType === sys)
@@ -323,10 +331,12 @@ export default function ReportPage() {
             <Shield size={20} color={cfg.color} style={{ flexShrink: 0, marginTop: "0.125rem" }} />
             <div>
               <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: cfg.color, marginBottom: "0.25rem" }}>{cfg.label}</p>
-              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: cfg.color, opacity: 0.85 }}>{cfg.description}. Each verified record is signed on the Internet Computer blockchain and cannot be altered retroactively.</p>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: cfg.color, opacity: 0.85 }}>{cfg.description}. Jobs marked verified were confirmed by both the homeowner and the contractor (or by the homeowner for DIY work), and neither can edit them afterwards.</p>
             </div>
           </div>
         )}
+
+        <SignedRecordPanel load={loadAttestation} noun="report" filename={`homegentic-report-${snapshot.snapshotId}.json`} />
 
         {/* Maintenance Timeline */}
         <div style={{ marginBottom: "2.5rem" }}>
@@ -671,9 +681,8 @@ export default function ReportPage() {
             <span style={{ fontFamily: UI.mono, fontWeight: 900, fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase", color: UI.ink }}>HOMEGENTIC</span>
           </div>
           <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, maxWidth: "28rem", margin: "0 auto" }}>
-            This report was generated from records anchored on the Internet Computer blockchain.
-            Verified records include cryptographic signatures from both the homeowner and contractor.
-            Report ID: {snapshot.snapshotId}
+            This report was generated from records stored on the Internet Computer and is signed by
+            HomeGentic's report canister; see the signature panel above. Report ID: {snapshot.snapshotId}
           </p>
           {link && (
             <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, marginTop: "0.5rem" }}>

@@ -132,7 +132,7 @@ function makeState(over: { sms?: State["prefs"]["sms"]; email?: Record<string, b
   return {
     prefs: {
       push:  { job_awaiting_signature: true, job_awaiting_contractor_signature: true, bid_accepted: true, bid_declined: true },
-      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, ...over.email },
+      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true, ...over.email },
       sms:   over.sms ?? { enabled: false, phone: null },
     },
     channels: { email: true, sms: true, ...over.channels },
@@ -239,16 +239,18 @@ describe("homeowner preferences", () => {
     fireEvent.click(switchFor("Email: Job Verified"));
     fireEvent.click(switchFor("Email: Quote Received"));
     fireEvent.click(switchFor("Email: Job Updates"));
-    await waitFor(() => expect(relay.setNotificationPrefs).toHaveBeenCalledTimes(3));
+    fireEvent.click(switchFor("Email: Weekly Home Pulse"));
+    await waitFor(() => expect(relay.setNotificationPrefs).toHaveBeenCalledTimes(4));
     expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { job_verified: false } });
     expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { quote_received: false } });
     expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { job_updates: true } });
+    expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { weekly_pulse: false } });
   });
 
   it("keeps the dashboard toggles in this browser, saved as they change", async () => {
     renderNotificationsTab();
-    await waitFor(() => screen.getByText("Weekly Home Pulse"));
-    fireEvent.click(switchFor("Weekly Home Pulse"));
+    await waitFor(() => screen.getByText("Dashboard: Home Pulse tips"));
+    fireEvent.click(switchFor("Dashboard: Home Pulse tips"));
     expect(localStorage.getItem("homegentic_pulse_enabled")).toBe("false");
     expect(relay.setNotificationPrefs).not.toHaveBeenCalled();
   });

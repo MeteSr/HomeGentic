@@ -1,9 +1,11 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/contractor";
 import { serviceTypeVariant, serviceTypeFromVariant, serviceTypeLabel } from "@homegentic/shared/serviceTypes";
+import { voiceAgentFetch } from "./voiceAgentHeaders";
 export { idlFactory };
 
 const CONTRACTOR_CANISTER_ID = (process.env as any).CONTRACTOR_CANISTER_ID || "";
+const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 // ─── TypeScript types ─────────────────────────────────────────────────────────
 
@@ -35,6 +37,16 @@ export interface ContractorProfile {
   alertZips?:    string[];
 }
 
+/** Settings → Privacy. `listed` keeps the profile in the directory; the other
+ *  two say whether the public profile and directory card show those numbers. */
+export interface ProfilePrivacy {
+  listed:            boolean;
+  showTrustScore:    boolean;
+  showJobsCompleted: boolean;
+}
+
+export const DEFAULT_PROFILE_PRIVACY: ProfilePrivacy = { listed: true, showTrustScore: true, showJobsCompleted: true };
+
 export interface JobCredential {
   id:                 number;
   jobId:              string;
@@ -42,6 +54,64 @@ export interface JobCredential {
   serviceType:        string;
   verifiedAt:         number;   // ms
   homeownerPrincipal: string;   // principal text
+}
+
+/**
+ * What Florida DBPR's licensee file said about the contractor's licence
+ * number the last time they checked it (agents/voice/src/dbpr.ts). Only
+ * returned while the profile still carries that number.
+ */
+export interface LicenseCheck {
+  licenseNumber: string;
+  found:         boolean;
+  licenseeName:  string;
+  dbaName:       string;
+  licenseType:   string;
+  status:        string;   // DBPR's primary and secondary status, e.g. "Current, Active"
+  active:        boolean;
+  expiresOn:     string;   // YYYY-MM-DD
+  nameMatches:   boolean;  // the licensee or DBA name matches the profile name
+  sourceDate:    string;   // date of DBPR's file, "" when unknown
+  checkedAt:     number;   // ms
+}
+
+function fromLicenseCheck(raw: any): LicenseCheck {
+  return {
+    licenseNumber: raw.licenseNumber, found: raw.found, licenseeName: raw.licenseeName, dbaName: raw.dbaName,
+    licenseType: raw.licenseType, status: raw.status, active: raw.active, expiresOn: raw.expiresOn,
+    nameMatches: raw.nameMatches, sourceDate: raw.sourceDate,
+    checkedAt: typeof raw.checkedAt === "bigint" ? Number(raw.checkedAt) / 1_000_000 : raw.checkedAt,
+  };
+}
+
+/** E2E: window.__e2e_license_checks (LicenseCheck by principal text) replaces the canister and the Worker. */
+function mockLicenseChecks(): Record<string, LicenseCheck> | null {
+  return typeof window !== "undefined" ? ((window as any).__e2e_license_checks ?? null) : null;
+}
+
+/** A co-signed job a ContractorPro contractor features on their public profile. */
+export interface PortfolioItem {
+  credentialId: number;
+  title:        string;
+  description:  string;
+  serviceType:  string;
+  verifiedAt:   number;   // ms
+  featuredAt:   number;   // ms
+}
+
+export interface PortfolioInput { credentialId: number; title: string; description: string }
+
+function fromPortfolioItem(raw: any): PortfolioItem {
+  return {
+    credentialId: Number(raw.credentialId), title: raw.title, description: raw.description,
+    serviceType: serviceTypeLabel(raw.serviceType),
+    verifiedAt: Number(raw.verifiedAt) / 1_000_000, featuredAt: Number(raw.featuredAt) / 1_000_000,
+  };
+}
+
+/** E2E: window.__e2e_portfolios (PortfolioItem[] by principal text) replaces the canister. */
+function mockPortfolios(): Record<string, PortfolioItem[]> | null {
+  return typeof window !== "undefined" ? ((window as any).__e2e_portfolios ?? null) : null;
 }
 
 export interface RegisterContractorArgs {
@@ -86,6 +156,20 @@ function fromProfile(raw: any): ContractorProfile {
     notifyEmail:   raw.notifyEmail?.[0] ?? null,
     alertZips:     (raw.alertZips as string[] | undefined) ?? [],
   };
+}
+
+function fromPrivacy(raw: any): ProfilePrivacy {
+  return { listed: raw.listed, showTrustScore: raw.showTrustScore, showJobsCompleted: raw.showJobsCompleted };
+}
+
+/** E2E tests and an undeployed canister keep privacy settings here. */
+function mockPrivacy(): Record<string, ProfilePrivacy> {
+  const w = (typeof window !== "undefined" ? window : globalThis) as any;
+  return (w.__e2e_contractor_privacy ??= {});
+}
+
+function useMock(): boolean {
+  return (typeof window !== "undefined" && !!(window as any).__e2e_contractors) || !CONTRACTOR_CANISTER_ID;
 }
 
 function unwrap(result: any): ContractorProfile {
@@ -191,6 +275,36 @@ function createContractorService() {
     }));
   },
 
+  async getMyProfilePrivacy(): Promise<ProfilePrivacy> {
+    if (useMock()) return mockPrivacy().me ?? DEFAULT_PROFILE_PRIVACY;
+    const a = await getActor();
+    return fromPrivacy(await a.getMyProfilePrivacy());
+  },
+
+  async setProfilePrivacy(p: ProfilePrivacy): Promise<ProfilePrivacy> {
+    if (useMock()) return (mockPrivacy().me = { ...p });
+    const a = await getActor();
+    const result = await a.setProfilePrivacy(p);
+    if ("ok" in result) return fromPrivacy(result.ok);
+    const key = Object.keys(result.err)[0];
+    if (key === "NotFound") throw new Error("Create your contractor profile first");
+    const val = result.err[key];
+    throw new Error(typeof val === "string" ? val : key);
+  },
+
+  /** Privacy settings for each contractor, keyed by principal text. */
+  async getProfilePrivacies(principalTexts: string[]): Promise<Record<string, ProfilePrivacy>> {
+    if (principalTexts.length === 0) return {};
+    if (useMock()) {
+      const m = mockPrivacy();
+      return Object.fromEntries(principalTexts.map((id) => [id, m[id] ?? DEFAULT_PROFILE_PRIVACY]));
+    }
+    const { Principal: P } = await import("@icp-sdk/core/principal");
+    const a = await getActor();
+    const raw = await a.getProfilePrivacies(principalTexts.map((id) => P.fromText(id))) as any[];
+    return Object.fromEntries(principalTexts.map((id, i) => [id, raw[i] ? fromPrivacy(raw[i]) : DEFAULT_PROFILE_PRIVACY]));
+  },
+
   async submitReview(contractorPrincipalText: string, rating: number, comment: string, jobId: string): Promise<void> {
     const a = await getActor();
     const { Principal: P } = await import("@icp-sdk/core/principal");
@@ -203,6 +317,8 @@ function createContractorService() {
   },
 
   async getCredentials(contractorPrincipalText: string): Promise<JobCredential[]> {
+    const mock = typeof window !== "undefined" ? (window as any).__e2e_credentials : undefined;
+    if (mock) return mock[contractorPrincipalText] ?? [];
     const a = await getActor();
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const raw = await a.getCredentials(P.fromText(contractorPrincipalText)) as any[];
@@ -234,6 +350,61 @@ function createContractorService() {
     const a = await getActor();
     const result = await a.getBySpecialty(serviceTypeVariant(specialty)) as any[];
     return result.map(fromProfile);
+  },
+
+  /** A contractor's featured jobs, in their order. */
+  async getPortfolio(principalText: string): Promise<PortfolioItem[]> {
+    const mock = mockPortfolios();
+    if (mock) return mock[principalText] ?? [];
+    if (!CONTRACTOR_CANISTER_ID) return [];
+    const { Principal: P } = await import("@icp-sdk/core/principal");
+    const a = await getActor();
+    return ((await a.getPortfolio(P.fromText(principalText))) as any[]).map(fromPortfolioItem);
+  },
+
+  /** Replace the caller's portfolio (ContractorPro only; the canister checks). */
+  async setPortfolio(principalText: string, entries: PortfolioInput[]): Promise<PortfolioItem[]> {
+    const mock = mockPortfolios();
+    if (mock) {
+      const creds: JobCredential[] = (window as any).__e2e_credentials?.[principalText] ?? [];
+      return (mock[principalText] = entries.map((e) => {
+        const c = creds.find((x) => x.id === e.credentialId);
+        return { ...e, serviceType: c?.serviceType ?? "", verifiedAt: c?.verifiedAt ?? 0, featuredAt: Date.now() };
+      }));
+    }
+    const a = await getActor();
+    const res = await a.setPortfolio(entries.map((e) => ({ ...e, credentialId: BigInt(e.credentialId) })));
+    if ("ok" in res) return (res.ok as any[]).map(fromPortfolioItem);
+    const key = Object.keys(res.err)[0];
+    const val = res.err[key];
+    throw new Error(typeof val === "string" ? val : key);
+  },
+
+  /** The last DBPR lookup of this contractor's current licence number, or null. */
+  async getLicenseCheck(principalText: string): Promise<LicenseCheck | null> {
+    const mock = mockLicenseChecks();
+    if (mock) return mock[principalText] ?? null;
+    if (!CONTRACTOR_CANISTER_ID) return null;
+    const { Principal: P } = await import("@icp-sdk/core/principal");
+    let principal;
+    try { principal = P.fromText(principalText); } catch { return null; }
+    const a = await getActor();
+    const raw = await a.getLicenseCheck(principal) as any[];
+    return raw[0] ? fromLicenseCheck(raw[0]) : null;
+  },
+
+  /** Look up the caller's licence number in DBPR's file now (once an hour) and record the result. */
+  async checkMyLicense(principalText: string): Promise<LicenseCheck> {
+    const mock = mockLicenseChecks();
+    if (mock) {
+      const hit = mock.__next ?? mock[principalText];
+      if (!hit) throw new Error("Add a Florida licence number (for example CGC1234567) to your profile first.");
+      return (mock[principalText] = { ...hit, checkedAt: Date.now() });
+    }
+    const res = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/license/check`, { method: "POST" });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error ?? "Couldn't check your licence just now.");
+    return fromLicenseCheck(body);
   },
 
   async verifyContractor(principalText: string): Promise<ContractorProfile> {

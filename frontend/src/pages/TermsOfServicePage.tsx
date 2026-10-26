@@ -20,7 +20,7 @@ const F = {
   mono:    "'JetBrains Mono', monospace",
 };
 
-const EFFECTIVE_DATE = "April 9, 2026";
+const EFFECTIVE_DATE = "October 26, 2026";
 
 interface Section {
   id: string;
@@ -91,13 +91,31 @@ const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "referral-fee",
+    title: "Contractor Referral Fee (Contractor Free)",
+    body: (
+      <>
+        <p>Contractors without a ContractorPro subscription pay a referral fee on work they win through HomeGentic: <strong>3% of the bid amount, or $20, whichever is greater</strong>. ContractorPro subscribers pay no referral fee. The plan you are on when you send a bid decides whether that bid carries the fee.</p>
+        <p><strong>Card on file.</strong> Before your first bid you must save a payment card with our payment processor, Stripe. Saving the card is when you agree to this section, and you authorize HomeGentic to charge that card for the fees below without asking each time.</p>
+        <p><strong>When a fee is charged.</strong></p>
+        <ul>
+          <li>When a homeowner accepts your bid and the job is later verified by both of you in HomeGentic, the fee on that bid is charged once the job is verified.</li>
+          <li>If the job is never verified, the fee is charged 60 days after the homeowner accepted your bid, unless HomeGentic waives it (for example, because the job was cancelled).</li>
+          <li>If you send a homeowner a bid through HomeGentic and, within 6 months, a job you did for the same home in the same trade is verified in HomeGentic without that bid being accepted, the fee on your bid is charged when the job is verified. We treat that job as one HomeGentic referred to you.</li>
+        </ul>
+        <p><strong>Declined cards.</strong> If a charge is declined we email you an invoice payable within 30 days. While a fee is more than 30 days past that, you cannot send new bids.</p>
+        <p><strong>Disputes and waivers.</strong> If you think a fee is wrong, contact <a href="mailto:billing@homegentic.app" style={{ color: C.blue }}>billing@homegentic.app</a>. We can waive a fee that has not been paid; your fee history shows each fee's status and the reason it was charged.</p>
+      </>
+    ),
+  },
+  {
     id: "user-content",
     title: "Your Content",
     body: (
       <>
         <p>You retain ownership of property records, photos, job logs, and other content you upload to HomeGentic ("Your Content"). By uploading content, you grant HomeGentic a limited, non-exclusive license to store, display, and process Your Content solely to provide the service to you.</p>
         <p>You represent that you have the right to upload Your Content and that it does not violate any law or third-party rights. You are solely responsible for the accuracy of property records and maintenance histories you create.</p>
-        <p>Because Your Content is stored on the Internet Computer Protocol blockchain, it is replicated across decentralized nodes and cannot be fully erased from the protocol's history. See our <Link to="/privacy" style={{ color: C.blue }}>Privacy Policy</Link> for details.</p>
+        <p>Your Content is stored in HomeGentic's canisters on the Internet Computer. You can export it at any time, and deleting your account removes it, except for the records described in our <Link to="/privacy#data-retention" style={{ color: C.blue }}>Privacy Policy</Link>.</p>
       </>
     ),
   },

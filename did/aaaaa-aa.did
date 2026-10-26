@@ -1,6 +1,6 @@
 // IC management canister — minimal interface for HTTP outcalls.
 // Full spec: https://internetcomputer.org/docs/current/references/ic-interface-spec#ic-http_request
-// Required by caffeineai-http-outcalls@0.1.0 which uses import IC "ic:aaaaa-aa".
+// For any canister that imports IC "ic:aaaaa-aa" (none do today).
 
 type http_header = record {
   name : text;

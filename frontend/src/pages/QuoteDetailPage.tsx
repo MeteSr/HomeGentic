@@ -5,7 +5,8 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { quoteService, QuoteRequest, Quote } from "@/services/quote";
-import { contractorService } from "@/services/contractor";
+import { contractorService, type LicenseCheck } from "@/services/contractor";
+import { LicenseCheckBadge } from "@/components/LicenseCheck";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
 import { UsageHistory } from "@/components/UsageHistory";
 import type { UsageSummary } from "@/services/quoteUsage";
@@ -33,6 +34,7 @@ export default function QuoteDetailPage() {
   const [contractorNames,    setContractorNames]    = useState<Record<string, string>>({});
   const [contractorScores,   setContractorScores]   = useState<Record<string, number>>({});
   const [contractorVerified, setContractorVerified] = useState<Record<string, boolean>>({});
+  const [licenseChecks,      setLicenseChecks]      = useState<Record<string, LicenseCheck>>({});
   const [loading,            setLoading]            = useState(true);
   const [accepting,          setAccepting]          = useState<string | null>(null);
   const [pendingAccept,      setPendingAccept]      = useState<Quote | null>(null);
@@ -54,15 +56,19 @@ export default function QuoteDetailPage() {
         const names: Record<string, string> = {};
         const scores: Record<string, number> = {};
         const verified: Record<string, boolean> = {};
+        const checks: Record<string, LicenseCheck> = {};
         await Promise.all(qs.map(async (q) => {
           const profile = await contractorService.getContractor(q.contractor).catch(() => null);
           names[q.contractor]    = profile?.name ?? null!;
           scores[q.contractor]   = profile?.trustScore ?? 0;
           verified[q.contractor] = profile?.isVerified ?? false;
+          const check = profile?.licenseNumber ? await contractorService.getLicenseCheck(q.contractor).catch(() => null) : null;
+          if (check) checks[q.contractor] = check;
         }));
         setContractorNames(names);
         setContractorScores(scores);
         setContractorVerified(verified);
+        setLicenseChecks(checks);
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -352,6 +358,9 @@ export default function QuoteDetailPage() {
                           <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, marginTop: "0.25rem" }}>
                             Trust Score: <strong style={{ color: UI.ink }}>{trustScore}/100</strong>
                           </p>
+                        )}
+                        {licenseChecks[quote.contractor] && (
+                          <div style={{ marginTop: "0.4rem", maxWidth: "28rem" }}><LicenseCheckBadge check={licenseChecks[quote.contractor]} /></div>
                         )}
                       </div>
                       <div style={{ textAlign: "right" }}>

@@ -57,15 +57,40 @@ test.describe("SettingsPage — /settings", () => {
 
   test("clicking Notifications tab shows notification content", async ({ page }) => {
     await page.getByRole("button", { name: /notifications/i }).click();
-    // The "Weekly Home Pulse" switch is unique to the NotificationsTab content area
-    await expect(page.getByRole("switch", { name: "Weekly Home Pulse" })).toBeVisible();
+    // The "Dashboard: Home Pulse tips" switch is unique to the NotificationsTab content area
+    await expect(page.getByRole("switch", { name: "Dashboard: Home Pulse tips" })).toBeVisible();
   });
 
   // ── Privacy tab ───────────────────────────────────────────────────────────
 
   test("clicking Privacy tab shows privacy content", async ({ page }) => {
     await page.getByRole("button", { name: /privacy/i }).click();
-    // "Save Privacy Settings" button is unique to the PrivacyTab content area
-    await expect(page.getByRole("button", { name: /save privacy settings/i })).toBeVisible();
+    // The "Public HomeGentic Report" switch is unique to the PrivacyTab content area
+    await expect(page.getByRole("switch", { name: "Public HomeGentic Report" })).toBeVisible();
+    await expect(page.getByText("Changes save as you make them.")).toBeVisible();
+  });
+
+  test("Public HomeGentic Report switch keeps its new value", async ({ page }) => {
+    await page.getByRole("button", { name: /privacy/i }).click();
+    const sw = page.getByRole("switch", { name: "Public HomeGentic Report" });
+    await expect(sw).toBeEnabled();
+    await expect(sw).toHaveAttribute("aria-checked", "true");
+    await sw.click();
+    await expect(sw).toHaveAttribute("aria-checked", "false");
+    // Leave the tab and come back: the value is re-read from the service.
+    await page.getByRole("button", { name: /account/i }).first().click();
+    await page.getByRole("button", { name: /privacy/i }).click();
+    await expect(page.getByRole("switch", { name: "Public HomeGentic Report" })).toHaveAttribute("aria-checked", "false");
+  });
+
+  test("Delete My Account needs the confirmation word before it can run", async ({ page }) => {
+    await page.getByRole("button", { name: /privacy/i }).click();
+    await page.getByRole("button", { name: /delete my account/i }).click();
+    const confirm = page.getByRole("button", { name: /permanently delete/i });
+    await expect(confirm).toBeDisabled();
+    await page.getByLabel(/type delete to confirm/i).fill("DELETE");
+    await expect(confirm).toBeEnabled();
+    await page.getByRole("button", { name: /keep my account/i }).click();
+    await expect(confirm).not.toBeVisible();
   });
 });

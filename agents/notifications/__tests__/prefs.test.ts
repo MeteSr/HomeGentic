@@ -32,7 +32,7 @@ describe("defaults", () => {
         job_awaiting_signature: true, job_awaiting_contractor_signature: true,
         bid_accepted: true, bid_declined: true,
       },
-      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false },
+      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true },
       sms:   { enabled: false, phone: null },
     });
   });

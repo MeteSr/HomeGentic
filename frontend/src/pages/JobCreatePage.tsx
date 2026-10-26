@@ -6,6 +6,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { ConstructionPhotoUpload } from "@/components/ConstructionPhotoUpload";
 import { jobService } from "@/services/job";
+import { jobInboxService } from "@/services/jobInbox";
 import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
 import { photoService, PhotoQuota } from "@/services/photo";
 import { propertyService } from "@/services/property";
@@ -57,14 +58,14 @@ export default function JobCreatePage() {
   const { isMobile } = useBreakpoint();
   const [form, setForm] = useState({
     propertyId:      editJob ? editJob.propertyId                                              : "",
-    serviceType:     editJob ? editJob.serviceType     : prefill?.serviceType    ?? SERVICE_TYPES[0],
+    serviceType:     editJob ? editJob.serviceType     : prefill?.serviceType    || SERVICE_TYPES[0],
     isDiy:           editJob ? editJob.isDiy           : false,
     contractorName:  editJob ? (editJob.contractorName ?? "") : prefill?.contractorName ?? "",
     amount:          editJob ? String((editJob.amount / 100).toFixed(2)) : prefill?.amount ?? "",
-    date:            editJob ? editJob.date                                                    : new Date().toISOString().split("T")[0],
-    description:     editJob ? (editJob.description ?? "")                                     : "",
+    date:            editJob ? editJob.date                                                    : prefill?.date || new Date().toISOString().split("T")[0],
+    description:     editJob ? (editJob.description ?? "")                                     : prefill?.description ?? "",
     permitNumber:    editJob ? (editJob.permitNumber  ?? "")                                   : "",
-    warrantyMonths:  editJob ? (editJob.warrantyMonths != null ? String(editJob.warrantyMonths) : "") : "",
+    warrantyMonths:  editJob ? (editJob.warrantyMonths != null ? String(editJob.warrantyMonths) : "") : prefill?.warrantyMonths ?? "",
   });
 
   // Populate the property store if the user navigated here directly (bypassing Dashboard)
@@ -134,10 +135,12 @@ export default function JobCreatePage() {
             toast(`${failed} photo${failed > 1 ? "s" : ""} failed to upload — job saved.`, { icon: "⚠️" });
           }
         }
+        // Logged from a forwarded invoice: the draft has done its job.
+        if (prefill?.emailDraftId) jobInboxService.dismiss(prefill.emailDraftId).catch(() => {});
         setLoggedServiceType(form.serviceType);
         // Snapshot score for job-value delta display — use getByProperty so the
         // newly created job is included in the score (getAll was always returning []).
-        jobService.getByProperty(form.propertyId).then((js) => setScoreAtSubmit(computeScore(js, []))).catch(() => {}); // score delta is display-only; failure does not affect job creation
+        jobService.getByProperty(form.propertyId).then((js) => setScoreAtSubmit(computeScore(js, properties.filter((p) => String(p.id) === form.propertyId)))).catch(() => {}); // score delta is display-only; failure does not affect job creation
         setSubmitted(true);
         return; // don't navigate — show success state
       }

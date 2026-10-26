@@ -6,17 +6,25 @@
  * that identity's principal on each canister with addNotifier() — the
  * principal is logged at startup. It also resolves agent session tokens
  * through the auth canister (anonymous query) to authenticate registrations,
- * and reads quote requests and contractor profiles to match new leads.
+ * and reads quote requests, contractor profiles and (from payment) contractor
+ * tiers to match new leads and time their alerts. For
+ * the weekly Home Pulse email it reads homeowners (auth), their properties
+ * (property) and jobs (job), so it needs addNotifier on those three too.
  *
  * Canister IDs are read at call time so tests and late-loaded .env files work.
  */
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
-import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo } from "./types";
+import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, PulseJob, PulseProperty, PulseRecipient } from "./types";
+import type { ScoreJob } from "../../packages/shared/src/score";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
 import { idlFactory as contractorIdl } from "../../packages/shared/src/declarations/contractor";
 import { idlFactory as authIdl } from "../../packages/shared/src/declarations/auth";
+import { idlFactory as propertyIdl } from "../../packages/shared/src/declarations/property";
+import { idlFactory as jobIdl } from "../../packages/shared/src/declarations/job";
+import { idlFactory as paymentIdl } from "../../packages/shared/src/declarations/payment";
+import { serviceTypeFromVariant } from "../../packages/shared/src/serviceTypes";
 
 const IC_HOST = () => process.env.IC_HOST ?? "https://icp-api.io";
 const isLocalHost = (host: string) => /localhost|127\.0\.0\.1/.test(host);
@@ -125,7 +133,9 @@ export async function getContractors(): Promise<ContractorInfo[]> {
   const actor = Actor.createActor(contractorIdl, {
     agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_CONTRACTOR"),
   }) as any;
-  const all: any[] = await actor.getAll();
+  // Not getAll(): that leaves out contractors who hid their profile from the
+  // directory, and they still get the lead alerts they asked for.
+  const all: any[] = await actor.getLeadAlertTargets();
   return all.map((c) => ({
     principal:     (c.id as Principal).toText(),
     specialties:   c.specialties.map((s: object) => Object.keys(s)[0]),
@@ -136,6 +146,19 @@ export async function getContractors(): Promise<ContractorInfo[]> {
     jobsCompleted: Number(c.jobsCompleted),
     isVerified:    c.isVerified,
   }));
+}
+
+/**
+ * Whether `principal` has ContractorPro, read live from the payment canister
+ * (the single source of truth for tiers). Throws when payment can't be read;
+ * the caller treats that as not Pro.
+ */
+export async function isContractorPro(principal: string): Promise<boolean> {
+  const actor = Actor.createActor(paymentIdl, {
+    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_PAYMENT"),
+  }) as any;
+  const tier = await actor.getTierForPrincipal(Principal.fromText(principal));
+  return "ContractorPro" in tier;
 }
 
 /** The principal an agent session token belongs to, or null if it's unknown or expired. */
@@ -168,3 +191,68 @@ export async function getNotificationEmail(principal: string): Promise<string | 
   return res.ok[0]?.email ?? null;
 }
 
+
+// ── Weekly Home Pulse ─────────────────────────────────────────────────────────
+
+/** One page of homeowners with an email address (needs addNotifier on auth). */
+export async function getPulseRecipients(after: string | null, limit: number): Promise<PulseRecipient[]> {
+  const auth = Actor.createActor(authIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_AUTH"),
+  }) as any;
+  const res = await auth.getPulseRecipients(after ? [Principal.fromText(after)] : [], BigInt(limit));
+  if ("err" in res) throw new Error(`getPulseRecipients: ${Object.keys(res.err)[0]}`);
+  return res.ok.map((r: any) => ({ principal: (r.principal as Principal).toText(), email: r.email as string }));
+}
+
+/** `owner`'s active properties, minimal fields (needs addNotifier on property). */
+export async function getPulseProperties(owner: string): Promise<PulseProperty[]> {
+  const property = Actor.createActor(propertyIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_PROPERTY"),
+  }) as any;
+  const res = await property.getPulseProperties(Principal.fromText(owner));
+  if ("err" in res) throw new Error(`getPulseProperties: ${Object.keys(res.err)[0]}`);
+  return res.ok.map((p: any) => ({
+    id: p.id, address: p.address, city: p.city, state: p.state, zipCode: p.zipCode, yearBuilt: Number(p.yearBuilt),
+  }));
+}
+
+/** All of `owner`'s jobs (needs addNotifier on job). */
+export async function getJobsByOwner(owner: string): Promise<PulseJob[]> {
+  const job = Actor.createActor(jobIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_JOB"),
+  }) as any;
+  const jobs: any[] = await job.getJobsByOwner(Principal.fromText(owner));
+  return jobs.map((j) => ({
+    id:               j.id,
+    propertyId:       j.propertyId,
+    title:            j.title,
+    serviceType:      serviceTypeFromVariant(j.serviceType),
+    contractorName:   j.contractorName[0] ?? null,
+    amountCents:      Number(j.amount),
+    completedAtMs:    Number(BigInt(j.completedDate) / 1_000_000n),
+    warrantyMonths:   j.warrantyMonths[0] !== undefined ? Number(j.warrantyMonths[0]) : null,
+    isDiy:            j.isDiy,
+    status:           Object.keys(j.status)[0],
+    verified:         j.verified,
+    homeownerSigned:  j.homeownerSigned,
+    contractorSigned: j.contractorSigned,
+  }));
+}
+
+/**
+ * The job canister's score inputs for one property — the same snapshots the
+ * market canister scores certificates from, so the email shows that number.
+ */
+export async function getJobSnapshots(propertyId: string): Promise<ScoreJob[]> {
+  const job = Actor.createActor(jobIdl, {
+    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_JOB"),
+  }) as any;
+  const snaps: any[] = await job.getJobSnapshotsForProperty(propertyId);
+  return snaps.map((s) => ({
+    serviceType:   s.serviceType,
+    completedYear: Number(s.completedYear),
+    amountCents:   Number(s.amountCents),
+    isDiy:         s.isDiy,
+    isVerified:    s.isVerified,
+  }));
+}

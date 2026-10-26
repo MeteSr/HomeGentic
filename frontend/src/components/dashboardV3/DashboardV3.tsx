@@ -64,6 +64,8 @@ import { BUTTON_RESET } from "@/theme";
 import { BrandMark, HeaderDivider, RailChipCount, railChipStyle, RAIL_WIDTH } from "./chrome";
 import { buildPanels, CTA_FLOW, PANEL_ORDER, type PanelCtx } from "./panelData";
 import { buildHomeBrief, type BriefTone } from "./homeBrief";
+import { roomService } from "@/services/room";
+import { recallItems, checkRecalls, type RecallMatch } from "@/services/recalls";
 import { buildSystemAnswer, matchSystemQuestion, SYSTEM_SERVICE_TYPE, type FactTone } from "./answerCards";
 import type { FlowKey, PanelData, PanelKey, PanelRow } from "./types";
 
@@ -240,6 +242,19 @@ export function DashboardV3() {
   const voice = useVoiceAgent();
   const feed = useActivityFeed(properties, jobSummary.loading ? undefined : allJobs);
 
+  // Possible CPSC recalls for the active property's appliances (best effort).
+  const [recalls, setRecalls] = useState<RecallMatch[]>([]);
+  React.useEffect(() => {
+    setRecalls([]);
+    if (!activePropertyId) return;
+    let live = true;
+    roomService.getRoomsByProperty(activePropertyId)
+      .then((rooms) => checkRecalls(recallItems(rooms)))
+      .then((m) => { if (live) setRecalls(m); })
+      .catch(() => { /* no rooms or Worker unreachable: no recall line */ });
+    return () => { live = false; };
+  }, [activePropertyId]);
+
   // System ages and bill patterns feed both the home brief and answer cards.
   const systems = useMemo(
     () => (activeProperty ? estimateSystems(Number(activeProperty.yearBuilt), activeProperty.state, systemAges) : []),
@@ -385,9 +400,9 @@ export function DashboardV3() {
   const brief = useMemo(() => buildHomeBrief({
     now: new Date(), pendingProposals, sensorAlerts, quoteRequests, bidCountMap, jobs,
     recurringServices, visitLogMap, atRiskWarnings, systems, billInsights, people,
-    quotaExhausted: voice.quotaExhausted,
+    quotaExhausted: voice.quotaExhausted, recalls,
   }), [pendingProposals, sensorAlerts, quoteRequests, bidCountMap, jobs, recurringServices, visitLogMap,
-    atRiskWarnings, systems, billInsights, people, voice.quotaExhausted]);
+    atRiskWarnings, systems, billInsights, people, voice.quotaExhausted, recalls]);
 
   // ── Header helpers ────────────────────────────────────────────────────────
   const propertyLabel = activeProperty
@@ -589,7 +604,7 @@ export function DashboardV3() {
                   {brief.items.map((item) => (
                     <button type="button"
                       key={item.id}
-                      onClick={() => (item.flow ? openFlow(item.flow) : item.go ? goPanel(item.go) : undefined)}
+                      onClick={() => (item.href ? window.open(item.href, "_blank", "noopener,noreferrer") : item.flow ? openFlow(item.flow) : item.go ? goPanel(item.go) : undefined)}
                       style={{ ...BUTTON_RESET, width: "100%", display: "flex", alignItems: "flex-start", gap: 10, marginTop: 10, cursor: "pointer" }}
                     >
                       <Dot color={BRIEF_DOT[item.tone]} style={{ marginTop: 7 }} />

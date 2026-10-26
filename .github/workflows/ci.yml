@@ -28,7 +28,7 @@ jobs:
           node-version: '22'
 
       - name: Install icp-cli
-        run: npm install -g @icp-sdk/icp-cli
+        run: npm install -g @icp-sdk/icp-cli@1.7.0
 
       - name: Cache mops packages
         uses: actions/cache@v6
@@ -37,7 +37,7 @@ jobs:
           key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
 
       - name: Install mops
-        run: npm install -g ic-mops
+        run: npm install -g ic-mops@3.5.1
 
       - name: Install Motoko dependencies
         run: mops install
@@ -115,7 +115,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Cache mops packages
         uses: actions/cache@v6
@@ -125,7 +125,7 @@ jobs:
 
       - name: Install mops and moc
         run: |
-          npm install -g ic-mops
+          npm install -g ic-mops@3.5.1
           mops install
           mops toolchain use moc 1.16.1
           "$(mops toolchain bin moc)" --version
@@ -149,7 +149,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -162,8 +162,9 @@ jobs:
         # cycles infrastructure so icp canister create fails on fresh networks.
         # test-backend.sh also calls `dfx ping`, so dfx must be the active replica.
         run: |
-          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xz
+          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz"
+          echo "d8701438d05d9da0da0c90ab9342ac9ba6b0371ae9f5d1a943e94600fd674498  /tmp/dfx.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/dfx.tar.gz
           DFX_BIN=$(find . -name "dfx*" -type f -perm /111 | head -1)
           sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
           dfx --version
@@ -175,7 +176,7 @@ jobs:
           key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
 
       - name: Install mops
-        run: npm install -g ic-mops
+        run: npm install -g ic-mops@3.5.1
 
       - name: Install Motoko dependencies
         run: mops install
@@ -210,20 +211,18 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      - name: Install root dependencies
+      - name: Install root and frontend dependencies
         run: npm ci
-
-      - name: Install frontend dependencies
-        run: cd frontend && npm ci
 
       - name: Install dfx
         run: |
-          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xz
+          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz"
+          echo "d8701438d05d9da0da0c90ab9342ac9ba6b0371ae9f5d1a943e94600fd674498  /tmp/dfx.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/dfx.tar.gz
           DFX_BIN=$(find . -name "dfx*" -type f -perm /111 | head -1)
           sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
           dfx --version
@@ -236,7 +235,7 @@ jobs:
 
       - name: Install mops and Motoko dependencies
         run: |
-          npm install -g ic-mops
+          npm install -g ic-mops@3.5.1
           mops install
           mops toolchain use moc 1.16.1
           MOC_BIN=$(mops toolchain bin moc)
@@ -277,6 +276,11 @@ jobs:
           dfx canister call quote addNotifier "(principal \"$INTEG_PRINCIPAL\")"
           dfx canister call auth  addNotifier "(principal \"$INTEG_PRINCIPAL\")"
 
+          # Let the integration test identity save referral-fee cards for the
+          # contractors it registers, as the voice Worker does after Stripe
+          # Checkout (contractors without ContractorPro need one to bid).
+          dfx canister call fee addReferralRelay "(principal \"$INTEG_PRINCIPAL\")"
+
       - name: Run integration tests
         run: npm run test:integration
 
@@ -298,7 +302,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -337,7 +341,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -357,7 +361,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: agents/notifications/package-lock.json
 
@@ -377,7 +381,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: mobile/package-lock.json
 
@@ -399,7 +403,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: agents/voice/package-lock.json
 
@@ -440,7 +444,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -481,7 +485,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -538,7 +542,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 

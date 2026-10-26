@@ -86,7 +86,8 @@ describe("PaymentSuccessPage", () => {
     renderSuccess();
     await waitFor(() => {
       expect(screen.getByText(/Gift is on its way/i)).toBeTruthy();
-      expect(screen.getByText("cs_test_abc123")).toBeTruthy();
+      expect(screen.getByText(/emailed your recipient/i)).toBeTruthy();
+      expect(screen.getByText(/\/gift\/redeem\?token=cs_test_abc123$/)).toBeTruthy();
     });
   });
 

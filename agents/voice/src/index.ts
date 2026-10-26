@@ -40,13 +40,21 @@ import {
 import type { BuyerTruthKitRequest } from "../buyersTruthKit";
 import type { ChatRequest } from "../types";
 import { logger } from "../../../packages/shared/src/logger";
-import { checkGlobalRateLimit, checkAgentRateLimit, checkChatRateLimit, checkAuxAiRateLimit, getAgentUsage, beginOnce, finishOnce, abortOnce } from "./rateLimiter";
+import { checkGlobalRateLimit, checkAgentRateLimit, checkChatRateLimit, checkAuxAiRateLimit, getAgentUsage, beginOnce, finishOnce, abortOnce, hitCounter } from "./rateLimiter";
 import { resolveSessionPrincipal, SESSION_HEADER } from "./session";
 import { resolveTier } from "./tier";
 import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
-import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead } from "./offchainOutcalls";
+import { canisterLedger, startCardSetup, saveCardFromSession, markInvoicePaid, chargeDueFees } from "./referralFees";
+import { handleInbound, addDraftInCanister } from "./inbox";
+import { checkLicense } from "./dbpr";
+import { findRecalls } from "./recalls";
+import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead, sendGiftEmail } from "./offchainOutcalls";
 import { getInvitePreview } from "./jobCanister";
+import { handlePhotos } from "./photos";
+import { r2PhotoStore } from "./photoStore";
+import { fetchPhotoAccess } from "../photoCanister";
+import { markIdentityCleared } from "./propertyCanister";
 export { RateLimiterDO } from "./rateLimiterDO";
 import {
   HttpError,
@@ -97,6 +105,13 @@ export interface Env {
   CANISTER_ID_AUTH?:     string;   // resolves x-agent-session tokens
   CANISTER_ID_MONITORING?: string;
   CANISTER_ID_JOB?:      string;   // invite-token previews for contractor-invite emails
+  CANISTER_ID_PHOTO?:    string;   // photoAccess checks for /photos/*
+  CANISTER_ID_CONTRACTOR?: string; // records DBPR licence lookups (/api/license/check)
+  DBPR_LICENSE_FILE_URL?:  string; // override for DBPR's construction licensee file (src/dbpr.ts)
+  CANISTER_ID_PROPERTY?: string;   // records Stripe Identity results (relayMarkIdentityCleared)
+  CANISTER_ID_FEE?:      string;   // Contractor Free referral fees (src/referralFees.ts)
+  /** Domain whose mail Email Routing sends to email() (h-<token>@INBOX_DOMAIN). Unset → inbound mail ignored. */
+  INBOX_DOMAIN?:         string;
 
   // M-6: keys that used to sit in the ai_proxy canister (now Worker secrets only)
   ATTOM_API_KEY?:        string;
@@ -125,9 +140,21 @@ export interface Env {
   RATE_LIMIT: KVNamespace;
   /** RateLimiterDO namespace (atomic counters); KV is the fallback when unbound. */
   RATE_LIMITER?: DurableObjectNamespace;
+  // R2: off-chain photo bytes (/photos/*), wrapped by r2PhotoStore. Unbound → 503.
+  PHOTOS?: R2Bucket;
 }
 
 // ── Credit pack config (mirrors server.ts CREDIT_PACKS) ──────────────────────
+
+/** Property ids: UUIDs for new properties, older numeric/prefixed ids. */
+const PROPERTY_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
+const IDENTITY_SESSIONS_PER_DAY = 3;
+
+/** Subscriptions Stripe may still charge. */
+const LIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due", "incomplete", "unpaid"]);
+
+/** One-time gift prices (cents). Pro is annual-only; gifts are sold as one year. */
+const GIFT_PRICE_CENTS: Record<string, number> = { ProYearly: 5_900 };
 
 const CREDIT_PACKS: Record<number, { envVar: keyof Env; label: string }> = {
   25:  { envVar: "STRIPE_PRICE_CREDITS_25",  label: "25 credits" },
@@ -150,7 +177,7 @@ function buildCorsHeaders(request: Request, env: Env): Record<string, string> {
   if (!origin || !isAllowedOrigin(origin, env)) return {};
   return {
     "Access-Control-Allow-Origin":   origin,
-    "Access-Control-Allow-Methods":  "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods":  "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Headers":
       "Content-Type, x-api-key, x-icp-principal, x-subscription-tier, x-agent-session, " +
       "x-context-hmac, x-request-id, x-trace-id",
@@ -337,6 +364,25 @@ async function flushErrorAggregations(force = false): Promise<void> {
 export default {
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(scheduledBidtolist(env));
+    ctx.waitUntil(scheduledReferralFees(env));
+  },
+
+  /** Forwarded invoices → draft jobs (src/inbox.ts). Never replies or rejects, so forged senders get no backscatter. */
+  async email(message: ForwardableEmailMessage, env: Env, _ctx: ExecutionContext): Promise<void> {
+    if (!env.INBOX_DOMAIN) return;
+    (process.env as any).DFX_IDENTITY_PEM = env.DFX_IDENTITY_PEM ?? "";
+    (process.env as any).DFX_NETWORK      = env.DFX_NETWORK ?? "ic";
+    (process.env as any).CANISTER_ID_JOB  = env.CANISTER_ID_JOB ?? "";
+    const provider = new AnthropicProvider(env.ANTHROPIC_API_KEY, resolveModel(env.AI_MODEL), env.ANTHROPIC_BASE_URL);
+    try {
+      const raw = await new Response(message.raw).arrayBuffer();
+      const outcome = await handleInbound(message.to, raw, message.rawSize, env.INBOX_DOMAIN, {
+        provider, addDraft: addDraftInCanister,
+      });
+      logger.info("inbox", "inbound mail", { outcome });
+    } catch (err) {
+      logger.error("inbox", "inbound mail failed", { error: (err as Error)?.message });
+    }
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -361,6 +407,10 @@ export default {
     (process.env as any).CANISTER_ID_AUTH        = env.CANISTER_ID_AUTH ?? "";
     (process.env as any).CANISTER_ID_MONITORING  = env.CANISTER_ID_MONITORING ?? "";
     (process.env as any).CANISTER_ID_JOB         = env.CANISTER_ID_JOB ?? "";
+    (process.env as any).CANISTER_ID_PHOTO       = env.CANISTER_ID_PHOTO ?? "";
+    (process.env as any).CANISTER_ID_PROPERTY    = env.CANISTER_ID_PROPERTY ?? "";
+    (process.env as any).CANISTER_ID_CONTRACTOR  = env.CANISTER_ID_CONTRACTOR ?? "";
+    (process.env as any).CANISTER_ID_FEE         = env.CANISTER_ID_FEE ?? "";
     (process.env as any).AI_MODEL                = env.AI_MODEL ?? "";
 
     // CORS preflight
@@ -450,6 +500,15 @@ async function route(
   if (path.startsWith("/api/bidtolist/")) {
     const subpath = path.slice("/api/bidtolist".length);
     return withCors(await handleBidtolist(request, subpath, env, () => callerPrincipal(request, env)), cors);
+  }
+
+  // ── Off-chain photo bytes (R2) ────────────────────────────────────────────
+  if (path.startsWith("/photos/")) {
+    return withCors(await handlePhotos(request, path, env, {
+      store:     env.PHOTOS ? r2PhotoStore(env.PHOTOS) : null,
+      principal: () => callerPrincipal(request, env),
+      access:    fetchPhotoAccess,
+    }), cors);
   }
 
   // X-1 / F-4: every route that costs money (Anthropic, Rentcast) or touches
@@ -839,7 +898,9 @@ Rules:
       const text = await provider.complete({
         system:   buildDocumentSystemPrompt(),
         messages: [{ role: "user", content: [
-          { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
+          mediaType === "application/pdf"
+            ? { type: "document", source: { type: "base64", media_type: mediaType, data: base64Data } }
+            : { type: "image",    source: { type: "base64", media_type: mediaType, data: base64Data } },
           { type: "text", text: `File name: ${fileName}\nExtract the home document data from this file.` },
         ]}],
         maxTokens: 512,
@@ -1126,6 +1187,8 @@ Rules:
     const body = await readJsonBody(request, MAX_JSON_BYTES);
     const p    = sessionPrincipal!;
     const r =
+      path === "/api/recalls"                 ? await findRecalls(body, env) :
+      path === "/api/license/check"           ? await checkLicense(p, env) :
       path === "/api/property/details"        ? await lookupPropertyDetails(body, p, env) :
       path === "/api/permits/import"          ? await importPermits(body, p, env) :
       path === "/api/email/contractor-invite" ? await sendContractorInvite(body, p, env, getInvitePreview) :
@@ -1151,23 +1214,35 @@ Rules:
       ContractorProMonthly: env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY?.trim(),
       ContractorProYearly:  env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY?.trim(),
     };
-    const priceId = typeof tier === "string" && typeof billing === "string" ? PRICE_MAP[`${tier}${billing}`] : undefined;
-    if (!priceId) return json({ error: "No price configured for that plan" }, 400, cors);
     const meta = (v: unknown) => (typeof v === "string" ? v.slice(0, 450) : "");
+    // A gift is a one-time payment for one period: it must never renew on the
+    // giver's card (the renewals would benefit nobody).
+    const giftCents = gift ? GIFT_PRICE_CENTS[`${tier}${billing}`] : undefined;
+    const priceId = typeof tier === "string" && typeof billing === "string" ? PRICE_MAP[`${tier}${billing}`] : undefined;
+    if (gift ? !giftCents : !priceId) return json({ error: "No price configured for that plan" }, 400, cors);
     try {
       const stripe  = await stripeClient(sk);
       const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        line_items: [{ price: priceId, quantity: 1 }],
+        ...(gift
+          ? {
+              mode: "payment",
+              line_items: [{
+                quantity: 1,
+                price_data: { currency: "usd", unit_amount: giftCents, product_data: { name: `HomeGentic ${tier} gift (1 year)` } },
+              }],
+            }
+          : {
+              mode: "subscription",
+              line_items: [{ price: priceId, quantity: 1 }],
+              // Subscription metadata is what verify-subscription / the webhook read.
+              subscription_data: { metadata: { icp_principal: principal, tier, billing } },
+            }),
         success_url: successUrl, cancel_url: cancelUrl,
-        // Subscription metadata is what verify-subscription / the webhook read.
-        // (A gift must not activate the purchaser, so its subscription carries no principal.)
-        subscription_data: { metadata: gift ? { tier, billing, is_gift: "true" } : { icp_principal: principal, tier, billing } },
         metadata: {
           principal, icp_principal: principal, tier, billing, is_gift: gift ? "true" : "false",
           ...(gift && typeof gift === "object" && {
             recipient_email: meta(gift.recipientEmail), recipient_name: meta(gift.recipientName),
-            sender_name: meta(gift.senderName), delivery_date: meta(gift.deliveryDate), gift_message: meta(gift.giftMessage),
+            sender_name: meta(gift.senderName), gift_message: meta(gift.giftMessage),
           }),
         },
       });
@@ -1220,6 +1295,92 @@ Rules:
     }
   }
 
+  // ── POST /api/stripe/cancel-subscription ─────────────────────────────────
+  // Settings → Cancel. Sets cancel_at_period_end on every live Stripe
+  // subscription the session principal owns, so Stripe stops renewing it; the
+  // user keeps access until the paid period ends (customer.subscription.deleted
+  // downgrades then). A principal with no Stripe subscription (ICP payment,
+  // gift, admin grant) has nothing to stop: { cancelled: 0 }.
+  if (path === "/api/stripe/cancel-subscription" && method === "POST") {
+    const sk = env.STRIPE_SECRET_KEY;
+    if (!sk) return json({ error: "Payments are not configured" }, 500, cors);
+    const principal = sessionPrincipal!;
+    if (!PRINCIPAL_RE.test(principal)) return json({ error: "Invalid principal" }, 400, cors);
+    try {
+      const stripe = await stripeClient(sk);
+      const found  = await stripe.subscriptions.search({
+        query: `metadata['icp_principal']:'${principal}'`, limit: 20,
+      });
+      let cancelled = 0;
+      let periodEnd: number | null = null;
+      for (const sub of found?.data ?? []) {
+        if ((sub.metadata?.icp_principal ?? "") !== principal) continue;
+        if (!LIVE_SUBSCRIPTION_STATUSES.has(sub.status)) continue;
+        const updated = sub.cancel_at_period_end
+          ? sub
+          : await stripe.subscriptions.update(sub.id, { cancel_at_period_end: true });
+        cancelled++;
+        const end = periodEndSeconds(updated);
+        if (end && (!periodEnd || end > periodEnd)) periodEnd = end;
+      }
+      return json({ cancelled, periodEnd }, 200, cors);
+    } catch (err) {
+      return stripeFailure("cancel-subscription", err, cors);
+    }
+  }
+
+  // ── POST /api/stripe/identity-session ────────────────────────────────────
+  // Property claim step 1: start a Stripe Identity check (ID document + live
+  // selfie) for the session principal. The webhook records a verified result
+  // on the property through property.relayMarkIdentityCleared, which only
+  // accepts it if this principal owns the property. Each check costs money,
+  // so a principal may start IDENTITY_SESSIONS_PER_DAY per day.
+  if (path === "/api/stripe/identity-session" && method === "POST") {
+    const sk = env.STRIPE_SECRET_KEY;
+    if (!sk) return json({ error: "Identity checks are not configured" }, 500, cors);
+    const principal = sessionPrincipal!;
+    const { propertyId, returnUrl } = await readJsonBody<{ propertyId?: string; returnUrl?: string }>(request);
+    if (typeof propertyId !== "string" || !PROPERTY_ID_RE.test(propertyId)) {
+      return json({ error: "valid propertyId required" }, 400, cors);
+    }
+    if (!isAllowedRedirectUrl(returnUrl, allowedOrigins(env))) {
+      return json({ error: "returnUrl must be on the frontend origin" }, 400, cors);
+    }
+    const quota = await hitCounter(env, `idv:${principal}:${new Date().toISOString().slice(0, 10)}`, IDENTITY_SESSIONS_PER_DAY, 86_400);
+    if (!quota.allowed) return json({ error: "Too many identity checks today. Try again tomorrow." }, 429, cors);
+    try {
+      const stripe = await stripeClient(sk);
+      const vs = await stripe.identity.verificationSessions.create({
+        type: "document",
+        options: { document: { require_matching_selfie: true, require_live_capture: true } },
+        metadata: { icp_principal: principal, property_id: propertyId },
+        return_url: returnUrl,
+      });
+      return json({ url: vs.url }, 200, cors);
+    } catch (err) {
+      return stripeFailure("identity-session", err, cors);
+    }
+  }
+
+  // ── POST /api/stripe/referral-card ───────────────────────────────────────
+  // Contractor Free: save a card for the 3% referral fee (Checkout in setup
+  // mode). The webhook stores it on the fee canister; the quote canister
+  // refuses a non-ContractorPro bid until one is saved.
+  if (path === "/api/stripe/referral-card" && method === "POST") {
+    const sk = env.STRIPE_SECRET_KEY;
+    if (!sk) return json({ error: "Payments are not configured" }, 500, cors);
+    const { returnUrl } = await readJsonBody<{ returnUrl?: string }>(request);
+    if (!isAllowedRedirectUrl(returnUrl, allowedOrigins(env))) {
+      return json({ error: "returnUrl must be on the frontend origin" }, 400, cors);
+    }
+    try {
+      const out = await startCardSetup(sessionPrincipal!, returnUrl as string, await stripeClient(sk), canisterLedger());
+      return json(out.body, out.status, cors);
+    } catch (err) {
+      return stripeFailure("referral-card", err, cors);
+    }
+  }
+
   // ── POST /api/stripe/verify-session ──────────────────────────────────────
   // Legacy Stripe-hosted checkout. Only the session's own principal can
   // verify it, and activation is idempotent with Stripe's period end (F-3).
@@ -1245,7 +1406,7 @@ Rules:
       // idempotent); the recipient redeems it on-chain with redeemGift.
       // Nothing is granted to the purchaser.
       if (isGift) {
-        await registerGift(session);
+        await registerGift(session, env);
         return json({ type: "gift", giftToken: sessionId }, 200, cors);
       }
       const subId = typeof session.subscription === "string" ? session.subscription : (session.subscription as any)?.id;
@@ -1441,6 +1602,10 @@ Rules:
         case "invoice.paid": {
           // Renewal: re-read the subscription so expiry is Stripe's new period end.
           const inv   = event.data.object;
+          if (inv.metadata?.type === "referral_fee") {
+            await markInvoicePaid(inv, canisterLedger());
+            break;
+          }
           const subId = (typeof inv.subscription === "string" ? inv.subscription : inv.subscription?.id)
                         ?? inv.parent?.subscription_details?.subscription;
           if (typeof subId === "string" && subId) {
@@ -1450,6 +1615,18 @@ Rules:
           }
           break;
         }
+        case "identity.verification_session.verified": {
+          const vs    = event.data.object;
+          const owner = (vs.metadata?.icp_principal ?? "") as string;
+          const propertyId = (vs.metadata?.property_id ?? "") as string;
+          if (!owner || !PROPERTY_ID_RE.test(propertyId)) break;
+          // verified_outputs is only returned when expanded.
+          const full: any = await stripe.identity.verificationSessions.retrieve(vs.id, { expand: ["verified_outputs"] });
+          const out  = full?.verified_outputs ?? {};
+          const name = [out.first_name, out.last_name].filter((v: unknown) => typeof v === "string" && v).join(" ").slice(0, 200);
+          await markIdentityCleared(propertyId, owner, vs.id, name);
+          break;
+        }
         case "checkout.session.completed": {
           const session = event.data.object;
           if (session.metadata?.type === "agent_credits" && session.payment_status === "paid") {
@@ -1457,7 +1634,9 @@ Rules:
             const size = Number(session.metadata?.pack_size ?? 0);
             if (p && CREDIT_PACKS[size]) await grantCreditPack(session.id, p, size);
           } else if (session.metadata?.is_gift === "true" && session.payment_status === "paid" && session.status === "complete") {
-            await registerGift(session);
+            await registerGift(session, env);
+          } else if (session.metadata?.type === "referral_card") {
+            await saveCardFromSession(session, stripe, canisterLedger());
           }
           break;
         }
@@ -1530,11 +1709,14 @@ const AUX_AI_ROUTES = new Set([
 const OFFCHAIN_OUTCALL_ROUTES = new Set([
   "/api/property/details", "/api/permits/import",
   "/api/email/contractor-invite", "/api/email/broker-lead",
+  "/api/recalls",   // CPSC recall check (src/recalls.ts); free API, cached per brand
+  "/api/license/check",   // Florida DBPR licence lookup (src/dbpr.ts); public file, throttled per caller
 ]);
 
 /** Stripe routes that act for a user: the user is the session principal. */
 const STRIPE_SESSION_ROUTES = new Set([
-  "/api/stripe/create-checkout", "/api/stripe/create-subscription-intent",
+  "/api/stripe/create-checkout", "/api/stripe/create-subscription-intent", "/api/stripe/cancel-subscription",
+  "/api/stripe/identity-session", "/api/stripe/referral-card",
   "/api/stripe/verify-session", "/api/stripe/verify-subscription",
   "/api/stripe/create-credit-checkout", "/api/stripe/verify-credit-purchase",
 ]);
@@ -1552,6 +1734,21 @@ function withCors(resp: Response, cors: Record<string, string>): Response {
 async function stripeClient(sk: string): Promise<any> {
   const Stripe = (await import("stripe")).default;
   return new Stripe(sk);
+}
+
+/** Hourly: charge Contractor Free referral fees that are due (src/referralFees.ts). */
+async function scheduledReferralFees(env: Env): Promise<void> {
+  if (!env.CANISTER_ID_FEE || !env.STRIPE_SECRET_KEY || !env.DFX_IDENTITY_PEM) return;
+  (process.env as any).DFX_IDENTITY_PEM       = env.DFX_IDENTITY_PEM;
+  (process.env as any).DFX_NETWORK            = env.DFX_NETWORK ?? "ic";
+  (process.env as any).CANISTER_ID_FEE        = env.CANISTER_ID_FEE;
+  (process.env as any).CANISTER_ID_CONTRACTOR = env.CANISTER_ID_CONTRACTOR ?? "";
+  try {
+    const summary = await chargeDueFees(await stripeClient(env.STRIPE_SECRET_KEY), canisterLedger());
+    logger.info("referral-fees", "charge run", { ...summary });
+  } catch (err) {
+    logger.error("referral-fees", "charge run failed", { error: (err as Error)?.message });
+  }
 }
 
 /** F-11: log the Stripe error, return a generic message. */
@@ -1588,7 +1785,7 @@ async function activateFromSubscription(sub: any, principal: string): Promise<vo
  * The gift token is the checkout session id; metadata comes from Stripe (set
  * by create-checkout), not from the caller.
  */
-async function registerGift(session: any): Promise<void> {
+async function registerGift(session: any, env: Env): Promise<void> {
   if (typeof session?.id !== "string" || !CHECKOUT_SESSION_RE.test(session.id)) {
     throw new HttpError(400, "Invalid gift session");
   }
@@ -1600,6 +1797,13 @@ async function registerGift(session: any): Promise<void> {
     recipientEmail: str(m.recipient_email), recipientName: str(m.recipient_name),
     senderName: str(m.sender_name), giftMessage: str(m.gift_message), deliveryDate: str(m.delivery_date),
   });
+  // Email the recipient their redeem link. Resend's idempotency key makes the
+  // webhook and verify-session paths send it once between them.
+  await sendGiftEmail({
+    giftToken: session.id, tier,
+    recipientEmail: str(m.recipient_email), recipientName: str(m.recipient_name),
+    senderName: str(m.sender_name), giftMessage: str(m.gift_message),
+  }, env);
 }
 
 /** Grant a credit pack once per checkout session. Returns false on a replay. */

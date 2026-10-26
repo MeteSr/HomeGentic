@@ -8,6 +8,7 @@ import Char "mo:core/Char";
 import Blob "mo:core/Blob";
 import Debug "mo:core/Debug";
 import Iter "mo:core/Iter";
+import List "mo:core/List";
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
 import Nat8 "mo:core/Nat8";
@@ -423,6 +424,45 @@ persistent actor class Auth(initDeployer : Principal) {
     dropAgentSession(msg.caller);
   };
 
+  // ─── Account deletion ───────────────────────────────────────────────────────
+
+  /// Account deletion: removes everything this canister holds for the caller —
+  /// the user profile, every voice-agent session token they own, and their
+  /// rate-limit counter. Admin / notifier lists are left alone.
+  /// Returns how many records were removed.
+  public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    let caller = msg.caller;
+    var removed = 0;
+
+    if (users.get(caller) != null) {
+      users.remove(caller);
+      removed += 1;
+    };
+
+    // The owner index holds at most one token, but sweep the token map too in
+    // case an older token for this owner was ever left behind.
+    let tokens = agentSessions.entries()
+      .filter(func((_, s) : (Text, AgentSession)) : Bool { Principal.equal(s.owner, caller) })
+      .map(func((t, _) : (Text, AgentSession)) : Text { t })
+      .toArray();
+    for (t in tokens.values()) {
+      agentSessions.remove(t);
+      removed += 1;
+    };
+    switch (agentSessionByOwner.get(caller)) {
+      case (?t) {
+        if (agentSessions.get(t) != null) { agentSessions.remove(t); removed += 1 };
+        agentSessionByOwner.remove(caller);
+      };
+      case null {};
+    };
+
+    updateCallLimits.remove(caller.toText());
+    #ok(removed)
+  };
+
   // ─── Notification contact ───────────────────────────────────────────────────
 
   /// Allow a principal (the notification relay's identity) to look up emails.
@@ -449,6 +489,28 @@ persistent actor class Auth(initDeployer : Principal) {
       };
       case null #ok(null);
     }
+  };
+
+  /// Homeowners to send the weekly Home Pulse email to: active accounts with
+  /// an email address, in principal order, after `after` (exclusive), at most
+  /// `limit` (capped at 200) per page. Notifiers and admins only. Whether each
+  /// one wants the email is the relay's preference, not stored here.
+  public query(msg) func getPulseRecipients(after : ?Principal, limit : Nat) : async Result.Result<[{ principal : Principal; email : Text }], Error> {
+    if (not isNotifier(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let cap = if (limit == 0 or limit > 200) 200 else limit;
+    let iter = switch (after) {
+      case (?a) Map.entriesFrom(users, Principal.compare, a);
+      case null users.entries();
+    };
+    let out = List.empty<{ principal : Principal; email : Text }>();
+    label scan for ((p, u) in iter) {
+      if (out.size() >= cap) break scan;
+      if (after == ?p) continue scan;
+      if (u.role == #Homeowner and u.isActive and Text.size(u.email) > 0) {
+        out.add({ principal = p; email = u.email });
+      };
+    };
+    #ok(out.toArray())
   };
 
   /// The principal a live session token belongs to, or null if the token is

@@ -45,6 +45,12 @@ vi.mock("@/services/job", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/job")>();
   return { ...actual, jobService: { getJobsPendingMySignature: mockGetJobsPendingMySignature, verifyJob: mockVerifyJob } };
 });
+vi.mock("@/services/payment", () => ({
+  paymentService: {
+    getMySubscription: vi.fn(async () => ({ tier: "ContractorFree", expiresAt: null, cancelledAt: null })),
+    getTierFor:        vi.fn(async () => "ContractorFree"),
+  },
+}));
 vi.mock("@/store/authStore", () => ({ useAuthStore: mockUseAuthStore }));
 vi.mock("@/hooks/useBreakpoint", () => ({ useBreakpoint: mockUseBreakpoint }));
 vi.mock("@/components/Layout", () => ({ Layout: ({ children }: any) => <div data-testid="layout">{children}</div> }));

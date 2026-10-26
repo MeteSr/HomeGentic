@@ -1,19 +1,24 @@
 /**
  * HomeGentic Score Service
  *
- * Computes a 0–100 score from local job + property data and persists
- * weekly snapshots to localStorage so the Dashboard can render a sparkline.
+ * The score itself comes from @homegentic/shared/score, the same formula the
+ * market canister uses for certificates and the FSBO index:
  *
- * Scoring rubric (sum ≤ 100):
- *   • Verified jobs    – 4 pts each, max 40 pts
- *   • Total value      – 1 pt per $2,500, max 20 pts
- *   • Verification     – 10 pts per Premium property, 5 pts per Basic, max 20 pts
- *   • Job diversity    – 4 pts per unique service type, max 20 pts
+ *   score = maintenance coverage × 40 % + system modernization × 35 %
+ *         + verification depth × 25 %
+ *
+ * This file adapts app jobs/properties to it, applies the dashboard's decay
+ * adjustments (scoreDecayService), and persists weekly snapshots to
+ * localStorage so the Dashboard can render a sparkline.
  */
 
 import type { Job } from "@/services/job";
 import type { Property } from "@/services/property";
 import { SCORE_DECAY_FLOOR } from "@/services/scoreDecayService";
+import {
+  scoreBreakdown, weightedPoints, REPLACEMENT_MIN_CENTS,
+  type ScoreBreakdown as SharedBreakdown, type ScoreJob,
+} from "@homegentic/shared/score";
 
 export interface ScoreSnapshot {
   score: number;
@@ -28,26 +33,120 @@ const MAX_SNAPSHOTS = 12; // keep ~3 months of weekly snapshots
  *  unverified contractor profile (mirrors job.countsAsVerified on-chain). */
 const countsAsVerified = (j: Job) => j.verified && !j.contractorUnverified;
 
-export function computeScore(jobs: Job[], properties: Property[]): number {
-  let score = 0;
+const currentYear = () => new Date().getFullYear();
 
-  const verifiedJobs = jobs.filter(countsAsVerified);
-  score += Math.min(verifiedJobs.length * 4, 40);
+/** The shared formula's view of one job. */
+export function toScoreJob(j: Job): ScoreJob {
+  const year = parseInt((j.date ?? "").slice(0, 4), 10);
+  return {
+    serviceType:   j.serviceType,
+    completedYear: Number.isFinite(year) ? year : currentYear(),
+    amountCents:   j.amount,
+    isDiy:         j.isDiy,
+    isVerified:    countsAsVerified(j),
+  };
+}
 
-  const totalValueDollars = jobs.reduce((sum, j) => sum + j.amount, 0) / 100;
-  score += Math.min(Math.floor(totalValueDollars / 2500), 20);
+/** Score dimensions (0–100 each) plus the points each adds to the total. */
+export interface ScoreBreakdown extends SharedBreakdown {
+  maintenancePts:   number;   // of 40
+  modernizationPts: number;   // of 35
+  verificationPts:  number;   // of 25
+}
 
-  let verificationPts = 0;
-  for (const p of properties) {
-    if (p.verificationLevel === "Premium") verificationPts += 10;
-    else if (p.verificationLevel === "Basic") verificationPts += 5;
+function withPoints(b: SharedBreakdown): ScoreBreakdown {
+  return {
+    ...b,
+    maintenancePts:   weightedPoints(b.maintenance, "maintenance"),
+    modernizationPts: weightedPoints(b.modernization, "modernization"),
+    verificationPts:  weightedPoints(b.verification, "verification"),
+  };
+}
+
+/**
+ * The breakdown for one property, or the average over several (each scored
+ * on its own jobs). With no property the house's age is unknown, so systems
+ * are treated as new; pass the property whenever you have it.
+ */
+const EMPTY: ScoreBreakdown = { maintenance: 0, modernization: 0, verification: 0, total: 0, maintenancePts: 0, modernizationPts: 0, verificationPts: 0 };
+
+export function computeBreakdown(jobs: Job[], properties: Property[]): ScoreBreakdown {
+  // No record, no score (the market canister returns null here too).
+  if (jobs.length === 0) return EMPTY;
+  const year = currentYear();
+  if (properties.length <= 1) {
+    const yearBuilt = properties[0] ? Number(properties[0].yearBuilt) : year;
+    return withPoints(scoreBreakdown(jobs.map(toScoreJob), yearBuilt, year));
   }
-  score += Math.min(verificationPts, 20);
+  const each = properties.filter((p) => jobs.some((j) => String(j.propertyId) === String(p.id))).map((p) =>
+    scoreBreakdown(jobs.filter((j) => String(j.propertyId) === String(p.id)).map(toScoreJob), Number(p.yearBuilt), year));
+  if (each.length === 0) return withPoints(scoreBreakdown(jobs.map(toScoreJob), Number(properties[0].yearBuilt), year));
+  const avg = (k: keyof SharedBreakdown) => Math.floor(each.reduce((s, b) => s + b[k], 0) / each.length);
+  return withPoints({ maintenance: avg("maintenance"), modernization: avg("modernization"), verification: avg("verification"), total: avg("total") });
+}
 
-  const uniqueTypes = new Set(jobs.map((j) => j.serviceType)).size;
-  score += Math.min(uniqueTypes * 4, 20);
+export function computeScore(jobs: Job[], properties: Property[]): number {
+  return computeBreakdown(jobs, properties).total;
+}
 
-  return Math.min(Math.round(score), 100);
+/** The score change if `jobs` became `after` — for "this adds N points" copy. */
+export function scoreChange(jobs: Job[], after: Job[], properties: Property[]): number {
+  return computeScore(after, properties) - computeScore(jobs, properties);
+}
+
+export interface ScoreSuggestion {
+  action: string;
+  pts:    number;    // points it would add now, from the real formula
+  isFree: boolean;   // needs no new work, only a sign-off
+}
+
+const KEY_SYSTEMS_BY_WEIGHT = ["HVAC", "Roofing", "Plumbing", "Electrical", "Windows"];
+
+function hypotheticalJob(base: Partial<Job>, propertyId: string): Job {
+  return {
+    id: "hypothetical", propertyId, homeowner: "", serviceType: "Other", contractorName: undefined,
+    amount: 0, date: `${currentYear()}-01-01`, description: "", isDiy: false, permitNumber: undefined,
+    warrantyMonths: undefined, status: "verified", verified: true, homeownerSigned: true,
+    contractorSigned: true, photos: [], createdAt: Date.now(), ...base,
+  } as Job;
+}
+
+/**
+ * The next things that would raise this property's score, cheapest first, each
+ * with the points it would add today. Every number comes from simulating the
+ * change against the real formula, so the copy can't drift from the score.
+ */
+export function scoreSuggestions(jobs: Job[], property: Property | null): ScoreSuggestion[] {
+  const props = property ? [property] : [];
+  const pid = property ? String(property.id) : "";
+  const out: ScoreSuggestion[] = [];
+
+  const unsigned = jobs.filter((j) => !j.verified && !j.isDiy);
+  if (unsigned.length > 0) {
+    const after = jobs.map((j) => (!j.verified && !j.isDiy ? { ...j, verified: true, status: "verified" as Job["status"] } : j));
+    const pts = scoreChange(jobs, after, props);
+    if (pts > 0) out.push({
+      action: `Get the contractor to sign off on ${unsigned.length === 1 ? `your ${unsigned[0].serviceType} job` : `your ${unsigned.length} unsigned jobs`}`,
+      pts, isFree: true,
+    });
+  }
+
+  const missing = KEY_SYSTEMS_BY_WEIGHT.find((sys) => !jobs.some((j) => j.serviceType === sys));
+  if (missing) {
+    const pts = scoreChange(jobs, [...jobs, hypotheticalJob({ serviceType: missing }, pid)], props);
+    if (pts > 0) out.push({ action: `Log a verified ${missing} service — that system has nothing on record yet`, pts, isFree: false });
+  }
+
+  if (property) {
+    let best: ScoreSuggestion | null = null;
+    for (const [sys, min] of Object.entries(REPLACEMENT_MIN_CENTS)) {
+      const pts = scoreChange(jobs, [...jobs, hypotheticalJob({ serviceType: sys, amount: min }, pid)], props);
+      if (pts > 0 && (!best || pts > best.pts)) best = { action: `Replace or upgrade your ${sys} (and log it) — of all your systems it would add the most remaining life`, pts, isFree: false };
+    }
+    if (best) out.push(best);
+  }
+
+  return out;   // cheapest first: a sign-off, then routine service, then a replacement
 }
 
 /**
@@ -126,32 +225,6 @@ export function isCertified(score: number, jobs: Job[]): boolean {
   if (verified.length < 3) return false;
   const KEY_SYSTEMS = ["HVAC", "Roofing", "Plumbing", "Electrical"];
   return KEY_SYSTEMS.filter((sys) => verified.some((j) => j.serviceType === sys)).length >= 2;
-}
-
-/**
- * Lender certificate — encodes a summary as a base64 URL token so the lender
- * can view score + certified status without accessing any job details.
- * NOTE: This is a frontend-only placeholder until canister cert issuance (4.2.1).
- */
-export interface ScoreBreakdown {
-  verifiedJobPts:  number;
-  valuePts:        number;
-  verificationPts: number;
-  diversityPts:    number;
-}
-
-export function computeBreakdown(jobs: Job[], properties: Property[]): ScoreBreakdown {
-  const verifiedJobPts  = Math.min(jobs.filter(countsAsVerified).length * 4, 40);
-  const totalValueDollars = jobs.reduce((sum, j) => sum + j.amount, 0) / 100;
-  const valuePts        = Math.min(Math.floor(totalValueDollars / 2500), 20);
-  let rawVerificationPts = 0;
-  for (const p of properties) {
-    if (p.verificationLevel === "Premium")      rawVerificationPts += 10;
-    else if (p.verificationLevel === "Basic")   rawVerificationPts += 5;
-  }
-  const verificationPts = Math.min(rawVerificationPts, 20);
-  const diversityPts    = Math.min(new Set(jobs.map((j) => j.serviceType)).size * 4, 20);
-  return { verifiedJobPts, valuePts, verificationPts, diversityPts };
 }
 
 export interface CertPayload {
@@ -326,4 +399,22 @@ export function premiumEstimateByZip(
     low:  round500(median * band.lowPct),
     high: round500(median * band.highPct),
   };
+}
+
+/**
+ * Score for a report snapshot's job list (report pages use the score the
+ * canister stored with the report when there is one; this is the fallback).
+ * A report that hides amounts has 0 for every amount, so replacements can't
+ * be recognised and modernization counts from the year built.
+ */
+export function scoreFromReportJobs(
+  jobs: Array<{ serviceType: string; date: string; amountCents: number; isDiy: boolean; isVerified: boolean }>,
+  yearBuilt: number,
+): number {
+  if (jobs.length === 0) return 0;
+  const year = currentYear();
+  return scoreBreakdown(jobs.map((j) => {
+    const y = parseInt((j.date ?? "").slice(0, 4), 10);
+    return { serviceType: j.serviceType, completedYear: Number.isFinite(y) ? y : year, amountCents: j.amountCents, isDiy: j.isDiy, isVerified: j.isVerified };
+  }), yearBuilt, year).total;
 }
