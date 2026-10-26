@@ -1,10 +1,18 @@
 name: Permit feeds
 
+# The public permit feeds (City of Orlando Socrata, Volusia County ArcGIS)
+# can change their schema without notice. Weekly, and on PRs that touch the
+# permit import, check they still have the fields importPermits relies on.
 on:
+  schedule:
+    - cron: '0 13 * * 1'
+  workflow_dispatch:
   pull_request:
     paths:
       - 'scripts/ci/check-permit-feeds.mjs'
       - '.github/workflows/permit-feeds.yml'
+      - 'agents/voice/src/offchainOutcalls.ts'
+      - 'frontend/src/services/permitImport.ts'
 
 permissions:
   contents: read
@@ -12,6 +20,7 @@ permissions:
 jobs:
   permit-feeds:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

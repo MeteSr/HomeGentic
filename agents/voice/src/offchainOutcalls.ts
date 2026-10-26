@@ -4,7 +4,8 @@
  * ATTOM, OpenPermit and Resend keys now live only here, as Worker secrets.
  *
  *   POST /api/property/details        ATTOM basic profile  (10/day/user, global budget)
- *   POST /api/permits/import          ArcGIS / OpenPermit  (20/day/user, global budget)
+ *   POST /api/permits/import          Volusia ArcGIS / Orlando Socrata / OpenPermit
+ *                                     (20/day/user, global budget)
  *   POST /api/email/contractor-invite invite email built from the job canister's
  *                                     invite preview, never from body text
  *   POST /api/email/broker-lead       lead to the fixed LOCAL_BROKER_EMAIL inbox
@@ -140,7 +141,7 @@ export async function lookupPropertyDetails(
   }
 }
 
-// ── Permit import (ArcGIS / OpenPermit) ───────────────────────────────────────
+// ── Permit import (Volusia ArcGIS / City of Orlando Socrata / OpenPermit) ─────
 
 const VOLUSIA_CITIES = new Set([
   "daytona beach", "deltona", "ormond beach", "port orange", "holly hill",
@@ -157,6 +158,31 @@ const OPENPERMIT_CITIES = new Set([
   "miami", "atlanta", "minneapolis", "tampa",
 ]);
 
+/** City of Orlando (Orange County) Socrata "Permit Applications" (ryhf-m453). */
+const ORLANDO_PERMITS_URL = "https://data.cityoforlando.net/resource/ryhf-m453.json";
+/** Application types that are work on a building (not fees, licences or history). */
+export const ORLANDO_PERMIT_TYPES = ["Building Permit", "Electrical", "Plumbing", "Mechanical Permit", "GAS", "Demolition Permit"];
+
+const STREET_SUFFIXES = new Set([
+  "ST", "STREET", "AVE", "AVENUE", "AV", "BLVD", "BOULEVARD", "DR", "DRIVE", "RD", "ROAD", "CT", "COURT",
+  "LN", "LANE", "WAY", "CIR", "CIRCLE", "PL", "PLACE", "TRL", "TRAIL", "PKWY", "PARKWAY", "TER", "TERRACE",
+  "HWY", "HIGHWAY", "LOOP", "RUN", "PT", "POINT", "XING", "CV", "COVE", "SQ", "PATH", "ROW",
+]);
+const DIRECTIONS: Record<string, string> = { NORTH: "N", SOUTH: "S", EAST: "E", WEST: "W" };
+
+/**
+ * "1234 East Robinson Street, Apt 2" -> "1234 E ROBINSON": the house number,
+ * direction and street name as Orlando writes them, without the suffix (which
+ * people spell several ways), for a prefix match. Null without a house number.
+ */
+export function orlandoAddressPrefix(address: string): string | null {
+  const street = address.split(",")[0].toUpperCase().replace(/\s+(APT|UNIT|STE|SUITE|#).*$/, "");
+  const words = street.replace(/[^A-Z0-9 ]/g, " ").split(/\s+/).filter(Boolean).map((w) => DIRECTIONS[w] ?? w);
+  if (words.length < 2 || !/^\d+[A-Z]?$/.test(words[0])) return null;
+  if (words.length > 2 && STREET_SUFFIXES.has(words[words.length - 1])) words.pop();
+  return words.join(" ");
+}
+
 /** M-08 / L4: safe inside an ArcGIS SQL LIKE literal. */
 export function escapeArcGISLike(s: string): string {
   return s.replace(/[%_\[\]\u0000-\u001f\u007f]/g, "").replace(/'/g, "''");
@@ -171,11 +197,15 @@ export async function importPermits(
   const a = readAddress(input);
   if (typeof a === "string") return { status: 400, body: { error: a } };
   const city    = a.city.toLowerCase();
-  const volusia = a.state.toLowerCase() === "fl" && VOLUSIA_CITIES.has(city);
-  if (!volusia && !OPENPERMIT_CITIES.has(city)) {
+  const fl      = a.state.toLowerCase() === "fl";
+  const volusia = fl && VOLUSIA_CITIES.has(city);
+  const orlando = fl && city === "orlando";
+  const orlandoPrefix = orlando ? orlandoAddressPrefix(a.address) : null;
+  if (orlando && !orlandoPrefix) return { status: 400, body: { error: "Enter the street address with its house number" } };
+  if (!volusia && !orlando && !OPENPERMIT_CITIES.has(city)) {
     return { status: 200, body: { source: "unsupported", data: [] } };
   }
-  if (!volusia && !env.OPENPERMIT_API_KEY) return { status: 503, body: { error: "Permit import not configured" } };
+  if (!volusia && !orlando && !env.OPENPERMIT_API_KEY) return { status: 503, body: { error: "Permit import not configured" } };
 
   const ok = await consumeAll(env, [
     [`permits:user:${principal}:${day()}`, PERMITS_PER_USER_DAY, 2 * 86_400],
@@ -195,6 +225,19 @@ export async function importPermits(
       const resp = await fetchImpl(`https://maps5.vcgov.org/arcgis/rest/services/CurrentProjects/MapServer/1/query?${params}`);
       if (!resp.ok) return { status: 502, body: { error: "Permit lookup failed" } };
       return { status: 200, body: { source: "arcgis", data: await readUpstreamJson(resp), address: a.address } };
+    }
+    if (orlando) {
+      const types = ORLANDO_PERMIT_TYPES.map((t) => `'${t}'`).join(",");
+      const params = new URLSearchParams({
+        $where:  `upper(permit_address) like '${escapeArcGISLike(orlandoPrefix!)}%' ` +
+                 `AND application_type in(${types}) AND issue_permit_date IS NOT NULL`,
+        $select: "permit_number,application_type,worktype,permit_address,application_status,issue_permit_date,final_date,estimated_cost,contractor,project_name",
+        $order:  "issue_permit_date DESC",
+        $limit:  "50",
+      });
+      const resp = await fetchImpl(`${ORLANDO_PERMITS_URL}?${params}`);
+      if (!resp.ok) return { status: 502, body: { error: "Permit lookup failed" } };
+      return { status: 200, body: { source: "orlando", data: await readUpstreamJson(resp), address: a.address } };
     }
     const params = new URLSearchParams({ address: a.address, city: a.city, state: a.state, zip: a.zip, limit: "20" });
     const resp = await fetchImpl(`https://api.openpermit.org/v1/permits?${params}`, {

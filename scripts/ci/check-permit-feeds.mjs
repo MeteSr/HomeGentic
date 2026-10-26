@@ -1,23 +1,54 @@
 #!/usr/bin/env node
-// Discovery pass 3.
-const get = async (url) => {
-  const r = await fetch(url, { headers: { accept: "application/json" } });
-  const t = await r.text();
-  console.log(`\n=== ${r.status} ${url}`);
-  try { return JSON.parse(t); } catch { console.log(t.slice(0, 1500)); return null; }
-};
-const show = (x) => console.log(JSON.stringify(x).slice(0, 5000));
-const O = "https://data.cityoforlando.net/resource/ryhf-m453.json";
-show(await get(`${O}?$where=plan_review_type%3D'Residential'%20AND%20issue_permit_date%20IS%20NOT%20NULL&$order=issue_permit_date%20DESC&$limit=4`));
-show(await get(`${O}?$select=plan_review_type,count(*)&$group=plan_review_type&$limit=20`));
-show(await get(`${O}?$where=upper(permit_address)%20like%20'1%20E%20YALE%25'%20AND%20application_type%20in('Building%20Permit','Electrical','Plumbing','Mechanical%20Permit','GAS')&$select=permit_number,application_type,worktype,application_status,issue_permit_date,final_date,project_name,contractor&$order=issue_permit_date%20DESC&$limit=8`));
+/**
+ * Checks that the public permit feeds the voice Worker reads
+ * (agents/voice/src/offchainOutcalls.ts, importPermits) still have the fields
+ * it queries and the frontend parses (frontend/src/services/permitImport.ts).
+ * These feeds change without notice; the weekly run catches it.
+ *
+ *   node scripts/ci/check-permit-feeds.mjs
+ */
 
-const L = "https://gis.lakecountyfl.gov/lakegis/rest/services";
-for (const s of ["Planning/CD_Plus_AppRequets", "Individual/Search_GIS", "LocalGov/ParcelPublicAccess", "OpenData/OpenData1", "OpenData/OpenData2", "OpenData/OpenData3"]) {
-  const d = await get(`${L}/${s}/MapServer?f=json`);
-  show((d?.layers ?? []).map((l) => `${l.id} ${l.name}`));
+const failures = [];
+const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) failures.push(what); };
+
+async function getJson(url) {
+  const r = await fetch(url, { headers: { accept: "application/json" } });
+  if (!r.ok) throw new Error(`${r.status} ${url}`);
+  return r.json();
 }
-const cd = await get(`${L}/Planning/CD_Plus_AppRequets/MapServer/0?f=json`);
-show({ name: cd?.name, fields: (cd?.fields ?? []).map((f) => f.name) });
-show(await get(`${L}/Planning/CD_Plus_AppRequets/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=false&resultRecordCount=3&f=json`));
-show(await get(`${L}/Planning/CD_Plus_AppRequets/MapServer/0/query?where=1%3D1&returnCountOnly=true&f=json`));
+
+// ── City of Orlando (Socrata ryhf-m453) ──────────────────────────────────────
+const ORLANDO_FIELDS = [
+  "permit_number", "application_type", "worktype", "permit_address", "application_status",
+  "issue_permit_date", "final_date", "estimated_cost", "contractor", "project_name",
+];
+const ORLANDO_TYPES = ["Building Permit", "Electrical", "Plumbing", "Mechanical Permit", "GAS", "Demolition Permit"];
+try {
+  const view = await getJson("https://data.cityoforlando.net/api/views/ryhf-m453.json");
+  const cols = new Set((view.columns ?? []).map((c) => c.fieldName));
+  for (const f of ORLANDO_FIELDS) check(cols.has(f), `Orlando column ${f}`);
+  const types = await getJson("https://data.cityoforlando.net/resource/ryhf-m453.json?$select=application_type&$group=application_type&$limit=200");
+  const seen = new Set(types.map((t) => t.application_type));
+  for (const t of ORLANDO_TYPES) check(seen.has(t), `Orlando application_type '${t}'`);
+  // The same query the Worker sends, for an address with a known permit history.
+  const where = `upper(permit_address) like '1 E YALE%' AND application_type in(${ORLANDO_TYPES.map((t) => `'${t}'`).join(",")}) AND issue_permit_date IS NOT NULL`;
+  const rows = await getJson(`https://data.cityoforlando.net/resource/ryhf-m453.json?$where=${encodeURIComponent(where)}&$limit=5`);
+  check(rows.length > 0 && rows.every((r) => r.permit_number && r.issue_permit_date), "Orlando address query returns issued permits");
+} catch (e) {
+  check(false, `Orlando feed reachable (${e.message})`);
+}
+
+// ── Volusia County (ArcGIS CurrentProjects layer 1) ──────────────────────────
+const VOLUSIA_FIELDS = ["FOLDERNAME", "FOLDERTYPE", "STATUSDESC", "INDATE", "FOLDERDESCRIPTION"];
+try {
+  const layer = await getJson("https://maps5.vcgov.org/arcgis/rest/services/CurrentProjects/MapServer/1?f=json");
+  const fields = new Set((layer.fields ?? []).map((f) => f.name));
+  for (const f of VOLUSIA_FIELDS) check(fields.has(f), `Volusia field ${f}`);
+} catch (e) {
+  check(false, `Volusia feed reachable (${e.message})`);
+}
+
+if (failures.length) {
+  console.error(`\n${failures.length} permit feed check(s) failed.`);
+  process.exit(1);
+}

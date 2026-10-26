@@ -212,7 +212,7 @@ Multi-tab page — the main workspace for a property.
 
 - Address autocomplete with public-record lookup (year built, sq ft pre-filled)
 - Property type + details form
-- Permit import trigger (Volusia County supported) with coverage indicator
+- Permit import trigger (Volusia County and the City of Orlando, plus OpenPermit cities) with coverage indicator; Orlando's badge notes it covers City of Orlando permits only
 - Permit import review panel: select which permits to log as jobs
 - System ages import from Instant Forecast params (optional)
 

@@ -53,7 +53,7 @@ jest.mock("../src/jobCanister", () => ({ getInvitePreview: jest.fn() }));
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
 import worker from "../src/index";
 import {
-  lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead,
+  lookupPropertyDetails, importPermits, orlandoAddressPrefix, sendContractorInvite, sendBrokerLead,
   ATTOM_PER_USER_DAY, INVITE_EMAILS_PER_TOKEN,
 } from "../src/offchainOutcalls";
 import { recordGift } from "../paymentCanister";
@@ -140,6 +140,35 @@ describe("OFF.3 — permit import", () => {
     const url = new URL((f.mock.calls[0] as [string])[0]);
     expect(url.hostname).toBe("maps5.vcgov.org");
     expect(url.searchParams.get("where")).toBe("FOLDERDESCRIPTION LIKE '%1 O''Brien St%'");
+  });
+
+  it("Orlando queries the city's Socrata dataset by house number and street, no key needed", async () => {
+    const f = okJson([]);
+    const r = await importPermits({ address: "1234 East Robinson Street, Apt 2", city: "Orlando", state: "FL", zip: "32801" }, "u1", env({ OPENPERMIT_API_KEY: "" }), f);
+    expect(r.status).toBe(200);
+    expect((r.body as any).source).toBe("orlando");
+    const url = new URL((f.mock.calls[0] as [string])[0]);
+    expect(url.hostname).toBe("data.cityoforlando.net");
+    expect(url.pathname).toBe("/resource/ryhf-m453.json");
+    const where = url.searchParams.get("$where")!;
+    expect(where).toContain("upper(permit_address) like '1234 E ROBINSON%'");
+    expect(where).toContain("application_type in('Building Permit','Electrical','Plumbing','Mechanical Permit','GAS','Demolition Permit')");
+    expect(where).toContain("issue_permit_date IS NOT NULL");
+  });
+
+  it("Orlando needs a house number", async () => {
+    const f = okJson([]);
+    expect((await importPermits({ address: "Robinson St", city: "Orlando", state: "FL", zip: "32801" }, "u1", env(), f)).status).toBe(400);
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it("orlandoAddressPrefix keeps number, direction and name, drops suffix, unit and punctuation", () => {
+    expect(orlandoAddressPrefix("4060 Eastgate Dr.")).toBe("4060 EASTGATE");
+    expect(orlandoAddressPrefix("1 E. Yale St #3")).toBe("1 E YALE");
+    expect(orlandoAddressPrefix("5900 Universal Blvd, Orlando, FL")).toBe("5900 UNIVERSAL");
+    expect(orlandoAddressPrefix("12 Lake Way")).toBe("12 LAKE");
+    expect(orlandoAddressPrefix("12 Broadway")).toBe("12 BROADWAY");
+    expect(orlandoAddressPrefix("O'Brien% St")).toBeNull();
   });
 
   it("OpenPermit sends the bearer key and needs it", async () => {
