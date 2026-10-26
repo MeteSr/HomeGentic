@@ -109,6 +109,20 @@ export const paymentService = {
     };
   },
 
+  /**
+   * Any principal's current tier (payment.getTierForPrincipal, a public
+   * query). Used to show a contractor's Pro-only profile sections.
+   * E2E: window.__e2e_tiers (tier by principal text).
+   */
+  async getTierFor(principalText: string): Promise<PlanTier> {
+    const mock = typeof window !== "undefined" ? (window as any).__e2e_tiers : undefined;
+    if (mock) return mock[principalText] ?? "Free";
+    if (!PAYMENT_CANISTER_ID) return "Free";
+    const { Principal: P } = await import("@icp-sdk/core/principal");
+    const a = await getActor();
+    return Object.keys(await a.getTierForPrincipal(P.fromText(principalText)))[0] as PlanTier;
+  },
+
   /** Activate a subscription tier on-chain. Returns dashboard URL. */
   async initiate(
     tier: PlanTier,

@@ -11,6 +11,7 @@
  *   bid_declined                      yes   Bid Outcome                —
  *   quote_received                    —     Quote Received             —
  *   new_lead                          yes*  New Lead                   —
+ *   review_request                    —     Job Verified               —
  *   weekly_pulse                      —     Weekly Home Pulse          —
  *
  * * new-lead pushes follow the contractor profile's notifyPush instead of a
@@ -36,7 +37,7 @@ export const PUSH_KINDS: readonly NotificationKind[] = [...PUSH_PREF_KINDS, "new
 export const EMAIL_GROUPS = {
   new_lead:       ["new_lead"],
   bid_outcome:    ["bid_accepted", "bid_declined"],
-  job_verified:   ["job_verified"],
+  job_verified:   ["job_verified", "review_request"],
   quote_received: ["quote_received"],
   job_updates:    ["job_awaiting_signature", "sensor_alert"],
   weekly_pulse:   ["weekly_pulse"],

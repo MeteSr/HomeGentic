@@ -320,3 +320,78 @@ dfx canister call contractor setProfilePrivacy \
 
 echo ""
 echo "✅ Contractor privacy tests complete!"
+
+# ─── Florida DBPR licence checks + ContractorPro portfolio ───────────────────
+
+dfx identity new license-test --storage-mode=plaintext 2>/dev/null || true
+LIC_PRINCIPAL=$(dfx identity get-principal --identity license-test)
+dfx canister call contractor register '(record {
+  name = "John Smith"; specialties = vec { variant { Plumbing } };
+  email = "john@smith.com"; phone = "+13865550101";
+})' --identity license-test >/dev/null 2>&1 || true
+dfx canister call contractor updateProfile '(record {
+  name = "John Smith"; specialties = vec { variant { Plumbing } };
+  email = "john@smith.com"; phone = "+13865550101";
+  bio = null; licenseNumber = opt "cfc-143 0000"; serviceArea = null; serviceZips = vec {};
+})' --identity license-test >/dev/null
+
+LIC_INPUT() {
+  echo "(principal \"$LIC_PRINCIPAL\", record { licenseNumber = \"$1\"; found = true; licenseeName = \"SMITH, JOHN\";
+    dbaName = \"\"; licenseType = \"Certified Plumbing Contractor\"; status = \"Current, Active\"; active = true;
+    expiresOn = \"2026-08-31\"; nameMatches = true; sourceDate = \"2026-10-20\" })"
+}
+
+echo ""
+echo "── [L1] relayRecordLicenseCheck from a non-relay → NotAuthorized ────────────"
+dfx canister call contractor relayRecordLicenseCheck "$(LIC_INPUT CFC1430000)" --identity license-test 2>&1 \
+  | grep -q "NotAuthorized" \
+  && echo "  ✓ NotAuthorized" \
+  || echo "  ↳ ❌ Expected NotAuthorized"
+
+echo ""
+echo "── [L2] a check for a different number than the profile's is refused ───────"
+dfx canister call contractor relayRecordLicenseCheck "$(LIC_INPUT CGC9999999)" 2>&1 \
+  | grep -q "no longer matches" \
+  && echo "  ✓ refused" \
+  || echo "  ↳ ❌ Expected InvalidInput (licence number no longer matches)"
+
+echo ""
+echo "── [L3] admin records a check; getLicenseCheck returns it ──────────────────"
+dfx canister call contractor relayRecordLicenseCheck "$(LIC_INPUT CFC1430000)" | grep -q "ok" \
+  && dfx canister call contractor getLicenseCheck "(principal \"$LIC_PRINCIPAL\")" --identity anonymous | grep -q "Current, Active" \
+  && echo "  ✓ recorded and readable by anyone" \
+  || echo "  ↳ ❌ Expected the check to be stored and returned"
+
+echo ""
+echo "── [L4] changing the licence number hides the old check ────────────────────"
+dfx canister call contractor updateProfile '(record {
+  name = "John Smith"; specialties = vec { variant { Plumbing } };
+  email = "john@smith.com"; phone = "+13865550101";
+  bio = null; licenseNumber = opt "CGC1500001"; serviceArea = null; serviceZips = vec {};
+})' --identity license-test >/dev/null
+dfx canister call contractor getLicenseCheck "(principal \"$LIC_PRINCIPAL\")" --identity anonymous | grep -q "(null)" \
+  && echo "  ✓ no check for the new number" \
+  || echo "  ↳ ❌ Expected null after the number changed"
+
+echo ""
+echo "── [PF1] setPortfolio without ContractorPro → refused ──────────────────────"
+dfx canister call contractor setPortfolio '(vec {})' --identity license-test 2>&1 \
+  | grep -q "ContractorPro" \
+  && echo "  ✓ refused for a non-Pro contractor" \
+  || echo "  ↳ ❌ Expected 'The portfolio is a ContractorPro feature'"
+
+echo ""
+echo "── [PF2] setPortfolio with someone else's credential → NotAuthorized/NotFound ─"
+dfx canister call contractor setPortfolio '(vec { record { credentialId = 999999; title = "Repipe"; description = "" } })' --identity license-test 2>&1 \
+  | grep -qE "NotFound|NotAuthorized" \
+  && echo "  ✓ refused" \
+  || echo "  ↳ ❌ Expected NotFound for an unknown credential"
+
+echo ""
+echo "── [PF3] getPortfolio is empty for a contractor who never set one ──────────"
+dfx canister call contractor getPortfolio "(principal \"$LIC_PRINCIPAL\")" --identity anonymous | grep -q "(vec {})" \
+  && echo "  ✓ empty" \
+  || echo "  ↳ ❌ Expected an empty portfolio"
+
+echo ""
+echo "✅ Contractor licence check and portfolio tests complete!"

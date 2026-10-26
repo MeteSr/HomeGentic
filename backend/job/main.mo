@@ -259,6 +259,15 @@ persistent actor Job {
     );
   };
 
+  /// Ask the homeowner to review the contractor on a newly co-signed job. The
+  /// relay only sends it when the contractor has ContractorPro. summary holds
+  /// the contractor's principal (Notify.mo).
+  private func notifyReviewRequest(job: Job, contractor: Principal) {
+    notifyLatestSeq := Notify.record(
+      notifyLog, notifyLatestSeq, "review_request", ?job.homeowner, job.id, contractor.toText()
+    );
+  };
+
   /// Tell the homeowner a critical sensor reading opened a job for them.
   private func notifySensorAlert(job: Job) {
     notifyLatestSeq := Notify.record(
@@ -773,6 +782,13 @@ persistent actor Job {
           switch (existing2.contractor) {
             case (?con) { notifyAwaitingContractorSignature(updated, con) };
             case null {};  // DIY, or no contractor linked yet — linkContractor notifies later
+          };
+        };
+
+        if (fullyVerified and not existing2.verified) {
+          switch (existing2.contractor) {
+            case (?con) { notifyReviewRequest(updated, con) };
+            case null {};
           };
         };
 
@@ -1357,7 +1373,10 @@ persistent actor Job {
     };
     inviteTokens.add(token, usedInvite);
 
-    if (bothSigned) notifyJobVerified(updated) else notifyAwaitingSignature(updated);
+    if (bothSigned) {
+      notifyJobVerified(updated);
+      notifyReviewRequest(updated, msg.caller);
+    } else notifyAwaitingSignature(updated);
 
     // Notify contractor canister when the job becomes fully verified —
     // mirrors verifyJob()'s cross-call exactly, same try/catch so a trap or

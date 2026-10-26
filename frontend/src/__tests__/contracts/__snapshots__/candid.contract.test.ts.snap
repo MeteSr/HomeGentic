@@ -502,6 +502,15 @@ exports[`bills IDL factory > full signature snapshot 1`] = `
 
 exports[`contractor IDL factory > full signature snapshot 1`] = `
 {
+  "addLicenseRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
   "createOrLinkGuestProfile": {
     "args": [
       "principal",
@@ -575,6 +584,17 @@ exports[`contractor IDL factory > full signature snapshot 1`] = `
       "vec record {id:principal; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; trustScore:nat; isVerified:bool; specialties:vec variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; notifyPush:opt bool}",
     ],
   },
+  "getLicenseCheck": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {found:bool; status:text; active:bool; expiresOn:text; licenseeName:text; sourceDate:text; dbaName:text; licenseType:text; licenseNumber:text; checkedAt:int; nameMatches:bool}",
+    ],
+  },
   "getMyProfile": {
     "args": [],
     "mode": [
@@ -603,6 +623,17 @@ exports[`contractor IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {id:principal; bio:opt text; serviceArea:opt text; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; name:text; createdAt:int; origin:variant {GuestSigned:text; SelfRegistered}; trustScore:nat; email:text; isVerified:bool; licenseNumber:opt text; specialties:vec variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; notifyPush:opt bool; notifyEmail:opt text; phone:text}",
+    ],
+  },
+  "getPortfolio": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {featuredAt:int; title:text; serviceType:text; description:text; credentialId:nat; verifiedAt:int}",
     ],
   },
   "getProfilePrivacies": {
@@ -648,6 +679,25 @@ exports[`contractor IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:principal; bio:opt text; serviceArea:opt text; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; name:text; createdAt:int; origin:variant {GuestSigned:text; SelfRegistered}; trustScore:nat; email:text; isVerified:bool; licenseNumber:opt text; specialties:vec variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; notifyPush:opt bool; notifyEmail:opt text; phone:text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
     ],
   },
+  "relayRecordLicenseCheck": {
+    "args": [
+      "principal",
+      "record {found:bool; status:text; active:bool; expiresOn:text; licenseeName:text; sourceDate:text; dbaName:text; licenseType:text; licenseNumber:text; nameMatches:bool}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {found:bool; status:text; active:bool; expiresOn:text; licenseeName:text; sourceDate:text; dbaName:text; licenseType:text; licenseNumber:text; checkedAt:int; nameMatches:bool}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
+  "removeLicenseRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
   "setJobCanisterId": {
     "args": [
       "text",
@@ -655,6 +705,24 @@ exports[`contractor IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
+  "setPaymentCanisterId": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
+  "setPortfolio": {
+    "args": [
+      "vec record {title:text; description:text; credentialId:nat}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:vec record {featuredAt:int; title:text; serviceType:text; description:text; credentialId:nat; verifiedAt:int}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
     ],
   },
   "setProfilePrivacy": {
@@ -710,6 +778,15 @@ exports[`contractor IDL factory > full signature snapshot 1`] = `
 
 exports[`contractor IDL factory — notification preferences (#279) > ContractorProfile includes notifyEmail, notifyPush, alertZips fields in snapshot 1`] = `
 {
+  "addLicenseRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
   "createOrLinkGuestProfile": {
     "args": [
       "principal",
@@ -783,6 +860,17 @@ exports[`contractor IDL factory — notification preferences (#279) > Contractor
       "vec record {id:principal; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; trustScore:nat; isVerified:bool; specialties:vec variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; notifyPush:opt bool}",
     ],
   },
+  "getLicenseCheck": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {found:bool; status:text; active:bool; expiresOn:text; licenseeName:text; sourceDate:text; dbaName:text; licenseType:text; licenseNumber:text; checkedAt:int; nameMatches:bool}",
+    ],
+  },
   "getMyProfile": {
     "args": [],
     "mode": [
@@ -811,6 +899,17 @@ exports[`contractor IDL factory — notification preferences (#279) > Contractor
     ],
     "rets": [
       "vec record {id:principal; bio:opt text; serviceArea:opt text; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; name:text; createdAt:int; origin:variant {GuestSigned:text; SelfRegistered}; trustScore:nat; email:text; isVerified:bool; licenseNumber:opt text; specialties:vec variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; notifyPush:opt bool; notifyEmail:opt text; phone:text}",
+    ],
+  },
+  "getPortfolio": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {featuredAt:int; title:text; serviceType:text; description:text; credentialId:nat; verifiedAt:int}",
     ],
   },
   "getProfilePrivacies": {
@@ -856,6 +955,25 @@ exports[`contractor IDL factory — notification preferences (#279) > Contractor
       "variant {ok:record {id:principal; bio:opt text; serviceArea:opt text; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; name:text; createdAt:int; origin:variant {GuestSigned:text; SelfRegistered}; trustScore:nat; email:text; isVerified:bool; licenseNumber:opt text; specialties:vec variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; notifyPush:opt bool; notifyEmail:opt text; phone:text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
     ],
   },
+  "relayRecordLicenseCheck": {
+    "args": [
+      "principal",
+      "record {found:bool; status:text; active:bool; expiresOn:text; licenseeName:text; sourceDate:text; dbaName:text; licenseType:text; licenseNumber:text; nameMatches:bool}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {found:bool; status:text; active:bool; expiresOn:text; licenseeName:text; sourceDate:text; dbaName:text; licenseType:text; licenseNumber:text; checkedAt:int; nameMatches:bool}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
+  "removeLicenseRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
   "setJobCanisterId": {
     "args": [
       "text",
@@ -863,6 +981,24 @@ exports[`contractor IDL factory — notification preferences (#279) > Contractor
     "mode": [],
     "rets": [
       "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
+  "setPaymentCanisterId": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
+  "setPortfolio": {
+    "args": [
+      "vec record {title:text; description:text; credentialId:nat}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:vec record {featuredAt:int; title:text; serviceType:text; description:text; credentialId:nat; verifiedAt:int}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
     ],
   },
   "setProfilePrivacy": {

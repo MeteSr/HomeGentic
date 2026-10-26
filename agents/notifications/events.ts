@@ -11,6 +11,13 @@
  * thresholds; a contractor with no zips covers every zip). Pushes for leads
  * also need the contractor's notifyPush opt-in (pushOptIn).
  *
+ * A review_request (a contractor co-signed a job) goes to the homeowner only
+ * when the contractor has ContractorPro; summary carries the contractor.
+ *
+ * Lead alerts go out at once to ContractorPro and FREE_LEAD_DELAY_MS later to
+ * everyone else (notBefore); the poller holds the late ones. The lead itself
+ * is visible in the app to every matching contractor straight away.
+ *
  * The minReviews threshold isn't checked here: review counts aren't on the
  * contractor profile, and an extra alert to a contractor who then can't see
  * the lead is harmless.
@@ -19,9 +26,14 @@ import type {
   ContractorInfo, NotificationEvent, OutboxEvent, PushPayload, QuoteRequestInfo,
 } from "./types";
 
+/** How much later contractors without ContractorPro get new-lead alerts. */
+export const FREE_LEAD_DELAY_MS = 30 * 60 * 1000;
+
 export interface LeadLookups {
   getQuoteRequest: (requestId: string) => Promise<QuoteRequestInfo | null>;
   getContractors:  () => Promise<ContractorInfo[]>;
+  /** Whether the contractor has ContractorPro. A failed lookup counts as no. */
+  isPro:           (principal: string) => Promise<boolean>;
 }
 
 /** "GeneralHandyman" → "General Handyman"; "HVAC" stays "HVAC". */
@@ -73,6 +85,12 @@ export function payloadFor(event: OutboxEvent, zipCode?: string | null): PushPay
         body:  `The homeowner chose another contractor for their ${tradeLabel(event.summary)} job.`,
         route: "leads",
       };
+    case "review_request":
+      return {
+        title: "How did your contractor do?",
+        body:  "Your job is verified. A short review helps other homeowners pick a contractor.",
+        route: `review/${event.summary}/${event.refId}`,
+      };
     case "new_lead":
       return {
         title: "New lead",
@@ -106,6 +124,7 @@ export function contractorWantsLead(req: QuoteRequestInfo, c: ContractorInfo): b
 export async function notificationsFor(
   event: OutboxEvent,
   lookups: LeadLookups,
+  now: number = Date.now(),
 ): Promise<NotificationEvent[]> {
   const kind = event.kind as NotificationEvent["type"];
 
@@ -116,9 +135,17 @@ export async function notificationsFor(
     const payload = payloadFor(event, req.zipCode);
     if (!payload) return [];
     const contractors = await lookups.getContractors();
-    return contractors
-      .filter((c) => contractorWantsLead(req, c))
-      .map((c) => ({ type: kind, principal: c.principal, payload, pushOptIn: c.notifyPush }));
+    const matched = contractors.filter((c) => contractorWantsLead(req, c));
+    const pro = await Promise.all(matched.map((c) => lookups.isPro(c.principal).catch(() => false)));
+    return matched.map((c, i) => ({
+      type: kind, principal: c.principal, payload, pushOptIn: c.notifyPush,
+      ...(pro[i] ? {} : { notBefore: now + FREE_LEAD_DELAY_MS }),
+    }));
+  }
+
+  if (event.kind === "review_request") {
+    const pro = event.summary ? await lookups.isPro(event.summary).catch(() => false) : false;
+    if (!pro) return [];
   }
 
   const payload = payloadFor(event);

@@ -426,16 +426,26 @@ Multi-tab page — the main workspace for a property.
 - Quote request detail + submit quote modal
 - Active quotes (pending homeowner decision)
 - Completed jobs with homeowner reviews
-- Earnings summary + trust score tracker
+- Earnings total ("Earnings via HG": accepted bid values) + trust score tracker
+- ContractorPro: earnings view, accepted bids by month for the last 12 months (by the month the bid was sent), average accepted bid, CSV of every accepted bid
 
 **Profile (`/contractor/profile`)**
 - Specialties (multi-select)
 - Name, email, phone, bio, license number, service area
-- Public profile preview
+- **Check with Florida DBPR** (every contractor, for a Florida-shaped licence number such as CGC1234567): the voice Worker (`POST /api/license/check`, once an hour per contractor) finds the number in DBPR's free weekly construction licensee file and records what it says on the contractor canister. The page shows the result in DBPR's terms: status, expiry, and whose name the licence is in. A number missing from the file is reported as "isn't in DBPR's file of current Florida construction licences", never as fake, because DBPR leaves lapsed licences out of the file. Changing the number hides the old result
+- ContractorPro: **Portfolio**, pick up to 12 co-signed jobs (job credentials) and give each a title and write-up. Free contractors see what it is
 
 **Public profile (`/contractor/:id`)**
-- Specialties, trust score, jobs completed, license badge, bio, reviews
+- Specialties, trust score, jobs completed, license number, bio, reviews
+- The DBPR result, with the check date and the date of DBPR's file (also on bid cards in `/quotes/:id`)
+- ContractorPro: **Featured work** above the verified-work list (title, write-up, trade and co-signed month; never the address or homeowner), shown only while the contractor has ContractorPro
+- Review form; a review-request link (`?review=<jobId>#review`) fills in the job ID
 - Contact button (for authenticated homeowners)
+
+**ContractorPro vs Contractor Free**
+- New-lead alerts (push, email) go to ContractorPro as soon as the notification relay sees the lead and to everyone else 30 minutes later (`FREE_LEAD_DELAY_MS` in `agents/notifications/events.ts`; held alerts persist in the relay's data file and are dropped if the request closes first). The lead itself shows in every matching contractor's dashboard straight away
+- When a job a ContractorPro contractor co-signed becomes verified, the homeowner gets a review-request email (the job canister's `review_request` outbox event; the relay checks the tier and uses the homeowner's Job Verified email setting)
+- 50 photos per job instead of 5, 10 AI agent calls a day, no referral fee
 
 **Directory (`/contractors`)**
 - Filter by specialty; sort by trust score or job count

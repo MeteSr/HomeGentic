@@ -46,6 +46,7 @@ import { resolveTier } from "./tier";
 import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
 import { handleInbound, addDraftInCanister } from "./inbox";
+import { checkLicense } from "./dbpr";
 import { findRecalls } from "./recalls";
 import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead, sendGiftEmail } from "./offchainOutcalls";
 import { getInvitePreview } from "./jobCanister";
@@ -104,6 +105,8 @@ export interface Env {
   CANISTER_ID_MONITORING?: string;
   CANISTER_ID_JOB?:      string;   // invite-token previews for contractor-invite emails
   CANISTER_ID_PHOTO?:    string;   // photoAccess checks for /photos/*
+  CANISTER_ID_CONTRACTOR?: string; // records DBPR licence lookups (/api/license/check)
+  DBPR_LICENSE_FILE_URL?:  string; // override for DBPR's construction licensee file (src/dbpr.ts)
   CANISTER_ID_PROPERTY?: string;   // records Stripe Identity results (relayMarkIdentityCleared)
   /** Domain whose mail Email Routing sends to email() (h-<token>@INBOX_DOMAIN). Unset → inbound mail ignored. */
   INBOX_DOMAIN?:         string;
@@ -403,6 +406,7 @@ export default {
     (process.env as any).CANISTER_ID_JOB         = env.CANISTER_ID_JOB ?? "";
     (process.env as any).CANISTER_ID_PHOTO       = env.CANISTER_ID_PHOTO ?? "";
     (process.env as any).CANISTER_ID_PROPERTY    = env.CANISTER_ID_PROPERTY ?? "";
+    (process.env as any).CANISTER_ID_CONTRACTOR  = env.CANISTER_ID_CONTRACTOR ?? "";
     (process.env as any).AI_MODEL                = env.AI_MODEL ?? "";
 
     // CORS preflight
@@ -1180,6 +1184,7 @@ Rules:
     const p    = sessionPrincipal!;
     const r =
       path === "/api/recalls"                 ? await findRecalls(body, env) :
+      path === "/api/license/check"           ? await checkLicense(p, env) :
       path === "/api/property/details"        ? await lookupPropertyDetails(body, p, env) :
       path === "/api/permits/import"          ? await importPermits(body, p, env) :
       path === "/api/email/contractor-invite" ? await sendContractorInvite(body, p, env, getInvitePreview) :
@@ -1676,6 +1681,7 @@ const OFFCHAIN_OUTCALL_ROUTES = new Set([
   "/api/property/details", "/api/permits/import",
   "/api/email/contractor-invite", "/api/email/broker-lead",
   "/api/recalls",   // CPSC recall check (src/recalls.ts); free API, cached per brand
+  "/api/license/check",   // Florida DBPR licence lookup (src/dbpr.ts); public file, throttled per caller
 ]);
 
 /** Stripe routes that act for a user: the user is the session principal. */

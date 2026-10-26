@@ -6,7 +6,8 @@
  * that identity's principal on each canister with addNotifier() — the
  * principal is logged at startup. It also resolves agent session tokens
  * through the auth canister (anonymous query) to authenticate registrations,
- * and reads quote requests and contractor profiles to match new leads. For
+ * and reads quote requests, contractor profiles and (from payment) contractor
+ * tiers to match new leads and time their alerts. For
  * the weekly Home Pulse email it reads homeowners (auth), their properties
  * (property) and jobs (job), so it needs addNotifier on those three too.
  *
@@ -22,6 +23,7 @@ import { idlFactory as contractorIdl } from "../../packages/shared/src/declarati
 import { idlFactory as authIdl } from "../../packages/shared/src/declarations/auth";
 import { idlFactory as propertyIdl } from "../../packages/shared/src/declarations/property";
 import { idlFactory as jobIdl } from "../../packages/shared/src/declarations/job";
+import { idlFactory as paymentIdl } from "../../packages/shared/src/declarations/payment";
 import { serviceTypeFromVariant } from "../../packages/shared/src/serviceTypes";
 
 const IC_HOST = () => process.env.IC_HOST ?? "https://icp-api.io";
@@ -144,6 +146,19 @@ export async function getContractors(): Promise<ContractorInfo[]> {
     jobsCompleted: Number(c.jobsCompleted),
     isVerified:    c.isVerified,
   }));
+}
+
+/**
+ * Whether `principal` has ContractorPro, read live from the payment canister
+ * (the single source of truth for tiers). Throws when payment can't be read;
+ * the caller treats that as not Pro.
+ */
+export async function isContractorPro(principal: string): Promise<boolean> {
+  const actor = Actor.createActor(paymentIdl, {
+    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_PAYMENT"),
+  }) as any;
+  const tier = await actor.getTierForPrincipal(Principal.fromText(principal));
+  return "ContractorPro" in tier;
 }
 
 /** The principal an agent session token belongs to, or null if it's unknown or expired. */

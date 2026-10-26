@@ -23,6 +23,7 @@ export type NotificationKind =
   | "bid_declined"
   | "quote_received"
   | "new_lead"
+  | "review_request"
   | "weekly_pulse";
 
 export interface NotificationEvent {
@@ -34,6 +35,11 @@ export interface NotificationEvent {
    * (the contractor profile's notifyPush); everything else is true.
    */
   pushOptIn: boolean;
+  /**
+   * Don't send before this time (ms). Set on new-lead alerts for contractors
+   * without ContractorPro, who get them FREE_LEAD_DELAY_MS after Pro.
+   */
+  notBefore?: number;
 }
 
 /** One entry from a canister's push outbox (backend/shared/Notify.mo). */

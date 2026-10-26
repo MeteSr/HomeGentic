@@ -6,12 +6,16 @@
  */
 
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { PageHead } from "@/components/PageHead";
 import { ArrowLeft, Star, ShieldCheck, Wrench, MessageSquare, Mail, Phone, Award } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
-import { contractorService, ContractorProfile, JobCredential, DEFAULT_PROFILE_PRIVACY, type ProfilePrivacy } from "@/services/contractor";
+import { contractorService, ContractorProfile, JobCredential, DEFAULT_PROFILE_PRIVACY, type ProfilePrivacy, type LicenseCheck } from "@/services/contractor";
+import { LicenseCheckBadge } from "@/components/LicenseCheck";
+import { FeaturedWork } from "@/components/ContractorPortfolio";
+import { paymentService } from "@/services/payment";
+import type { PortfolioItem } from "@/services/contractor";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
@@ -57,10 +61,14 @@ export default function ContractorPublicPage() {
   // Hidden until loaded, so a contractor who hid their numbers never sees them flash.
   const [privacy,      setPrivacy]      = useState<ProfilePrivacy | null>(null);
   const [reviews,      setReviews]      = useState<{ id: string; rating: number; comment: string; jobId: string; createdAt: number }[]>([]);
+  const [licenseCheck, setLicenseCheck] = useState<LicenseCheck | null>(null);
+  const [portfolio,    setPortfolio]    = useState<PortfolioItem[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [rating,       setRating]       = useState(0);
   const [comment,      setComment]      = useState("");
-  const [jobId,        setJobId]        = useState("");
+  // A review-request email links here with ?review=<jobId>#review.
+  const [searchParams] = useSearchParams();
+  const [jobId,        setJobId]        = useState(() => searchParams.get("review") ?? "");
   const [submitting,   setSubmitting]   = useState(false);
   const [submitted,    setSubmitted]    = useState(false);
 
@@ -76,6 +84,15 @@ export default function ContractorPublicPage() {
           contractorService.getCredentials(c.id)
             .then(setCredentials)
             .catch((e) => console.error("[ContractorPublicPage] credentials load failed:", e));
+          // The portfolio is a ContractorPro feature: shown only while they have it.
+          Promise.all([paymentService.getTierFor(c.id), contractorService.getPortfolio(c.id)])
+            .then(([tier, items]) => setPortfolio(tier === "ContractorPro" ? items : []))
+            .catch((e) => console.error("[ContractorPublicPage] portfolio load failed:", e));
+          if (c.licenseNumber) {
+            contractorService.getLicenseCheck(c.id)
+              .then(setLicenseCheck)
+              .catch((e) => console.error("[ContractorPublicPage] licence check load failed:", e));
+          }
           contractorService.getReviewsForContractor(c.id)
             .then((rs) => setReviews(rs.sort((a, b) => b.createdAt - a.createdAt)))
             .catch((e) => console.error("[ContractorPublicPage] reviews load failed:", e));
@@ -224,6 +241,7 @@ export default function ContractorPublicPage() {
                 </div>
               )}
             </div>
+            {contractor.licenseNumber && licenseCheck && <LicenseCheckBadge check={licenseCheck} />}
             {contractor.bio && (
               <p style={{ fontSize: "0.85rem", fontWeight: 300, color: UI.inkLight, lineHeight: 1.6 }}>{contractor.bio}</p>
             )}
@@ -262,6 +280,8 @@ export default function ContractorPublicPage() {
             <MessageSquare size={13} /> Request Quote
           </button>
         </div>
+
+        <FeaturedWork items={portfolio} />
 
         {/* Verified Work Portfolio — it lists every completed job, so it hides with the count */}
         {privacy?.showJobsCompleted && (
@@ -375,7 +395,7 @@ export default function ContractorPublicPage() {
         </div>
 
         {/* Review form */}
-        <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
+        <div id="review" style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
           <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
             <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
               Leave a Review

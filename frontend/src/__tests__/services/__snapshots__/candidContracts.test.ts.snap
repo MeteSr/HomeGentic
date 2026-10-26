@@ -61,21 +61,28 @@ updateRecurringExpense(2) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > contractor 1`] = `
-"createOrLinkGuestProfile(7) -> (1)
+"addLicenseRelay(1) -> (1)
+createOrLinkGuestProfile(7) -> (1)
 deleteMyData(0) -> (1)
 getAll(0) -> (1) [query]
 getBySpecialty(1) -> (1) [query]
 getContractor(1) -> (1) [query]
 getCredentials(1) -> (1) [query]
 getLeadAlertTargets(0) -> (1) [query]
+getLicenseCheck(1) -> (1) [query]
 getMyProfile(0) -> (1) [query]
 getMyProfilePrivacy(0) -> (1) [query]
 getPage(2) -> (1) [query]
+getPortfolio(1) -> (1) [query]
 getProfilePrivacies(1) -> (1) [query]
 getReviewsForContractor(1) -> (1) [query]
 recordJobVerified(4) -> (1)
 register(1) -> (1)
+relayRecordLicenseCheck(2) -> (1)
+removeLicenseRelay(1) -> (1)
 setJobCanisterId(1) -> (1)
+setPaymentCanisterId(1) -> (1)
+setPortfolio(1) -> (1)
 setProfilePrivacy(1) -> (1)
 submitReview(4) -> (1)
 updateNotificationPrefs(1) -> (1)
