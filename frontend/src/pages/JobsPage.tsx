@@ -253,9 +253,7 @@ export default function JobsPage() {
   if (isMobile) {
     return (
       <Layout>
-        <div className="hg-v3" data-theme="light" style={{ padding: "16px 16px 0" }}>
-          <ForwardedInvoices />
-        </div>
+        <ForwardedInvoices mobile />
         <MobileJobsPage />
       </Layout>
     );

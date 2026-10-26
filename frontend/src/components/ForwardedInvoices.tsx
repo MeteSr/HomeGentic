@@ -37,7 +37,8 @@ export function draftPrefill(d: EmailDraft): Record<string, string> {
   };
 }
 
-export function ForwardedInvoices() {
+/** `mobile`: sits above MobileJobsPage, outside the v3 page shell, so it brings its own tokens and gutter. */
+export function ForwardedInvoices({ mobile = false }: { mobile?: boolean }) {
   const navigate = useNavigate();
   const enabled  = !!jobInboxService.domain();
   const [address, setAddress] = useState<string | null>(null);
@@ -80,7 +81,7 @@ export function ForwardedInvoices() {
     }
   };
 
-  return (
+  const panel = (
     <Panel style={{ padding: 24, marginBottom: 16 }}>
       <div data-testid="forwarded-invoices">
         <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>
@@ -132,4 +133,7 @@ export function ForwardedInvoices() {
       </div>
     </Panel>
   );
+  return mobile
+    ? <div className="hg-v3" data-theme="light" style={{ padding: "16px 16px 0" }}>{panel}</div>
+    : panel;
 }
