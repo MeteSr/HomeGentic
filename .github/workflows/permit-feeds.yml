@@ -1,0 +1,20 @@
+name: Permit feeds
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/ci/check-permit-feeds.mjs'
+      - '.github/workflows/permit-feeds.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  permit-feeds:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: node scripts/ci/check-permit-feeds.mjs
