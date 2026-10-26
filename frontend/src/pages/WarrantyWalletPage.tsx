@@ -6,6 +6,7 @@ import { jobService, Job } from "@/services/job";
 import { propertyService, Property } from "@/services/property";
 import { warrantyStatus, warrantyExpiry, daysRemaining, type WarrantyStatus } from "@/services/warranty";
 import { extractDocument, fileToBase64, type DocumentExtraction } from "@/services/documentOcr";
+import { roomService, type Room } from "@/services/room";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
@@ -146,18 +147,45 @@ interface ScanForm {
   description:   string;
 }
 
-function ScanDocumentPanel() {
+/** YYYY-MM-DD plus whole months, or "" when either is missing. */
+export function addMonthsIso(iso: string, months: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || !(months > 0)) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1 + months, d));
+  return t.toISOString().slice(0, 10);
+}
+
+const NEW_ROOM = "__new";
+
+function ScanDocumentPanel({ properties }: { properties: Property[] }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [step,       setStep]       = useState<ScanStep>("idle");
   const [extraction, setExtraction] = useState<DocumentExtraction | null>(null);
   const [form,       setForm]       = useState<ScanForm>({ brand: "", modelNumber: "", serialNumber: "", warrantyMonths: "", serviceType: "", purchaseDate: "", description: "" });
   const [error,      setError]      = useState<string | null>(null);
-  const [submitted,  setSubmitted]  = useState(false);
+  const [submitted,  setSubmitted]  = useState<string | null>(null);
+  const [saving,     setSaving]     = useState(false);
+  const [propertyId, setPropertyId] = useState("");
+  const [rooms,      setRooms]      = useState<Room[]>([]);
+  const [roomId,     setRoomId]     = useState(NEW_ROOM);
+  const [newRoom,    setNewRoom]    = useState("Utility");
+
+  useEffect(() => {
+    if (!propertyId && properties.length > 0) setPropertyId(String(properties[0].id));
+  }, [properties, propertyId]);
+
+  useEffect(() => {
+    if (!propertyId) return;
+    roomService.getRoomsByProperty(propertyId)
+      .then((rs) => { setRooms(rs); setRoomId(rs[0]?.id ?? NEW_ROOM); })
+      .catch(() => { setRooms([]); setRoomId(NEW_ROOM); });
+  }, [propertyId]);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
+    setSubmitted(null);
     setStep("extracting");
     try {
       const b64 = await fileToBase64(file);
@@ -183,11 +211,35 @@ function ScanDocumentPanel() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  // Saved as an appliance (fixture) in one of the property's rooms, so it
+  // lives on the home's record and is checked for recalls.
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitted(true);
-    setStep("idle");
-    setExtraction(null);
+    if (!propertyId) { setError("Add a property first."); return; }
+    if (roomId === NEW_ROOM && !newRoom.trim()) { setError("Name the room."); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      const room = roomId === NEW_ROOM
+        ? await roomService.createRoom({ propertyId, name: newRoom.trim(), floorName: "", floorType: "", paintColor: "", paintBrand: "", paintCode: "", notes: "" })
+        : rooms.find((r) => r.id === roomId)!;
+      const months = parseInt(form.warrantyMonths, 10);
+      await roomService.addFixture(room.id, {
+        brand:          form.brand.trim(),
+        model:          form.modelNumber.trim(),
+        serialNumber:   form.serialNumber.trim(),
+        installedDate:  /^\d{4}-\d{2}-\d{2}$/.test(form.purchaseDate) ? form.purchaseDate : "",
+        warrantyExpiry: addMonthsIso(form.purchaseDate, months),
+        notes:          [form.serviceType, form.description].filter(Boolean).join(" · ").slice(0, 500),
+      });
+      setSubmitted(room.name);
+      setStep("idle");
+      setExtraction(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Couldn't save");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const isLowConfidence = extraction?.confidence === "low";
@@ -200,7 +252,7 @@ function ScanDocumentPanel() {
 
       {submitted && (
         <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.sage, marginBottom: "0.75rem" }}>
-          ✓ Document registered. Log a job with this appliance to save the warranty.
+          ✓ Saved as an appliance in {submitted}. It's on the property's Rooms tab.
         </p>
       )}
 
@@ -210,10 +262,10 @@ function ScanDocumentPanel() {
         </p>
       )}
 
-      {step === "idle" && !submitted && (
+      {step === "idle" && (
         <>
           <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, marginBottom: "1rem" }}>
-            Upload a photo of an appliance manual or warranty card. Brand, model, serial number, and warranty term will be extracted automatically.
+            Upload a photo of an appliance label, manual, or warranty card. We read the brand, model, serial number, and warranty term for you to check, then save it as an appliance on your home's record.
           </p>
           <button
             onClick={() => fileRef.current?.click()}
@@ -251,9 +303,26 @@ function ScanDocumentPanel() {
             </div>
           ))}
 
+          <div style={{ marginBottom: "0.75rem" }}>
+            <label htmlFor="scan-property" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "0.25rem", textTransform: "uppercase" }}>Property</label>
+            <select id="scan-property" value={propertyId} onChange={(e) => setPropertyId(e.target.value)} style={{ width: "100%", fontFamily: UI.mono, fontSize: "0.8rem", padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, color: UI.ink }}>
+              {properties.map((p) => <option key={String(p.id)} value={String(p.id)}>{p.address}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: "0.75rem" }}>
+            <label htmlFor="scan-room" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "0.25rem", textTransform: "uppercase" }}>Room</label>
+            <select id="scan-room" value={roomId} onChange={(e) => setRoomId(e.target.value)} style={{ width: "100%", fontFamily: UI.mono, fontSize: "0.8rem", padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, color: UI.ink }}>
+              {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              <option value={NEW_ROOM}>New room…</option>
+            </select>
+            {roomId === NEW_ROOM && (
+              <input aria-label="New room name" value={newRoom} onChange={(e) => setNewRoom(e.target.value)} style={{ width: "100%", marginTop: "0.4rem", fontFamily: UI.mono, fontSize: "0.8rem", padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, color: UI.ink, boxSizing: "border-box" }} />
+            )}
+          </div>
+
           <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
-            <button type="submit" style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.rust}`, background: UI.rust, color: UI.paper, cursor: "pointer" }}>
-              Save to Wallet
+            <button type="submit" disabled={saving || properties.length === 0} style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.rust}`, background: UI.rust, color: UI.paper, cursor: "pointer" }}>
+              {saving ? "Saving…" : "Save as appliance"}
             </button>
             <button type="button" onClick={() => { setStep("idle"); setExtraction(null); }} style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}>
               Cancel
@@ -271,12 +340,14 @@ export default function WarrantyWalletPage() {
   const navigate = useNavigate();
   const [warrantyJobs, setWarrantyJobs] = useState<WarrantyJob[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [properties, setProperties] = useState<Property[]>([]);
 
   useEffect(() => {
     Promise.all([
       jobService.getAll(),
       propertyService.getMyProperties(),
     ]).then(([jobs, properties]) => {
+      setProperties(properties);
       const propMap = Object.fromEntries(properties.map((p) => [String(p.id), p]));
       const withWarranty = jobs
         .filter((j) => j.warrantyMonths && j.warrantyMonths > 0)
@@ -317,7 +388,7 @@ export default function WarrantyWalletPage() {
           Warranties logged across all your maintenance jobs.
         </p>
 
-        <ScanDocumentPanel />
+        <ScanDocumentPanel properties={properties} />
 
         {!loaded ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>

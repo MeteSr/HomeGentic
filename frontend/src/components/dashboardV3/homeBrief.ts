@@ -14,6 +14,7 @@ import type { SensorEvent } from "@/services/sensor";
 import type { AtRiskWarning } from "@/services/scoreDecayService";
 import type { SystemEstimate } from "@/services/systemAgeEstimator";
 import type { PersonAccess } from "@/services/people";
+import type { RecallMatch } from "@/services/recalls";
 import { SERIES_LABELS, type Insight } from "@/services/billsForecast";
 import { nextVisit } from "./panelData";
 import type { FlowKey, PanelKey } from "./types";
@@ -28,6 +29,8 @@ export interface BriefItem {
   /** Where tapping the item goes: a panel, or a flow (modal). */
   go?:    PanelKey;
   flow?:  FlowKey;
+  /** An outside page (opened in a new tab), e.g. a CPSC recall notice. */
+  href?:  string;
 }
 
 export interface HomeBrief {
@@ -50,6 +53,8 @@ export interface BriefInput {
   billInsights:      Insight[];
   people:            PersonAccess[] | null;
   quotaExhausted:    boolean;
+  /** Possible CPSC recalls for the property's appliances (services/recalls.ts). */
+  recalls?:          RecallMatch[];
 }
 
 /** Most items the brief shows; the rest are one tap away in the rail. */
@@ -81,6 +86,20 @@ export function buildHomeBrief(input: BriefInput): HomeBrief {
   if (alert) {
     const what = alert.eventType.replace(/([A-Z])/g, " $1").trim().toLowerCase();
     items.push({ id: "sensor", tone: "urgent", text: `A sensor reported ${what}. Check it before it becomes a repair.`, go: "sensors" });
+  }
+
+  // A model-number match isn't proof, so the line says "may" and links to
+  // the notice for the homeowner to compare.
+  const recall = input.recalls?.find((m) => m.recalls.length > 0);
+  if (recall) {
+    const notice = recall.recalls[0];
+    const more = (input.recalls ?? []).filter((m) => m.recalls.length > 0).length - 1;
+    items.push({
+      id: "recall", tone: "urgent",
+      text: `A safety recall may cover your ${recall.brand} ${recall.model}: ${notice.title || "see the CPSC notice"}. Compare the model numbers on the notice.` +
+        (more > 0 ? ` (${more} more ${plural(more, "appliance", "appliances")} may be affected.)` : ""),
+      ...(notice.url ? { href: notice.url } : { go: "property" as PanelKey }),
+    });
   }
 
   const pending = input.pendingProposals.length;

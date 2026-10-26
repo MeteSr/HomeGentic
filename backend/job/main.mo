@@ -1589,6 +1589,184 @@ persistent actor Job {
   /// any queued push addressed to the caller. Jobs where the caller is only
   /// the linked contractor belong to the homeowner's record and are kept.
   /// Returns how many jobs were removed. Synchronous, so nothing interleaves.
+  // ─── Email inbox: forwarded invoices become draft jobs ─────────────────────
+  //
+  // Each homeowner can get a private forwarding address (h-<token>@<inbox
+  // domain>). Mail sent there reaches the voice Worker's email handler, which
+  // reads the invoice and calls relayAddEmailDraft. A draft is not a job: it
+  // sits in getMyEmailDrafts until the homeowner logs it (createJob, then
+  // dismissEmailDraft) or dismisses it. New stable vars only (no change to
+  // stored record types).
+
+  public type EmailDraft = {
+    id            : Text;
+    owner         : Principal;
+    receivedAt    : Int;
+    fromAddress   : Text;
+    subject       : Text;
+    title         : Text;
+    serviceType   : Text;    // display label, "" when unknown
+    contractorName: Text;
+    amountCents   : Nat;
+    completedDate : Text;    // YYYY-MM-DD, "" when unknown
+    warrantyMonths: Nat;     // 0 when none
+    description   : Text;
+  };
+
+  public type EmailDraftInput = {
+    fromAddress   : Text;
+    subject       : Text;
+    title         : Text;
+    serviceType   : Text;
+    contractorName: Text;
+    amountCents   : Nat;
+    completedDate : Text;
+    warrantyMonths: Nat;
+    description   : Text;
+  };
+
+  private let inboxTokens      = Map.empty<Text, Principal>();   // token → owner
+  private let inboxByOwner     = Map.empty<Text, Text>();        // owner → token
+  private let emailDrafts      = Map.empty<Text, EmailDraft>();  // id → draft
+  private let inboxDayCounts   = Map.empty<Text, (Int, Nat)>();  // owner → (day, drafts that day)
+  private var inboxRelayEntries : [Principal] = [];
+  private transient let draftsByOwner = Index.empty();
+  private transient let draftIndexes : [Index.Keyed<EmailDraft>] = Index.indexed(emailDrafts, [
+    (draftsByOwner, func(d : EmailDraft) : ?Text { ?d.owner.toText() }),
+  ]);
+
+  private transient let MAX_OPEN_DRAFTS     : Nat = 50;
+  private transient let MAX_DRAFTS_PER_DAY  : Nat = 30;
+
+  private func newInboxToken() : async Text {
+    let b = (await Random.blob()).toArray();
+    let HEX = "0123456789abcdef".chars().toArray();
+    var out = "";
+    var i = 0;
+    while (i < 10 and i < b.size()) {
+      let n = b[i].toNat();
+      out #= HEX[n / 16].toText() # HEX[n % 16].toText();
+      i += 1;
+    };
+    out
+  };
+
+  private func clip(t : Text, n : Nat) : Text {
+    if (t.size() <= n) t else Text.fromIter(t.chars().take(n))
+  };
+
+  private func draftsOf(owner : Principal) : [EmailDraft] {
+    Index.records(draftsByOwner, owner.toText(), emailDrafts).toArray()
+  };
+
+  /// The caller's forwarding token, created on first call. The address is
+  /// "h-" # token # "@" # the inbox domain (the frontend knows the domain).
+  public shared(msg) func getMyInboxToken() : async Result.Result<Text, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (inboxByOwner.get(msg.caller.toText())) {
+      case (?t) return #ok(t);
+      case null {};
+    };
+    let t = await newInboxToken();
+    // Re-check after the await: a concurrent call may have created one.
+    switch (inboxByOwner.get(msg.caller.toText())) {
+      case (?existing) return #ok(existing);
+      case null {};
+    };
+    inboxTokens.add(t, msg.caller);
+    inboxByOwner.add(msg.caller.toText(), t);
+    #ok(t)
+  };
+
+  /// Replace the caller's forwarding address; mail to the old one is dropped.
+  public shared(msg) func resetMyInboxToken() : async Result.Result<Text, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let t = await newInboxToken();
+    switch (inboxByOwner.get(msg.caller.toText())) {
+      case (?old) inboxTokens.remove(old);
+      case null {};
+    };
+    inboxTokens.add(t, msg.caller);
+    inboxByOwner.add(msg.caller.toText(), t);
+    #ok(t)
+  };
+
+  /// Inbox relay (the voice Worker) only: file a draft for the owner of
+  /// `token`. #NotFound for an unknown token; #InvalidInput when the owner
+  /// has too many open drafts or hit today's cap.
+  public shared(msg) func relayAddEmailDraft(token : Text, input : EmailDraftInput) : async Result.Result<Text, Error> {
+    if (not Admin.contains(inboxRelayEntries, msg.caller)) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    let owner = switch (inboxTokens.get(token)) { case (?o) o; case null return #err(#NotFound) };
+    if (Index.count(draftsByOwner, owner.toText()) >= MAX_OPEN_DRAFTS) return #err(#InvalidInput("too many open drafts"));
+    let day = Time.now() / 86_400_000_000_000;
+    let (d, n) = inboxDayCounts.get(owner.toText()).get((day, 0));
+    let today = if (d == day) n else 0;
+    if (today >= MAX_DRAFTS_PER_DAY) return #err(#InvalidInput("daily draft limit reached"));
+    if (input.amountCents > MAX_JOB_AMOUNT_CENTS) return #err(#InvalidInput("amount too large"));
+    let id = await newJobId();
+    // State may have changed during the await (token reset, account deleted).
+    switch (inboxTokens.get(token)) { case (?o) { if (o != owner) return #err(#NotFound) }; case null return #err(#NotFound) };
+    if (Index.count(draftsByOwner, owner.toText()) >= MAX_OPEN_DRAFTS) return #err(#InvalidInput("too many open drafts"));
+    let todayNow = switch (inboxDayCounts.get(owner.toText())) { case (?(d2, n2)) { if (d2 == day) n2 else 0 }; case null 0 };
+    if (todayNow >= MAX_DRAFTS_PER_DAY) return #err(#InvalidInput("daily draft limit reached"));
+    Index.put(emailDrafts, draftIndexes, id, {
+      id;
+      owner;
+      receivedAt     = Time.now();
+      fromAddress    = clip(input.fromAddress, 200);
+      subject        = clip(input.subject, 200);
+      title          = clip(input.title, 120);
+      serviceType    = clip(input.serviceType, 40);
+      contractorName = clip(input.contractorName, 120);
+      amountCents    = input.amountCents;
+      completedDate  = clip(input.completedDate, 10);
+      warrantyMonths = Nat.min(input.warrantyMonths, 600);
+      description    = clip(input.description, 1000);
+    });
+    inboxDayCounts.add(owner.toText(), (day, todayNow + 1));
+    #ok(id)
+  };
+
+  /// The caller's open drafts, newest first.
+  public query(msg) func getMyEmailDrafts() : async [EmailDraft] {
+    draftsOf(msg.caller).sort(func(a : EmailDraft, b : EmailDraft) : { #less; #equal; #greater } {
+      Int.compare(b.receivedAt, a.receivedAt)
+    })
+  };
+
+  /// Remove one of the caller's drafts (after logging it as a job, or to discard it).
+  public shared(msg) func dismissEmailDraft(id : Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (emailDrafts.get(id)) {
+      case (?d) { if (d.owner != msg.caller) return #err(#NotFound) };
+      case null return #err(#NotFound);
+    };
+    Index.delete(emailDrafts, draftIndexes, id);
+    #ok(())
+  };
+
+  public shared(msg) func addInboxRelay(p : Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    inboxRelayEntries := Admin.add(inboxRelayEntries, p);
+    #ok(())
+  };
+
+  public shared(msg) func removeInboxRelay(p : Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    inboxRelayEntries := Admin.remove(inboxRelayEntries, p);
+    #ok(())
+  };
+
+  private func forgetInbox(owner : Principal) {
+    switch (inboxByOwner.get(owner.toText())) {
+      case (?t) { inboxTokens.remove(t); inboxByOwner.remove(owner.toText()) };
+      case null {};
+    };
+    for (d in draftsOf(owner).values()) { Index.delete(emailDrafts, draftIndexes, d.id) };
+    inboxDayCounts.remove(owner.toText());
+  };
+
   public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
@@ -1612,6 +1790,7 @@ persistent actor Job {
       .map(func((seq, _)) = seq)
       .toArray();
     for (seq in events.values()) { notifyLog.remove(seq) };
+    forgetInbox(msg.caller);
 
     #ok(ids.size())
   };

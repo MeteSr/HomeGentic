@@ -193,11 +193,13 @@ describe("job IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(jobIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "addInboxRelay",
       "approveJobProposal",
       "createInviteToken",
       "createJob",
       "createJobProposal",
       "deleteMyData",
+      "dismissEmailDraft",
       "getCertificationData",
       "getJob",
       "getJobByInviteToken",
@@ -206,6 +208,8 @@ describe("job IDL factory", () => {
       "getJobsForProperty",
       "getJobsPendingMySignature",
       "getMetrics",
+      "getMyEmailDrafts",
+      "getMyInboxToken",
       "getMyReferralJobs",
       "getPendingProposals",
       "getReferralJobs",
@@ -213,6 +217,9 @@ describe("job IDL factory", () => {
       "linkContractor",
       "redeemInviteToken",
       "rejectJobProposal",
+      "relayAddEmailDraft",
+      "removeInboxRelay",
+      "resetMyInboxToken",
       "setPropertyCanisterId",
       "updateJobStatus",
       "verifyJob",
@@ -234,6 +241,7 @@ describe("job IDL factory", () => {
       // getJobsForProperty is an update call (has inter-canister await for ownership check)
       "getJobsPendingMySignature",
       "getMetrics",
+      "getMyEmailDrafts",
       "getMyReferralJobs",
       "getPendingProposals",
       // getReferralJobs is an admin-only update call returning a Result

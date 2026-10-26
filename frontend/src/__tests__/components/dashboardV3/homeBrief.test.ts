@@ -104,4 +104,25 @@ describe("buildHomeBrief", () => {
     expect(b.items).toHaveLength(1);
     expect(b.summary).toBe("Nothing needs you today.");
   });
+
+  it("flags a possible recall after sensors, linking to the CPSC notice", () => {
+    const notice = { id: "1", number: "24-123", date: "2024-03-07", title: "Rheem Recalls Gas Water Heaters", url: "https://www.cpsc.gov/Recalls/x", hazard: "", remedy: "Repair" };
+    const b = buildHomeBrief(input({
+      sensorAlerts: [{ eventType: "WaterLeak" } as any],
+      pendingProposals: [{ id: "j1" } as any],
+      recalls: [
+        { brand: "Rheem", model: "XG40T06EC36U1", recalls: [notice] },
+        { brand: "GE", model: "GDF630", recalls: [{ ...notice, url: "" }] },
+      ],
+    }));
+    expect(b.items.map((i) => i.id)).toEqual(["sensor", "recall", "approvals"]);
+    expect(b.items[1]).toMatchObject({ tone: "urgent", href: notice.url });
+    expect(b.items[1].text).toBe("A safety recall may cover your Rheem XG40T06EC36U1: Rheem Recalls Gas Water Heaters. Compare the model numbers on the notice. (1 more appliance may be affected.)");
+  });
+
+  it("sends a recall without a CPSC link to the property panel", () => {
+    const b = buildHomeBrief(input({ recalls: [{ brand: "GE", model: "GDF630", recalls: [{ id: "2", number: "", date: "", title: "", url: "", hazard: "", remedy: "" }] }] }));
+    expect(b.items[0]).toMatchObject({ id: "recall", go: "property" });
+    expect(b.items[0].href).toBeUndefined();
+  });
 });
