@@ -5,7 +5,7 @@
  * Tells the homeowner whether permit auto-import will be available for their area.
  */
 
-import { isPermitDataAvailable } from "@/services/permitImport";
+import { isPermitDataAvailable, permitCoverageNote } from "@/services/permitImport";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
 interface Props {
@@ -17,6 +17,7 @@ export default function PermitCoverageIndicator({ city, state }: Props) {
   if (!city.trim() || !state.trim()) return null;
 
   const available = isPermitDataAvailable(city, state);
+  const note      = available ? permitCoverageNote(city, state) : null;
 
   return (
     <div
@@ -36,7 +37,7 @@ export default function PermitCoverageIndicator({ city, state }: Props) {
       }}
     >
       {available ? (
-        <>&#10003; Permit data available for {city}</>
+        <>&#10003; Permit data available for {city}{note && <> &middot; {note}</>}</>
       ) : (
         <>Permit data not available in your area</>
       )}

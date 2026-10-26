@@ -113,6 +113,8 @@ const SUPPORTED_CITIES = new Set([
   "lake helen:fl",
   "pierson:fl",
   "volusia county:fl",
+  // City of Orlando (Orange County) — Socrata open data, no API key
+  "orlando:fl",
   // OpenPermit.org coverage
   "los angeles:ca",
   "houston:tx",
@@ -139,6 +141,18 @@ const SUPPORTED_CITIES = new Set([
   "minneapolis:mn",
   "tampa:fl",
 ]);
+
+/**
+ * A caveat to show next to the coverage badge, or null. Orlando's feed only
+ * has City of Orlando permits, and many homes outside city limits (Orange
+ * County, Winter Park, Maitland…) still have an Orlando mailing address.
+ */
+export function permitCoverageNote(city: string, state: string): string | null {
+  const key = `${city.trim().toLowerCase()}:${state.trim().toLowerCase()}`;
+  return key === "orlando:fl"
+    ? "City of Orlando permits only. Homes outside city limits with an Orlando address won't find any."
+    : null;
+}
 
 export function isPermitDataAvailable(city: string, state: string): boolean {
   const key = `${city.trim().toLowerCase()}:${state.trim().toLowerCase()}`;
@@ -176,11 +190,60 @@ interface OpenPermitRow {
 }
 interface OpenPermitResponse { results?: OpenPermitRow[] }
 
+// Raw row from the City of Orlando Socrata "Permit Applications" dataset
+export interface OrlandoPermitRow {
+  permit_number?:      string;
+  application_type?:   string;
+  worktype?:           string;
+  application_status?: string;
+  issue_permit_date?:  string;
+  final_date?:         string;
+  estimated_cost?:     string;
+  contractor?:         string;   // "QUALIFIER NAME (COMPANY LLC)"
+  project_name?:       string;
+}
+
+const ORLANDO_TYPE_LABEL: Record<string, string> = {
+  "Building Permit":   "Building Permit",
+  "Electrical":        "Electrical Permit",
+  "Plumbing":          "Plumbing Permit",
+  "Mechanical Permit": "Mechanical Permit",
+  "GAS":               "Gas Permit",
+  "Demolition Permit": "Demolition Permit",
+};
+// Building permits carry the trade in their worktype.
+const ORLANDO_BUILDING_WORKTYPE: Record<string, string> = {
+  roof: "Roofing Permit", solar: "Solar Permit", window: "Window Permit", windows: "Window Permit",
+};
+
+export function parseOrlandoPermit(row: OrlandoPermitRow): OpenPermitRecord {
+  const type   = row.application_type ?? "";
+  const work   = (row.worktype ?? "").trim();
+  const status = (row.application_status ?? "").toLowerCase();
+  const company = (row.contractor ?? "").match(/\(([^()]+)\)\s*$/)?.[1] ?? row.contractor ?? "";
+  const cost   = Number(row.estimated_cost ?? "");
+  return {
+    permitNumber: row.permit_number ?? "",
+    permitType:   (type === "Building Permit" ? ORLANDO_BUILDING_WORKTYPE[work.toLowerCase()] : undefined)
+                  ?? ORLANDO_TYPE_LABEL[type] ?? "Building Permit",
+    description:  [work, row.project_name?.trim()].filter(Boolean).join(": ") || type,
+    issuedDate:   (row.issue_permit_date ?? "").slice(0, 10),
+    status:       /finaled|closed|completed/.test(status) || row.final_date ? "Finaled"
+                : status === "void" ? "Cancelled"
+                : "Open",
+    estimatedValueCents: Number.isFinite(cost) && cost > 0 ? Math.round(cost * 100) : undefined,
+    contractorName:      company.trim() || undefined,
+  };
+}
+
 // Map canister response source → permit records
 function mapCanisterResponse(
   source: string,
-  data: ArcGisResponse | OpenPermitResponse,
+  data: ArcGisResponse | OpenPermitResponse | OrlandoPermitRow[],
 ): OpenPermitRecord[] {
+  if (source === "orlando") {
+    return Array.isArray(data) ? data.map(parseOrlandoPermit) : [];
+  }
   if (source === "arcgis") {
     const arcgis = data as ArcGisResponse;
     const AMANDA_MAP: Record<string, string> = {
@@ -246,16 +309,16 @@ export async function importPermitsForProperty(
   const json = await aiProxyService.importPermits(address, city, state, zip);
   if (!json) return { citySupported: true, imported: 0, permits: [] };
 
-  const response = JSON.parse(json) as { source: string; data: ArcGisResponse | OpenPermitResponse | string };
+  const response = JSON.parse(json) as { source: string; data: ArcGisResponse | OpenPermitResponse | OrlandoPermitRow[] | string };
   if (response.source === "unsupported") {
     return { citySupported: false, imported: 0, permits: [] };
   }
 
   // data may be a nested JSON string from the canister
-  const rawData: ArcGisResponse | OpenPermitResponse =
+  const rawData =
     typeof response.data === "string"
-      ? (JSON.parse(response.data) as ArcGisResponse | OpenPermitResponse)
-      : (response.data as ArcGisResponse | OpenPermitResponse);
+      ? (JSON.parse(response.data) as ArcGisResponse | OpenPermitResponse | OrlandoPermitRow[])
+      : response.data;
 
   const raw = mapCanisterResponse(response.source, rawData);
   const permits: ImportedPermit[] = raw.map((permit) => ({

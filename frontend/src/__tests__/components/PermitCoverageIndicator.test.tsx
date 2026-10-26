@@ -22,6 +22,11 @@ describe("PermitCoverageIndicator — supported cities", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/Permit data available for Los Angeles/);
   });
 
+  it("shows Orlando with its City of Orlando-only caveat", () => {
+    render(<PermitCoverageIndicator city="Orlando" state="FL" />);
+    expect(screen.getByRole("status")).toHaveTextContent(/Permit data available for Orlando · City of Orlando permits only/);
+  });
+
   it("is case-insensitive for city name", () => {
     render(<PermitCoverageIndicator city="austin" state="tx" />);
     expect(screen.getByRole("status")).toHaveTextContent(/Permit data available/);
