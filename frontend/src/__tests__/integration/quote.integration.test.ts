@@ -20,6 +20,7 @@ import type { QuoteRequest, Quote } from "@/services/quote";
 import { propertyService } from "@/services/property";
 import { TEST_PRINCIPAL } from "./setup";
 import { asIdentity, freshIdentity, registerContractor } from "./helpers";
+import { contractorService } from "@/services/contractor";
 
 const CANISTER_ID = (process.env as any).QUOTE_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
@@ -156,6 +157,17 @@ describe.skipIf(!deployed)("submitQuote — amount/timeline/validUntil round-tri
   it("contractor principal matches the bidding identity", async () => {
     const quote = await bid((await freshRequest()).id, 50_000, 2, weekAhead());
     expect(quote.contractor).toBe(CONTRACTOR_PRINCIPAL);
+  });
+
+  it("a contractor without ContractorPro needs a saved card for the referral fee", async () => {
+    if (!(process.env as any).FEE_CANISTER_ID) return;
+    const noCard = freshIdentity();
+    await asIdentity(noCard, [contractorService], () => contractorService.register({
+      name: "No Card Contractor", specialties: ["HVAC"], email: "no-card@example.com", phone: "+15125550101",
+    }));
+    const req = await freshRequest();
+    await expect(asIdentity(noCard, [quoteService], () => quoteService.submitQuote(req.id, 50_000, 2, weekAhead())))
+      .rejects.toThrow(/Save a card for the 3% referral fee/);
   });
 
   it("the homeowner can't bid on their own request", async () => {

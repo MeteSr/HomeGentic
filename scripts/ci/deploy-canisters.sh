@@ -121,6 +121,16 @@ if has_method property setJobCanisterId; then
   dfx canister call property  setJobCanisterId        "(principal \"$JOB_ID\")"
 fi
 dfx canister call recurring   setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
+if has_method fee setQuoteCanisterId; then
+  dfx canister call fee       setQuoteCanisterId      "(\"$QUOTE_ID\")"
+  dfx canister call fee       setJobCanisterId        "(\"$JOB_ID\")"
+fi
+if has_method quote setFeeCanisterId; then
+  dfx canister call quote     setFeeCanisterId        "(principal \"$FEE_ID\")"
+fi
+if has_method job setFeeCanisterId; then
+  dfx canister call job       setFeeCanisterId        "(\"$FEE_ID\")"
+fi
 
 # ── Trusted canister lists ───────────────────────────────────────────
 dfx canister call payment    addTrustedCanister "(principal \"$JOB_ID\")"

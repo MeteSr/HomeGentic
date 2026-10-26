@@ -5,6 +5,7 @@
  */
 
 import Array    "mo:core/Array";
+import Debug    "mo:core/Debug";
 import Blob     "mo:core/Blob";
 import Char     "mo:core/Char";
 import Map      "mo:core/Map";
@@ -175,6 +176,10 @@ persistent actor Quote {
   /// Contractor canister ID — set post-deploy via setContractorCanisterId().
   /// When set, getOpenRequestsForMe() filters requests by the caller's serviceZips.
   private var contrCanisterId: Text = "";
+  /// Fee canister ID — set post-deploy via setFeeCanisterId(). When set, a
+  /// contractor without ContractorPro needs a saved card to bid, and each of
+  /// their bids and acceptances is recorded for the 3% referral fee.
+  private var feeCanisterId: Text = "";
 
   private var reqCounter: Nat = 0;
   private var quoteCounter: Nat = 0;
@@ -643,6 +648,36 @@ persistent actor Quote {
     )
   };
 
+  /// Whether `caller`'s bid carries the referral fee (the plan at bid time
+  /// decides), or why they can't bid yet. No fee while `fee` isn't wired.
+  private func referralGate(caller: Principal) : async* Result.Result<Bool, Error> {
+    if (feeCanisterId == "") return #ok(false);
+    let tier : SubscriptionTier = if (payCanisterId != "") {
+      await Canisters.payment(payCanisterId).getTierForPrincipal(caller)
+    } else { #ContractorFree };
+    if (tier == #ContractorPro) return #ok(false);
+    switch (await Canisters.fee(feeCanisterId).referralBidAllowed(caller)) {
+      case (#ok)        { #ok(true) };
+      case (#needsCard) { #err(#InvalidInput("Save a card for the 3% referral fee before you bid (Settings, Subscription on the HomeGentic website).")) };
+      case (#overdue)   { #err(#InvalidInput("A referral fee invoice is more than 30 days overdue. Pay it (Settings, Subscription) to bid again.")) };
+    }
+  };
+
+  /// Tells `fee` about a bid that carries the referral fee. A failed call is
+  /// printed, not returned: the bid is already stored.
+  private func recordReferralBid(q: Quote, req: QuoteRequest) : async* () {
+    try {
+      switch (await Canisters.fee(feeCanisterId).recordReferralBid({
+        quoteId = q.id; requestId = req.id; contractor = q.contractor; homeowner = req.homeowner;
+        propertyId = req.propertyId; serviceType = ServiceTypes.toText(req.serviceType);
+        bidCents = q.amount; bidAt = q.createdAt;
+      })) {
+        case (#err(_)) { Debug.print("quote: fee.recordReferralBid rejected " # q.id) };
+        case (#ok(())) {};
+      };
+    } catch (_) { Debug.print("quote: fee.recordReferralBid failed " # q.id) };
+  };
+
   /// Submit a quote for an open request.
   /// Subject to 20-submissions-per-day limit per contractor.
   public shared(msg) func submitQuote(
@@ -657,6 +692,10 @@ persistent actor Quote {
     switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?r0) { if (not (await canBidOn(r0, msg.caller))) return #err(#NotAuthorized) };
+    };
+    let carriesFee = switch (await* referralGate(msg.caller)) {
+      case (#err(e)) { return #err(e) };
+      case (#ok(b))  { b };
     };
 
     // Everything below re-reads state after the await (TOCTOU).
@@ -733,6 +772,7 @@ persistent actor Quote {
           };
           putRequest(updated);
         };
+        if (carriesFee) await* recordReferralBid(q, req);
 
         #ok(q)
       };
@@ -844,6 +884,16 @@ persistent actor Quote {
                       maxBids          = freshReq.maxBids;
                     };
                     putRequest(closed);
+
+                    // Opens the referral fee when the bid carried one.
+                    if (feeCanisterId != "") {
+                      try {
+                        switch (await Canisters.fee(feeCanisterId).recordReferralAccepted(quoteId)) {
+                          case (#err(_)) { Debug.print("quote: fee.recordReferralAccepted rejected " # quoteId) };
+                          case (#ok(_)) {};
+                        };
+                      } catch (_) { Debug.print("quote: fee.recordReferralAccepted failed " # quoteId) };
+                    };
 
                     #ok(accepted)
                   };
@@ -1041,6 +1091,9 @@ persistent actor Quote {
       case null { return #err(#NotFound) };
       case (?r0) { if (not (await canBidOn(r0, msg.caller))) return #err(#NotAuthorized) };
     };
+    // Sealed amounts stay encrypted, so no fee is recorded for them, but the
+    // same card and overdue rules apply before a contractor can bid.
+    switch (await* referralGate(msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
 
     // Everything below re-reads state after the await (TOCTOU).
     switch (requests.get(requestId)) {
@@ -1558,6 +1611,14 @@ persistent actor Quote {
   public shared(msg) func setContractorCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     contrCanisterId := id.toText();
+    #ok(())
+  };
+
+  /// Wire the quote canister to the fee canister for the Contractor Free
+  /// referral fee. fee.setQuoteCanisterId must name this canister too.
+  public shared(msg) func setFeeCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    feeCanisterId := id.toText();
     #ok(())
   };
 

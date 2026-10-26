@@ -8,13 +8,14 @@
  * suites exercise those rules instead of working around them.
  */
 
-import { HttpAgent } from "@icp-sdk/core/agent";
+import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import type { Identity } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { setAgentForTesting } from "@/services/actor";
 import { propertyService } from "@/services/property";
 import { contractorService } from "@/services/contractor";
 import { testIdentity } from "./setup";
+import { idlFactory as feeIdl } from "@homegentic/shared/declarations/fee";
 
 export const REPLICA_HOST = "http://localhost:4943";
 
@@ -86,7 +87,8 @@ export async function registerTestProperty(label: string): Promise<string> {
   return prop.id;
 }
 
-/** Registers a contractor profile for `identity` (HVAC and Plumbing). */
+/** Registers a contractor profile for `identity` (HVAC and Plumbing) and
+ *  saves a test card for the referral fee, so it can bid without ContractorPro. */
 export async function registerContractor(identity: Identity, name = "Integration Test Contractor"): Promise<void> {
   await asIdentity(identity, [contractorService], async () => {
     await contractorService.register({
@@ -96,4 +98,19 @@ export async function registerContractor(identity: Identity, name = "Integration
       phone:       "+15125550100",
     });
   });
+  await saveTestReferralCard(identity);
+}
+
+const FEE_CANISTER_ID = (process.env as any).FEE_CANISTER_ID || "";
+
+/** Saves a referral-fee card for `identity`, as the voice Worker does after
+ *  Stripe Checkout. CI makes the test identity a referral relay on `fee`. */
+export async function saveTestReferralCard(identity: Identity): Promise<void> {
+  if (!FEE_CANISTER_ID) return;
+  const fee: any = Actor.createActor(feeIdl, { agent: await agentFor(testIdentity), canisterId: FEE_CANISTER_ID });
+  const r = await fee.relaySetReferralCard(identity.getPrincipal(), {
+    customerId: "cus_integration", paymentMethodId: "pm_integration", brand: "visa", last4: "4242",
+    agreedAt: BigInt(Date.now()) * 1_000_000n, termsVersion: "2026-10-26",
+  });
+  if ("err" in r) throw new Error(`fee.relaySetReferralCard: ${JSON.stringify(r.err)}`);
 }

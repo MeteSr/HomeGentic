@@ -20,7 +20,7 @@ const F = {
   mono:    "'JetBrains Mono', monospace",
 };
 
-const EFFECTIVE_DATE = "April 9, 2026";
+const EFFECTIVE_DATE = "October 26, 2026";
 
 interface Section {
   id: string;
@@ -87,6 +87,24 @@ const SECTIONS: Section[] = [
         <p><strong>Cancellation.</strong> You may cancel at any time from your Settings page. Cancellation takes effect at the end of the current paid period. Access to paid features continues through that date.</p>
         <p><strong>Refund policy.</strong> All subscription fees are non-refundable. Because access continues through the end of the paid period, we do not issue partial-period refunds. If you believe you were charged in error, contact us at <a href="mailto:billing@homegentic.app" style={{ color: C.blue }}>billing@homegentic.app</a> within 30 days.</p>
         <p><strong>Price changes.</strong> We may change subscription prices on 30 days' notice. Continued use after a price change constitutes acceptance of the new price.</p>
+      </>
+    ),
+  },
+  {
+    id: "referral-fee",
+    title: "Contractor Referral Fee (Contractor Free)",
+    body: (
+      <>
+        <p>Contractors without a ContractorPro subscription pay a referral fee on work they win through HomeGentic: <strong>3% of the bid amount, or $20, whichever is greater</strong>. ContractorPro subscribers pay no referral fee. The plan you are on when you send a bid decides whether that bid carries the fee.</p>
+        <p><strong>Card on file.</strong> Before your first bid you must save a payment card with our payment processor, Stripe. Saving the card is when you agree to this section, and you authorize HomeGentic to charge that card for the fees below without asking each time.</p>
+        <p><strong>When a fee is charged.</strong></p>
+        <ul>
+          <li>When a homeowner accepts your bid and the job is later verified by both of you in HomeGentic, the fee on that bid is charged once the job is verified.</li>
+          <li>If the job is never verified, the fee is charged 60 days after the homeowner accepted your bid, unless HomeGentic waives it (for example, because the job was cancelled).</li>
+          <li>If you send a homeowner a bid through HomeGentic and, within 6 months, a job you did for the same home in the same trade is verified in HomeGentic without that bid being accepted, the fee on your bid is charged when the job is verified. We treat that job as one HomeGentic referred to you.</li>
+        </ul>
+        <p><strong>Declined cards.</strong> If a charge is declined we email you an invoice payable within 30 days. While a fee is more than 30 days past that, you cannot send new bids.</p>
+        <p><strong>Disputes and waivers.</strong> If you think a fee is wrong, contact <a href="mailto:billing@homegentic.app" style={{ color: C.blue }}>billing@homegentic.app</a>. We can waive a fee that has not been paid; your fee history shows each fee's status and the reason it was charged.</p>
       </>
     ),
   },

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { TRADE_LABELS } from "@homegentic/shared/serviceTypes";
 import { Briefcase, Star, Zap, Clock, ChevronDown, ChevronUp, X, Send, UserCog, PenLine, CheckCircle2, Lock } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -17,6 +17,7 @@ import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { ResponsiveGrid } from "@/components/ResponsiveGrid";
 import { EarningsView } from "@/components/EarningsView";
+import { feeService } from "@/services/fee";
 import { paymentService } from "@/services/payment";
 
 const UI = {
@@ -324,6 +325,8 @@ export default function ContractorDashboardPage() {
   const [loading,       setLoading]       = useState(true);
   const [showBidHistory, setShowBidHistory] = useState(false);
   const [isPro,         setIsPro]         = useState(false);
+  // Contractor Free must save a card for the referral fee before bidding.
+  const [needsCard,     setNeedsCard]     = useState(false);
   const { isMobile } = useBreakpoint();
 
   useEffect(() => {
@@ -342,7 +345,12 @@ export default function ContractorDashboardPage() {
       quoteService.getOpenRequests().then(setOpenRequests).catch((e) => console.error("[ContractorDashboard] open requests load failed:", e)),
       jobService.getJobsPendingMySignature().then(setPendingJobs).catch((e) => console.error("[ContractorDashboard] pending jobs load failed:", e)),
       quoteService.getMyBids().then(setMyBids).catch((e) => console.error("[ContractorDashboard] my bids load failed:", e)),
-      paymentService.getMySubscription().then((s) => setIsPro(s.tier === "ContractorPro")).catch(() => {}),
+      paymentService.getMySubscription()
+        .then(async (s) => {
+          setIsPro(s.tier === "ContractorPro");
+          if (s.tier !== "ContractorPro") setNeedsCard((await feeService.getMyReferralCard()) === null);
+        })
+        .catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -513,6 +521,13 @@ export default function ContractorDashboardPage() {
             );
           })}
         </ResponsiveGrid>
+
+        {!loading && profile && needsCard && (
+          <div data-testid="referral-card-needed" style={{ border: `1px solid ${V2_COLORS.amberBorder}`, background: V2_COLORS.amberBg, padding: "0.875rem 1rem", marginBottom: "1.5rem", fontFamily: V2_FONTS.body, fontSize: "0.8rem", color: V2_COLORS.amberText, lineHeight: 1.55 }}>
+            <strong>Save a card before you bid.</strong> On Contractor Free each bid a homeowner accepts carries a 3% referral fee ($20 minimum), charged once the job is verified.{" "}
+            <Link to="/settings?tab=subscription" style={{ color: V2_COLORS.blue }}>Save a card</Link>
+          </div>
+        )}
 
         {!loading && profile && <EarningsView bids={myBids} isPro={isPro} />}
 

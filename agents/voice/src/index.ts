@@ -45,6 +45,7 @@ import { resolveSessionPrincipal, SESSION_HEADER } from "./session";
 import { resolveTier } from "./tier";
 import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
+import { canisterLedger, startCardSetup, saveCardFromSession, markInvoicePaid, chargeDueFees } from "./referralFees";
 import { handleInbound, addDraftInCanister } from "./inbox";
 import { checkLicense } from "./dbpr";
 import { findRecalls } from "./recalls";
@@ -108,6 +109,7 @@ export interface Env {
   CANISTER_ID_CONTRACTOR?: string; // records DBPR licence lookups (/api/license/check)
   DBPR_LICENSE_FILE_URL?:  string; // override for DBPR's construction licensee file (src/dbpr.ts)
   CANISTER_ID_PROPERTY?: string;   // records Stripe Identity results (relayMarkIdentityCleared)
+  CANISTER_ID_FEE?:      string;   // Contractor Free referral fees (src/referralFees.ts)
   /** Domain whose mail Email Routing sends to email() (h-<token>@INBOX_DOMAIN). Unset → inbound mail ignored. */
   INBOX_DOMAIN?:         string;
 
@@ -362,6 +364,7 @@ async function flushErrorAggregations(force = false): Promise<void> {
 export default {
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(scheduledBidtolist(env));
+    ctx.waitUntil(scheduledReferralFees(env));
   },
 
   /** Forwarded invoices → draft jobs (src/inbox.ts). Never replies or rejects, so forged senders get no backscatter. */
@@ -407,6 +410,7 @@ export default {
     (process.env as any).CANISTER_ID_PHOTO       = env.CANISTER_ID_PHOTO ?? "";
     (process.env as any).CANISTER_ID_PROPERTY    = env.CANISTER_ID_PROPERTY ?? "";
     (process.env as any).CANISTER_ID_CONTRACTOR  = env.CANISTER_ID_CONTRACTOR ?? "";
+    (process.env as any).CANISTER_ID_FEE         = env.CANISTER_ID_FEE ?? "";
     (process.env as any).AI_MODEL                = env.AI_MODEL ?? "";
 
     // CORS preflight
@@ -1358,6 +1362,25 @@ Rules:
     }
   }
 
+  // ── POST /api/stripe/referral-card ───────────────────────────────────────
+  // Contractor Free: save a card for the 3% referral fee (Checkout in setup
+  // mode). The webhook stores it on the fee canister; the quote canister
+  // refuses a non-ContractorPro bid until one is saved.
+  if (path === "/api/stripe/referral-card" && method === "POST") {
+    const sk = env.STRIPE_SECRET_KEY;
+    if (!sk) return json({ error: "Payments are not configured" }, 500, cors);
+    const { returnUrl } = await readJsonBody<{ returnUrl?: string }>(request);
+    if (!isAllowedRedirectUrl(returnUrl, allowedOrigins(env))) {
+      return json({ error: "returnUrl must be on the frontend origin" }, 400, cors);
+    }
+    try {
+      const out = await startCardSetup(sessionPrincipal!, returnUrl as string, await stripeClient(sk), canisterLedger());
+      return json(out.body, out.status, cors);
+    } catch (err) {
+      return stripeFailure("referral-card", err, cors);
+    }
+  }
+
   // ── POST /api/stripe/verify-session ──────────────────────────────────────
   // Legacy Stripe-hosted checkout. Only the session's own principal can
   // verify it, and activation is idempotent with Stripe's period end (F-3).
@@ -1579,6 +1602,10 @@ Rules:
         case "invoice.paid": {
           // Renewal: re-read the subscription so expiry is Stripe's new period end.
           const inv   = event.data.object;
+          if (inv.metadata?.type === "referral_fee") {
+            await markInvoicePaid(inv, canisterLedger());
+            break;
+          }
           const subId = (typeof inv.subscription === "string" ? inv.subscription : inv.subscription?.id)
                         ?? inv.parent?.subscription_details?.subscription;
           if (typeof subId === "string" && subId) {
@@ -1608,6 +1635,8 @@ Rules:
             if (p && CREDIT_PACKS[size]) await grantCreditPack(session.id, p, size);
           } else if (session.metadata?.is_gift === "true" && session.payment_status === "paid" && session.status === "complete") {
             await registerGift(session, env);
+          } else if (session.metadata?.type === "referral_card") {
+            await saveCardFromSession(session, stripe, canisterLedger());
           }
           break;
         }
@@ -1687,7 +1716,7 @@ const OFFCHAIN_OUTCALL_ROUTES = new Set([
 /** Stripe routes that act for a user: the user is the session principal. */
 const STRIPE_SESSION_ROUTES = new Set([
   "/api/stripe/create-checkout", "/api/stripe/create-subscription-intent", "/api/stripe/cancel-subscription",
-  "/api/stripe/identity-session",
+  "/api/stripe/identity-session", "/api/stripe/referral-card",
   "/api/stripe/verify-session", "/api/stripe/verify-subscription",
   "/api/stripe/create-credit-checkout", "/api/stripe/verify-credit-purchase",
 ]);
@@ -1705,6 +1734,21 @@ function withCors(resp: Response, cors: Record<string, string>): Response {
 async function stripeClient(sk: string): Promise<any> {
   const Stripe = (await import("stripe")).default;
   return new Stripe(sk);
+}
+
+/** Hourly: charge Contractor Free referral fees that are due (src/referralFees.ts). */
+async function scheduledReferralFees(env: Env): Promise<void> {
+  if (!env.CANISTER_ID_FEE || !env.STRIPE_SECRET_KEY || !env.DFX_IDENTITY_PEM) return;
+  (process.env as any).DFX_IDENTITY_PEM       = env.DFX_IDENTITY_PEM;
+  (process.env as any).DFX_NETWORK            = env.DFX_NETWORK ?? "ic";
+  (process.env as any).CANISTER_ID_FEE        = env.CANISTER_ID_FEE;
+  (process.env as any).CANISTER_ID_CONTRACTOR = env.CANISTER_ID_CONTRACTOR ?? "";
+  try {
+    const summary = await chargeDueFees(await stripeClient(env.STRIPE_SECRET_KEY), canisterLedger());
+    logger.info("referral-fees", "charge run", { ...summary });
+  } catch (err) {
+    logger.error("referral-fees", "charge run failed", { error: (err as Error)?.message });
+  }
 }
 
 /** F-11: log the Stripe error, return a generic message. */

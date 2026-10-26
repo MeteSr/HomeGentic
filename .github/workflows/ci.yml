@@ -276,6 +276,11 @@ jobs:
           dfx canister call quote addNotifier "(principal \"$INTEG_PRINCIPAL\")"
           dfx canister call auth  addNotifier "(principal \"$INTEG_PRINCIPAL\")"
 
+          # Let the integration test identity save referral-fee cards for the
+          # contractors it registers, as the voice Worker does after Stripe
+          # Checkout (contractors without ContractorPro need one to bid).
+          dfx canister call fee addReferralRelay "(principal \"$INTEG_PRINCIPAL\")"
+
       - name: Run integration tests
         run: npm run test:integration
 
