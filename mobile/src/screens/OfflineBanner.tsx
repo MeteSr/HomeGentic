@@ -1,31 +1,48 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { colors, fonts } from "../theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { family } from "../theme";
 
 interface Props {
   offline: boolean;
 }
 
+/**
+ * Floats under the status bar while the device is offline. Taps pass through
+ * to the screen beneath. Jobs logged while offline wait in the offline queue;
+ * other changes need a connection, so the copy doesn't promise more.
+ */
 export default function OfflineBanner({ offline }: Props) {
+  const insets = useSafeAreaInsets();
   if (!offline) return null;
   return (
-    <View style={styles.banner}>
-      <Text style={styles.text}>No internet connection — writes queued for sync</Text>
+    <View pointerEvents="none" style={[styles.wrap, { top: insets.top + 6 }]}>
+      <View style={styles.banner} accessibilityRole="alert" accessibilityLiveRegion="polite">
+        <Text style={styles.text}>You're offline. Jobs you log are saved on this phone and sent when you reconnect.</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  banner: {
-    backgroundColor: "#B45309",
-    paddingVertical: 6,
-    paddingHorizontal: 16,
+  wrap: {
+    position: "absolute",
+    left: 12,
+    right: 12,
     alignItems: "center",
   },
+  banner: {
+    maxWidth: 560,
+    backgroundColor: "#7A3410",
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
   text: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    letterSpacing: 0.5,
-    color: "#FEF3C7",
+    fontFamily: family.bodySemi,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: "#FFF6DB",
+    textAlign: "center",
   },
 });

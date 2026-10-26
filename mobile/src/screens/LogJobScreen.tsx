@@ -17,6 +17,8 @@ import * as ImagePicker from "expo-image-picker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
 import { createJob, uploadJobPhoto } from "../services/jobService";
+import { offlineQueue } from "../services/offlineQueue";
+import { isNetworkError } from "../services/network";
 import {
   SERVICE_TYPES,
   validateJobForm,
@@ -79,21 +81,51 @@ export default function LogJobScreen({ route, navigation }: Props) {
     }
 
     setSubmitting(true);
+    const payload = buildJobPayload(propertyId, form);
     try {
-      const payload = buildJobPayload(propertyId, form);
-      const job     = await createJob(payload);
+      if (!(await offlineQueue.isConnected())) {
+        await saveForLater(payload);
+        return;
+      }
+      const job = await createJob(payload);
 
       if (photoB64) {
-        await uploadJobPhoto(job.id, job.propertyId, photoB64);
+        try {
+          await uploadJobPhoto(job.id, job.propertyId, photoB64);
+        } catch (err) {
+          Alert.alert(
+            "Job saved, photo not added",
+            `${err instanceof Error ? err.message : "The upload didn't finish."} Add the photo from the job history.`,
+          );
+        }
       }
 
       navigation.goBack();
     } catch (err) {
+      if (isNetworkError(err)) {
+        await saveForLater(payload);
+        return;
+      }
       const msg = err instanceof Error ? err.message : "Something went wrong";
       Alert.alert("Could not save job", msg);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  /** No connection: keep the job on this phone and send it when back online. */
+  async function saveForLater(payload: ReturnType<typeof buildJobPayload>) {
+    try {
+      await offlineQueue.enqueue({ type: "createJob", payload });
+    } catch {
+      Alert.alert("Could not save job", "You're offline and the job couldn't be stored on this phone. Try again when you're connected.");
+      return;
+    }
+    Alert.alert(
+      "Saved on this phone",
+      `You're offline. The job will be added to your record when you're back online${photoB64 ? "; add the photo after that from the job history" : ""}. Check Account → Offline queue to see it.`,
+    );
+    navigation.goBack();
   }
 
   return (

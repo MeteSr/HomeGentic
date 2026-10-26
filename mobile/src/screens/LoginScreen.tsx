@@ -6,22 +6,40 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthContext } from "../auth/AuthContext";
 import { colors, family, fonts, spacing, v3 } from "../theme";
 
 export default function LoginScreen() {
-  const { authState, login } = useAuthContext();
+  const { authState, login, unlock } = useAuthContext();
   const isLoading = authState.status === "loading";
+  const locked = authState.status === "locked";
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl }]}>
       <Text style={styles.wordmark}>HomeGentic</Text>
-      <Text style={styles.tagline}>Your home's permanent record.</Text>
+      <Text style={styles.tagline} accessibilityRole="header">Your home's permanent record.</Text>
 
       <View style={styles.divider} />
 
+      {authState.status === "idle" && authState.notice ? (
+        <Text style={styles.notice} accessibilityLiveRegion="polite">{authState.notice}</Text>
+      ) : null}
+
+      {locked && (
+        <TouchableOpacity
+          style={[styles.button, { marginBottom: spacing.md }]}
+          onPress={unlock}
+          accessibilityRole="button"
+          accessibilityLabel="Unlock HomeGentic"
+        >
+          <Text style={styles.buttonText}>Unlock</Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity
-        style={[styles.button, isLoading && styles.buttonDisabled]}
+        style={[styles.button, locked && styles.buttonSecondary, isLoading && styles.buttonDisabled]}
         onPress={login}
         disabled={isLoading}
         accessibilityRole="button"
@@ -30,12 +48,12 @@ export default function LoginScreen() {
         {isLoading ? (
           <ActivityIndicator color={colors.paper} size="small" />
         ) : (
-          <Text style={styles.buttonText}>Sign in with Internet Identity</Text>
+          <Text style={[styles.buttonText, locked && { color: v3.ink }]}>{locked ? "Sign in again" : "Sign in with Internet Identity"}</Text>
         )}
       </TouchableOpacity>
 
       {authState.status === "error" && (
-        <Text style={styles.errorText}>{authState.message}</Text>
+        <Text style={styles.errorText} accessibilityLiveRegion="assertive">{authState.message}</Text>
       )}
 
       <Text style={styles.hint}>
@@ -81,10 +99,24 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     width: "100%",
+    maxWidth: 420,
     alignItems: "center",
     minHeight: 52,
     borderRadius: 100,
     justifyContent: "center",
+  },
+  buttonSecondary: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: v3.chipLine,
+  },
+  notice: {
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    lineHeight: 19,
+    color: v3.ink,
+    textAlign: "center",
+    marginBottom: spacing.md,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -102,6 +134,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   hint: {
+    maxWidth: 420,
     fontFamily: fonts.sans,
     fontSize: 12,
     color: colors.inkLight,

@@ -17,6 +17,8 @@ import ScanDocumentScreen from "../screens/ScanDocumentScreen";
 import LeadDetailScreen from "../screens/LeadDetailScreen";
 import QueueStatusScreen from "../screens/QueueStatusScreen";
 import ReportScreen from "../screens/ReportScreen";
+import MyListingScreen from "../screens/v3/MyListingScreen";
+import { JobLinkScreen, LeadLinkScreen } from "../screens/LinkScreens";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { family, v3 } from "../theme";
 
@@ -60,6 +62,9 @@ export default function RootNavigator() {
       <Stack.Screen name="LeadDetail"   component={LeadDetailScreen}   options={{ title: "LEAD" }} />
       <Stack.Screen name="QueueStatus"  component={QueueStatusRoute}   options={{ title: "OFFLINE QUEUE" }} />
       <Stack.Screen name="Report"       component={ReportScreen}       options={{ title: "SHARED REPORT" }} />
+      <Stack.Screen name="MyListing"    component={MyListingScreen}    options={{ headerShown: false }} />
+      <Stack.Screen name="JobLink"      component={JobLinkScreen}      options={{ headerShown: false, animation: "none" }} />
+      <Stack.Screen name="LeadLink"     component={LeadLinkScreen}     options={{ headerShown: false, animation: "none" }} />
     </Stack.Navigator>
   );
 }

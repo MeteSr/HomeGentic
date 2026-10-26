@@ -1,5 +1,7 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { Linking, View, StyleSheet } from "react-native";
+import * as Notifications from "expo-notifications";
+import * as WebBrowser from "expo-web-browser";
 import { NavigationContainer, DefaultTheme, type LinkingOptions } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -19,57 +21,86 @@ import RootStack from "./src/navigation/RootNavigator";
 import LoginScreen  from "./src/screens/LoginScreen";
 import OfflineBanner from "./src/screens/OfflineBanner";
 import { useNotifications } from "./src/hooks/useNotifications";
-import { useOfflineQueue } from "./src/hooks/useOfflineQueue";
+import { useIsOnline } from "./src/hooks/useOfflineQueue";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
+import { APP_SCHEME, isAuthCallback, targetForRoute } from "./src/services/deepLinks";
+import { linkingConfig } from "./src/navigation/linking";
+import { parseNotificationRoute } from "./src/services/notificationService";
+import { HOMEGENTIC_WEB_URL } from "./src/services/reportService";
 import { v3 } from "./src/theme";
 import type { RootStackParamList } from "./src/navigation/types";
 
-// Deep-link → screen mapping.
-// Routes emitted in push notification payloads (agents/notifications/events.ts)
-// must match these paths: jobs/<id>, quotes/<id>, leads, leads/<id>.
+// Deep links: paths in navigation/linking.ts; this adds the sources (launch
+// URL, URL events, notification taps).
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: ["homegentic://"],
-  config: {
-    screens: {
-      Tabs: {
-        screens: {
-          Home:     "dashboard",
-          Property: "property",
-          Jobs:     "jobs/:jobId?",
-          Upkeep:   "upkeep",
-          Account:  "account",
-          Leads:    "leads/:leadId?",
-          Sign:     "sign",
-          Earnings: "earnings",
-          CAccount: "contractor/account",
-        },
-      },
-      MyQuotes: "quotes/:requestId",
-      Report:   "report/:token?",
-      People:   "people",
-      Upgrade:  "plan",
-    },
+  prefixes: [APP_SCHEME],
+  config: linkingConfig,
+  // The container mounts after sign-in, so a link or notification tap that
+  // opened the app while signed out is still picked up here.
+  async getInitialURL() {
+    const url = await Linking.getInitialURL();
+    if (url && !isAuthCallback(url) && !handledUrls.has(url)) {
+      handledUrls.add(url);
+      return url;
+    }
+    const response = Notifications.getLastNotificationResponse();
+    if (response && !handledNotifications.has(response.notification.request.identifier)) {
+      handledNotifications.add(response.notification.request.identifier);
+      return appUrlFor(parseNotificationRoute(response.notification.request.content.data));
+    }
+    return null;
+  },
+  subscribe(listener) {
+    const links = Linking.addEventListener("url", ({ url }) => {
+      if (!isAuthCallback(url)) listener(url);
+    });
+    const taps = Notifications.addNotificationResponseReceivedListener((response) => {
+      const id = response.notification.request.identifier;
+      if (handledNotifications.has(id)) return;
+      handledNotifications.add(id);
+      const url = appUrlFor(parseNotificationRoute(response.notification.request.content.data));
+      if (url) listener(url);
+    });
+    return () => { links.remove(); taps.remove(); };
   },
 };
+
+// Links already acted on, so signing out and back in doesn't replay them.
+const handledUrls = new Set<string>();
+const handledNotifications = new Set<string>();
+
+/** App URL for a notification route; web-only routes open in the browser instead. */
+function appUrlFor(route: string | null): string | null {
+  const target = targetForRoute(route);
+  if (!target) return null;
+  if (target.kind === "web") {
+    WebBrowser.openBrowserAsync(`${HOMEGENTIC_WEB_URL.replace(/\/$/, "")}${target.path}`).catch(() => {});
+    return null;
+  }
+  return target.url;
+}
 
 const navTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: v3.bg, card: v3.paper, primary: v3.blue, text: v3.ink, border: v3.line } };
 
 function Root() {
   const { authState } = useAuthContext();
-  const { isOnline }  = useOfflineQueue();
+  const isOnline = useIsOnline();
 
-  // 15.3.5 — register push token + wire notification tap handler
+  // 15.3.5 — register the push token; taps are routed by `linking` above
   useNotifications();
 
   return (
     <View style={styles.root}>
-      <OfflineBanner offline={!isOnline} />
       {authState.status === "authenticated" ? (
         <AppDataProvider key={authState.principal}>
-          <RootStack />
+          <NavigationContainer linking={linking} theme={navTheme}>
+            <RootStack />
+          </NavigationContainer>
         </AppDataProvider>
       ) : (
         <LoginScreen />
       )}
+      <OfflineBanner offline={!isOnline} />
     </View>
   );
 }
@@ -79,22 +110,23 @@ const styles = StyleSheet.create({
 });
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     BricolageGrotesque_700Bold, BricolageGrotesque_800ExtraBold,
     HankenGrotesk_400Regular, HankenGrotesk_500Medium, HankenGrotesk_600SemiBold,
     JetBrainsMono_400Regular, JetBrainsMono_500Medium, JetBrainsMono_700Bold,
   });
-  // The splash screen stays up until the fonts are ready (they're bundled, so this is quick).
-  if (!fontsLoaded) return null;
+  // The fonts are bundled, so this is quick. If they fail to load, carry on
+  // with the system font rather than a blank screen.
+  if (!fontsLoaded && !fontError) return <View style={styles.root} />;
 
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <NavigationContainer linking={linking} theme={navTheme}>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <AuthProvider>
           <StatusBar style="dark" backgroundColor={v3.bg} />
           <Root />
-        </NavigationContainer>
-      </AuthProvider>
-    </SafeAreaProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

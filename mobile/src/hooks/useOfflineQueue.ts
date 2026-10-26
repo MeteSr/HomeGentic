@@ -1,41 +1,48 @@
 /**
  * useOfflineQueue
  *
- * React hook that exposes the offline queue state and actions.
- * Provides `isOnline`, `pendingCount`, `failedCount`, `items`,
- * `flush`, `retry`, `discard`.
- *
- * In production, swap the fallback adapters for real AsyncStorage /
- * NetInfo implementations (see offlineQueue.ts for instructions).
+ * The signed-in user's offline write queue (services/offlineQueue.ts):
+ * `items`, `pendingCount`, `failedCount`, `retry`, `discard`, `refresh`,
+ * kept current as the queue changes. `useIsOnline` tracks connectivity.
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { offlineQueue, type QueuedOperation } from "../services/offlineQueue";
+import NetInfo from "@react-native-community/netinfo";
+import { offlineQueue, isOnlineState, type QueuedOperation } from "../services/offlineQueue";
+
+/** Whether the device is online, from NetInfo (true until it reports otherwise). */
+export function useIsOnline(): boolean {
+  const [online, setOnline] = useState(true);
+  useEffect(() => NetInfo.addEventListener((s) => setOnline(isOnlineState(s))), []);
+  return online;
+}
 
 export function useOfflineQueue() {
-  const [items,    setItems]    = useState<QueuedOperation[]>([]);
-  const [isOnline, setIsOnline] = useState(true);
+  const [items, setItems] = useState<QueuedOperation[]>([]);
+  const isOnline = useIsOnline();
 
   const refresh = useCallback(async () => {
     setItems(await offlineQueue.getQueue());
   }, []);
 
   useEffect(() => {
-    refresh();
-    // Re-check queue on mount only (no NetInfo subscription in fallback mode)
-  }, [refresh]);
+    let live = true;
+    const load = () => { offlineQueue.getQueue().then((q) => { if (live) setItems(q); }); };
+    load();
+    const unsubscribe = offlineQueue.subscribe(load);
+    return () => { live = false; unsubscribe(); };
+  }, []);
 
   const pendingCount = items.filter((i) => i.status === "pending").length;
   const failedCount  = items.filter((i) => i.status === "failed").length;
 
   async function retry(id: string) {
     await offlineQueue.retry(id);
-    await refresh();
+    await offlineQueue.flush().catch(() => {});
   }
 
   async function discard(id: string) {
     await offlineQueue.discard(id);
-    await refresh();
   }
 
   return { items, isOnline, pendingCount, failedCount, retry, discard, refresh };

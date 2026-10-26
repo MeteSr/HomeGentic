@@ -20,6 +20,7 @@ const DEFAULT_TITLE = typeof document !== "undefined" ? document.title : "HomeGe
 // First match wins, so specific patterns come before their parents.
 const ROUTE_TITLES: [pattern: string, title: string][] = [
   ["/login", "Sign in"],
+  ["/mobile-auth", "Sign in to the app"],
   ["/pricing", "Pricing"],
   ["/privacy", "Privacy Policy"],
   ["/terms", "Terms of Service"],
