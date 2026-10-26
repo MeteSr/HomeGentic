@@ -697,43 +697,60 @@ persistent actor Photo {
     Index.records(photosByJob, syntheticJobId, photoStore).map(meta).toArray()
   };
 
-  /// Photos with the given jobId that the caller uploaded (admins: all of them).
-  private func ownJobPhotos(jobId: Text, caller: Principal, keep: Photo -> Bool) : [PhotoMeta] {
+  /// The photos in `candidates` the caller may list: their own uploads, all
+  /// of them for admins, and the photos on properties the caller owns or
+  /// manages now, so a buyer sees the seller's photos once a transfer is
+  /// claimed. One property check per distinct property, at most
+  /// MAX_BATCH_AUTH_CALLS per call (photos past that are left out).
+  private func visiblePhotos(candidates: [Photo], caller: Principal) : async* [PhotoMeta] {
     let admin = isAdmin(caller);
-    Iter.toArray(Iter.map(
-      Index.records(photosByJob, jobId, photoStore).filter(func(p: Photo) : Bool {
-        (admin or p.owner == caller) and keep(p)
-      }),
-      meta
-    ))
+    let allowed = Map.empty<Text, Bool>();
+    var authCalls = 0;
+    let out = List.empty<PhotoMeta>();
+    for (p in candidates.values()) {
+      let ok = if (admin or p.owner == caller) { true }
+        else if (caller.isAnonymous() or Text.size(propCanisterId) == 0) { false }
+        else {
+          switch (allowed.get(p.propertyId)) {
+            case (?known) { known };
+            case null {
+              if (authCalls >= MAX_BATCH_AUTH_CALLS) { false } else {
+                authCalls += 1;
+                let propActor = Canisters.property(propCanisterId);
+                let res = try { await propActor.isAuthorized(p.propertyId, caller, false) } catch (_) { false };
+                allowed.add(p.propertyId, res);
+                res
+              }
+            };
+          }
+        };
+      if (ok) out.add(meta(p));
+    };
+    out.toArray()
+  };
+
+  private func jobPhotos(jobId: Text, caller: Principal, keep: Photo -> Bool) : async* [PhotoMeta] {
+    await* visiblePhotos(Index.records(photosByJob, jobId, photoStore).filter(keep).toArray(), caller)
   };
 
   /// All photos linked to a room (stored with synthetic jobId "ROOM_<roomId>").
-  /// Caller must be the photo owner or an admin.
   public shared(msg) func getPhotosByRoom(roomId: Text) : async [PhotoMeta] {
-    ownJobPhotos("ROOM_" # roomId, msg.caller, func(_) { true })
+    await* jobPhotos("ROOM_" # roomId, msg.caller, func(_) { true })
   };
 
-  /// All photos for a job the caller owns. Admins see all photos for the job.
+  /// All photos for a job.
   public shared(msg) func getPhotosByJob(jobId: Text) : async [PhotoMeta] {
-    ownJobPhotos(jobId, msg.caller, func(_) { true })
+    await* jobPhotos(jobId, msg.caller, func(_) { true })
   };
 
-  /// All photos for a property the caller owns. Admins see all photos for the property.
+  /// All photos for a property.
   public shared(msg) func getPhotosByProperty(propertyId: Text) : async [PhotoMeta] {
-    let caller = msg.caller;
-    let admin  = isAdmin(caller);
-    Iter.toArray(Iter.map(
-      Index.records(photosByProperty, propertyId, photoStore).filter(func(p: Photo) : Bool {
-        admin or p.owner == caller
-      }),
-      meta
-    ))
+    await* visiblePhotos(Index.records(photosByProperty, propertyId, photoStore).toArray(), msg.caller)
   };
 
-  /// Photos for a specific job+phase the caller owns. Admins see all.
+  /// Photos for a specific job+phase.
   public shared(msg) func getPhotosByPhase(jobId: Text, phase: ConstructionPhase) : async [PhotoMeta] {
-    ownJobPhotos(jobId, msg.caller, func(p) { p.phase == phase })
+    await* jobPhotos(jobId, msg.caller, func(p) { p.phase == phase })
   };
 
   /// Approve a photo. Caller must be the owner or an admin.

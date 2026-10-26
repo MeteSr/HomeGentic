@@ -1357,6 +1357,15 @@ persistent actor Property {
                 pendingTransfers.remove(propertyId);
                 tokenIndex.remove(token);
 
+                // A year of Pro for the buyer when the home's ownership was
+                // verified. payment.grantHandoffYear decides eligibility (once
+                // per buyer, once a year per home, no paid plan running); the
+                // transfer above stands whatever it answers.
+                if (payCanisterId != "" and (prop.verificationLevel == #Basic or prop.verificationLevel == #Premium)) {
+                  let pay : actor { grantHandoffYear : shared (Principal, Text) -> async { #ok : Any; #err : Any } } = actor (payCanisterId);
+                  try { ignore await pay.grantHandoffYear(msg.caller, propertyId) } catch _ { Debug.print("[property] handoff grant call failed") };
+                };
+
                 #ok(updated)
               };
             }

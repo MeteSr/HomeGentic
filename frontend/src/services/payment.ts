@@ -270,6 +270,17 @@ export const paymentService = {
   // ── Agent credit top-ups (#89) ────────────────────────────────────────────────
 
   /** Returns the caller's remaining agent credit balance (0 if none or expired). */
+  /** When the caller got a free Pro year for accepting a home's record at closing (ms), or null. */
+  async getMyHandoffGrant(): Promise<number | null> {
+    if (typeof window !== "undefined" && "__e2e_handoff_grant" in (window as any)) {
+      return (window as any).__e2e_handoff_grant ?? null;
+    }
+    if (!PAYMENT_CANISTER_ID) return null;
+    const a = await getActor();
+    const r = await a.getMyHandoffGrant() as [] | [bigint];
+    return r.length ? Number(r[0] / 1_000_000n) : null;
+  },
+
   async getMyAgentCredits(): Promise<number> {
     if ((window as any).__e2e_agent_credits != null) {
       return Number((window as any).__e2e_agent_credits);

@@ -251,6 +251,15 @@ function unwrap(result: any): Property {
   throw new Error(typeof val === "string" ? val : key);
 }
 
+/** E2E: window.__e2e_transfers = { [token]: PendingTransfer } stands in for the canister's pending transfers. */
+function e2eTransfers(): Record<string, PendingTransfer> | undefined {
+  return typeof window !== "undefined" ? (window as any).__e2e_transfers : undefined;
+}
+function e2eTransferProperty(propertyId: string): Property | null {
+  const props: any[] = (window as any).__e2e_properties ?? [];
+  return props.find((p) => String(p.id) === String(propertyId)) ?? null;
+}
+
 export const propertyService = {
   async registerProperty(args: RegisterPropertyArgs): Promise<Property> {
     if (typeof window !== "undefined" && (window as any).__e2e_register_property) {
@@ -390,6 +399,13 @@ export const propertyService = {
 
   /** Step 1: seller generates a bearer-token link for this property. */
   async initiateTransfer(propertyId: string): Promise<PendingTransfer> {
+    const e2e = e2eTransfers();
+    if (e2e) {
+      const now = Date.now();
+      const pt = { propertyId, from: (window as any).__e2e_principal ?? "", token: `e2e-${propertyId}`, initiatedAt: now, expiresAt: now + 90 * 86_400_000 };
+      e2e[pt.token] = pt;
+      return pt;
+    }
     const a = await getActor();
     const result = await a.initiateTransfer(propertyId);
     if ("ok" in result) {
@@ -402,12 +418,26 @@ export const propertyService = {
 
   /** Step 2: authenticated buyer presents the token to claim ownership. */
   async claimTransfer(token: string): Promise<Property> {
+    const e2e = e2eTransfers();
+    if (e2e) {
+      const pt = e2e[token];
+      const prop = pt && e2eTransferProperty(pt.propertyId);
+      if (!prop) throw new Error("NotFound");
+      delete e2e[token];
+      if ((window as any).__e2e_grant_handoff) (window as any).__e2e_handoff_grant = Date.now();
+      return { ...prop, owner: (window as any).__e2e_principal ?? prop.owner };
+    }
     const a = await getActor();
     const result = await a.claimTransfer(token);
     return unwrap(result);
   },
 
   async cancelTransfer(propertyId: string): Promise<void> {
+    const e2e = e2eTransfers();
+    if (e2e) {
+      for (const [t, pt] of Object.entries(e2e)) if (pt.propertyId === propertyId) delete e2e[t];
+      return;
+    }
     const a = await getActor();
     const result = await a.cancelTransfer(propertyId);
     if ("err" in result) {
@@ -417,6 +447,8 @@ export const propertyService = {
   },
 
   async getPendingTransfer(propertyId: string): Promise<PendingTransfer | null> {
+    const e2e = e2eTransfers();
+    if (e2e) return Object.values(e2e).find((pt) => pt.propertyId === propertyId) ?? null;
     const a = await getActor();
     const result: any[] = await a.getPendingTransfer(propertyId);
     if (!result[0]) return null;
@@ -425,6 +457,8 @@ export const propertyService = {
 
   /** Look up a pending transfer by token — used by the claim page before login. */
   async getPendingTransferByToken(token: string): Promise<PendingTransfer | null> {
+    const e2e = e2eTransfers();
+    if (e2e) return e2e[token] ?? null;
     const a = await getActor();
     const result: any[] = await a.getPendingTransferByToken(token);
     if (!result[0]) return null;
@@ -434,6 +468,8 @@ export const propertyService = {
   /** The property behind a live transfer link (claim page). Token-gated: the
    *  address is included; null for an unknown or expired token. */
   async getPropertyByTransferToken(token: string): Promise<Property | null> {
+    const e2e = e2eTransfers();
+    if (e2e) return e2e[token] ? e2eTransferProperty(e2e[token].propertyId) : null;
     const a = await getActor();
     const result: any[] = await a.getPropertyByTransferToken(token);
     if (!result[0]) return null;

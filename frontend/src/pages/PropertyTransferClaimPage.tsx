@@ -9,12 +9,17 @@
  *  2. Unauthenticated visitor: sees property address + "Sign in to claim" button.
  *  3. Authenticated user: sees full property details + "Accept & Become Owner" button.
  *  4. On claim: calls claimTransfer(token) → redirects to /properties/:id.
+ *
+ * When the home's ownership is verified, the property canister also asks
+ * payment for a free Pro year for the buyer (payment.grantHandoffYear, which
+ * has the final say); the success screen says whether one was added.
  */
 
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { propertyService, type PendingTransfer, type Property } from "../services/property";
+import { paymentService } from "../services/payment";
 import { useAuthStore } from "@/store/authStore";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
@@ -36,7 +41,14 @@ type PageState =
   | { status: "expired" }
   | { status: "ready"; pending: PendingTransfer; property: Property }
   | { status: "claiming" }
-  | { status: "claimed"; property: Property };
+  | { status: "claimed"; property: Property; proYearUntil: Date | null };
+
+const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+/** A home whose ownership was verified comes with a free Pro year for the buyer. */
+export function offersProYear(p: Property | null): boolean {
+  return !!p && (p.verificationLevel === "Basic" || p.verificationLevel === "Premium");
+}
 
 export default function PropertyTransferClaimPage() {
   const { token }   = useParams<{ token: string }>();
@@ -86,9 +98,13 @@ export default function PropertyTransferClaimPage() {
     setClaimError(null);
     try {
       const claimed = await propertyService.claimTransfer(token);
-      setPage({ status: "claimed", property: claimed });
-      // Brief pause so the success message registers, then navigate
-      setTimeout(() => navigate(`/properties/${claimed.id}`), 1800);
+      // A grant made by this claim is minutes old; an older one isn't news.
+      const grantedAt = await paymentService.getMyHandoffGrant().catch(() => null);
+      const proYearUntil = grantedAt !== null && Date.now() - grantedAt < 10 * 60 * 1000
+        ? new Date(grantedAt + YEAR_MS) : null;
+      setPage({ status: "claimed", property: claimed, proYearUntil });
+      // Pause so the success message registers, then navigate
+      setTimeout(() => navigate(`/properties/${claimed.id}`), proYearUntil ? 4000 : 1800);
     } catch (e: any) {
       setClaimError(e.message ?? "Claim failed. Please try again.");
       setPage(page);  // restore previous state so retry is available
@@ -200,6 +216,11 @@ export default function PropertyTransferClaimPage() {
           <p style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
             The full property history — maintenance records, photos, utility bills, and verification status — is now in your account. Redirecting you to the property…
           </p>
+          {page.proYearUntil && (
+            <p data-testid="handoff-pro-year" style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.ink, lineHeight: 1.6, marginTop: "0.75rem" }}>
+              We've added a free year of HomeGentic Pro to your account. It runs until {page.proYearUntil.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })} and doesn't renew on its own.
+            </p>
+          )}
         </div>
       </Shell>
     );
@@ -290,6 +311,11 @@ export default function PropertyTransferClaimPage() {
             ✓ {item}
           </p>
         ))}
+        {offersProYear(property) && (
+          <p data-testid="handoff-pro-offer" style={{ fontFamily: UI.sans, fontSize: "0.78rem", color: UI.ink, lineHeight: 1.6, marginTop: "0.5rem" }}>
+            <strong>Plus a free year of HomeGentic Pro</strong>, because this home's ownership is verified. It's one per account, and it isn't added if you already pay for a plan or if this home was handed over with one in the past year.
+          </p>
+        )}
       </div>
 
       {/* Auth / claim action */}
@@ -328,7 +354,7 @@ export default function PropertyTransferClaimPage() {
               Accept &amp; Become Owner →
             </button>
             <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, lineHeight: 1.5 }}>
-              This action is recorded on-chain. The previous owner's access is immediately revoked.
+              This action is recorded on-chain. From then on the previous owner can't open this home in HomeGentic or add to its record.
             </p>
           </>
         )}

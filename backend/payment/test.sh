@@ -356,4 +356,31 @@ echo "$TIER_AFTER_CANCEL" | grep -q "Pro" \
   || echo "  ↳ ❌ [P4a] Expected Pro to persist until expiry: $TIER_AFTER_CANCEL"
 
 echo ""
+echo "── [P5] grantHandoffYear → once per buyer, trusted callers only ──────────"
+dfx identity new handoff-buyer-test --disable-encryption 2>/dev/null || true
+HANDOFF_BUYER=$(dfx identity get-principal --identity handoff-buyer-test)
+HANDOFF_PROP="handoff-test-$(date +%s)"
+
+DENIED=$(dfx canister call payment grantHandoffYear "(principal \"$HANDOFF_BUYER\", \"$HANDOFF_PROP\")" \
+  --identity handoff-buyer-test 2>&1)
+echo "$DENIED" | grep -q "NotAuthorized" \
+  && echo "  ↳ [P5a] non-trusted caller rejected — ✓" \
+  || echo "  ↳ ❌ [P5a] Expected NotAuthorized: $DENIED"
+
+FIRST=$(dfx canister call payment grantHandoffYear "(principal \"$HANDOFF_BUYER\", \"$HANDOFF_PROP\")" 2>&1)
+echo "$FIRST" | grep -q "ok" && echo "$FIRST" | grep -q "Pro" \
+  && echo "  ↳ [P5b] admin grant gives the buyer Pro — ✓" \
+  || echo "  ↳ ❌ [P5b] Expected a Pro grant: $FIRST"
+
+GRANT_AT=$(dfx canister call payment getMyHandoffGrant --identity handoff-buyer-test 2>&1)
+echo "$GRANT_AT" | grep -q "opt" \
+  && echo "  ↳ [P5c] getMyHandoffGrant reports the grant — ✓" \
+  || echo "  ↳ ❌ [P5c] Expected opt <time>: $GRANT_AT"
+
+SECOND=$(dfx canister call payment grantHandoffYear "(principal \"$HANDOFF_BUYER\", \"$HANDOFF_PROP-2\")" 2>&1)
+echo "$SECOND" | grep -q "already granted to this buyer" \
+  && echo "  ↳ [P5d] second grant to the same buyer refused — ✓" \
+  || echo "  ↳ ❌ [P5d] Expected refusal: $SECOND"
+
+echo ""
 echo "✅ Tier enforcement tests complete!"

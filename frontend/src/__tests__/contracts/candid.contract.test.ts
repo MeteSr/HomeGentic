@@ -144,11 +144,13 @@ describe("payment IDL factory", () => {
       "createStripeCheckoutSession",
       "getAllPricing",
       "getMyAgentCredits",
+      "getMyHandoffGrant",
       "getMySubscription",
       "getPriceQuote",
       "getPricing",
       "getSubscriptionStats",
       "getTierForPrincipal",
+      "grantHandoffYear",
       "grantSubscription",
       "initAdmins",
       "isStripeConfigured",
@@ -171,7 +173,7 @@ describe("payment IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getAllPricing", "getMyAgentCredits", "getMySubscription", "getPricing", "getSubscriptionStats", "getTierForPrincipal", "isStripeConfigured", "listPendingGifts", "listStripeRelays"]);
+    expect(queries).toEqual(["getAllPricing", "getMyAgentCredits", "getMyHandoffGrant", "getMySubscription", "getPricing", "getSubscriptionStats", "getTierForPrincipal", "isStripeConfigured", "listPendingGifts", "listStripeRelays"]);
   });
 
   it("getSubscriptionStats returns all tier breakdown fields", () => {

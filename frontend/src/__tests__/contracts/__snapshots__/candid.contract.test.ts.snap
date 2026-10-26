@@ -1768,6 +1768,15 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "nat",
     ],
   },
+  "getMyHandoffGrant": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt int",
+    ],
+  },
   "getMySubscription": {
     "args": [],
     "mode": [
@@ -1815,6 +1824,16 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {Pro; Free; ContractorPro; ContractorFree}",
+    ],
+  },
+  "grantHandoffYear": {
+    "args": [
+      "principal",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
   "grantSubscription": {
