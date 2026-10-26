@@ -44,6 +44,16 @@ vi.mock("@/services/documentOcr", async (importOriginal) => {
   return { ...actual, extractDocument: mockExtractDocument, fileToBase64: mockFileToBase64 };
 });
 
+const { mockGetRooms, mockCreateRoom, mockAddFixture } = vi.hoisted(() => ({
+  mockGetRooms: vi.fn(),
+  mockCreateRoom: vi.fn(),
+  mockAddFixture: vi.fn(),
+}));
+vi.mock("@/services/room", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/room")>();
+  return { ...actual, roomService: { getRoomsByProperty: mockGetRooms, createRoom: mockCreateRoom, addFixture: mockAddFixture } };
+});
+
 function makeJob(overrides: Partial<Job> = {}): Job {
   return {
     id: "job-1", propertyId: "prop-1", homeowner: "p-owner", serviceType: "HVAC",
@@ -79,6 +89,7 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetMyProperties.mockResolvedValue([makeProperty()]);
+  mockGetRooms.mockResolvedValue([]);
 });
 
 describe("WarrantyWalletPage — grouping", () => {
@@ -131,17 +142,47 @@ describe("WarrantyWalletPage — document scan", () => {
     expect(await screen.findByText(/Low confidence — review carefully/)).toBeInTheDocument();
   });
 
-  it("shows a confirmation after saving to wallet", async () => {
+  it("saves the scan as an appliance in an existing room", async () => {
     mockGetAllJobs.mockResolvedValue([]);
+    mockGetMyProperties.mockResolvedValue([makeProperty()]);
+    mockGetRooms.mockResolvedValue([{ id: "room-1", name: "Utility", fixtures: [] }]);
+    mockAddFixture.mockResolvedValue({ id: "room-1", name: "Utility", fixtures: [] });
     mockFileToBase64.mockResolvedValue("base64data");
     mockExtractDocument.mockResolvedValue(makeExtraction());
     renderPage();
+    await waitFor(() => expect(mockGetRooms).toHaveBeenCalledWith("prop-1"));
 
     const file = new File(["x"], "warranty.jpg", { type: "image/jpeg" });
     fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [file] } });
-    fireEvent.click(await screen.findByText("Save to Wallet"));
+    fireEvent.click(await screen.findByText("Save as appliance"));
 
-    expect(await screen.findByText(/Document registered/)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved as an appliance in Utility/)).toBeInTheDocument();
+    expect(mockCreateRoom).not.toHaveBeenCalled();
+    expect(mockAddFixture).toHaveBeenCalledWith("room-1", {
+      brand: "Carrier", model: "M-100", serialNumber: "SN-1",
+      installedDate: "2024-01-01", warrantyExpiry: "2026-01-01",
+      notes: "HVAC · Warranty card for HVAC unit",
+    });
+  });
+
+  it("creates the named room when the property has none", async () => {
+    mockGetAllJobs.mockResolvedValue([]);
+    mockGetMyProperties.mockResolvedValue([makeProperty()]);
+    mockGetRooms.mockResolvedValue([]);
+    mockCreateRoom.mockResolvedValue({ id: "room-9", name: "Garage", fixtures: [] });
+    mockAddFixture.mockResolvedValue({ id: "room-9", name: "Garage", fixtures: [] });
+    mockFileToBase64.mockResolvedValue("base64data");
+    mockExtractDocument.mockResolvedValue(makeExtraction({ purchaseDate: undefined }));
+    renderPage();
+    await waitFor(() => expect(mockGetRooms).toHaveBeenCalled());
+
+    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [new File(["x"], "l.jpg", { type: "image/jpeg" })] } });
+    fireEvent.change(await screen.findByLabelText("New room name"), { target: { value: "Garage" } });
+    fireEvent.click(screen.getByText("Save as appliance"));
+
+    expect(await screen.findByText(/Saved as an appliance in Garage/)).toBeInTheDocument();
+    expect(mockCreateRoom).toHaveBeenCalledWith(expect.objectContaining({ propertyId: "prop-1", name: "Garage" }));
+    expect(mockAddFixture).toHaveBeenCalledWith("room-9", expect.objectContaining({ installedDate: "", warrantyExpiry: "" }));
   });
 
   it("shows the extraction error and returns to idle on failure", async () => {

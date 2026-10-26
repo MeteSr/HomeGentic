@@ -3,6 +3,8 @@ import { roomService, type Room as RoomRecord, type UpdateRoomArgs, type AddFixt
 import { type Photo } from "@/services/photo";
 import { AddRoomModal } from "@/components/AddRoomModal";
 import { Panel, hudInputStyle } from "@/components/hud";
+import { extractDocument, fileToBase64 } from "@/services/documentOcr";
+import { systemAgesService, type SystemName } from "@/services/systemAges";
 import toast from "react-hot-toast";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
@@ -237,9 +239,46 @@ function EditRoomDrawer({
 
 // ── Add fixture drawer ─────────────────────────────────────────────────────────
 
-function AddFixtureDrawer({ roomId, onSave, onClose }: { roomId: string; onSave: (id: string, args: AddFixtureArgs) => Promise<void>; onClose: () => void }) {
+/** Label appliance types whose age the maintenance forecast tracks. */
+const LABEL_SYSTEMS: Record<string, SystemName> = { "Water Heater": "Water Heater", "HVAC": "HVAC" };
+
+function AddFixtureDrawer({ propertyId, roomId, onSave, onClose }: { propertyId: string; roomId: string; onSave: (id: string, args: AddFixtureArgs) => Promise<void>; onClose: () => void }) {
   const [form, setForm] = useState<AddFixtureArgs>({ ...EMPTY_FIXTURE_FORM });
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  /** From a scanned label: offer to set this system's install year to the year made. */
+  const [ageOffer, setAgeOffer] = useState<{ system: SystemName; year: number } | null>(null);
+  const [useAge, setUseAge] = useState(false);
+
+  const scanLabel = async (file: File) => {
+    setScanning(true);
+    try {
+      const x = await extractDocument(file.name, file.type, await fileToBase64(file));
+      if (!x.brand && !x.modelNumber && !x.serialNumber) {
+        toast.error("Couldn't read a brand or model on that photo. Try a closer, sharper shot of the label.");
+        return;
+      }
+      setForm(f => ({
+        ...f,
+        brand:        x.brand        ?? f.brand,
+        model:        x.modelNumber  ?? f.model,
+        serialNumber: x.serialNumber ?? f.serialNumber,
+        notes:        f.notes || [x.applianceType, x.manufactureYear ? `made ${x.manufactureYear}` : ""].filter(Boolean).join(", "),
+      }));
+      const system = x.applianceType ? LABEL_SYSTEMS[x.applianceType] : undefined;
+      if (system && x.manufactureYear) {
+        setAgeOffer({ system, year: x.manufactureYear });
+        setUseAge(systemAgesService.get(propertyId)[system] == null);
+      } else {
+        setAgeOffer(null);
+      }
+      toast.success("Label read. Check the details before saving.");
+    } catch (err: any) {
+      toast.error(err.message ?? "Couldn't read the label");
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const inp: React.CSSProperties = { ...hudInputStyle, width: "100%", boxSizing: "border-box" };
   const lbl: React.CSSProperties = {
@@ -249,7 +288,13 @@ function AddFixtureDrawer({ roomId, onSave, onClose }: { roomId: string; onSave:
 
   const handleSave = async () => {
     setSaving(true);
-    try { await onSave(roomId, form); onClose(); }
+    try {
+      await onSave(roomId, form);
+      if (ageOffer && useAge) {
+        systemAgesService.set(propertyId, { ...systemAgesService.get(propertyId), [ageOffer.system]: ageOffer.year });
+      }
+      onClose();
+    }
     catch (err: any) { toast.error(err.message ?? "Failed to add"); }
     finally { setSaving(false); }
   };
@@ -257,7 +302,18 @@ function AddFixtureDrawer({ roomId, onSave, onClose }: { roomId: string; onSave:
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
       <div style={{ background: "var(--hg-surface)", border: "1px solid var(--hg-line)", borderBottom: "none", borderRadius: "16px 16px 0 0", padding: 24, width: "100%", maxWidth: 540, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-        <h3 style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 800, color: "var(--hg-ink)", marginBottom: 20 }}>Add Appliance / Fixture</h3>
+        <h3 style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 800, color: "var(--hg-ink)", marginBottom: 12 }}>Add Appliance / Fixture</h3>
+        <label style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, fontFamily: BODY, fontSize: 13, color: "var(--hg-muted)", cursor: scanning ? "wait" : "pointer" }}>
+          <span style={{ fontFamily: BODY, fontSize: 13, fontWeight: 700, color: "var(--hg-blue-ink)", border: "1px solid var(--hg-blue-edge)", borderRadius: 100, padding: "7px 14px", whiteSpace: "nowrap" }}>
+            {scanning ? "Reading label…" : "Scan the label"}
+          </span>
+          <span>Take a photo of the sticker with the model and serial number. We fill in what we can read; check it before saving.</span>
+          <input
+            type="file" accept="image/*" capture="environment" aria-label="Photo of the appliance label"
+            disabled={scanning} style={{ display: "none" }}
+            onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void scanLabel(f); }}
+          />
+        </label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <label style={lbl}>Brand</label>
@@ -284,6 +340,12 @@ function AddFixtureDrawer({ roomId, onSave, onClose }: { roomId: string; onSave:
             <input style={inp} placeholder="e.g. 50 gal" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
           </div>
         </div>
+        {ageOffer && (
+          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 14, fontFamily: BODY, fontSize: 13, color: "var(--hg-ink)" }}>
+            <input type="checkbox" checked={useAge} onChange={e => setUseAge(e.target.checked)} />
+            <span>Use {ageOffer.year} (the year made, from the label) as the {ageOffer.system} install year in your maintenance forecast</span>
+          </label>
+        )}
         <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
           <button onClick={handleSave} disabled={saving} style={{ flex: 1, fontFamily: BODY, fontSize: 14, fontWeight: 700, color: "#FCFCFD", background: "var(--hg-blue)", border: "none", borderRadius: 100, padding: "11px", cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
             {saving ? "Saving…" : "Add fixture"}
@@ -360,6 +422,7 @@ export function RoomsTab({
 
       {addFixtureRoom && (
         <AddFixtureDrawer
+          propertyId={propertyId}
           roomId={addFixtureRoom}
           onSave={handleAddFixture}
           onClose={() => setAddFixtureRoom(null)}

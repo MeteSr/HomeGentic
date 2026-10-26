@@ -10,6 +10,10 @@ DFX_NETWORK = "ic"
 BIDTOLIST_RESEND_FROM = "noreply@bidtolist.com"
 BIDTOLIST_ICP_HOST = "https://ic0.app"
 HOMEGENTIC_ICP_HOST = "https://ic0.app"
+# Domain of the invoice forwarding addresses (h-<token>@INBOX_DOMAIN). Needs an
+# Email Routing catch-all to this Worker (docs/DEPLOYMENT.md). Empty → inbound
+# mail is ignored.
+INBOX_DOMAIN = ""
 
 # Persisted Workers Logs (otherwise logs exist only in a live `wrangler tail`).
 [observability]

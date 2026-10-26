@@ -129,7 +129,7 @@ deadline reminders.
 | `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity the Worker signs canister calls with. Make it a payment admin — [One-time canister configuration](#one-time-canister-configuration), step 2 |
 | `CANISTER_ID_PAYMENT` | Payment canister ID |
 | `CANISTER_ID_AUTH` | Auth canister ID — resolves the `x-agent-session` tokens that identify callers on `/api/chat` and `/api/agent`. Without it those routes return 401 in production |
-| `CANISTER_ID_JOB` | Job canister ID — contractor-invite email |
+| `CANISTER_ID_JOB` | Job canister ID — contractor-invite email, and filing forwarded invoices as drafts |
 | `RESEND_API_KEY`, `RESEND_FROM` | Transactional email (moved off `ai_proxy`, whose memory node operators can read) |
 | `ATTOM_API_KEY` | Property-record lookups |
 | `OPENPERMIT_API_KEY` | Permit imports |
@@ -137,10 +137,37 @@ deadline reminders.
 | `CANISTER_ID_MONITORING` | Optional — monitoring canister, for frontend-error and cycle-alert routes |
 | `BIDTOLIST_*` | Optional — Bid to List Stripe/Resend keys and canister IDs (see the comment block in `wrangler.toml`) |
 
+`INBOX_DOMAIN` (a `[vars]` entry, not a secret) is the domain of homeowners'
+forwarding addresses (`h-<token>@INBOX_DOMAIN`); see
+[Forwarded invoices](#forwarded-invoices-email-routing). Unset, the Worker
+ignores inbound mail.
+
 `STRIPE_PRICE_PRO_MONTHLY` is optional (Pro is sold yearly only).
 `RENTCAST_API_KEY` is optional — it enables `/api/rentcast/properties`
 (year built / square footage in the Add Property wizard); without it the
 route returns 503 and the wizard just skips the prefill.
+
+### Forwarded invoices (Email Routing)
+
+Each homeowner can show a private forwarding address on the Jobs page. Mail to
+it reaches the Worker's `email()` handler (`agents/voice/src/inbox.ts`), which
+reads the invoice with Claude and files a draft with `job.relayAddEmailDraft`.
+Nothing becomes a job until the homeowner logs the draft. To turn it on:
+
+1. Pick a domain or subdomain just for this (e.g. `in.homegentic.app`), on a
+   zone in Cloudflare, and enable **Email Routing** on it.
+2. Add a **catch-all** rule: action *Send to a Worker*, destination the voice
+   Worker.
+3. Set the Worker var `INBOX_DOMAIN` and the frontend build variable
+   `VITE_INBOX_DOMAIN` to that domain. The app hides the address while
+   `VITE_INBOX_DOMAIN` is unset.
+4. Allowlist the Worker on the job canister: `deploy.sh` does it when
+   `VOICE_WORKER_PRINCIPAL` is set, or by hand
+   `icp canister call job addInboxRelay '(principal "<voice worker>")' -e <env>`.
+
+The Worker never replies to inbound mail (so forged senders get no
+backscatter). The canister caps drafts at 30 a day and 50 open per homeowner,
+and a homeowner can switch to a new address at any time.
 
 ### How canister calls work in production
 
@@ -478,6 +505,7 @@ IDs:
 | `VITE_VOICE_AGENT_API_KEY` | yes | Sent to the Worker as `x-api-key` |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | yes | Stripe.js |
 | `VITE_NOTIFICATIONS_URL` | optional | Notification relay URL; added to the CSP. Unset hides the browser push toggle |
+| `VITE_INBOX_DOMAIN` | optional | Domain of the invoice forwarding addresses; must match the Worker's `INBOX_DOMAIN`. Unset hides the address |
 | `VITE_IOT_GATEWAY_URL` | optional | IoT gateway URL for the device-linking OAuth popup (defaults to `http://localhost:3002`) |
 | `VITE_GOOGLE_MAPS_API_KEY` | optional | Address autocomplete; without it the address field is plain text |
 | `VITE_MONITORING_CANISTER_ID` | optional | Frontend error reporting to the `monitoring` canister |
@@ -532,7 +560,7 @@ the deploy):
 | Variable | Grant |
 |---|---|
 | `NOTIFIER_PRINCIPAL` | `addNotifier` on `auth`, `job` and `quote` for the relay's principal (logged by the relay at startup) |
-| `VOICE_WORKER_PRINCIPAL` | `payment.addAdmin` for the voice Worker's principal |
+| `VOICE_WORKER_PRINCIPAL` | `payment.addStripeRelay`, `monitoring.addReporter`, `agent.addContactReader`, `photo.addPhotoRelay` and `job.addInboxRelay` for the voice Worker's principal |
 
 The deploy workflows read them from the GitHub environment's **variables**
 (or secrets) of the same name. To grant by hand instead:

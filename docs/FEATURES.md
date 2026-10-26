@@ -148,7 +148,7 @@ The `/agents/*` routes are realtor-only (`RealtorRoute`). `/insurance-defense` a
 
 - **Top bar** — brand, property switcher + add-property, Plus/Pro pill, AI-calls-left counter, light/dark toggle (light is the default), "watching" status, activity bell, avatar menu
 - **Left rail of panel chips** — Awaiting, Score, Property, Market, Forecast, Maint, Jobs, Pros, Sensors, Safety, Docs, Rooms, People (Pro), Spend, Activity, Billing; counts on the right of each chip; the active chip is solid yellow. A dashed **Contractors ↗** chip links out to `/contractors`
-- **Resting stage** — HomeGentic score (with 12-month trend), Home Pulse headline, and the **home brief**: a rule-based list of what needs the homeowner today (sensor alerts, approvals, bids, countersignatures, visits due, payments, decay warnings, end-of-life systems, bill spikes, pending invites)
+- **Resting stage** — HomeGentic score (with 12-month trend), Home Pulse headline, and the **home brief**: a rule-based list of what needs the homeowner today (sensor alerts, possible CPSC recalls for the property's appliances, approvals, bids, countersignatures, visits due, payments, decay warnings, end-of-life systems, bill spikes, pending invites). A recall line appears when an appliance's model number shows up in a CPSC recall for its brand (checked by the voice Worker, `/api/recalls`, cached a day); it says the recall *may* apply and opens the CPSC notice so the homeowner can compare models
 - **Panels** — tapping a chip opens that panel in the stage (e.g. Score breakdown, Forecast, Spend)
 - **Ask bar** — "Ask about your home": type or tap the mic; answers render as answer cards and are read aloud (voice agent)
 - **Flows (modals)** — add room, log job, add receipt, request quote, add recurring service, start listing, review bids, chase a countersignature, upgrade; new users with no property get the Add Property wizard automatically
@@ -180,6 +180,7 @@ Multi-tab page — the main workspace for a property.
 - Room/space inventory with type, notes, photos
 - Add / edit / delete rooms (AddRoomModal)
 - Fixtures per room (add/edit/remove)
+- "Scan the label" in the add-fixture form: a photo of the appliance's data plate fills brand, model and serial. When Claude can tell the year made (printed, or decoded from the serial) on a water heater or HVAC unit, the form offers to use it as that system's install year in the forecast (stored with the other system ages on this device)
 
 **Tab: Documents**
 - Uploaded permits, contracts, receipts, warranties
@@ -244,6 +245,9 @@ Multi-tab page — the main workspace for a property.
 - Warranty months (optional)
 - Photo upload (quota by tier)
 - Post-submission: score delta shown, service-specific follow-up suggestions
+- Can open pre-filled from a forwarded-invoice draft (see below); logging it clears the draft
+
+**Forwarded invoices (Jobs page).** "Show my forwarding address" reveals a private `h-<token>@<domain>` address (job canister `getMyInboxToken`; "New address" replaces it). Mail forwarded there reaches the voice Worker's email handler, which reads the attached PDF/photo (or the message) with Claude and, if it's a record of work done, files a draft (`relayAddEmailDraft`). Drafts list on the Jobs page with "Review and log" (opens `/jobs/new` pre-filled) and "Dismiss". Nothing joins the record until the homeowner submits the form. Hidden unless `VITE_INBOX_DOMAIN` is set.
 
 ---
 
@@ -289,7 +293,7 @@ Multi-tab page — the main workspace for a property.
 - All warranties from logged jobs
 - Status: Active / Expiring Soon (30-day warning) / Expired
 - Days-remaining countdown
-- Upload warranty documents (OCR extracts expiry, coverage, terms)
+- Scan a label, manual or warranty card: Claude reads brand, model, serial, purchase date and warranty term for the homeowner to check, and "Save as appliance" adds it as a fixture to a chosen room (or a new one), with the warranty end date worked out from purchase date + term
 - Filter by status and service type
 - Export to PDF
 

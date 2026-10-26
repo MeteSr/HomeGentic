@@ -14,6 +14,8 @@ import {
   normalizePurchaseDate,
   normalizeExtraction,
   buildDocumentSystemPrompt,
+  normalizeManufactureYear,
+  normalizeApplianceType,
   SUPPORTED_DOC_TYPES,
   SUPPORTED_MIME_TYPES,
 } from "../extractDocumentHelpers";
@@ -140,6 +142,46 @@ describe("normalizeExtraction", () => {
     const { description: _, ...rest } = BASE;
     const result = normalizeExtraction(rest as any);
     expect(result.description).toBe("No description provided");
+  });
+});
+
+// ─── appliance labels ─────────────────────────────────────────────────────────
+
+describe("appliance labels", () => {
+  it("keeps a plausible manufacture year and drops the rest", () => {
+    const now = new Date("2026-10-25");
+    expect(normalizeManufactureYear(2014, now)).toBe(2014);
+    expect(normalizeManufactureYear("2019", now)).toBe(2019);
+    expect(normalizeManufactureYear(1949, now)).toBeUndefined();
+    expect(normalizeManufactureYear(2028, now)).toBeUndefined();
+    expect(normalizeManufactureYear(2014.5, now)).toBeUndefined();
+    expect(normalizeManufactureYear(undefined, now)).toBeUndefined();
+  });
+
+  it("maps appliance types case-insensitively and drops unknown ones", () => {
+    expect(normalizeApplianceType("water heater")).toBe("Water Heater");
+    expect(normalizeApplianceType("HVAC")).toBe("HVAC");
+    expect(normalizeApplianceType("Jacuzzi")).toBeUndefined();
+  });
+
+  it("normalizeExtraction carries label fields through", () => {
+    const r = normalizeExtraction({
+      documentType: "appliance_label", brand: "Rheem", modelNumber: "XE50T10H45U0", serialNumber: "Q151400123",
+      applianceType: "Water Heater", manufactureYear: 2014, confidence: "high", description: "Rheem 50-gal label",
+    });
+    expect(r).toMatchObject({ documentType: "appliance_label", applianceType: "Water Heater", manufactureYear: 2014 });
+  });
+
+  it("the prompt asks for label fields", () => {
+    const prompt = buildDocumentSystemPrompt();
+    expect(prompt).toMatch(/appliance_label/);
+    expect(prompt).toMatch(/manufactureYear/);
+    expect(prompt).toMatch(/applianceType/);
+  });
+
+  it("the Worker sends PDFs as document blocks", () => {
+    const src = require("fs").readFileSync(require("path").resolve(__dirname, "../src/index.ts"), "utf-8");
+    expect(src).toMatch(/mediaType === "application\/pdf"\s*\?\s*\{ type: "document"/);
   });
 });
 

@@ -11,6 +11,7 @@ import { Panel, Pill, spinnerVars } from "@/components/hud";
 import type { ContractorProfile } from "@/services/contractor";
 import { useContractorProfiles, verifiedJobsLabel, earliestCloseAt } from "@/hooks/useContractorProfiles";
 import toast from "react-hot-toast";
+import { ForwardedInvoices } from "@/components/ForwardedInvoices";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
 const BODY = "'Hanken Grotesk',sans-serif";
@@ -252,6 +253,7 @@ export default function JobsPage() {
   if (isMobile) {
     return (
       <Layout>
+        <ForwardedInvoices mobile />
         <MobileJobsPage />
       </Layout>
     );
@@ -280,6 +282,8 @@ export default function JobsPage() {
             </button>
           </div>
         </div>
+
+        <ForwardedInvoices />
 
         {loading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>

@@ -45,6 +45,8 @@ import { resolveSessionPrincipal, SESSION_HEADER } from "./session";
 import { resolveTier } from "./tier";
 import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
+import { handleInbound, addDraftInCanister } from "./inbox";
+import { findRecalls } from "./recalls";
 import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead, sendGiftEmail } from "./offchainOutcalls";
 import { getInvitePreview } from "./jobCanister";
 import { handlePhotos } from "./photos";
@@ -103,6 +105,8 @@ export interface Env {
   CANISTER_ID_JOB?:      string;   // invite-token previews for contractor-invite emails
   CANISTER_ID_PHOTO?:    string;   // photoAccess checks for /photos/*
   CANISTER_ID_PROPERTY?: string;   // records Stripe Identity results (relayMarkIdentityCleared)
+  /** Domain whose mail Email Routing sends to email() (h-<token>@INBOX_DOMAIN). Unset → inbound mail ignored. */
+  INBOX_DOMAIN?:         string;
 
   // M-6: keys that used to sit in the ai_proxy canister (now Worker secrets only)
   ATTOM_API_KEY?:        string;
@@ -355,6 +359,24 @@ async function flushErrorAggregations(force = false): Promise<void> {
 export default {
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(scheduledBidtolist(env));
+  },
+
+  /** Forwarded invoices → draft jobs (src/inbox.ts). Never replies or rejects, so forged senders get no backscatter. */
+  async email(message: ForwardableEmailMessage, env: Env, _ctx: ExecutionContext): Promise<void> {
+    if (!env.INBOX_DOMAIN) return;
+    (process.env as any).DFX_IDENTITY_PEM = env.DFX_IDENTITY_PEM ?? "";
+    (process.env as any).DFX_NETWORK      = env.DFX_NETWORK ?? "ic";
+    (process.env as any).CANISTER_ID_JOB  = env.CANISTER_ID_JOB ?? "";
+    const provider = new AnthropicProvider(env.ANTHROPIC_API_KEY, resolveModel(env.AI_MODEL), env.ANTHROPIC_BASE_URL);
+    try {
+      const raw = await new Response(message.raw).arrayBuffer();
+      const outcome = await handleInbound(message.to, raw, message.rawSize, env.INBOX_DOMAIN, {
+        provider, addDraft: addDraftInCanister,
+      });
+      logger.info("inbox", "inbound mail", { outcome });
+    } catch (err) {
+      logger.error("inbox", "inbound mail failed", { error: (err as Error)?.message });
+    }
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -868,7 +890,9 @@ Rules:
       const text = await provider.complete({
         system:   buildDocumentSystemPrompt(),
         messages: [{ role: "user", content: [
-          { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
+          mediaType === "application/pdf"
+            ? { type: "document", source: { type: "base64", media_type: mediaType, data: base64Data } }
+            : { type: "image",    source: { type: "base64", media_type: mediaType, data: base64Data } },
           { type: "text", text: `File name: ${fileName}\nExtract the home document data from this file.` },
         ]}],
         maxTokens: 512,
@@ -1155,6 +1179,7 @@ Rules:
     const body = await readJsonBody(request, MAX_JSON_BYTES);
     const p    = sessionPrincipal!;
     const r =
+      path === "/api/recalls"                 ? await findRecalls(body, env) :
       path === "/api/property/details"        ? await lookupPropertyDetails(body, p, env) :
       path === "/api/permits/import"          ? await importPermits(body, p, env) :
       path === "/api/email/contractor-invite" ? await sendContractorInvite(body, p, env, getInvitePreview) :
@@ -1650,6 +1675,7 @@ const AUX_AI_ROUTES = new Set([
 const OFFCHAIN_OUTCALL_ROUTES = new Set([
   "/api/property/details", "/api/permits/import",
   "/api/email/contractor-invite", "/api/email/broker-lead",
+  "/api/recalls",   // CPSC recall check (src/recalls.ts); free API, cached per brand
 ]);
 
 /** Stripe routes that act for a user: the user is the session principal. */

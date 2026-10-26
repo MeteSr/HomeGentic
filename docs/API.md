@@ -135,6 +135,14 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `getReferralJobs` | update | `()` | Returns all jobs that were sourced via a HomeGentic quote request. |
 | `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: notification outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |
 | `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) reading the outbox |
+| `getMyInboxToken` | update | `()` → `Result<Text>` | The caller's invoice-forwarding token (created on first call); the address is `h-<token>@INBOX_DOMAIN` |
+| `resetMyInboxToken` | update | `()` → `Result<Text>` | A new token; mail to the old address is dropped from then on |
+| `relayAddEmailDraft` | update | `(token: Text, input: EmailDraftInput)` → `Result<Text>` | Inbox relay (the voice Worker) only: file a draft read from a forwarded invoice. `#NotFound` for an unknown token; `#InvalidInput` past 30 drafts a day or 50 open |
+| `getMyEmailDrafts` | query | `()` → `[EmailDraft]` | The caller's drafts, newest first. A draft never becomes a job by itself |
+| `dismissEmailDraft` | update | `(id: Text)` | Delete one of the caller's drafts (the app also does this after the homeowner logs it) |
+| `addInboxRelay` / `removeInboxRelay` | update | `(p: Principal)` | Admin: allow or revoke the principal that files drafts |
+
+**EmailDraft:** `{ id; owner; receivedAt: Int; fromAddress; subject; title; serviceType: Text (label, "" if unknown); contractorName; amountCents: Nat; completedDate: Text (YYYY-MM-DD or ""); warrantyMonths: Nat; description }`. `EmailDraftInput` is the same without `id`, `owner` and `receivedAt`. `deleteMyData` removes the caller's token and drafts.
 
 **JobStatus:** `#Pending | #InProgress | #Completed | #Verified | #PendingHomeownerApproval | #RejectedByHomeowner`
 

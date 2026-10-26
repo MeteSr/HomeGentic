@@ -2,7 +2,8 @@
  * Document OCR service (Issue #51)
  *
  * Calls /api/extract-document on the voice agent to extract structured data
- * from an appliance manual, warranty card, receipt, inspection report, or permit.
+ * from a photo of an appliance label, an appliance manual, warranty card,
+ * receipt, inspection report, or permit.
  */
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 
@@ -10,6 +11,7 @@ const VOICE_AGENT_URL =
   (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 export type DocumentType =
+  | "appliance_label"
   | "appliance_manual"
   | "warranty"
   | "receipt"
@@ -27,6 +29,10 @@ export interface DocumentExtraction {
   purchaseDate?:  string;
   warrantyMonths?: number;
   serviceType?:   string;
+  /** appliance_label only, e.g. "Water Heater". */
+  applianceType?: string;
+  /** appliance_label only: year made, read from the label or decoded from the serial. */
+  manufactureYear?: number;
   confidence:     ExtractionConfidence;
   description:    string;
 }

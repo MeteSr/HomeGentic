@@ -918,6 +918,15 @@ exports[`contractor IDL factory — notification preferences (#279) > Contractor
 
 exports[`job IDL factory > full signature snapshot 1`] = `
 {
+  "addInboxRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
+    ],
+  },
   "approveJobProposal": {
     "args": [
       "text",
@@ -978,6 +987,15 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:nat; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
+    ],
+  },
+  "dismissEmailDraft": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
     ],
   },
   "getCertificationData": {
@@ -1062,6 +1080,22 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "record {completedJobs:nat; diyJobs:nat; isPaused:bool; verifiedJobs:nat; totalJobs:nat; pendingJobs:nat}",
     ],
   },
+  "getMyEmailDrafts": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {id:text; completedDate:text; title:text; serviceType:text; subject:text; fromAddress:text; owner:principal; description:text; amountCents:nat; receivedAt:int; warrantyMonths:nat; contractorName:text}",
+    ],
+  },
+  "getMyInboxToken": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:text; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
+    ],
+  },
   "getMyReferralJobs": {
     "args": [],
     "mode": [
@@ -1128,6 +1162,32 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
+    ],
+  },
+  "relayAddEmailDraft": {
+    "args": [
+      "text",
+      "record {completedDate:text; title:text; serviceType:text; subject:text; fromAddress:text; description:text; amountCents:nat; warrantyMonths:nat; contractorName:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:text; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
+    ],
+  },
+  "removeInboxRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
+    ],
+  },
+  "resetMyInboxToken": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:text; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
     ],
   },
   "setPropertyCanisterId": {

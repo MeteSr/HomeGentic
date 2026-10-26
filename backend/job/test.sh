@@ -975,3 +975,44 @@ else
   echo ""
   echo "✅ Manager tier-bypass tests complete!"
 fi
+
+# ── Forwarded-invoice inbox ───────────────────────────────────────────────────
+# The default identity is an admin (above), so it can register itself as the
+# inbox relay and play the voice Worker's part.
+echo ""
+echo "── [INBOX] forwarding address → relay draft → list → dismiss ─"
+ME=$(dfx identity get-principal)
+TOKEN=$(dfx canister call $CANISTER getMyInboxToken '()' | grep -oE '"[0-9a-f]{20}"' | tr -d '"')
+[ -n "$TOKEN" ] || { echo "  ↳ ❌ getMyInboxToken returned no token — FAIL"; exit 1; }
+AGAIN=$(dfx canister call $CANISTER getMyInboxToken '()' | grep -oE '"[0-9a-f]{20}"' | tr -d '"')
+[ "$AGAIN" = "$TOKEN" ] || { echo "  ↳ ❌ getMyInboxToken should be stable — FAIL"; exit 1; }
+echo "  ✓ token $TOKEN"
+
+DRAFT_ARGS="record { fromAddress = \"billing@coolair.example\"; subject = \"Invoice 1042\"; title = \"AC tune-up\"; serviceType = \"HVAC\"; contractorName = \"Cool Air LLC\"; amountCents = 18900; completedDate = \"2026-09-14\"; warrantyMonths = 12; description = \"Cleaned coils.\" }"
+dfx canister call $CANISTER removeInboxRelay "(principal \"$ME\")" > /dev/null
+OUT=$(dfx canister call $CANISTER relayAddEmailDraft "(\"$TOKEN\", $DRAFT_ARGS)")
+echo "$OUT" | grep -q "NotAuthorized" || { echo "  ↳ ❌ non-relay caller should be NotAuthorized — FAIL"; echo "$OUT"; exit 1; }
+echo "  ✓ only the inbox relay can file drafts"
+
+dfx canister call $CANISTER addInboxRelay "(principal \"$ME\")" > /dev/null
+OUT=$(dfx canister call $CANISTER relayAddEmailDraft "(\"00000000000000000000\", $DRAFT_ARGS)")
+echo "$OUT" | grep -q "NotFound" || { echo "  ↳ ❌ unknown token should be NotFound — FAIL"; echo "$OUT"; exit 1; }
+OUT=$(dfx canister call $CANISTER relayAddEmailDraft "(\"$TOKEN\", $DRAFT_ARGS)")
+DRAFT_ID=$(echo "$OUT" | grep -oE 'ok = "[^"]+"' | sed 's/ok = "//; s/"$//')
+[ -n "$DRAFT_ID" ] || { echo "  ↳ ❌ relayAddEmailDraft failed — FAIL"; echo "$OUT"; exit 1; }
+dfx canister call $CANISTER getMyEmailDrafts '()' | grep -q "Cool Air LLC" \
+  || { echo "  ↳ ❌ draft missing from getMyEmailDrafts — FAIL"; exit 1; }
+echo "  ✓ draft $DRAFT_ID filed and listed"
+
+NEW_TOKEN=$(dfx canister call $CANISTER resetMyInboxToken '()' | grep -oE '"[0-9a-f]{20}"' | tr -d '"')
+OUT=$(dfx canister call $CANISTER relayAddEmailDraft "(\"$TOKEN\", $DRAFT_ARGS)")
+echo "$OUT" | grep -q "NotFound" || { echo "  ↳ ❌ old token should stop working after reset — FAIL"; exit 1; }
+[ "$NEW_TOKEN" != "$TOKEN" ] || { echo "  ↳ ❌ reset should give a new token — FAIL"; exit 1; }
+echo "  ✓ reset retires the old address"
+
+dfx canister call $CANISTER dismissEmailDraft "(\"$DRAFT_ID\")" | grep -q "ok" \
+  || { echo "  ↳ ❌ dismissEmailDraft failed — FAIL"; exit 1; }
+dfx canister call $CANISTER getMyEmailDrafts '()' | grep -q "Cool Air LLC" \
+  && { echo "  ↳ ❌ dismissed draft still listed — FAIL"; exit 1; }
+dfx canister call $CANISTER removeInboxRelay "(principal \"$ME\")" > /dev/null
+echo "✅ Inbox tests complete!"
