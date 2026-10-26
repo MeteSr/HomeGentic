@@ -22,19 +22,6 @@ vi.mock("@/services/auth", async (importOriginal) => {
   return { ...actual, authService: { register: mockRegister } };
 });
 
-const { mockGetPendingRefCode, mockClearPendingRefCode, mockUseReferralCode } = vi.hoisted(() => ({
-  mockGetPendingRefCode: vi.fn(),
-  mockClearPendingRefCode: vi.fn(),
-  mockUseReferralCode: vi.fn(),
-}));
-vi.mock("@/services/neighborReferral", () => ({
-  neighborReferralService: {
-    getPendingRefCode: mockGetPendingRefCode,
-    clearPendingRefCode: mockClearPendingRefCode,
-    useReferralCode: mockUseReferralCode,
-  },
-}));
-
 const mockSetProfile = vi.fn();
 vi.mock("@/store/authStore", () => ({
   useAuthStore: () => ({ setProfile: mockSetProfile }),
@@ -69,7 +56,6 @@ function goToStep3(email = "buyer@example.com") {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetPendingRefCode.mockReturnValue(null);
   sessionStorage.clear();
 });
 
@@ -116,9 +102,8 @@ describe("RegisterPage — step 3: confirm", () => {
     expect(screen.getByText("Create Account").closest("button")).not.toBeDisabled();
   });
 
-  it("registers, consumes a pending referral code, and navigates to /dashboard", async () => {
+  it("registers and navigates to /dashboard", async () => {
     mockRegister.mockResolvedValue({ role: "Homeowner", email: "buyer@example.com" });
-    mockGetPendingRefCode.mockReturnValue("REF123");
     renderPage();
     goToStep3();
     fireEvent.click(screen.getByRole("checkbox"));
@@ -126,8 +111,6 @@ describe("RegisterPage — step 3: confirm", () => {
 
     await waitFor(() => expect(mockRegister).toHaveBeenCalledWith({ role: "Homeowner", email: "buyer@example.com", phone: "" }));
     expect(mockSetProfile).toHaveBeenCalled();
-    expect(mockClearPendingRefCode).toHaveBeenCalled();
-    expect(mockUseReferralCode).toHaveBeenCalledWith("REF123");
     expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
   });
 

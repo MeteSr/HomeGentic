@@ -280,17 +280,12 @@ persistent actor Payment {
   private var maxUpdatesPerMin        : Nat = 30;
   private var trustedCanisterEntries  : [Principal] = [];
 
-  // ─── Referral conversion ─────────────────────────────────────────────────────
   // Tiers are not pushed anywhere: property, quote, photo and bills read them
   // live via getTierForPrincipal().
 
+  /// Unused: neighbour referral credits were removed (2026-10-26). Kept so
+  /// the stable layout of deployed canisters doesn't change.
   private var referralsCanisterId  : ?Text      = null;
-
-  // Declared as a supertype of what markConverted can return so Candid
-  // decoding never traps on an unexpected variant tag.
-  type ReferralsMarkConvertedErr = {
-    #AlreadyReferred; #SelfReferral; #CodeNotFound; #AlreadyConverted; #Unauthorized; #InvalidInput : Text;
-  };
 
   private func isTrustedCanister(p: Principal) : Bool {
     Admin.contains(trustedCanisterEntries, p)
@@ -421,26 +416,6 @@ persistent actor Payment {
 
   private func auditLog(action : Text, subject : ?Principal, detail : Text) : async () {
     await* Canisters.auditLog(auditCanisterId, "payment", action, subject, detail)
-  };
-
-  public shared(msg) func setReferralsCanisterId(id: Text) : async Result.Result<(), Error> {
-    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    referralsCanisterId := ?id;
-    #ok(())
-  };
-
-  /// Notify the referrals canister that a user's first paid subscription is active.
-  /// Fire-and-forget: all errors are swallowed so a referrals failure never blocks payment.
-  private func notifyReferralConverted(user: Principal) : async () {
-    switch (referralsCanisterId) {
-      case null {};
-      case (?rid) {
-        let a : actor {
-          markConverted : (Principal) -> async Result.Result<(), ReferralsMarkConvertedErr>
-        } = actor(rid);
-        try { ignore await a.markConverted(user) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
-      };
-    };
   };
 
   // ─── Stripe (moved off-chain) ────────────────────────────────────────────────
@@ -763,7 +738,6 @@ persistent actor Payment {
     };
     subscriptions.add(msg.caller, sub);
     activeSubscribers.remove(callerKey);  // release lock before cross-canister calls
-    if (usdPrice > 0) { await notifyReferralConverted(msg.caller) };
     #ok(sub)
   };
 
@@ -794,11 +768,6 @@ persistent actor Payment {
       cancelledAt = null;
     };
     subscriptions.add(userPrincipal, sub);
-    // A downgrade to a free tier (cancellation, failed payment) isn't a conversion.
-    switch (tier) {
-      case (#Free or #ContractorFree) {};
-      case _ { await notifyReferralConverted(userPrincipal) };
-    };
     try { ignore await auditLog("TierActivated", ?userPrincipal, "months=" # months.toText() # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
@@ -850,7 +819,6 @@ persistent actor Payment {
     // Consume and write before any await.
     consumedStripeRefs.add(stripeRef, userPrincipal);
     subscriptions.add(userPrincipal, sub);
-    await notifyReferralConverted(userPrincipal);
     try { ignore await auditLog("TierActivated", ?userPrincipal, "ref=" # stripeRef # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };

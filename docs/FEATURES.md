@@ -68,7 +68,6 @@ rewiring screens.
 | `/settings` | SettingsPage | Account, subscription, notifications, privacy |
 | `/dashboard` | DashboardPage → DashboardV3 | Homeowner hub (v3 rail dashboard; see below) |
 | `/plans` | MobilePlansPage | Plan picker (mobile layout) |
-| `/refer` | ReferralPage | Referral code, referrals made, credit balance |
 | `/people` | PeoplePage | Shared property access (managers, viewers, approvals) — Pro |
 | `/jobs` | JobsPage | All jobs across the homeowner's properties |
 | `/properties/:id` | PropertyDetailPage | Full property view (multi-tab) |

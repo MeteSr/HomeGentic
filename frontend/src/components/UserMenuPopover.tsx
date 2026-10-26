@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, ArrowUpCircle, CreditCard, Paperclip, LogOut, Gift } from "lucide-react";
+import { Settings, ArrowUpCircle, CreditCard, Paperclip, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { voiceAgentFileInputRef } from "./VoiceAgent";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
@@ -77,11 +77,6 @@ export function UserMenuPopover({ displayName, onClose, onUpgrade, anchor = "bot
         <button onClick={() => { onClose(); navigate("/settings?tab=subscription"); }} style={menuItemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
           <CreditCard size={16} style={{ flexShrink: 0, color: V2_COLORS.muted }} />
           Billing & Plan
-        </button>
-
-        <button onClick={() => { onClose(); navigate("/refer"); }} style={menuItemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
-          <Gift size={16} style={{ flexShrink: 0, color: V2_COLORS.blue }} />
-          Invite a neighbor
         </button>
 
         <button

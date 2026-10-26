@@ -1335,7 +1335,7 @@ admin, 30-day "we did not sign"   → waiveFee(feeId)          → #Waived
 
 **File:** `backend/referrals/main.mo`
 
-Each user gets a shareable code (`HG-000001`, created lazily by `getMyCode()`). A new user records the code with `useReferralCode(code)` at sign-up; when the payment canister reports their first paid month (`markConverted(referee)`), both sides receive a $10 credit (stored as 1000 cents). `getMyReferrals()` and `getCreditBalance()` are caller-scoped queries. Redeeming credits against a payment is not wired yet — this canister is the source of truth for balances and conversion state.
+**Retired 2026-10-26:** the app no longer shows referral codes or credits and payment no longer calls `markConverted`; the canister is still deployed with whatever it holds. Previously: each user gets a shareable code (`HG-000001`, created lazily by `getMyCode()`). A new user records the code with `useReferralCode(code)` at sign-up; when the payment canister reports their first paid month (`markConverted(referee)`), both sides receive a $10 credit (stored as 1000 cents). `getMyReferrals()` and `getCreditBalance()` are caller-scoped queries. Redeeming credits against a payment is not wired yet — this canister is the source of truth for balances and conversion state.
 
 | Function | Who |
 |----------|-----|

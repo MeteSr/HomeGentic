@@ -579,7 +579,7 @@ Bid to List platform-fee ledger. A fee is recorded Owed when a homeowner accepts
 
 ## Referrals Canister
 
-Shareable referral codes (`HG-000001`) and $10 credits for both sides once the referee completes a first paid month.
+Shareable referral codes (`HG-000001`) and $10 credits. **Not used by the app:** neighbour referral credits were removed on 2026-10-26, nothing calls this canister and payment no longer reports conversions to it.
 
 | Method | Type | Signature | Description |
 |---|---|---|---|

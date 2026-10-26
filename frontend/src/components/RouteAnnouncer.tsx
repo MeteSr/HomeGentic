@@ -50,7 +50,6 @@ const ROUTE_TITLES: [pattern: string, title: string][] = [
   ["/quotes/new", "Request a quote"],
   ["/quotes/:id", "Quote request"],
   ["/settings", "Settings"],
-  ["/refer", "Refer a friend"],
   ["/market", "Market intelligence"],
   ["/maintenance", "Maintenance"],
   ["/admin", "Admin"],

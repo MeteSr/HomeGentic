@@ -21,9 +21,9 @@ function App() {
     <MemoryRouter initialEntries={["/jobs"]}>
       <RouteAnnouncer />
       <Routes>
-        <Route path="/jobs" element={<><h1>Jobs page</h1><Link to="/settings">Go to settings</Link><Link to="/refer">Go to refer</Link></>} />
+        <Route path="/jobs" element={<><h1>Jobs page</h1><Link to="/settings">Go to settings</Link><Link to="/warranties">Go to warranties</Link></>} />
         <Route path="/settings" element={<h1>Settings page</h1>} />
-        <Route path="/refer" element={<AutoFocusPage />} />
+        <Route path="/warranties" element={<AutoFocusPage />} />
       </Routes>
     </MemoryRouter>
   );
@@ -32,7 +32,7 @@ function App() {
 function AutoFocusPage() {
   const ref = React.useRef<HTMLInputElement>(null);
   useEffect(() => { ref.current?.focus(); }, []);
-  return <><h1>Refer page</h1><input ref={ref} aria-label="Referral link" /></>;
+  return <><h1>Warranties page</h1><input ref={ref} aria-label="Search warranties" /></>;
 }
 
 describe("RouteAnnouncer", () => {
@@ -68,9 +68,9 @@ describe("RouteAnnouncer", () => {
     vi.useFakeTimers();
     window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
     render(<App />);
-    fireEvent.click(screen.getByText("Go to refer"));
+    fireEvent.click(screen.getByText("Go to warranties"));
     act(() => { vi.runAllTimers(); });
-    expect(screen.getByLabelText("Referral link")).toHaveFocus();
-    expect(screen.getByTestId("route-announcer")).toHaveTextContent("Refer a friend | HomeGentic");
+    expect(screen.getByLabelText("Search warranties")).toHaveFocus();
+    expect(screen.getByTestId("route-announcer")).toHaveTextContent("Warranty wallet | HomeGentic");
   });
 });
