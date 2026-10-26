@@ -61,7 +61,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | Method | Type | Signature | Description |
 |---|---|---|---|
 | `initiateTransfer` | update | `(propertyId: Text)` | Seller generates a bearer token for handing the property to a buyer |
-| `claimTransfer` | update | `(token: Text)` | Buyer claims the property with the transfer token |
+| `claimTransfer` | update | `(token: Text)` | Buyer claims the property with the transfer token. For a Basic/Premium-verified home it then asks `payment.grantHandoffYear` for the buyer's free Pro year (the claim stands either way). |
 | `getPendingTransferByToken` | query | `(token: Text)` | Looks up a pending transfer by its bearer token. |
 | `cancelTransfer` | update | `(propertyId: Text)` | Cancel a pending transfer |
 | `getPendingTransfer` | query | `(propertyId: Text)` | Get pending transfer record |
@@ -262,6 +262,8 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | `getPriceQuote` | update | `(tier: Tier)` | Returns the subscription price in e8s with a 5% buffer. |
 | `cancelSubscription` | update | `()` | Mark the caller's subscription as cancelled-at-end-of-period. |
 | `redeemGift` | update | `(giftToken: Text)` | Redeem a pending gift. |
+| `grantHandoffYear` | update | `(buyer: Principal, propertyId: Text)` | Trusted canister (property) or admin: a year of Pro for the buyer who claimed a verified home's record. Once per buyer, once a year per property, never over a running paid plan. |
+| `getMyHandoffGrant` | query | `()` | When the caller got a handoff Pro year (ns), if ever. |
 | `adminActivateStripeSubscription` | update | `(userPrincipal: Principal, tier: Tier, months: Nat)` | Called by the voice Worker after Stripe confirms payment. |
 | `adminGrantAgentCredits` | update | `(user: Principal, amount: Nat)` | Admin: grant agent credits to a principal after a verified Stripe payment. |
 | `consumeAgentCredit` | update | `(user: Principal)` | Admin: atomically decrement 1 agent credit for a user. |

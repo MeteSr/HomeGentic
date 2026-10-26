@@ -193,7 +193,7 @@ Multi-tab page — the main workspace for a property.
 **Tab: Settings**
 - Edit property details (type, year built, sq ft)
 - Verification level display + submit for upgrade
-- Ownership transfer: initiate transfer to another principal
+- Record handoff at closing (ownership transfer): the seller shares a claim link (copy or email) from Settings → "Hand the record to your buyer", and an accepted FSBO offer points them there. The buyer's claim moves the jobs, photos (listed for the current owner and managers, not only the uploader), rooms, bills and verification status; a Basic/Premium-verified home also gives the buyer a free, non-renewing Pro year (`payment.grantHandoffYear`: once per buyer, once a year per home, not over a paid plan)
 - Property claim: initiate / respond to ownership disputes
 
 **Modals triggered from this page**

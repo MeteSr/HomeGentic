@@ -9,6 +9,8 @@
  *     short delay
  *   - a failed claim surfaces its error message and returns to the
  *     ready state so the visitor can retry
+ *   - a verified home offers the free Pro year; the success screen says
+ *     one was added only when payment recorded a grant just now
  */
 
 import { render, screen, fireEvent, act } from "@testing-library/react";
@@ -33,6 +35,9 @@ vi.mock("@/services/property", async (importOriginal) => {
     },
   };
 });
+
+const { mockGetHandoffGrant } = vi.hoisted(() => ({ mockGetHandoffGrant: vi.fn() }));
+vi.mock("@/services/payment", () => ({ paymentService: { getMyHandoffGrant: mockGetHandoffGrant } }));
 
 const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }));
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -66,6 +71,7 @@ function renderAt(token: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockGetHandoffGrant.mockResolvedValue(null);
   mockAuthState = { isAuthenticated: false, isLoading: false, principal: null };
 });
 
@@ -129,5 +135,45 @@ describe("PropertyTransferClaimPage — authenticated claim flow", () => {
 
     expect(await screen.findByText("Transfer already claimed")).toBeInTheDocument();
     expect(screen.getByText("Accept & Become Owner →")).toBeInTheDocument();
+  });
+});
+
+describe("PropertyTransferClaimPage — free Pro year", () => {
+  it("offers it for a verified home only", async () => {
+    mockGetPendingTransfer.mockResolvedValue(makePending());
+    mockGetProperty.mockResolvedValue(makeProperty({ verificationLevel: "Basic" as any }));
+    const { unmount } = renderAt("tok-123");
+    expect(await screen.findByTestId("handoff-pro-offer")).toHaveTextContent("free year of HomeGentic Pro");
+    unmount();
+
+    mockGetProperty.mockResolvedValue(makeProperty({ verificationLevel: "Unverified" as any }));
+    renderAt("tok-123");
+    await screen.findByText("Sign in to claim →");
+    expect(screen.queryByTestId("handoff-pro-offer")).not.toBeInTheDocument();
+  });
+
+  it("says a year was added when payment recorded the grant during the claim", async () => {
+    mockAuthState = { isAuthenticated: true, isLoading: false, principal: "buyer-principal" };
+    mockGetPendingTransfer.mockResolvedValue(makePending());
+    mockGetProperty.mockResolvedValue(makeProperty());
+    mockClaimTransfer.mockResolvedValue(makeProperty());
+    mockGetHandoffGrant.mockResolvedValue(Date.now());
+    renderAt("tok-123");
+
+    fireEvent.click(await screen.findByText("Accept & Become Owner →"));
+    expect(await screen.findByTestId("handoff-pro-year")).toHaveTextContent("doesn't renew on its own");
+  });
+
+  it("says nothing about Pro when the buyer's grant is from an earlier claim", async () => {
+    mockAuthState = { isAuthenticated: true, isLoading: false, principal: "buyer-principal" };
+    mockGetPendingTransfer.mockResolvedValue(makePending());
+    mockGetProperty.mockResolvedValue(makeProperty());
+    mockClaimTransfer.mockResolvedValue(makeProperty());
+    mockGetHandoffGrant.mockResolvedValue(Date.now() - 30 * 86400000);
+    renderAt("tok-123");
+
+    fireEvent.click(await screen.findByText("Accept & Become Owner →"));
+    expect(await screen.findByText("You're the new owner")).toBeInTheDocument();
+    expect(screen.queryByTestId("handoff-pro-year")).not.toBeInTheDocument();
   });
 });
