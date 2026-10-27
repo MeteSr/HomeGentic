@@ -3029,6 +3029,18 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "vec nat8",
     ],
   },
+  "getLocalPriceStats": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {low:nat; area:text; high:nat; sampleSize:nat; median:nat}",
+    ],
+  },
   "getMyBid": {
     "args": [
       "text",

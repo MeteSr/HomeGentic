@@ -580,7 +580,7 @@ export function DashboardV3() {
                 </div>
 
                 <div style={{ font: "400 13px/1.5 'Hanken Grotesk',sans-serif", color: "var(--hg-muted)", marginTop: 10, maxWidth: 600 }}>
-                  {premium ? `${`$${(premium.low).toLocaleString()}–$${premium.high.toLocaleString()}`} above the ZIP median at grade ${grade}.` : "Log jobs to unlock resale value insights."}
+                  {premium ? `Well-documented homes at grade ${grade} can sell for roughly $${premium.low.toLocaleString()}–$${premium.high.toLocaleString()} more. Illustrative range, not a figure for your ZIP.` : "Log jobs to unlock resale value insights."}
                 </div>
 
                 <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-blue-ink)", marginTop: 26 }}>

@@ -500,6 +500,7 @@ describe("quote IDL factory", () => {
       "createSealedBidRequest",
       "deleteMyData",
       "getIbePublicKey",
+      "getLocalPriceStats",
       "getMyBid",
       "getMyQuoteRequests",
       "getMyQuotes",
@@ -527,6 +528,7 @@ describe("quote IDL factory", () => {
       .map(([name]) => name)
       .sort();
     expect(queries).toEqual([
+      "getLocalPriceStats",
       "getMyBid",
       "getMyQuoteRequests",
       "getMyQuotes",

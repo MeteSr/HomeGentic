@@ -65,14 +65,14 @@ describe("buildSystemAnswer", () => {
   it("composes local prices, the owner's bill trend and the pro count", () => {
     const a = buildSystemAnswer(answerInput({
       system: { ...WATER_HEATER, installYear: 2012 },
-      benchmark: { serviceType: "Plumbing", zipCode: "78701", low: 150_000, median: 240_000, high: 380_000, sampleSize: 12, lastUpdated: "2026-08" },
+      benchmark: { serviceType: "Plumbing", zipCode: "78701", low: 150_000, median: 240_000, high: 380_000, sampleSize: 12, source: "local" },
       billInsights: [{ type: "yoy", key: "utility:Gas", changePct: 18, recentCents: 1, priorCents: 1, months: 9 }],
       hasBills: true,
       proCount: 7,
     }));
     const byLabel = Object.fromEntries(a.facts.map((f) => [f.label, f]));
     expect(byLabel["Local prices"]).toMatchObject({ value: "$1,500–$3,800" });
-    expect(byLabel["Local prices"].detail).toBe("12 closed Plumbing bids near 78701, median $2,400");
+    expect(byLabel["Local prices"].detail).toBe("12 accepted Plumbing quotes near 78701, median $2,400");
     expect(byLabel["Your bills"]).toMatchObject({ value: "Gas up 18%", tone: "warn" });
     expect(byLabel["Pros"]).toMatchObject({ value: "7" });
     expect(a.installYearAssumed).toBe(false);
@@ -81,9 +81,19 @@ describe("buildSystemAnswer", () => {
 
   it("drops a price benchmark with too few samples to trust", () => {
     const a = buildSystemAnswer(answerInput({
-      benchmark: { serviceType: "Plumbing", zipCode: "78701", low: 1, median: 2, high: 3, sampleSize: 2, lastUpdated: "2026-08" },
+      benchmark: { serviceType: "Plumbing", zipCode: "78701", low: 1, median: 2, high: 3, sampleSize: 2, source: "local" },
     }));
     expect(a.facts.some((f) => f.label === "Local prices")).toBe(false);
+  });
+
+  it("labels a national price range as typical U.S. prices, not local ones", () => {
+    const a = buildSystemAnswer(answerInput({
+      benchmark: { serviceType: "Plumbing", zipCode: "78701", low: 150_000, median: 240_000, high: 380_000, sampleSize: 0, source: "national" },
+    }));
+    const byLabel = Object.fromEntries(a.facts.map((f) => [f.label, f]));
+    expect(byLabel["Local prices"]).toBeUndefined();
+    expect(byLabel["Typical prices"].detail).toBe("Typical U.S. range for Plumbing, median $2,400");
+    expect(a.sources).toContain("Typical U.S. prices");
   });
 
   it("says bills are steady when they're tracked but show no change", () => {

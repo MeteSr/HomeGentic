@@ -832,8 +832,7 @@ IMPORTANT: If the system returns a limit error, tell the user their current tier
 
 Use this when the user asks "how much does roofing cost?", "what's a fair price for HVAC replacement in my area?", or "is this quote reasonable?".
 
-Returns low, median, and high estimates based on closed HomeGentic bids in that zip code.
-If fewer than 5 bids are on file, tell the user there isn't enough local data yet and fall back to national averages from context.`,
+Returns low, median, and high estimates with a "source" field. "local" means the range comes from quotes homeowners accepted on HomeGentic in that zip code or its 3-digit area. "national" means it is a fixed typical U.S. range: say it is a national estimate, not local prices.`,
     parameters: {
       type: "object" as const,
       properties: {

@@ -317,6 +317,7 @@ createQuoteRequest(9) -> (1)
 createSealedBidRequest(10) -> (1)
 deleteMyData(0) -> (1)
 getIbePublicKey(0) -> (1)
+getLocalPriceStats(2) -> (1) [query]
 getMyBid(1) -> (1) [query]
 getMyQuoteRequests(0) -> (1) [query]
 getMyQuotes(0) -> (1) [query]

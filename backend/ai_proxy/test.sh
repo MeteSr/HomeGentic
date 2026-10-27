@@ -84,7 +84,7 @@ echo "  ↳ setResendFromAddress succeeded — ✓"
 echo ""
 echo "── [8] getPriceBenchmark — Roofing ──────────────────────────────────────"
 BENCH=$(dfx canister call $CANISTER getPriceBenchmark '("Roofing", "32114")')
-echo "$BENCH" | grep -q "800000\|sampleSize\|median" \
+echo "$BENCH" | grep -q "800000\|national\|median" \
   && echo "  ↳ Roofing benchmark returned correct data — ✓" \
   || (echo "  ↳ ❌ Unexpected benchmark response: $BENCH"; exit 1)
 

@@ -199,6 +199,13 @@ echo "── [11] acceptQuote again → expect error (already closed) ───�
 dfx canister call $CANISTER acceptQuote "(\"$QUOTE_ID\")" \
   || echo "  ↳ Expected InvalidInput (already closed) — ✓"
 
+echo ""
+echo "── [11b] getLocalPriceStats — null below 5 accepted quotes / bad input ──"
+for ARGS in '("Plumbing", "32114")' '("PoolCleaning", "32114")' '("Plumbing", "321")'; do
+  OUT=$(dfx canister call $CANISTER getLocalPriceStats "$ARGS")
+  if [[ "$OUT" == *"(null)"* ]]; then echo "  ↳ $ARGS → null ✓"; else echo "  ↳ ❌ $ARGS expected null; got $OUT"; exit 1; fi
+done
+
 # ─── Create a second request and test closeQuoteRequest ───────────────────────
 echo ""
 echo "── [12] createQuoteRequest #2 for close test ────────────────────────────"

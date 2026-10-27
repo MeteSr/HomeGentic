@@ -127,14 +127,22 @@ export function buildSystemAnswer(input: AnswerInput): SystemAnswer {
   });
 
   const b = input.benchmark;
-  if (b && b.sampleSize >= 5) {
+  if (b && b.source === "local" && b.sampleSize >= 5) {
     facts.push({
       label: "Local prices",
       value: `${formatCents(b.low)}–${formatCents(b.high)}`,
-      detail: `${b.sampleSize} closed ${serviceType} bids near ${input.zipCode}, median ${formatCents(b.median)}`,
+      detail: `${b.sampleSize} accepted ${serviceType} quotes near ${b.area ?? input.zipCode}, median ${formatCents(b.median)}`,
       tone: "neutral",
     });
     sources.push("Local prices");
+  } else if (b && b.source === "national") {
+    facts.push({
+      label: "Typical prices",
+      value: `${formatCents(b.low)}–${formatCents(b.high)}`,
+      detail: `Typical U.S. range for ${serviceType}, median ${formatCents(b.median)}`,
+      tone: "neutral",
+    });
+    sources.push("Typical U.S. prices");
   }
 
   const utilities = SYSTEM_UTILITIES[s.systemName] ?? [];

@@ -32,7 +32,7 @@ const MOCK_RESULT: PriceBenchmarkResult = {
   median:      1400000,
   high:        2200000,
   sampleSize:  23,
-  lastUpdated: "2025-11",
+  source: "local",
 };
 
 // ── getPriceBenchmark ──────────────────────────────────────────────────────────
@@ -52,7 +52,8 @@ describe("getPriceBenchmark", () => {
     expect(result!.low).toBe(800000);
     expect(result!.median).toBe(1400000);
     expect(result!.high).toBe(2200000);
-    expect(result!.sampleSize).toBe(23);
+    expect(result!.source).toBe("national");
+    expect(result!.sampleSize).toBe(0);
   });
 
   it("calls aiProxyService.getPriceBenchmark with serviceType and zipCode", async () => {

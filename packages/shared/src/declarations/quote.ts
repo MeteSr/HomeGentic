@@ -96,6 +96,9 @@ export const idlFactory = ({ IDL }: any) => {
     getMyQuoteRequests: IDL.Func([], [IDL.Vec(QuoteRequest)], ["query"]),
     deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     getMyQuotes: IDL.Func([], [IDL.Vec(Quote)], ["query"]),
+    getLocalPriceStats: IDL.Func([IDL.Text, IDL.Text], [IDL.Opt(IDL.Record({
+      low: IDL.Nat, median: IDL.Nat, high: IDL.Nat, sampleSize: IDL.Nat, area: IDL.Text,
+    }))], ["query"]),
     getOpenRequests: IDL.Func([], [IDL.Vec(QuoteRequest)], ["query"]),
     getOpenRequestsPage: IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(QuoteRequest)], ["query"]),
     getOpenRequestsForMe: IDL.Func([], [IDL.Vec(QuoteRequest)], []),

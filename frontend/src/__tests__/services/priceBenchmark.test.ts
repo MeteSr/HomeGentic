@@ -2,7 +2,7 @@
  * priceBenchmark — real logic worth locking down:
  *   - getPriceBenchmark returns null for missing inputs or any failure
  *     (including malformed JSON), otherwise the parsed result
- *   - hasSufficientSamples gates on sampleSize >= 5
+ *   - hasSufficientSamples passes national ranges and gates local ones on sampleSize >= 5
  *   - formatBenchmarkRange renders low–high as rounded dollar amounts
  *   - buildPriceLookupUrl builds the correct query string
  */
@@ -38,15 +38,15 @@ describe("getPriceBenchmark", () => {
     expect(await getPriceBenchmark("HVAC", "78701")).toBeNull();
   });
 
-  it("returns the parsed result on success", async () => {
-    const raw = { serviceType: "HVAC", zipCode: "78701", low: 10000, median: 15000, high: 20000, sampleSize: 10, lastUpdated: "2024-01" };
+  it("returns the national range, labelled national with no sample size, when no quote canister is wired", async () => {
+    const raw = { serviceType: "HVAC", zipCode: "78701", low: 10000, median: 15000, high: 20000, source: "national" };
     mockGetPriceBenchmark.mockResolvedValue(JSON.stringify(raw));
-    expect(await getPriceBenchmark("HVAC", "78701")).toEqual(raw);
+    expect(await getPriceBenchmark("HVAC", "78701")).toEqual({ ...raw, sampleSize: 0 });
   });
 });
 
 function makeResult(overrides: Partial<PriceBenchmarkResult> = {}): PriceBenchmarkResult {
-  return { serviceType: "HVAC", zipCode: "78701", low: 12000, median: 18000, high: 25000, sampleSize: 10, lastUpdated: "2024-01", ...overrides };
+  return { serviceType: "HVAC", zipCode: "78701", low: 12000, median: 18000, high: 25000, sampleSize: 10, source: "local", ...overrides };
 }
 
 describe("hasSufficientSamples", () => {
@@ -57,6 +57,10 @@ describe("hasSufficientSamples", () => {
 
   it("is true for sampleSize >= 5", () => {
     expect(hasSufficientSamples(makeResult({ sampleSize: 5 }))).toBe(true);
+  });
+
+  it("is true for a national range, which has no sample", () => {
+    expect(hasSufficientSamples(makeResult({ source: "national", sampleSize: 0 }))).toBe(true);
   });
 });
 

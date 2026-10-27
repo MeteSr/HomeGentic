@@ -328,7 +328,7 @@ describe("DashboardV3 — answer cards", () => {
   }
 
   it("answers a system decision question with facts composed from several sources", async () => {
-    mockGetPriceBenchmark.mockResolvedValue({ serviceType: "Plumbing", zipCode: "78701", low: 150_000, median: 240_000, high: 380_000, sampleSize: 12, lastUpdated: "2026-08" });
+    mockGetPriceBenchmark.mockResolvedValue({ serviceType: "Plumbing", zipCode: "78701", low: 150_000, median: 240_000, high: 380_000, sampleSize: 12, source: "local" });
     mockGetBySpecialty.mockResolvedValue([{}, {}, {}]);
     renderDashboard();
     ask("Should I replace my water heater?");

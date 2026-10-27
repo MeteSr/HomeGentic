@@ -1,12 +1,13 @@
 /**
  * §17.1.3 — Inline price benchmark widget for quote request page.
- * §17.1.5 — Hidden when sampleSize < 5.
+ * §17.1.5 — Hidden when a local range has fewer than 5 accepted quotes.
  */
 
 import { useEffect, useState } from "react";
 import {
   getPriceBenchmark,
   hasSufficientSamples,
+  benchmarkBasis,
   type PriceBenchmarkResult,
 } from "@/services/priceBenchmark";
 import { V2_COLORS, V2_FONTS } from "@/theme";
@@ -38,7 +39,7 @@ export function PriceBenchmarkWidget({ serviceType, zipCode }: PriceBenchmarkWid
       gap:        "0.25rem",
     }}>
       <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 600, color: V2_COLORS.muted }}>
-        Typical cost in {result.zipCode}
+        {result.source === "local" ? `Typical cost in ${result.area ?? result.zipCode}` : "Typical U.S. cost"}
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: "0.375rem" }}>
         <span style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.1rem", color: V2_COLORS.ink }}>
@@ -53,7 +54,7 @@ export function PriceBenchmarkWidget({ serviceType, zipCode }: PriceBenchmarkWid
         </span>
       </div>
       <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", fontWeight: 300, color: V2_COLORS.muted }}>
-        Based on {result.sampleSize} closed bids · {result.lastUpdated}
+        {benchmarkBasis(result)}
       </div>
     </div>
   );

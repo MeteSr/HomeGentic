@@ -23,7 +23,8 @@ const MOCK_RESULT: priceBenchmark.PriceBenchmarkResult = {
   median:      1400000,
   high:        2200000,
   sampleSize:  23,
-  lastUpdated: "2025-11",
+  source: "local",
+  area:        "32114",
 };
 
 // ── PriceBenchmarkWidget ──────────────────────────────────────────────────────
@@ -60,7 +61,7 @@ describe("PriceBenchmarkWidget", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/32114/)).toBeInTheDocument();
+      expect(screen.getByText("Typical cost in 32114")).toBeInTheDocument();
     });
   });
 
