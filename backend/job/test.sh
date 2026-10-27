@@ -404,6 +404,13 @@ if echo "$GET_INVITE" | grep -q "$INVITE_JOB_ID"; then
 else
   echo "  ↳ Job data shown above"
 fi
+# With job wired to property, the address comes from the property record
+# ("1 Job Test Drive"), never the "123 Main St" the caller passed.
+if echo "$GET_INVITE" | grep -q "1 Job Test Drive"; then
+  echo "  ✓ Invite shows the property's own address"
+elif echo "$GET_INVITE" | grep -q "123 Main St" && [ -n "$PROPERTY_CANISTER_ID" ]; then
+  echo "  ⚠ Invite shows the typed address — is job wired to property (setPropertyCanisterId)?"
+fi
 
 echo ""
 echo "── [518-a] homeowner signs before redemption, so redemption completes verification ──"

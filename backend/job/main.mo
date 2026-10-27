@@ -1252,11 +1252,12 @@ persistent actor Job {
 
   /// Create a single-use invite token for a job so a contractor can sign
   /// without needing a HomeGentic account.  Caller must be the job's homeowner.
-  /// propertyAddress is supplied by the frontend (already loaded in the UI).
+  /// The address shown to the contractor is read from the property canister;
+  /// `typedAddress` is used only when property isn't wired (local dev).
   /// Token expires after 48 hours.
   public shared(msg) func createInviteToken(
-    jobId:           Text,
-    propertyAddress: Text
+    jobId:        Text,
+    typedAddress: Text
   ) : async Result.Result<Text, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
@@ -1269,6 +1270,14 @@ persistent actor Job {
     if (not invOk) return #err(#NotAuthorized);
     if (job.isDiy)                   return #err(#InvalidInput("DIY jobs do not require contractor signature"));
     if (job.contractorSigned)        return #err(#InvalidInput("Contractor has already signed this job"));
+
+    let propertyAddress : Text = if (Text.size(propCanisterId) > 0) {
+      let propActor : actor { getPropertyAddress : shared query Text -> async ?Text } = actor (propCanisterId);
+      switch (await propActor.getPropertyAddress(job.propertyId)) {
+        case (?a) { a };
+        case null { return #err(#NotFound) };
+      }
+    } else { typedAddress };
 
     let randBytes = await Random.blob();
     let token     = "INV_" # blobToHex(randBytes);

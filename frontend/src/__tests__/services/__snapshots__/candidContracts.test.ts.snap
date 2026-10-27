@@ -281,6 +281,7 @@ getPendingTransfer(1) -> (1) [query]
 getPendingTransferByToken(1) -> (1) [query]
 getPendingVerifications(0) -> (1)
 getProperty(1) -> (1) [query]
+getPropertyAddress(1) -> (1) [query]
 getPropertyByManagerInviteToken(1) -> (1) [query]
 getPropertyByTransferToken(1) -> (1) [query]
 getPropertyLimitForTier(1) -> (1) [query]

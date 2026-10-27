@@ -283,6 +283,7 @@ describe("property IDL factory", () => {
       "getPendingTransferByToken",
       "getPendingVerifications",
       "getProperty",
+      "getPropertyAddress",
       "getPropertyByManagerInviteToken",
       "getPropertyByTransferToken",
       "getPropertyLimitForTier",
@@ -330,6 +331,7 @@ describe("property IDL factory", () => {
       "getPendingTransferByToken",
       // getPendingVerifications is an admin-only update call returning a Result
       "getProperty",
+      "getPropertyAddress",
       "getPropertyByManagerInviteToken",
       "getPropertyByTransferToken",
       "getPropertyLimitForTier",

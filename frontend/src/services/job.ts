@@ -287,6 +287,7 @@ function createJobService() {
     return jobs.filter((j) => j.status === "verified").length;
   },
 
+  /** The canister puts the property's own address on the invite; `propertyAddress` is only its local-dev fallback. */
   async createInviteToken(jobId: string, propertyAddress: string): Promise<string> {
     const a = await getActor();
     const result = await a.createInviteToken(jobId, propertyAddress);

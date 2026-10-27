@@ -1100,6 +1100,17 @@ persistent actor Property {
     }
   };
 
+  /// The property's full street address ("12 Elm St, Austin, TX 78701"), or
+  /// null if not found. Called by job.createInviteToken so the address on a
+  /// contractor's sign link comes from the record, not from what the
+  /// homeowner typed. Addresses are already public (claim pages show them).
+  public query func getPropertyAddress(id: Text) : async ?Text {
+    switch (properties.get(id)) {
+      case null  { null };
+      case (?p)  { ?(p.address # ", " # p.city # ", " # p.state # " " # p.zipCode) };
+    }
+  };
+
   /// Returns the owner Principal of a property, or null if not found.
   /// Called cross-canister by the Job canister (14.2.1) to verify that
   /// the homeowner stored on a sensor device actually owns the property
