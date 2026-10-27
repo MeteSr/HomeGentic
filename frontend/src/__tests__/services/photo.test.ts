@@ -90,6 +90,13 @@ vi.mock("@icp-sdk/core/agent", () => ({
   Actor: { createActor: vi.fn(() => mockPhotoActor) },
 }));
 
+const mockFetchWithAgentSession = vi.fn(async (_url: string, _init: RequestInit): Promise<any> =>
+  ({ ok: true, status: 200, blob: async () => new Blob([new Uint8Array([9, 9])]) }));
+vi.mock("@/services/agentSession", () => ({
+  getAgentSessionToken:  vi.fn(async () => null),
+  fetchWithAgentSession: (url: string, init: RequestInit) => mockFetchWithAgentSession(url, init),
+}));
+
 // ─── Import after mocks ───────────────────────────────────────────────────────
 
 import { photoService } from "@/services/photo";
@@ -406,5 +413,44 @@ describe("photoService", () => {
       photoService.reset();
       expect(await photoService.getListingPhotos("prop-rst")).toHaveLength(0);
     });
+  });
+});
+
+// ─── Off-chain photos (bytes behind the voice Worker) ────────────────────────
+
+describe("photoService — off-chain photos", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    photoService.reset();
+  });
+
+  it("loads a private off-chain photo through the Worker with the session", async () => {
+    // Off-chain photos come back from the batch call with empty bytes.
+    _mockPhotos.push(makeRawPhoto({ id: "off-1", jobId: "job-off", data: [], size: BigInt(2) }));
+    mockCreateObjectURL.mockReturnValueOnce("blob:off-1");
+    const [photo] = await photoService.getByJob("job-off");
+    expect(mockFetchWithAgentSession).toHaveBeenCalledWith("http://localhost:8787/photos/off-1", { method: "GET" });
+    expect(photo.url).toBe("blob:off-1");
+  });
+
+  it("leaves the URL empty when the Worker won't serve the photo", async () => {
+    _mockPhotos.push(makeRawPhoto({ id: "off-2", jobId: "job-off", data: [], size: BigInt(2) }));
+    mockFetchWithAgentSession.mockResolvedValueOnce({ ok: false, status: 404 });
+    const [photo] = await photoService.getByJob("job-off");
+    expect(photo.url).toBe("");
+  });
+
+  it("points public listing photos straight at the Worker", async () => {
+    _mockPhotos.push(makeRawPhoto({ id: "off-3", jobId: "LISTING_prop-9", data: [], size: BigInt(2) }));
+    const [photo] = await photoService.getListingPhotos("prop-9");
+    expect(photo.url).toBe("http://localhost:8787/photos/off-3");
+    expect(mockFetchWithAgentSession).not.toHaveBeenCalled();
+  });
+
+  it("doesn't treat an empty on-chain photo as off-chain", async () => {
+    _mockPhotos.push(makeRawPhoto({ id: "empty", jobId: "job-off", data: [], size: BigInt(0) }));
+    const [photo] = await photoService.getByJob("job-off");
+    expect(photo.url).toBe("");
+    expect(mockFetchWithAgentSession).not.toHaveBeenCalled();
   });
 });

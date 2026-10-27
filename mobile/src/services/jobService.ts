@@ -3,7 +3,9 @@ import { bytesToHex } from "@noble/hashes/utils";
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
 import { idlFactory as jobIdlFactory }   from "@homegentic/shared/declarations/job";
 import { idlFactory as photoIdlFactory } from "@homegentic/shared/declarations/photo";
+import { uploadPhotoPreferOffChain, type OffChainDeps } from "@homegentic/shared/photoUpload";
 import { getIcpAgent }      from "./icpAgent";
+import { getAgentSessionToken } from "./agentSession";
 
 export type JobStatus = "pending" | "awaiting_contractor" | "verified" | "pending_homeowner_approval";
 
@@ -164,8 +166,15 @@ export async function verifyJob(jobId: string, agent?: HttpAgent): Promise<Job> 
   return fromRaw(unwrap(result));
 }
 
+/** Off-chain photo storage behind the voice Worker; unset URL → photos stay on-chain. */
+const offChainPhotos: OffChainDeps = {
+  workerUrl:    process.env.EXPO_PUBLIC_VOICE_AGENT_URL ?? "",
+  sessionToken: getAgentSessionToken,
+};
+
 /**
- * Uploads a base64-encoded photo to the photo canister for a given job.
+ * Uploads a base64-encoded photo for a given job: off-chain through the voice
+ * Worker when it has photo storage, on the photo canister otherwise.
  * Sends the bytes' SHA-256 (hex) as the photo hash.
  */
 export async function uploadJobPhoto(
@@ -173,6 +182,7 @@ export async function uploadJobPhoto(
   propertyId: string,
   base64: string,
   agent?: HttpAgent,
+  mimeType = "image/jpeg",
 ): Promise<void> {
   // Convert base64 to Uint8Array
   const binaryStr = atob(base64.replace(/^data:[^;]+;base64,/, ""));
@@ -186,13 +196,10 @@ export async function uploadJobPhoto(
   const hash = bytesToHex(sha256(bytes));
 
   const a = getPhotoActor(agent ?? getIcpAgent());
-  const result = await (a as any).uploadPhoto(
-    jobId,
-    propertyId,
-    { PostConstruction: null },
-    "Job photo",
-    hash,
-    bytes,
+  const result = await uploadPhotoPreferOffChain(
+    a as any,
+    { jobId, propertyId, phase: "PostConstruction", description: "Job photo", hash, bytes, contentType: mimeType },
+    offChainPhotos,
   );
   unwrap(result);
 }

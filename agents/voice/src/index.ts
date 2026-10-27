@@ -503,9 +503,13 @@ async function route(
   }
 
   // ── Off-chain photo bytes (R2) ────────────────────────────────────────────
+  // Clients ask before choosing beginUpload + PUT over on-chain uploadPhoto.
+  if (path === "/photos-config" && method === "GET") {
+    return json({ offChain: photoStorageReady(env) }, 200, { ...cors, "Cache-Control": "public, max-age=300" });
+  }
   if (path.startsWith("/photos/")) {
     return withCors(await handlePhotos(request, path, env, {
-      store:     env.PHOTOS ? r2PhotoStore(env.PHOTOS) : null,
+      store:     env.PHOTOS && photoStorageReady(env) ? r2PhotoStore(env.PHOTOS) : null,
       principal: () => callerPrincipal(request, env),
       access:    fetchPhotoAccess,
     }), cors);
@@ -1843,6 +1847,11 @@ function sanitiseMaintenanceContext(ctx: any): MaintenanceContext {
  * without an auth canister (CANISTER_ID_AUTH unset and NODE_ENV not
  * "production") falls back to the unverified x-icp-principal header.
  */
+/** Off-chain photos need the bucket plus what photoAccess needs (canister ID and signing identity). */
+function photoStorageReady(env: Env): boolean {
+  return Boolean(env.PHOTOS && env.CANISTER_ID_PHOTO && env.DFX_IDENTITY_PEM);
+}
+
 async function callerPrincipal(request: Request, env: Env): Promise<string | null> {
   if (!env.CANISTER_ID_AUTH && env.NODE_ENV !== "production") {
     return request.headers.get("x-icp-principal") ?? "anon";

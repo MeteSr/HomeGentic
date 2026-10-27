@@ -55,5 +55,5 @@ export async function uploadPhoto(
   const error = validateImageAsset(asset);
   if (error) throw new Error(error);
   const payload = buildPhotoPayload(jobId, asset);
-  await uploadJobPhoto(jobId, propertyId, payload.base64, agent);
+  await uploadJobPhoto(jobId, propertyId, payload.base64, agent, payload.mimeType);
 }
