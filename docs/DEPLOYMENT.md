@@ -8,8 +8,8 @@
 | Web app (assets canister) | `frontend/` | Built and uploaded by `scripts/deploy.sh` | [Frontend build variables](#frontend-build-variables) |
 | Voice / AI Worker | `agents/voice/` | `deploy-voice-worker` job (Cloudflare) | [Voice Agent](#voice-agent-cloudflare-workers) |
 | Lead email Worker | `agents/email/` | `deploy-email-worker` job (Cloudflare) | [Email Relay](#email-relay-cloudflare-workers) |
-| Notification relay | `agents/notifications/` | Manual — any Node host | [Notification Relay](#notification-relay) |
-| IoT gateway | `agents/iot-gateway/` | Manual — any Node host | [IoT Gateway](#iot-gateway) |
+| Notification relay | `agents/notifications/` | `deploy-relays.yml` → Fly.io | [Notification Relay](#notification-relay) |
+| IoT gateway | `agents/iot-gateway/` | `deploy-relays.yml` → Fly.io | [IoT Gateway](#iot-gateway) |
 | Mobile app | `mobile/` | Manual — Expo EAS | [Mobile App](#mobile-app) |
 | Admin monitoring dashboard | `dashboard/` | Manual — static build | [Admin Dashboard](#admin-dashboard) |
 
@@ -208,8 +208,9 @@ First-time setup:
 ## Notification Relay
 
 The notification relay (`agents/notifications/`) is a standalone Node service
-(`npm ci && npm run build && npm start`). It is not deployed by CI and has no
-Dockerfile in the repo — host it on any Node platform and set the variables below.
+(`npm ci && npm run build && npm start`, or `agents/notifications/Dockerfile`).
+CI deploys it to Fly.io — see [Hosting on Fly.io](#hosting-on-flyio). Set the
+variables below as Fly secrets.
 
 - Serve it over **HTTPS**: browsers only register push from an https page, and
   the web app's CSP lists the relay's origin.
@@ -318,10 +319,10 @@ cd agents/notifications && node -e "const wp=require('web-push'); const k=wp.gen
 
 The IoT gateway (`agents/iot-gateway/`) is a Node/Express server that ingests
 sensor events, manages OAuth credentials for smart-home platforms, and writes
-events to the `sensor` ICP canister. Like the notification relay it isn't
-deployed by CI: host it on any Node platform over HTTPS
-(`npm ci && npm run build && npm start`). Its default port, 3002, is the same as
-the relay's, so set `IOT_GATEWAY_PORT` if they share a host.
+events to the `sensor` ICP canister. Like the notification relay, CI deploys it
+to Fly.io ([Hosting on Fly.io](#hosting-on-flyio)); `agents/iot-gateway/Dockerfile`
+also runs on any Docker host. Its default port, 3002, is the same as the relay's,
+so set `IOT_GATEWAY_PORT` if they share a host.
 
 **Allow it to write to the sensor canister.** The gateway logs its principal
 at startup (`gatewayPrincipal` on the `listening on` line). Add it once per
@@ -344,6 +345,7 @@ Until then its `recordEvent` calls are rejected.
 | `ICP_HOST` | ICP API host (default `http://localhost:4943`; set `https://icp-api.io` for testnet / mainnet) |
 | `ADMIN_TOKEN` | Strong random secret required in `x-admin-token` on `POST /accounts/:platform` (credential proxy) and `GET /oauth/start/*` (OAuth initiation). Server logs a warning and disables the credential proxy endpoint if unset. Generate with `openssl rand -hex 32`. |
 | `FRONTEND_ORIGIN` | Exact origin of the frontend — used in `postMessage` responses from the OAuth device picker |
+| `IOT_GATEWAY_PUBLIC_URL` | The gateway's public https URL (e.g. `https://homegentic-iot-gateway.fly.dev`). Every OAuth `redirect_uri` is built from it, so register `<it>/oauth/callback/<platform>` and `<it>/oauth/device/callback/<platform>` with each vendor. The gateway won't start in production without it |
 | `HONEYWELL_CLIENT_ID` | Honeywell Home OAuth app client ID |
 | `HONEYWELL_CLIENT_SECRET` | Honeywell Home OAuth app client secret |
 | `GE_CLIENT_ID` | GE SmartHQ OAuth app client ID |
@@ -355,6 +357,42 @@ Each smart-home platform also needs its own webhook secret or API tokens
 Refreshed OAuth tokens are written to the `*_TOKENS_FILE` paths, so keep those on
 persistent storage too. Set the web app's `VITE_IOT_GATEWAY_URL` to the
 gateway's URL.
+
+### Hosting on Fly.io
+
+`.github/workflows/deploy-relays.yml` builds both images on every PR that
+touches them, deploys to testnet on each push to `main`, and deploys to
+production when run by hand from `main`. Each service is one always-on
+machine (`--ha=false`; never scale past one) with a 1 GB volume at `/data`.
+Until `FLY_API_TOKEN` is set on an environment, the deploy job skips.
+
+One-time setup, per environment (`-testnet` suffix for testnet):
+
+```bash
+fly apps create homegentic-notifications-testnet
+fly volumes create notifications_data --app homegentic-notifications-testnet --region iad --size 1
+fly apps create homegentic-iot-gateway-testnet
+fly volumes create iot_gateway_data --app homegentic-iot-gateway-testnet --region iad --size 1
+
+# Relay: the required variables above, e.g.
+fly secrets set --app homegentic-notifications-testnet --stage \
+  FRONTEND_ORIGIN=… INTERNAL_API_KEY=… RELAY_IDENTITY_SEED=… \
+  VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… VAPID_SUBJECT=… \
+  CANISTER_ID_AUTH=… CANISTER_ID_JOB=… CANISTER_ID_QUOTE=… CANISTER_ID_LISTING=… \
+  CANISTER_ID_PROPERTY=… CANISTER_ID_REPORT=… CANISTER_ID_CONTRACTOR=… CANISTER_ID_PAYMENT=… \
+  RESEND_API_KEY=… NOTIFICATIONS_PUBLIC_URL=https://homegentic-notifications-testnet.fly.dev
+# Gateway:
+fly secrets set --app homegentic-iot-gateway-testnet --stage \
+  FRONTEND_ORIGIN=… SENSOR_CANISTER_ID=… GATEWAY_IDENTITY_SEED=… ADMIN_TOKEN=… \
+  IOT_GATEWAY_PUBLIC_URL=https://homegentic-iot-gateway-testnet.fly.dev …vendor keys
+```
+
+`NODE_ENV`, the ports, `ICP_HOST` and the data-file paths are already in each
+`fly.toml`. Then create a deploy token (`fly tokens create org`) and save it as
+the `FLY_API_TOKEN` secret on the GitHub `testnet` and `production`
+environments, set `VITE_NOTIFICATIONS_URL` and `VITE_IOT_GATEWAY_URL` for the
+web build, and allowlist both principals (below). Back up the volumes with
+`fly volumes snapshots` (Fly takes daily snapshots, kept 5 days by default).
 
 ### OAuth setup (Honeywell / GE)
 
@@ -512,7 +550,7 @@ IDs:
 | `VITE_STRIPE_PUBLISHABLE_KEY` | yes | Stripe.js |
 | `VITE_NOTIFICATIONS_URL` | optional | Notification relay URL; added to the CSP. Unset hides the browser push toggle |
 | `VITE_INBOX_DOMAIN` | optional | Domain of the invoice forwarding addresses; must match the Worker's `INBOX_DOMAIN`. Unset hides the address |
-| `VITE_IOT_GATEWAY_URL` | optional | IoT gateway URL for the device-linking OAuth popup (defaults to `http://localhost:3002`) |
+| `VITE_IOT_GATEWAY_URL` | optional | IoT gateway URL for the device-linking OAuth popup and the CSP. Unset hides the "Connect account" button (dev builds default to `http://localhost:3002`) |
 | `VITE_GOOGLE_MAPS_API_KEY` | optional | Address autocomplete; without it the address field is plain text |
 | `VITE_MONITORING_CANISTER_ID` | optional | Frontend error reporting to the `monitoring` canister |
 | `VITE_CANISTER_ID_REPORT` | optional | Score certificate lookups (`/cert/:token`) |
