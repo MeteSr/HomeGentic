@@ -10,6 +10,9 @@ import { getProperties, Property } from "../services/propertyService";
 import { AgentUsage, getAgentUsage } from "../services/agentService";
 import { getAgentSessionToken } from "../services/agentSession";
 import { getMySubscription, PLAN_LIMITS, PlanLimits, PlanTier, Subscription, isPaid, tierForRole } from "../services/planService";
+import { AppState } from "react-native";
+import { offlineQueue } from "../services/offlineQueue";
+import { createJob, CreateJobInput } from "../services/jobService";
 
 export interface AppData {
   contractor:      boolean;
@@ -100,6 +103,26 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     refreshProperties();
     refreshUsage();
   }, [refreshPlan, refreshProperties, refreshUsage]);
+
+  // Writes saved while offline belong to this user and are sent with their
+  // identity: on sign-in, on reconnect (the queue listens) and on foreground.
+  const principal = authState.status === "authenticated" ? authState.principal : null;
+  useEffect(() => {
+    if (!principal) return;
+    offlineQueue.setScope(principal);
+    offlineQueue.registerHandler(async (op) => {
+      if (op.type === "createJob") await createJob(op.payload as CreateJobInput);
+      else throw new Error("This kind of change can't be sent from this version of the app.");
+    });
+    const flush = () => { offlineQueue.flush().then(refreshProperties).catch(() => {}); };
+    flush();
+    const sub = AppState.addEventListener("change", (st) => { if (st === "active") flush(); });
+    return () => {
+      sub.remove();
+      offlineQueue.registerHandler(null);
+      offlineQueue.setScope(null);
+    };
+  }, [principal, refreshProperties]);
 
   const isPropertyLocked = useCallback(
     (p: Property) => properties.findIndex((x) => x.id === p.id) >= limits.propertyLimit,

@@ -4,6 +4,7 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 // Stroke icons from the v3 design (24×24 viewBox, round caps and joins).
 const SHAPES = {
   chevronDown: <Path d="m6 9 6 6 6-6" />,
+  chevronRight: <Path d="m9 6 6 6-6 6" />,
   home: (
     <>
       <Rect x="3" y="3" width="7" height="7" rx="1.5" />

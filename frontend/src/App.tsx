@@ -36,6 +36,7 @@ const PaymentSuccessPage         = React.lazy(() => publicPages().then((m) => ({
 const PaymentFailurePage         = React.lazy(() => publicPages().then((m) => ({ default: m.PaymentFailurePage })));
 const SampleReportPage           = React.lazy(() => publicPages().then((m) => ({ default: m.SampleReportPage })));
 const RegisterPage               = React.lazy(() => import("@/pages/RegisterPage"));
+const MobileAuthPage             = React.lazy(() => import("@/pages/MobileAuthPage"));
 const DashboardPage              = React.lazy(() => import("@/pages/DashboardPage"));
 const PropertyDetailPage         = React.lazy(() => import("@/pages/PropertyDetailPage"));
 const VerifyLayout              = React.lazy(() => import("@/pages/PropertyVerify/VerifyLayout"));
@@ -170,6 +171,7 @@ export default function App() {
             <Routes>
           <Route path="/"            element={<LandingPage />} />
           <Route path="/login"       element={<LoginPage />} />
+          <Route path="/mobile-auth" element={<MobileAuthPage />} />
           <Route path="/pricing"     element={<PricingPage />} />
           <Route path="/privacy"     element={<PrivacyPolicyPage />} />
           <Route path="/terms"       element={<TermsOfServicePage />} />

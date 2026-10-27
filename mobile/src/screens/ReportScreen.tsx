@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,24 @@ import {
   StyleSheet,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../navigation/types";
 import { buildReportUrl } from "../services/reportService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
 
-export default function ReportScreen() {
-  const [token, setToken]     = useState("");
+export default function ReportScreen({ route }: NativeStackScreenProps<RootStackParamList, "Report">) {
+  const linked = route.params?.token ?? "";
+  const [token, setToken]     = useState(linked);
   const [loading, setLoading] = useState(false);
 
-  async function openReport() {
-    const t = token.trim();
+  // A homegentic://report/<token> link opens the report straight away.
+  useEffect(() => {
+    if (linked) openReport(linked);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linked]);
+
+  async function openReport(value = token) {
+    const t = value.trim();
     if (!t) return;
     setLoading(true);
     try {
@@ -46,12 +55,12 @@ export default function ReportScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="go"
-          onSubmitEditing={openReport}
+          onSubmitEditing={() => openReport()}
           accessibilityLabel="Report token input"
         />
         <TouchableOpacity
           style={[styles.btn, (!token.trim() || loading) && styles.btnDisabled]}
-          onPress={openReport}
+          onPress={() => openReport()}
           disabled={!token.trim() || loading}
           accessibilityRole="button"
           accessibilityLabel="Open report"

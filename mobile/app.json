@@ -14,7 +14,11 @@
     },
     "ios": {
       "supportsTablet": true,
+      "requireFullScreen": true,
       "bundleIdentifier": "app.homegentic.mobile",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -97,6 +101,7 @@
     },
     "android": {
       "package": "app.homegentic.mobile",
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#EDEEF2"
@@ -106,7 +111,6 @@
       "intentFilters": [
         {
           "action": "VIEW",
-          "autoVerify": true,
           "data": [{ "scheme": "homegentic" }],
           "category": ["BROWSABLE", "DEFAULT"]
         }
@@ -125,7 +129,20 @@
           "sounds": []
         }
       ],
-      "expo-local-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "HomeGentic uses your photos so you can attach pictures of work, bills and documents to your home's record.",
+          "cameraPermission": "HomeGentic uses the camera so you can photograph work, utility bills and documents for your home's record.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "HomeGentic uses Face ID to unlock your session when you re-open the app."
+        }
+      ],
       "expo-font"
     ]
   }
