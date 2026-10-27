@@ -1,8 +1,17 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/photo";
+import { uploadPhotoPreferOffChain, offChainPhotosEnabled, type OffChainDeps } from "@homegentic/shared/photoUpload";
+import { getAgentSessionToken, fetchWithAgentSession } from "./agentSession";
 export { idlFactory };
 
 const PHOTO_CANISTER_ID = (process.env as any).PHOTO_CANISTER_ID || "";
+const VOICE_AGENT_URL   = (import.meta as any).env?.VITE_VOICE_AGENT_URL || "http://localhost:8787";
+
+/** Off-chain photo storage lives behind the voice Worker; without a photo canister there's nothing to store. */
+const offChain: OffChainDeps = {
+  workerUrl:    PHOTO_CANISTER_ID ? VOICE_AGENT_URL : "",
+  sessionToken: getAgentSessionToken,
+};
 
 // ─── TypeScript types ─────────────────────────────────────────────────────────
 
@@ -27,10 +36,13 @@ export interface PhotoQuota {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** `raw` is a PhotoMeta record; `bytes` are the image bytes fetched separately. */
-function fromPhoto(raw: any, bytes: Uint8Array | number[] | undefined): Photo {
+/**
+ * `raw` is a PhotoMeta record; `bytes` are the image bytes fetched separately,
+ * or `url` points at them when they're stored off-chain.
+ */
+function fromPhoto(raw: any, bytes: Uint8Array | number[] | undefined, offChainUrl = ""): Photo {
   const phaseKey = Object.keys(raw.phase)[0];
-  const url      = bytes ? URL.createObjectURL(new Blob([new Uint8Array(bytes)])) : "";
+  const url      = bytes && bytes.length > 0 ? URL.createObjectURL(new Blob([new Uint8Array(bytes)])) : offChainUrl;
   return {
     id:          raw.id,
     jobId:       raw.jobId,
@@ -153,14 +165,32 @@ async function computeHash(buffer: ArrayBuffer): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** Off-chain photo bytes the signed-in user may see, as a blob URL ("" when they can't be loaded). */
+async function privateOffChainUrl(id: string): Promise<string> {
+  try {
+    const res = await fetchWithAgentSession(`${VOICE_AGENT_URL}/photos/${encodeURIComponent(id)}`, { method: "GET" });
+    return res.ok ? URL.createObjectURL(await res.blob()) : "";
+  } catch {
+    return "";
+  }
+}
+
+/** Listing photos are public, so the browser can load and cache them straight from the Worker. */
+async function publicOffChainUrl(id: string): Promise<string> {
+  return `${VOICE_AGENT_URL}/photos/${encodeURIComponent(id)}`;
+}
+
 /**
  * List endpoints return metadata only; bytes come from a batch call that
  * returns as many photos as fit in one reply. Keep asking for the ids it left
- * out until every photo is loaded or a call makes no progress.
+ * out until every photo is loaded or a call makes no progress. Off-chain
+ * photos come back from the batch with empty bytes; those load from the
+ * Worker through `offChainUrl`.
  */
 async function withBytes(
   metas: any[],
   fetchBatch: (ids: string[]) => Promise<Array<[string, Uint8Array | number[]]>>,
+  offChainUrl: (id: string) => Promise<string> = privateOffChainUrl,
 ): Promise<Photo[]> {
   const bytesById = new Map<string, Uint8Array | number[]>();
   let pending = metas.map((m) => m.id as string);
@@ -170,7 +200,11 @@ async function withBytes(
     for (const [id, data] of got) bytesById.set(id, data);
     pending = pending.filter((id) => !bytesById.has(id));
   }
-  return metas.map((m) => fromPhoto(m, bytesById.get(m.id)));
+  return Promise.all(metas.map(async (m) => {
+    const bytes = bytesById.get(m.id);
+    const offChainStored = bytes !== undefined && bytes.length === 0 && Number(m.size) > 0;
+    return fromPhoto(m, bytes, offChainStored ? await offChainUrl(m.id) : "");
+  }));
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────
@@ -193,14 +227,11 @@ function createPhotoService() {
     const bytes      = new Uint8Array(buffer);
     const hash       = await computeHash(buffer);
 
-    const a    = await getActor();
-    const result = await a.uploadPhoto(
-      jobId,
-      propertyId,
-      { [phase]: null },
-      description,
-      hash,
-      bytes,
+    const a      = await getActor();
+    const result = await uploadPhotoPreferOffChain(
+      a,
+      { jobId, propertyId, phase, description, hash, bytes, contentType: compressed.type || "image/jpeg" },
+      offChain,
     );
     if ("ok" in result) return fromPhoto(result.ok, bytes);
     const key = Object.keys(result.err)[0];
@@ -262,7 +293,7 @@ function createPhotoService() {
       return photosMap[propertyId] ?? [];
     }
     const a = await getActor();
-    return withBytes(await a.getPublicListingPhotos(propertyId), (ids) => a.getListingPhotoDataBatch(ids));
+    return withBytes(await a.getPublicListingPhotos(propertyId), (ids) => a.getListingPhotoDataBatch(ids), publicOffChainUrl);
   },
 
   async deletePhoto(photoId: string): Promise<void> {
@@ -271,6 +302,11 @@ function createPhotoService() {
     if ("err" in result) {
       const key = Object.keys(result.err)[0];
       throw new Error(key);
+    }
+    // Drop off-chain bytes too; the Worker only allows this once the record
+    // is gone. Best effort: a later sweep removes anything left behind.
+    if (await offChainPhotosEnabled(offChain)) {
+      fetchWithAgentSession(`${VOICE_AGENT_URL}/photos/${encodeURIComponent(photoId)}`, { method: "DELETE" }).catch(() => {});
     }
   },
 
