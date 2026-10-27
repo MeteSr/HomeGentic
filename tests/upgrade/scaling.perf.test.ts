@@ -35,7 +35,7 @@ afterAll(() => { if (results.length) console.log("\nCycles per call, before → 
 async function install(name: string, b: Build, idl: any) {
   const pic: PocketIc = await createPic();
   const f = await pic.setupCanister({ idlFactory: idl, wasm: wasmFor(name, b) });
-  const as = (id: Identity) => { const a = pic.createActor<any>(idl, f.canisterId); a.setIdentity(id); return a; };
+  const as = (id: Identity) => { const a = pic.createActor<any>({ idlFactory: idl, canisterId: f.canisterId }); a.setIdentity(id); return a; };
   const cost = async (call: () => Promise<unknown>) => {
     const before = await pic.getCyclesBalance(f.canisterId);
     await call();

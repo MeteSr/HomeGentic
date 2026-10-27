@@ -33,7 +33,7 @@ async function fromBase(name: string, idl: any) {
   const pic: PocketIc = await createPic();
   const ctl = createIdentity("ctl");
   const f = await pic.setupCanister({ idlFactory: idl, wasm: baseWasmPath(name) ?? wasmPath(name), sender: ctl.getPrincipal() });
-  const as = (id: Identity) => { const a = pic.createActor<any>(idl, f.canisterId); a.setIdentity(id); return a; };
+  const as = (id: Identity) => { const a = pic.createActor<any>({ idlFactory: idl, canisterId: f.canisterId }); a.setIdentity(id); return a; };
   const upgrade = () => pic.upgradeCanister({ canisterId: f.canisterId, wasm: readFileSync(wasmPath(name)) });
   /** Makes `admin` an admin: only a controller may open the bootstrap (setBootstrapNonce). */
   const bootstrapAdmin = async (admin: Identity) => {
