@@ -790,11 +790,11 @@ if [ -n "$BILLS_ID" ]    && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> bills..."
   bg_call bills    setPropertyCanisterId   "(\"$PROPERTY_ID\")"         -e "$ENV"
 fi
+# Retired canister (referral credits were removed): payment no longer calls it,
+# but its own code-redemption guard still reads tiers from payment.
 REFERRALS_ID=$(icp canister status referrals -e "$ENV" --id-only 2>/dev/null || echo "")
 if [ -n "$REFERRALS_ID" ] && [ -n "$PAYMENT_ID" ]; then
-  echo "  Wiring payment <-> referrals..."
   bg_call referrals setPaymentCanisterId  "(\"$PAYMENT_ID\")"   -e "$ENV"
-  bg_call payment   setReferralsCanisterId "(\"$REFERRALS_ID\")" -e "$ENV"
 fi
 if [ -n "$JOB_ID" ]      && [ -n "$CONTRACTOR_ID" ]; then
   echo "  Wiring contractor -> job..."
@@ -850,7 +850,7 @@ grant() {  # grant <canister> <method> <principal> <description>
   fi
 }
 if [ -n "${NOTIFIER_PRINCIPAL:-}" ]; then
-  for c in auth property job quote; do
+  for c in auth property job quote listing; do
     grant "$c" addNotifier "$NOTIFIER_PRINCIPAL" "Allowlisting notification relay"
   done
 fi

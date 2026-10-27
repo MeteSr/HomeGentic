@@ -35,6 +35,7 @@ const EMPTY_FORM: JobForm = {
   isDiy:          false,
   contractorName: "",
   permitNumber:   "",
+  warrantyMonths: "",
 };
 
 function Label({ children }: { children: string }) {
@@ -42,9 +43,9 @@ function Label({ children }: { children: string }) {
 }
 
 export default function LogJobScreen({ route, navigation }: Props) {
-  const { propertyId, propertyAddress } = route.params;
+  const { propertyId, propertyAddress, prefill } = route.params;
 
-  const [form,       setForm]       = useState<JobForm>(EMPTY_FORM);
+  const [form,       setForm]       = useState<JobForm>({ ...EMPTY_FORM, ...prefill });
   const [photoUri,   setPhotoUri]   = useState<string | null>(null);
   const [photoB64,   setPhotoB64]   = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -202,6 +203,18 @@ export default function LogJobScreen({ route, navigation }: Props) {
           placeholder="e.g. P-2026-00123"
           placeholderTextColor={colors.inkLight}
           autoCapitalize="characters"
+        />
+
+        {/* Warranty (optional) */}
+        <Label>WARRANTY, MONTHS (OPTIONAL)</Label>
+        <TextInput
+          style={styles.input}
+          value={form.warrantyMonths}
+          onChangeText={(v) => update("warrantyMonths", v)}
+          placeholder="e.g. 12"
+          placeholderTextColor={colors.inkLight}
+          keyboardType="number-pad"
+          accessibilityLabel="Warranty in months"
         />
 
         {/* Photo */}

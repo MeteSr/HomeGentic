@@ -1,17 +1,18 @@
 /**
  * FsboPanel — Epic 10.1
  *
- * Embedded panel within PropertyDetailPage that lets a homeowner activate
- * FSBO mode, walk through a checklist, and see real-time savings vs. agent
- * commission.
+ * Setup wizard on My Listing for a home that isn't live yet: asking price,
+ * a look at the HomeGentic report, then Go Live. Each step is saved to the
+ * listing canister, so the seller can leave and pick up where they stopped.
  *
- *   10.1.2 — Activation checklist (price → report → go live → done)
+ *   10.1.2 — Activation checklist (price → report → go live)
  *   10.1.3 — Real-time commission savings calculator
  *   10.1.4 — FSBO readiness label + missing-items guidance
  */
 
 import React, { useState } from "react";
-import { CheckCircle2, AlertTriangle, Star } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/Button";
 import {
   fsboService,
@@ -20,11 +21,7 @@ import {
   type FsboRecord,
   type FsboStep,
 } from "@/services/fsbo";
-import { mlsService, type MlsSubmitResult } from "@/services/mlsService";
-import { listingService } from "@/services/listing";
-import { fsboOfferService } from "@/services/fsboOffer";
 import type { Property } from "@/services/property";
-import { useAuthStore } from "@/store/authStore";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
@@ -61,23 +58,34 @@ const STEP_LABELS: Record<FsboStep, string> = {
   done: "You're Live!",
 };
 
+const labelStyle: React.CSSProperties = {
+  display: "block", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight,
+  textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem",
+};
+const inputStyle: React.CSSProperties = {
+  padding: "0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.875rem",
+};
+
 export interface FsboPanelProps {
   propertyId:       string;
   score:            number;
   verifiedJobCount: number;
   hasReport:        boolean;
-  property?:        Property;
+  /** Needed to publish (address, type, size). Without it the Go Live step waits. */
+  property?:        Property | null;
+  /** The saved setup, or null before the seller starts. */
+  record:           FsboRecord | null;
+  onChange:         (record: FsboRecord) => void;
 }
 
-export default function FsboPanel({ propertyId, score, verifiedJobCount, hasReport, property }: FsboPanelProps) {
-  const [record,      setRecord]      = useState<FsboRecord | null>(() => fsboService.getRecord(propertyId));
+export default function FsboPanel({ propertyId, score, verifiedJobCount, hasReport, property, record, onChange }: FsboPanelProps) {
   const [active,      setActive]      = useState(false);
-  const [listPrice,   setListPrice]   = useState("");
-  const [mlsResult,      setMlsResult]      = useState<MlsSubmitResult | null>(null);
-  const [mlsError,       setMlsError]       = useState<string | null>(null);
-  const [mlsLoading,     setMlsLoading]     = useState(false);
-  const [agentRequested, setAgentRequested] = useState(false);
-  const profile = useAuthStore((s) => s.profile);
+  const [listPrice,   setListPrice]   = useState(() => record ? String(Math.round(record.listPriceCents / 100)) : "");
+  const [description, setDescription] = useState(() => record?.description ?? "");
+  const [bedrooms,    setBedrooms]    = useState("");
+  const [bathrooms,   setBathrooms]   = useState("");
+  const [saving,      setSaving]      = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
 
   const { readiness, missing } = computeFsboReadiness(score, verifiedJobCount, hasReport);
   const readinessLabel = READINESS_LABEL[readiness];
@@ -90,56 +98,37 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
   const listPriceCents = Math.round(parseFloat(listPrice || "0") * 100);
   const savingsCents   = listPriceCents > 0 ? computeAgentCommissionSavings(listPriceCents) : 0;
 
-  async function handleSetPrice(e: React.FormEvent) {
-    e.preventDefault();
-    const cents = Math.round(parseFloat(listPrice) * 100);
-    if (!cents || cents <= 0) return;
-    const updated = fsboService.setFsboMode(propertyId, cents);
-    setRecord(updated);
-  }
-
-  function handleAdvance() {
-    const updated = fsboService.advanceStep(propertyId);
-    setRecord(updated);
-  }
-
-  async function handleMlsSubmit() {
-    if (!record || !property) return;
-    setMlsLoading(true);
-    setMlsError(null);
+  async function run(action: () => Promise<FsboRecord>) {
+    setSaving(true);
+    setError(null);
     try {
-      const result = await mlsService.submit(propertyId, record.listPriceCents, property.address);
-      setMlsResult(result);
-    } catch (err: any) {
-      setMlsError(err.message || "MLS submission failed");
+      onChange(await action());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save. Please try again.");
     } finally {
-      setMlsLoading(false);
+      setSaving(false);
     }
   }
 
-  async function handleFindAgent() {
+  function handleSetPrice(e: React.FormEvent) {
+    e.preventDefault();
+    const cents = Math.round(parseFloat(listPrice) * 100);
+    if (!cents || cents <= 0) { setError("Enter an asking price above $0."); return; }
+    void run(() => fsboService.saveDraft(propertyId, cents, description, 2));
+  }
+
+  function handleReportReviewed() {
     if (!record) return;
-    const offers      = fsboOfferService.getByProperty(propertyId);
-    const daysOnMarket = record.activatedAt
-      ? Math.round((Date.now() - record.activatedAt) / 86_400_000)
-      : 0;
-    const price = (record.listPriceCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 });
-    const notes = `Previously listed FSBO at $${price}. Days on market: ${daysOnMarket}. Offers received: ${offers.length}.`;
-    const now = Date.now();
-    await listingService.createBidRequest({
-      propertyId,
-      address:          property?.address ?? "",
-      city:              property?.city ?? "",
-      county:            "",
-      zipCode:           property?.zipCode ?? "",
-      homeownerEmail:    profile?.email ?? "",
-      sqft:              property?.squareFeet != null ? Number(property.squareFeet) : null,
-      targetListDate:    now + 30 * 86_400_000,
-      desiredSalePrice:  record.listPriceCents,
-      notes,
-      windowDays:        "Seven",
-    });
-    setAgentRequested(true);
+    void run(() => fsboService.saveDraft(propertyId, record.listPriceCents, record.description, 3));
+  }
+
+  function handleGoLive(e: React.FormEvent) {
+    e.preventDefault();
+    if (!record || !property) return;
+    const beds  = parseInt(bedrooms, 10);
+    const baths = parseInt(bathrooms, 10);
+    if (!(beds >= 0) || !(baths >= 0)) { setError("Enter the number of bedrooms and bathrooms."); return; }
+    void run(() => fsboService.goLive(property, record, { bedrooms: beds, bathrooms: baths }));
   }
 
   return (
@@ -211,6 +200,12 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
             })}
           </div>
 
+          {error && (
+            <p role="alert" style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: "#c0392b", margin: "0 0 0.75rem" }}>
+              {error}
+            </p>
+          )}
+
           {/* Step 1 — Set list price */}
           {currentStep === 1 && (
             <div>
@@ -219,18 +214,16 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
               </h3>
               <form aria-label="FSBO Price Setup" onSubmit={handleSetPrice} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 <div>
-                  <label htmlFor="fsbo-list-price" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>
-                    List Price ($)
-                  </label>
+                  <label htmlFor="fsbo-list-price" style={labelStyle}>List Price ($)</label>
                   <input
                     id="fsbo-list-price"
                     type="number"
                     min="1"
-                    step="1000"
+                    step="any"
                     placeholder="e.g. 485000"
                     value={listPrice}
                     onChange={(e) => setListPrice(e.target.value)}
-                    style={{ width: "14rem", padding: "0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.875rem" }}
+                    style={{ ...inputStyle, width: "14rem" }}
                   />
                 </div>
 
@@ -249,7 +242,18 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
                   </div>
                 )}
 
-                <Button type="submit" style={{ alignSelf: "flex-start" }}>Save Price &amp; Continue</Button>
+                <div>
+                  <label htmlFor="fsbo-description" style={labelStyle}>Description for buyers (optional)</label>
+                  <textarea
+                    id="fsbo-description"
+                    value={description}
+                    maxLength={5000}
+                    onChange={(e) => setDescription(e.target.value)}
+                    style={{ ...inputStyle, width: "100%", height: "90px", boxSizing: "border-box", fontFamily: UI.sans }}
+                  />
+                </div>
+
+                <Button type="submit" loading={saving} style={{ alignSelf: "flex-start" }}>Save Price &amp; Continue</Button>
               </form>
             </div>
           )}
@@ -258,13 +262,15 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
           {currentStep === 2 && (
             <div>
               <h3 style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink, margin: "0 0 0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Step 2 — Review Your HomeGentic Report
+                {STEP_LABELS[2]}
               </h3>
               <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight, margin: "0 0 1rem" }}>
-                Review your HomeGentic report before sharing it with buyers.
-                {!hasReport && " No public report yet — generate one from the Reports tab."}
+                Buyers on your listing page get a link to your report when it's shared publicly.
+                {!hasReport && (
+                  <> You don't have a public report yet. <Link to={`/properties/${propertyId}`} style={{ color: UI.sage }}>Create one from your property page</Link>.</>
+                )}
               </p>
-              <Button onClick={handleAdvance}>
+              <Button onClick={handleReportReviewed} loading={saving}>
                 {hasReport ? "Report Looks Good — Continue" : "Skip for Now"}
               </Button>
             </div>
@@ -274,80 +280,26 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
           {currentStep === 3 && (
             <div>
               <h3 style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink, margin: "0 0 0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Step 3 — Go Live
+                {STEP_LABELS[3]}
               </h3>
               <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight, margin: "0 0 1rem" }}>
-                Your FSBO listing page will be visible at a shareable URL with your HomeGentic badge.
+                Your listing will appear in HomeGentic's For Sale search and on its own page at
+                {" "}<code>/for-sale/{propertyId}</code>, with your asking price, address, home details,
+                verified job count and HomeGentic score.
               </p>
-              <Button onClick={handleAdvance}>
-                Publish FSBO Listing
-              </Button>
-            </div>
-          )}
-
-          {/* Done */}
-          {currentStep === "done" && (
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                <Star size={20} color={UI.sage} />
+              <form aria-label="Go Live" onSubmit={handleGoLive} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "flex-end" }}>
                 <div>
-                  <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", color: UI.ink }}>
-                    Your FSBO listing is live!
-                  </div>
-                  <div style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight }}>
-                    Share your HomeGentic listing link with potential buyers.
-                  </div>
+                  <label htmlFor="fsbo-bedrooms" style={labelStyle}>Bedrooms</label>
+                  <input id="fsbo-bedrooms" type="number" min="0" max="50" value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} style={{ ...inputStyle, width: "6rem" }} />
                 </div>
-              </div>
-
-              {/* 10.3.6 — Flat-fee MLS submission */}
-              {property && !mlsResult && (
-                <div style={{ marginTop: "0.75rem" }}>
-                  {mlsLoading ? (
-                    <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.inkLight }}>Submitting…</p>
-                  ) : (
-                    <Button onClick={handleMlsSubmit} aria-label="Submit to MLS">
-                      Submit to MLS
-                    </Button>
-                  )}
-                  {mlsError && (
-                    <p style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: "#c0392b", marginTop: "0.5rem" }}>
-                      {mlsError}
-                    </p>
-                  )}
+                <div>
+                  <label htmlFor="fsbo-bathrooms" style={labelStyle}>Bathrooms</label>
+                  <input id="fsbo-bathrooms" type="number" min="0" max="50" value={bathrooms} onChange={(e) => setBathrooms(e.target.value)} style={{ ...inputStyle, width: "6rem" }} />
                 </div>
-              )}
-
-              {mlsResult && (
-                <div style={{ marginTop: "0.75rem" }}>
-                  <a
-                    href={mlsResult.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.875rem", color: UI.sage, textDecoration: "underline" }}
-                  >
-                    View MLS Listing
-                  </a>
-                </div>
-              )}
-
-              {/* 10.7.1 — Agent handoff */}
-              <div style={{ marginTop: "1.25rem", borderTop: `1px solid ${UI.rule}`, paddingTop: "1rem" }}>
-                {agentRequested ? (
-                  <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.sage }}>
-                    ✓ Agent request sent — agents will now compete for your listing.
-                  </p>
-                ) : (
-                  <>
-                    <p style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight, marginBottom: "0.5rem" }}>
-                      Changed your mind? Let agents compete for your listing.
-                    </p>
-                    <Button onClick={handleFindAgent}>
-                      Find me an agent
-                    </Button>
-                  </>
-                )}
-              </div>
+                <Button type="submit" loading={saving} disabled={!property}>
+                  Publish FSBO Listing
+                </Button>
+              </form>
             </div>
           )}
         </div>

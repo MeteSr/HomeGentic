@@ -481,6 +481,71 @@ persistent actor Job {
     #ok(job)
   };
 
+  /// Correct an unsigned record. Only while nobody has signed it (the DIY
+  /// contractor slot is pre-signed and doesn't count), it isn't verified and
+  /// no contractor is linked to it: once someone has signed, the record is
+  /// what they signed and stays as it is. Same validation and access rule as
+  /// createJob; id, property, homeowner, quote link and status are unchanged.
+  public shared(msg) func updateJob(
+    jobId: Text,
+    title: Text,
+    serviceType: ServiceType,
+    description: Text,
+    contractorName: ?Text,
+    amount: Nat,
+    completedDate: Time.Time,
+    permitNumber: ?Text,
+    warrantyMonths: ?Nat,
+    isDiy: Bool
+  ) : async Result.Result<Job, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+
+    if (Text.size(title)        == 0) return #err(#InvalidInput("title cannot be empty"));
+    if (Text.size(title)        > 200)  return #err(#InvalidInput("title exceeds 200 characters"));
+    if (Text.size(description)  == 0) return #err(#InvalidInput("description cannot be empty"));
+    if (Text.size(description)  > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
+    if (amount == 0 and not isDiy)        return #err(#InvalidInput("amount must be greater than 0 for contractor jobs"));
+    if (amount > MAX_JOB_AMOUNT_CENTS)    return #err(#InvalidInput("amount exceeds maximum of 100,000,000 cents ($1,000,000)"));
+    if (completedDate > Time.now())       return #err(#InvalidInput("completedDate cannot be in the future"));
+    if (not isDiy) {
+      switch (contractorName) {
+        case null    { return #err(#InvalidInput("contractorName is required for non-DIY jobs")) };
+        case (?name) { if (Text.size(name) == 0) return #err(#InvalidInput("contractorName cannot be empty")) };
+      };
+    };
+    if (optTooLong(contractorName, 200))           return #err(#InvalidInput("contractorName exceeds 200 characters"));
+    if (optTooLong(permitNumber, MAX_PERMIT_CHARS)) return #err(#InvalidInput("permitNumber exceeds 100 characters"));
+
+    let before = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
+    if (not isAdmin(msg.caller)) {
+      let ok = await checkPropertyAuth(before.propertyId, before.homeowner, msg.caller, true);
+      if (not ok) return #err(#NotAuthorized);
+    };
+
+    // State checks after the await (TOCTOU): the record may have been signed meanwhile.
+    let j = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
+    if (j.verified) return #err(#AlreadyVerified);
+    if (j.homeownerSigned or (j.contractorSigned and not j.isDiy) or j.contractor != null)
+      return #err(#InvalidInput("This record has been signed and can't be edited"));
+
+    let updated : Job = {
+      j with
+      title;
+      serviceType;
+      description;
+      contractorName   = if (isDiy) null else contractorName;
+      amount;
+      completedDate;
+      permitNumber;
+      warrantyMonths;
+      isDiy;
+      // DIY jobs pre-sign the contractor slot (as in createJob)
+      contractorSigned = isDiy;
+    };
+    putJob(updated);
+    #ok(updated)
+  };
+
   /// Fetch a single job by ID.
   /// D-1/H-5: only the job's homeowner, its linked contractor, admins and
   /// trusted canisters get the record; everyone else gets #NotFound (so the

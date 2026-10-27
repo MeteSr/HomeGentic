@@ -281,6 +281,8 @@ persistent actor Fee {
     switch (fees.get(feeId)) {
       case null { #err(#NotFound) };
       case (?f) {
+        // A paid or waived fee is settled; invoicing it again would reopen it.
+        if (f.status == #Paid or f.status == #Waived) return #err(#InvalidInput("Fee is already settled"));
         let updated = { f with status = #Invoiced; updatedAt = Time.now() };
         Index.put(fees, feesIndexes, feeId, updated);
         #ok(updated)

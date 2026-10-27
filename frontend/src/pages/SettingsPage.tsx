@@ -758,6 +758,7 @@ function NotificationsTab() {
       { key: "quote_received", label: "Email: Quote Received", desc: "When a contractor submits a quote" },
       { key: "job_updates",    label: "Email: Job Updates",    desc: "When a job needs your signature or a sensor opens one" },
       { key: "weekly_pulse",   label: "Email: Weekly Home Pulse", desc: "Mondays: jobs to sign, warranties ending, aging systems and the season's jobs" },
+      { key: "showing_requests", label: "Email: Showing Requests", desc: "When a buyer asks to see a home you're selling yourself" },
     ]),
   ];
   const hasSms = !!relay.state?.channels.sms;

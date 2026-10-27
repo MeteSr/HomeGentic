@@ -381,6 +381,10 @@ export default function QuoteDetailPage() {
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", padding: "0.625rem", color: "#C94C2E", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.6 }}>
                         <XCircle size={13} /> Request cancelled
                       </div>
+                    ) : quoteService.isQuoteExpired(quote) ? (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", padding: "0.625rem", color: UI.inkLight, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                        Expired {new Date(quote.validUntil).toLocaleDateString()}
+                      </div>
                     ) : (
                       <Button
                         loading={accepting === quote.id}

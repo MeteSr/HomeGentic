@@ -34,7 +34,8 @@ vi.mock("@/services/photo", async (importOriginal) => {
   };
 });
 
-const { mockGetOrder, mockAddPhoto, mockRemovePhoto, mockReorder } = vi.hoisted(() => ({
+const { mockGetOrder, mockAddPhoto, mockRemovePhoto, mockReorder, mockGetPanoramas } = vi.hoisted(() => ({
+  mockGetPanoramas: vi.fn(),
   mockGetOrder: vi.fn(),
   mockAddPhoto: vi.fn(),
   mockRemovePhoto: vi.fn(),
@@ -49,6 +50,7 @@ vi.mock("@/services/listing", async (importOriginal) => {
       addListingPhoto: mockAddPhoto,
       removeListingPhoto: mockRemovePhoto,
       reorderListingPhotos: mockReorder,
+      getPanoramas: mockGetPanoramas,
     },
   };
 });
@@ -65,6 +67,7 @@ function makePhoto(overrides: Partial<Photo> = {}): Photo {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockGetPanoramas.mockResolvedValue([]);
   mockGetPhotos.mockResolvedValue([]);
   mockGetOrder.mockResolvedValue([]);
 });
@@ -96,6 +99,19 @@ describe("ListingPhotoManager — ordering", () => {
     expect(imgs[0]).toHaveAttribute("src", "blob:p-b");
     expect(imgs[1]).toHaveAttribute("src", "blob:p-a");
     expect(screen.getByText("Cover")).toBeInTheDocument();
+  });
+
+  it("leaves 360° tour photos out of the gallery", async () => {
+    mockGetPhotos.mockResolvedValue([makePhoto({ id: "p-a" }), makePhoto({ id: "pano-1" })]);
+    mockGetOrder.mockResolvedValue(["p-a"]);
+    mockGetPanoramas.mockResolvedValue([{ roomLabel: "Den", photoId: "pano-1" }]);
+
+    render(<ListingPhotoManager propertyId="prop-1" isOwner={false} />);
+
+    const grid = await screen.findByTestId("listing-photo-grid");
+    const imgs = grid.querySelectorAll("img");
+    expect(imgs).toHaveLength(1);
+    expect(imgs[0]).toHaveAttribute("src", "blob:p-a");
   });
 });
 

@@ -44,6 +44,7 @@ ALL_CANISTERS=(
   monitoring
   recurring
   bills
+  ai_proxy
 )
 
 # Run one at a time, before the parallel batch (see header).

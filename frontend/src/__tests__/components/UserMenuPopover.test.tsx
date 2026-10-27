@@ -58,11 +58,9 @@ describe("UserMenuPopover — navigation items", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/settings?tab=subscription");
   });
 
-  it("closes and navigates to /refer", () => {
-    const { onClose } = renderPopover();
-    fireEvent.click(screen.getByText("Invite a neighbor"));
-    expect(onClose).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith("/refer");
+  it("offers no neighbour referral (removed with referral credits)", () => {
+    renderPopover();
+    expect(screen.queryByText("Invite a neighbor")).not.toBeInTheDocument();
   });
 });
 

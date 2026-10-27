@@ -133,7 +133,7 @@ Each arrow is a canister-to-canister call (`caller --> callee`). Wiring is set
 after deploy with each canister's `set<Name>CanisterId` admin method; an
 unwired call is skipped. Some callees also accept certain update calls only
 from their wired caller: `agent` and `fee` from `listing`, `contractor`
-from `job`, `referrals` from `payment`.
+from `job`.
 
 ```mermaid
 flowchart TB
@@ -149,7 +149,6 @@ flowchart TB
   bills --> property & payment
   maintenance --> property
   property --> payment
-  payment -- "credit" --> referrals
 
   classDef hub fill:#EEF0FF,stroke:#2B34FF,color:#000
   class property,payment,job hub
@@ -248,8 +247,8 @@ are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed.
 │                  │ Paid / Waived. Identities are released only after the   │
 │                  │ fee settles (charge, then release).                     │
 ├──────────────────┼─────────────────────────────────────────────────────────┤
-│ referrals        │ Referral codes (HG-000001) and $10 credits for both     │
-│                  │ sides after the referee's first paid month              │
+│ referrals        │ Retired 2026-10-26 (referral credits removed from the   │
+│                  │ app); still deployed, nothing calls it                  │
 ├──────────────────┼─────────────────────────────────────────────────────────┤
 │ audit            │ Append-only log of privileged (admin) actions; written  │
 │                  │ fire-and-forget by the other canisters, admin-read only │

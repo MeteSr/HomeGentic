@@ -28,6 +28,7 @@ import {
   documentTypeLabel,
   type DocumentExtraction,
 } from "../services/documentService";
+import { SERVICE_TYPES } from "../services/jobFormService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ScanDocument">;
@@ -52,7 +53,6 @@ export default function ScanDocumentScreen({ route, navigation }: Props) {
     brand: "", modelNumber: "", serialNumber: "",
     serviceType: "", purchaseDate: "", warrantyMonths: "",
   });
-  const [saved, setSaved] = useState(false);
 
   // ── Image capture ────────────────────────────────────────────────────────────
 
@@ -102,35 +102,18 @@ export default function ScanDocumentScreen({ route, navigation }: Props) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function handleSave() {
-    // In production: call warrantyService.save(form) or create a job.
-    // For now: show success state — data ready to attach to a job.
-    setSaved(true);
-    setStep("pick");
+  /** Nothing is stored from the scan itself: the confirmed fields open Log a Job, and saving that creates the record (its warranty then shows in the wallet). */
+  function handleLogJob() {
+    navigation.navigate("LogJob", {
+      propertyId,
+      propertyAddress,
+      prefill: scanToJobPrefill(form, extraction?.description ?? ""),
+    });
   }
 
   const isLowConfidence = extraction?.confidence === "low";
 
   // ── Render ───────────────────────────────────────────────────────────────────
-
-  if (saved) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.successIcon}>✓</Text>
-        <Text style={styles.successTitle}>Document Saved</Text>
-        <Text style={styles.successSub}>Log a job to attach the warranty to your property record.</Text>
-        <TouchableOpacity
-          style={styles.primaryBtn}
-          onPress={() => navigation.navigate("LogJob", { propertyId, propertyAddress })}
-        >
-          <Text style={styles.primaryBtnText}>Log a Job</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setSaved(false)}>
-          <Text style={styles.linkBtn}>Scan Another</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
 
   if (step === "extracting") {
     return (
@@ -178,8 +161,11 @@ export default function ScanDocumentScreen({ route, navigation }: Props) {
           </View>
         ))}
 
-        <TouchableOpacity style={styles.primaryBtn} onPress={handleSave}>
-          <Text style={styles.primaryBtnText}>Save to Wallet</Text>
+        <Text style={styles.description}>
+          Next, check the details on Log a Job and save it. The warranty then shows on your property record.
+        </Text>
+        <TouchableOpacity style={styles.primaryBtn} onPress={handleLogJob}>
+          <Text style={styles.primaryBtnText}>Continue to Log a Job</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setStep("pick")}>
           <Text style={styles.linkBtn}>← Scan a different document</Text>
@@ -347,3 +333,19 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
+
+/** The scan's confirmed fields as a Log a Job prefill. Exported for tests. */
+export function scanToJobPrefill(form: ConfirmForm, summary: string) {
+  const serviceType = (SERVICE_TYPES as readonly string[]).find(
+    (t) => t.toLowerCase() === form.serviceType.trim().toLowerCase(),
+  ) ?? "";
+  const item = [form.brand.trim(), form.modelNumber.trim()].filter(Boolean).join(" ");
+  const serial = form.serialNumber.trim() ? `Serial ${form.serialNumber.trim()}.` : "";
+  const description = [item ? `${item}.` : "", serial, summary.trim()].filter(Boolean).join(" ").slice(0, 500);
+  return {
+    serviceType,
+    description,
+    completedDate:  /^\d{4}-\d{2}-\d{2}$/.test(form.purchaseDate.trim()) ? form.purchaseDate.trim() : "",
+    warrantyMonths: /^\d{1,3}$/.test(form.warrantyMonths.trim()) ? form.warrantyMonths.trim() : "",
+  };
+}

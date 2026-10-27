@@ -32,7 +32,7 @@ const {
   mockUsePropertyRooms: vi.fn(),
   mockUsePropertyMaintenance: vi.fn(),
   mockUsePropertyScore: vi.fn(),
-  mockGetRecord: vi.fn(() => null),
+  mockGetRecord: vi.fn(async () => null),
 }));
 
 vi.mock("@/hooks/useBreakpoint", () => ({ useBreakpoint: mockUseBreakpoint }));
@@ -91,7 +91,7 @@ beforeEach(() => {
   mockUsePropertyRooms.mockReturnValue({ rooms: [], setRooms: vi.fn() });
   mockUsePropertyMaintenance.mockReturnValue({ recurringServices: [], visitLogMap: {}, systemAges: {} });
   mockUsePropertyScore.mockReturnValue({ scoreHistory: [] });
-  mockGetRecord.mockReturnValue(null);
+  mockGetRecord.mockResolvedValue(null);
 });
 
 describe("PropertyDetailPage — loading / not-found / mobile", () => {

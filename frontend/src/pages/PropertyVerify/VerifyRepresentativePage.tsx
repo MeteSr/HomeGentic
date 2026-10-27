@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useVerifyContext } from "./VerifyLayout";
 import { DocumentUploadZone } from "./components/DocumentUploadZone";
+import { propertyService } from "@/services/property";
 import toast from "react-hot-toast";
 
 type Relationship = "llc_officer" | "trustee" | "poa" | "executor";
@@ -18,24 +19,30 @@ const RELATIONSHIPS: Array<{ value: Relationship; label: string; desc: string }>
 export default function VerifyRepresentativePage() {
   const navigate                   = useNavigate();
   const { id }                     = useParams<{ id: string }>();
-  const { claim }                  = useVerifyContext();
+  const { claim, refresh }         = useVerifyContext();
   const [relationship, setRelation] = useState<Relationship | "">("");
   const [authFile,  setAuthFile]   = useState<File | null>(null);
+  const [authHash,  setAuthHash]   = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const handleAuthFile = (f: File) => setAuthFile(f);
+  const handleAuthFile = (f: File, h: string) => { setAuthFile(f); setAuthHash(h); };
 
   const handleSubmit = async () => {
-    if (!relationship || !authFile) {
+    if (!relationship || !authFile || !authHash || !id) {
       toast.error("Select your relationship and upload an authorization document.");
       return;
     }
     setSubmitting(true);
-    // Stub: in production, POST to backend
+    // Same submission as the document step: the file's SHA-256 and the
+    // relationship go to the property canister, which puts the claim in
+    // PendingReview for the admin queue (the method names the relationship).
     try {
-      await new Promise((r) => setTimeout(r, 800));
-      toast.success("Sent for manual review. We'll notify you within 1–2 days.");
+      await propertyService.submitVerification(id, `Representative:${relationship}`, authHash, claim.nameOnDocument ?? undefined);
+      await refresh();
+      toast.success("Sent for manual review. The result will show on your property's verification page.");
       navigate(`/properties/${id}/verify/status`);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Submission failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -115,7 +122,7 @@ export default function VerifyRepresentativePage() {
                   <button onClick={() => setAuthFile(null)} style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, fontSize: 18 }}>×</button>
                 </div>
               ) : (
-                <DocumentUploadZone onFile={(f) => handleAuthFile(f)} />
+                <DocumentUploadZone onFile={handleAuthFile} />
               )}
             </div>
 

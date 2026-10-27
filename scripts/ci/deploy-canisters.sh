@@ -82,7 +82,6 @@ if has_method contractor setPaymentCanisterId; then
 fi
 dfx canister call bills       setPaymentCanisterId    "(\"$PAYMENT_ID\")"
 dfx canister call referrals   setPaymentCanisterId    "(\"$PAYMENT_ID\")"
-dfx canister call payment     setReferralsCanisterId  "(\"$REFERRALS_ID\")"
 dfx canister call job         setContractorCanisterId "(\"$CONTRACTOR_ID\")"
 dfx canister call job         setPropertyCanisterId   "(\"$PROPERTY_ID\")"
 dfx canister call photo       setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"

@@ -274,7 +274,7 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | `consumeAgentCredit` | update | `(user: Principal)` | Admin: atomically decrement 1 agent credit for a user. |
 | `configureStripe` | update | `(config: StripeConfig)` | Admin: set Stripe secret key and price IDs |
 
-**Admin / Lifecycle:** `transform(args: OutCall.TransformationInput)` · `setUpdateRateLimit(n: Nat)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `addTrustedCanister(p: Principal)` · `removeTrustedCanister(p: Principal)` · `getTrustedCanisters()` · `setBootstrapNonce(nonce: Text)` · `initAdmins(newAdmins: [Principal], nonce: Text)` · `addAdmin(newAdmin: Principal)` · `removeAdmin(target: Principal)` · `isAdminPrincipal(p: Principal)` · `setAuditCanisterId(id: Principal)` · `setReferralsCanisterId(id: Text)` · `getMetrics()`
+**Admin / Lifecycle:** `transform(args: OutCall.TransformationInput)` · `setUpdateRateLimit(n: Nat)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `addTrustedCanister(p: Principal)` · `removeTrustedCanister(p: Principal)` · `getTrustedCanisters()` · `setBootstrapNonce(nonce: Text)` · `initAdmins(newAdmins: [Principal], nonce: Text)` · `addAdmin(newAdmin: Principal)` · `removeAdmin(target: Principal)` · `isAdminPrincipal(p: Principal)` · `setAuditCanisterId(id: Principal)` · `getMetrics()`
 
 ---
 
@@ -579,7 +579,7 @@ Bid to List platform-fee ledger. A fee is recorded Owed when a homeowner accepts
 
 ## Referrals Canister
 
-Shareable referral codes (`HG-000001`) and $10 credits for both sides once the referee completes a first paid month.
+Shareable referral codes (`HG-000001`) and $10 credits. **Not used by the app:** neighbour referral credits were removed on 2026-10-26, nothing calls this canister and payment no longer reports conversions to it.
 
 | Method | Type | Signature | Description |
 |---|---|---|---|

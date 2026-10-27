@@ -19,7 +19,7 @@ import PropertyVerifyModal           from "@/components/PropertyVerifyModal";
 import SystemAgesModal               from "@/components/SystemAgesModal";
 import RecurringServiceCreateModal   from "@/components/RecurringServiceCreateModal";
 import InitListingModal              from "@/components/InitListingModal";
-import { fsboService }               from "@/services/fsbo";
+import { fsboService, type FsboRecord } from "@/services/fsbo";
 import { type Job, jobService }      from "@/services/job";
 import { computeScoreWithDecay, getScoreGrade, scoreDelta } from "@/services/scoreService";
 import { getAllDecayEvents, getAtRiskWarnings, getTotalDecay } from "@/services/scoreDecayService";
@@ -197,8 +197,13 @@ export default function PropertyDetailPage() {
   const loading = propLoading || jobsLoading;
   const { scoreHistory } = usePropertyScore(id, property, jobs, loading);
 
-  const [fsboRecord, setFsboRecord] = useState(() => id ? fsboService.getRecord(id) : null);
-  useEffect(() => { if (id) setFsboRecord(fsboService.getRecord(id)); }, [id]);
+  const [fsboRecord, setFsboRecord] = useState<FsboRecord | null>(null);
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    fsboService.getRecord(id).then((rec) => { if (!cancelled) setFsboRecord(rec); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [id]);
 
   const initialTab = (searchParams.get("tab") as Tab | null) ?? "timeline";
   const [tab,    setTab]    = useState<Tab>(initialTab);
@@ -450,12 +455,20 @@ export default function PropertyDetailPage() {
                   </>
                 )}
               </div>
-              {!fsboRecord?.isFsbo && (
+              {!fsboRecord && (
                 <button
                   onClick={() => setModals(m => ({ ...m, listing: true }))}
                   style={{ fontFamily: BODY, fontSize: "0.875rem", fontWeight: 500, color: "var(--hg-blue-ink)", background: "var(--hg-fill)", border: "1px solid var(--hg-blue-edge)", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
                 >
                   List Your Home
+                </button>
+              )}
+              {fsboRecord && (
+                <button
+                  onClick={() => navigate(`/my-listing/${id}`)}
+                  style={{ fontFamily: BODY, fontSize: "0.875rem", fontWeight: 500, color: "var(--hg-blue-ink)", background: "var(--hg-fill)", border: "1px solid var(--hg-blue-edge)", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+                >
+                  {fsboRecord.isFsbo ? "Manage Listing" : "Finish Listing Setup"}
                 </button>
               )}
             </>

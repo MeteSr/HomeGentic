@@ -34,6 +34,16 @@ function makeRawJob(overrides: any = {}): any {
 }
 
 const mockJobActor = {
+  updateJob: vi.fn(async (jobId: string, _title: string, serviceType: any, description: string,
+    contractorName: any[], amount: bigint, completedDate: bigint,
+    permitNumber: any[], warrantyMonths: any[], isDiy: boolean) => {
+    const i = _mockJobs.findIndex((j) => j.id === jobId);
+    if (i < 0) return { err: { NotFound: null } };
+    if (_mockJobs[i].homeownerSigned) return { err: { InvalidInput: "This record has been signed and can't be edited" } };
+    _mockJobs[i] = { ..._mockJobs[i], serviceType, description, contractorName, amount, completedDate, permitNumber, warrantyMonths, isDiy, contractorSigned: isDiy };
+    return { ok: _mockJobs[i] };
+  }),
+
   createJob: vi.fn(async (propertyId: string, _title: string, serviceType: any, description: string,
     contractorName: any[], amount: bigint, completedDate: bigint,
     permitNumber: any[], warrantyMonths: any[], isDiy: boolean, sourceQuoteId: any[]) => {
@@ -209,7 +219,7 @@ vi.mock("@icp-sdk/core/principal", () => ({
   Principal: { fromText: vi.fn((t: string) => ({ toText: () => t })) },
 }));
 
-import { jobService, isInsuranceRelevant, INSURANCE_SERVICE_TYPES } from "@/services/job";
+import { jobService, isInsuranceRelevant, isEditableRecord, INSURANCE_SERVICE_TYPES } from "@/services/job";
 import { jobToInput } from "@/services/report";
 import { computeScore } from "@/services/scoreService";
 import type { Job } from "@/services/job";
@@ -446,9 +456,48 @@ describe("jobService.getByProperty", () => {
 });
 
 describe("jobService.updateJob", () => {
-  it("throws because on-chain job editing is not yet supported", async () => {
-    await expect(jobService.updateJob("any-id", { description: "x" }))
-      .rejects.toThrow();
+  it("sends every field to the canister and returns the corrected record", async () => {
+    const created = await jobService.create({ propertyId: "edit-prop", serviceType: "HVAC", amount: 10_000, date: "2024-01-01", description: "old", isDiy: false, contractorName: "Cool Air" });
+    const updated = await jobService.updateJob(created.id, {
+      serviceType: "Plumbing", amount: 25_000, date: "2024-02-01", description: "new", isDiy: false,
+      contractorName: "Pipe Co", permitNumber: "P-1", warrantyMonths: 12,
+    });
+    expect(updated.serviceType).toBe("Plumbing");
+    expect(updated.amount).toBe(25_000);
+    expect(updated.description).toBe("new");
+    expect(updated.contractorName).toBe("Pipe Co");
+    const args = mockJobActor.updateJob.mock.calls[mockJobActor.updateJob.mock.calls.length - 1];
+    expect(args[0]).toBe(created.id);
+    expect(args[4]).toEqual(["Pipe Co"]);
+    expect(args[7]).toEqual(["P-1"]);
+    expect(args[8]).toEqual([12n]);
+  });
+
+  it("drops the contractor name for a DIY record", async () => {
+    const created = await jobService.create({ propertyId: "edit-prop", serviceType: "HVAC", amount: 10_000, date: "2024-01-01", description: "d", isDiy: false, contractorName: "Cool Air" });
+    await jobService.updateJob(created.id, { serviceType: "HVAC", amount: 0, date: "2024-01-01", description: "d", isDiy: true, contractorName: "Cool Air" });
+    expect(mockJobActor.updateJob.mock.calls[mockJobActor.updateJob.mock.calls.length - 1][4]).toEqual([]);
+  });
+
+  it("surfaces the canister's refusal for a signed record", async () => {
+    const created = await jobService.create({ propertyId: "edit-prop", serviceType: "HVAC", amount: 10_000, date: "2024-01-01", description: "d", isDiy: false, contractorName: "A" });
+    _mockJobs.find((j) => j.id === created.id).homeownerSigned = true;
+    await expect(jobService.updateJob(created.id, { serviceType: "HVAC", amount: 1, date: "2024-01-01", description: "d", isDiy: false, contractorName: "A" }))
+      .rejects.toThrow(/signed/);
+  });
+});
+
+describe("isEditableRecord", () => {
+  const base = { verified: false, homeownerSigned: false, contractorSigned: false, isDiy: false, contractor: undefined };
+  it("allows an unsigned record, including a DIY one with its pre-signed contractor slot", () => {
+    expect(isEditableRecord(base)).toBe(true);
+    expect(isEditableRecord({ ...base, isDiy: true, contractorSigned: true })).toBe(true);
+  });
+  it("refuses once anyone signed, a contractor is linked or it is verified", () => {
+    expect(isEditableRecord({ ...base, homeownerSigned: true })).toBe(false);
+    expect(isEditableRecord({ ...base, contractorSigned: true })).toBe(false);
+    expect(isEditableRecord({ ...base, contractor: "abc" })).toBe(false);
+    expect(isEditableRecord({ ...base, verified: true })).toBe(false);
   });
 });
 

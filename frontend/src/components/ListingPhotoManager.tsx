@@ -65,13 +65,17 @@ export default function ListingPhotoManager({
 
   const load = useCallback(async () => {
     try {
-      const [rawPhotos, rawOrder] = await Promise.all([
+      const [rawPhotos, rawOrder, panoramas] = await Promise.all([
         photoService.getListingPhotos(propertyId),
         listingService.getListingPhotos(propertyId),
+        listingService.getPanoramas(propertyId).catch(() => []),
       ]);
-      setPhotos(rawPhotos);
+      // 360° tour photos are listing photos too; they show in the tour, not here.
+      const tourIds = new Set(panoramas.map((p) => p.photoId));
+      const gallery = rawPhotos.filter((p) => !tourIds.has(p.id));
+      setPhotos(gallery);
       setOrder(rawOrder);
-      onPhotoCountChange?.(rawPhotos.length);
+      onPhotoCountChange?.(gallery.length);
     } catch {
       // non-fatal — show empty state
     }

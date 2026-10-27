@@ -133,7 +133,7 @@ jobs:
       - name: Build canister Wasm (this branch and base)
         run: |
           bash scripts/ci/build-upgrade-wasms.sh "${{ steps.base.outputs.sha }}" \
-            auth contractor job monitoring payment property quote sensor photo audit
+            auth contractor job monitoring payment property quote sensor photo audit listing fee report
 
       - name: Install test dependencies (downloads the PocketIC server)
         run: cd tests/upgrade && npm ci
@@ -427,11 +427,22 @@ jobs:
         env:
           STRIPE_SECRET_KEY:                 ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET:             ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-          STRIPE_PRICE_PRO_MONTHLY:          ${{ secrets.STRIPE_PRICE_PRO_MONTHLY }}
           STRIPE_PRICE_PRO_YEARLY:           ${{ secrets.STRIPE_PRICE_PRO_YEARLY }}
           STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY: ${{ secrets.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY }}
           STRIPE_PRICE_CONTRACTOR_PRO_YEARLY:  ${{ secrets.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY }}
         run: cd agents/voice && npm test -- stripe.integration stripe.elements.integration
+
+      - name: Flag skipped Stripe tests on main
+        # The tests skip without test-mode secrets; on main that should be
+        # visible rather than a quiet green.
+        if: github.ref == 'refs/heads/main'
+        env:
+          STRIPE_SECRET_KEY:       ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PRICE_PRO_YEARLY: ${{ secrets.STRIPE_PRICE_PRO_YEARLY }}
+        run: |
+          if [[ "$STRIPE_SECRET_KEY" != sk_test_* || -z "$STRIPE_PRICE_PRO_YEARLY" ]]; then
+            echo "::warning title=Stripe integration tests skipped::Add the STRIPE_SECRET_KEY (sk_test_) and STRIPE_PRICE_PRO_YEARLY repository secrets so checkout, gifts and cancellation are tested against Stripe's test mode."
+          fi
 
   test-e2e:
     runs-on: ubuntu-latest

@@ -13,6 +13,7 @@ function routeToPath(route) {
   if (typeof route !== "string") return "/dashboard";
   if (route === "jobs" || route.startsWith("jobs/")) return "/jobs";
   if (route === "leads" || route.startsWith("leads/")) return "/contractor-dashboard";
+  if (route.startsWith("my-listing/")) return "/my-listing/" + encodeURIComponent(route.slice("my-listing/".length));
   return "/dashboard";
 }
 

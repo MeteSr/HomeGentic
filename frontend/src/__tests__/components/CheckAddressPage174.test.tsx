@@ -164,8 +164,20 @@ describe("CheckAddressPage — no report found", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /notify me/i }));
     await waitFor(() =>
-      expect(screen.getByText(/we.ll notify you/i)).toBeInTheDocument()
+      expect(screen.getByText(/we.ll email you once/i)).toBeInTheDocument()
     );
+  });
+
+  it("§17.4.2 — says so when the request could not be saved", async () => {
+    (submitReportRequest as any).mockResolvedValueOnce(false);
+    renderPage("?address=99+Unknown+Rd");
+    await waitFor(() => screen.getByRole("textbox", { name: /email/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /email/i }), {
+      target: { value: "buyer@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /notify me/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/couldn.t save/i));
+    expect(screen.queryByText(/we.ll email you once/i)).not.toBeInTheDocument();
   });
 });
 

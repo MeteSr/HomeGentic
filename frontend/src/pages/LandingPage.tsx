@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { neighborReferralService } from "@/services/neighborReferral";
+import { useNavigate } from "react-router-dom";
 import { PageHead } from "@/components/PageHead";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -487,12 +486,6 @@ function PillBtn({
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-
-  useEffect(() => {
-    const ref = searchParams.get("ref");
-    if (ref) neighborReferralService.capturePendingRefCode(ref);
-  }, [searchParams]);
 
   const scrollTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });

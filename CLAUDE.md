@@ -132,7 +132,7 @@ All 20 canisters use `persistent actor` (Motoko mo:core) — all variables are i
 | **bills** | Utility bill storage per property; 3-month rolling anomaly detection (>20% spike flagged); feeds Activity feed bell drawer |
 | **ai_proxy** | IC HTTP outcalls: permit imports (ArcGIS / OpenPermit), property-record lookups, and transactional email (Resend) |
 | **fee** | Bid to List platform-fee ledger (Owed → Invoiced → Paid / Waived); identities are released only after the fee settles |
-| **referrals** | Referral codes (`HG-000001`) and $10 credits for both sides after the referee's first paid month |
+| **referrals** | Retired 2026-10-26: neighbour referral credits were removed from the app and payment no longer calls it; still deployed with its data |
 | **audit** | Append-only log of privileged (admin) actions, written fire-and-forget by the other canisters |
 
 ### Tier System (enforced server-side in multiple canisters)

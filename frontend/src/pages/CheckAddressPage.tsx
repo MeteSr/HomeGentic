@@ -149,14 +149,16 @@ function NotFoundResult({ address }: { address: string }) {
   const [email, setEmail]           = useState("");
   const [submitted, setSubmitted]   = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [failed, setFailed]         = useState(false);
 
   const registerHref = `/dashboard`;
 
   const handleRequest = async () => {
     if (!email.trim() || !isValidEmail(email)) return;
     setSubmitting(true);
-    await submitReportRequest(address, email.trim());
-    setSubmitted(true);
+    setFailed(false);
+    const ok = await submitReportRequest(address, email.trim());
+    if (ok) setSubmitted(true); else setFailed(true);
     setSubmitting(false);
   };
 
@@ -173,7 +175,7 @@ function NotFoundResult({ address }: { address: string }) {
           No report on file
         </h1>
         <p style={{ fontFamily: F.body, fontSize: "0.9375rem", color: C.muted, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
-          This property doesn't have a HomeGentic report yet. You can request one from the seller or be notified when one is created.
+          This property doesn't have a public HomeGentic report. You can ask the seller to share one, or get an email if one is shared later.
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -183,7 +185,7 @@ function NotFoundResult({ address }: { address: string }) {
               Are you the homeowner?
             </p>
             <p style={{ fontFamily: F.body, fontSize: "0.875rem", color: C.muted, marginBottom: "1.25rem", lineHeight: 1.7, fontWeight: 300 }}>
-              Start a free HomeGentic report in 2 minutes. Buyers are already searching for this address.
+              Start a free HomeGentic report in 2 minutes. Once you share it publicly, buyers who look up this address will find it here.
             </p>
             <Link
               to={registerHref}
@@ -206,7 +208,7 @@ function NotFoundResult({ address }: { address: string }) {
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <CheckCircle size={20} color={C.blue} />
                 <p style={{ fontFamily: F.body, fontSize: "0.9rem", color: C.ink, fontWeight: 500 }}>
-                  We'll notify you when a report is created for this address.
+                  We'll email you once if a public report is shared for this address in the next 180 days.
                 </p>
               </div>
             ) : (
@@ -255,6 +257,11 @@ function NotFoundResult({ address }: { address: string }) {
                     Notify Me
                   </button>
                 </div>
+                {failed && (
+                  <p role="alert" style={{ color: C.coral, fontSize: "0.75rem", marginTop: "0.5rem", fontFamily: F.body }}>
+                    We couldn't save that just now. Please try again later.
+                  </p>
+                )}
               </>
             )}
           </div>

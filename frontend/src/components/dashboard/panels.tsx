@@ -630,41 +630,6 @@ export function RecentActivityPanel({
   );
 }
 
-// ─── Invite a Neighbor panel ───────────────────────────────────────────────────
-
-export function InviteNeighborPanel({ onInvite }: { onInvite: () => void }) {
-  return (
-    <Card style={{ padding: "1.25rem" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: "0.875rem" }}>
-        <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px", width: 40, height: 40 }}>
-          <div style={{ background: "#F59E0B", borderRadius: "3px" }} />
-          <div style={{ background: "#3B82F6", borderRadius: "3px" }} />
-          <div style={{ background: "#10B981", borderRadius: "3px" }} />
-          <div style={{ background: "#F97316", borderRadius: "3px" }} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <h3 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "0.9375rem", color: C.text, marginBottom: "0.25rem" }}>
-            Invite a Neighbor
-          </h3>
-          <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted, lineHeight: 1.4, marginBottom: "0.625rem" }}>
-            You get $10 credit.<br />They get $10 off.
-          </p>
-          <button
-            onClick={onInvite}
-            style={{
-              fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600,
-              color: C.blue, background: "none", border: "none",
-              cursor: "pointer", padding: 0,
-            }}
-          >
-            Invite Now
-          </button>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
 // ─── My Properties panel ───────────────────────────────────────────────────────
 
 export function MyPropertiesPanel({

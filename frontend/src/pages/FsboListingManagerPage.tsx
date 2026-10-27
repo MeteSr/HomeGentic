@@ -3,17 +3,21 @@
  *
  * Route: /my-listing/:propertyId  (protected)
  *
- * Three states based on fsboService record:
+ * Three states based on the seller's FSBO record (listing canister):
  *   null record      → Not activated  — shows activation CTA + FsboPanel wizard
  *   step 1 | 2 | 3   → In progress   — shows FsboPanel wizard to finish setup
  *   step "done"       → Live          — full management dashboard:
  *                          • Stats bar (DOM, showings, offers, price)
  *                          • Price edit + history
- *                          • Score opt-in toggle
+ *                          • Score shown/hidden on the public listing
  *                          • Public listing link
  *                          • ShowingInbox + ShowingCalendar
  *                          • FsboOfferPanel
+ *                          • Hand off to an agent (Bid to List)
  *                          • Take Down listing (with confirmation)
+ *
+ * Readiness uses the same score, verified job count and public report check
+ * as the property page.
  */
 
 import React, { useEffect, useState, useCallback } from "react";
@@ -26,10 +30,16 @@ import {
 
 import { V2_COLORS, V2_FONTS, V2_RADIUS }    from "@/theme";
 import { useBreakpoint }                      from "@/hooks/useBreakpoint";
-import { fsboService, type FsboRecord }       from "@/services/fsbo";
+import { fsboService, type FsboRecord, type PriceEntry } from "@/services/fsbo";
 import { listingService, type PanoramaEntry } from "@/services/listing";
-import { showingRequestService }              from "@/services/showingRequest";
-import { fsboOfferService }                   from "@/services/fsboOffer";
+import { showingRequestService, type ShowingRequest } from "@/services/showingRequest";
+import type { FsboOffer }                     from "@/services/fsboOffer";
+import { propertyService, type Property }     from "@/services/property";
+import { jobService }                         from "@/services/job";
+import { reportService }                      from "@/services/report";
+import { photoService }                       from "@/services/photo";
+import { computeScore }                       from "@/services/scoreService";
+import { useAuthStore }                       from "@/store/authStore";
 import ShowingInbox                           from "@/components/ShowingInbox";
 import ShowingCalendar                        from "@/components/ShowingCalendar";
 import FsboOfferPanel                         from "@/components/FsboOfferPanel";
@@ -182,53 +192,183 @@ function Section({ testId, title, children }: { testId: string; title: string; c
 export default function FsboListingManagerPage() {
   const { propertyId = "" } = useParams<{ propertyId: string }>();
   const { isMobile }        = useBreakpoint();
+  const profile             = useAuthStore((s) => s.profile);
 
-  const [record,        setRecord]        = useState<FsboRecord | null>(() => fsboService.getRecord(propertyId));
-  const [showingCount,  setShowingCount]  = useState(0);
-  const [offerCount,    setOfferCount]    = useState(0);
+  const [record,        setRecord]        = useState<FsboRecord | null | undefined>(undefined);
+  const [property,      setProperty]      = useState<Property | null>(null);
+  const [score,         setScore]         = useState(0);
+  const [verifiedJobs,  setVerifiedJobs]  = useState(0);
+  const [hasReport,     setHasReport]     = useState(false);
+  const [showings,      setShowings]      = useState<ShowingRequest[]>([]);
+  const [offers,        setOffers]        = useState<FsboOffer[]>([]);
   const [priceInput,    setPriceInput]    = useState("");
-  const [scoreOptIn,    setScoreOptIn]    = useState(true);
+  const [scoreHidden,   setScoreHidden]   = useState(false);
   const [showTakeDown,  setShowTakeDown]  = useState(false);
-  const [priceHistory,  setPriceHistory]  = useState(() => fsboService.getPriceHistory(propertyId));
+  const [priceHistory,  setPriceHistory]  = useState<PriceEntry[]>([]);
   const [panoramas,     setPanoramas]     = useState<PanoramaEntry[]>([]);
   const [newRoomLabel,  setNewRoomLabel]  = useState("");
-  const [, setNewPhotoFile]  = useState<File | null>(null);
+  const [newPhotoFile,  setNewPhotoFile]  = useState<File | null>(null);
+  const [addingTour,    setAddingTour]    = useState(false);
+  const [agentRequested, setAgentRequested] = useState(false);
+  const [busy,          setBusy]          = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
 
-  const listingState = statusForRecord(record);
+  const listingState = statusForRecord(record ?? null);
 
-  // Single source of truth: one callback that atomically refreshes all
-  // derived state from the services so callers can't forget a slice.
-  const refreshAll = useCallback(() => {
-    const rec = fsboService.getRecord(propertyId);
-    setRecord(rec);
-    setPriceHistory(fsboService.getPriceHistory(propertyId));
-    setShowingCount(showingRequestService.getByProperty(propertyId).length);
-    setOfferCount(fsboOfferService.getByProperty(propertyId).length);
-    if (rec) setPriceInput(String(Math.round(rec.listPriceCents / 100)));
+  // Single source of truth: one callback that refreshes all derived state
+  // from the services so callers can't forget a slice.
+  const refreshAll = useCallback(async () => {
+    try {
+      const rec = await fsboService.getRecord(propertyId);
+      setRecord(rec);
+      if (rec) setPriceInput(String(Math.round(rec.listPriceCents / 100)));
+      if (rec?.step === "done") {
+        const [history, reqs, hidden] = await Promise.all([
+          fsboService.getPriceHistory(propertyId),
+          showingRequestService.getByProperty(propertyId).catch(() => [] as ShowingRequest[]),
+          fsboService.isScoreHidden(propertyId).catch(() => false),
+        ]);
+        setPriceHistory(history);
+        setShowings(reqs);
+        setScoreHidden(hidden);
+      }
+    } catch (err) {
+      setRecord(null);
+      setError(err instanceof Error ? err.message : "Couldn't load your listing.");
+    }
   }, [propertyId]);
 
   // Populate on mount and whenever propertyId changes
-  useEffect(() => { refreshAll(); }, [refreshAll]);
-  useEffect(() => { listingService.getPanoramas(propertyId).then(setPanoramas); }, [propertyId]);
+  useEffect(() => { void refreshAll(); }, [refreshAll]);
+  useEffect(() => { listingService.getPanoramas(propertyId).then(setPanoramas).catch(() => {}); }, [propertyId]);
+
+  // Readiness inputs: the same score and verified-job count as the property page.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      propertyService.getProperty(propertyId).catch(() => null),
+      jobService.getByProperty(propertyId).catch(() => []),
+      reportService.listShareLinks(propertyId).catch(() => []),
+    ]).then(([prop, jobs, links]) => {
+      if (cancelled) return;
+      setProperty(prop);
+      setScore(prop ? computeScore(jobs, [prop]) : 0);
+      setVerifiedJobs(jobs.filter((j) => j.verified).length);
+      setHasReport(links.some((l) => l.isActive && l.visibility === "Public"));
+    });
+    return () => { cancelled = true; };
+  }, [propertyId]);
+
+  async function act(action: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function handleSavePrice() {
     const dollars = parseFloat(priceInput);
     if (!record || isNaN(dollars) || dollars <= 0) return;
-    const cents = Math.round(dollars * 100);
-    fsboService.updatePrice(propertyId, cents);
-    fsboService.logPriceChange(propertyId, cents);
-    refreshAll();
+    void act(async () => {
+      await fsboService.updatePrice(propertyId, Math.round(dollars * 100));
+      await refreshAll();
+    });
   }
 
   function handleTakeDownConfirm() {
-    fsboService.deactivate(propertyId);
-    setShowTakeDown(false);
-    refreshAll();
+    void act(async () => {
+      await fsboService.deactivate(propertyId);
+      setShowTakeDown(false);
+      setShowings([]);
+      setOffers([]);
+      setPriceHistory([]);
+      await refreshAll();
+    });
+  }
+
+  function handleToggleScore() {
+    const nextHidden = !scoreHidden;
+    void act(async () => {
+      await fsboService.setScoreVisible(propertyId, !nextHidden);
+      setScoreHidden(nextHidden);
+    });
+  }
+
+  function handleAddTour() {
+    const label = newRoomLabel.trim();
+    if (!label || !newPhotoFile) { setError("Enter a room label and choose a 360° photo."); return; }
+    setAddingTour(true);
+    void act(async () => {
+      try {
+        const photo = await photoService.uploadListingPhoto(newPhotoFile, propertyId, `360° ${label}`);
+        await listingService.addPanorama(propertyId, label, photo.id);
+        setPanoramas(await listingService.getPanoramas(propertyId));
+        setNewRoomLabel("");
+        setNewPhotoFile(null);
+      } finally {
+        setAddingTour(false);
+      }
+    });
+  }
+
+  function handleFindAgent() {
+    if (!record) return;
+    const days  = daysOnMarket(record.activatedAt);
+    const price = Math.round(record.listPriceCents / 100).toLocaleString("en-US");
+    const notes = `Previously listed FSBO at $${price}. Days on market: ${days}. Offers received: ${offers.length}.`;
+    void act(async () => {
+      await listingService.createBidRequest({
+        propertyId,
+        address:          property?.address ?? "",
+        city:             property?.city ?? "",
+        county:           "",
+        zipCode:          property?.zipCode ?? "",
+        homeownerEmail:   profile?.email ?? "",
+        sqft:             property?.squareFeet != null ? Number(property.squareFeet) : null,
+        targetListDate:   Date.now() + 30 * 86_400_000,
+        desiredSalePrice: record.listPriceCents,
+        notes,
+        windowDays:       "Seven",
+      });
+      setAgentRequested(true);
+    });
+  }
+
+  function handleShowingUpdate(updated: ShowingRequest) {
+    setShowings((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
   }
 
   const pageTitle = record?.step === "done"
-    ? `Manage Listing — ${propertyId} | HomeGentic™`
+    ? `Manage Listing — ${property?.address || propertyId} | HomeGentic™`
     : "Activate FSBO Listing | HomeGentic™";
+
+  if (record === undefined) {
+    return (
+      <>
+        <PageHead><title>{pageTitle}</title></PageHead>
+        <div style={{ maxWidth: "720px", margin: "0 auto", padding: "2.5rem 2rem", fontFamily: UI.sans, color: UI.inkLight }}>
+          Loading…
+        </div>
+      </>
+    );
+  }
+
+  const panel = (
+    <FsboPanel
+      propertyId={propertyId}
+      score={score}
+      verifiedJobCount={verifiedJobs}
+      hasReport={hasReport}
+      property={property}
+      record={record}
+      onChange={(rec) => { setRecord(rec); if (rec.step === "done") void refreshAll(); }}
+    />
+  );
 
   // ── Not activated ────────────────────────────────────────────────────────────
   if (listingState === "not-activated") {
@@ -258,12 +398,8 @@ export default function FsboListingManagerPage() {
             </p>
           </div>
 
-          <FsboPanel
-            propertyId={propertyId}
-            score={0}
-            verifiedJobCount={0}
-            hasReport={false}
-          />
+          {error && <p role="alert" style={{ color: UI.rust, fontSize: "0.85rem" }}>{error}</p>}
+          {panel}
         </div>
       </>
     );
@@ -275,15 +411,19 @@ export default function FsboListingManagerPage() {
       <>
         <PageHead><title>{pageTitle}</title></PageHead>
         <div style={{ maxWidth: "720px", margin: "0 auto", padding: isMobile ? "1.5rem 1rem" : "2.5rem 2rem", fontFamily: UI.sans }}>
-          <div style={{ marginBottom: "1.5rem" }}>
+          <div style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" as const }}>
             <StatusBadge state="in-progress" />
+            <button
+              data-testid="discard-setup-btn"
+              onClick={() => void act(async () => { await fsboService.deactivate(propertyId); await refreshAll(); })}
+              disabled={busy}
+              style={{ background: "transparent", border: "none", color: UI.inkLight, fontFamily: UI.mono, fontSize: "0.72rem", textDecoration: "underline", cursor: "pointer" }}
+            >
+              Discard setup
+            </button>
           </div>
-          <FsboPanel
-            propertyId={propertyId}
-            score={0}
-            verifiedJobCount={0}
-            hasReport={record?.hasReport ?? false}
-          />
+          {error && <p role="alert" style={{ color: UI.rust, fontSize: "0.85rem" }}>{error}</p>}
+          {panel}
         </div>
       </>
     );
@@ -291,6 +431,8 @@ export default function FsboListingManagerPage() {
 
   // ── Live management dashboard ────────────────────────────────────────────────
   const dom = daysOnMarket(record!.activatedAt);
+  const showingCount = showings.length;
+  const offerCount   = offers.length;
 
   return (
     <>
@@ -363,6 +505,10 @@ export default function FsboListingManagerPage() {
           </div>
         </div>
 
+        {error && (
+          <p role="alert" style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.rust, margin: "0 0 1rem" }}>{error}</p>
+        )}
+
         {/* ── Take-down confirmation dialog ─────────────────────────────────── */}
         {showTakeDown && (
           <div
@@ -379,13 +525,14 @@ export default function FsboListingManagerPage() {
               Remove this listing from the marketplace?
             </p>
             <p style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight, margin: "0 0 1rem" }}>
-              Your listing will be taken down immediately. Showing requests and offers already received will not be deleted.
-              You can re-activate at any time.
+              Your listing will be taken down immediately, and its showing requests, logged offers and price history will be deleted.
+              You can list the home again at any time.
             </p>
             <div style={{ display: "flex", gap: "0.75rem" }}>
               <button
                 data-testid="take-down-confirm"
                 onClick={handleTakeDownConfirm}
+                disabled={busy}
                 style={{
                   background:   UI.rust,
                   color:        "#fff",
@@ -487,6 +634,7 @@ export default function FsboListingManagerPage() {
             <button
               data-testid="save-price-btn"
               onClick={handleSavePrice}
+              disabled={busy}
               style={{
                 background:   UI.sage,
                 color:        "#fff",
@@ -578,10 +726,10 @@ export default function FsboListingManagerPage() {
                     <span style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.ink }}>{p.roomLabel}</span>
                     <button
                       aria-label={`Remove room ${p.roomLabel}`}
-                      onClick={async () => {
+                      onClick={() => void act(async () => {
                         await listingService.removePanorama(propertyId, p.roomLabel);
                         setPanoramas(await listingService.getPanoramas(propertyId));
-                      }}
+                      })}
                       style={{
                         background:   "transparent",
                         color:        UI.rust,
@@ -630,6 +778,25 @@ export default function FsboListingManagerPage() {
                   style={{ fontFamily: UI.sans, fontSize: "0.875rem" }}
                 />
               </div>
+              <button
+                data-testid="add-panorama-btn"
+                onClick={handleAddTour}
+                disabled={busy || addingTour}
+                style={{
+                  alignSelf:    "flex-start",
+                  background:   UI.sage,
+                  color:        "#fff",
+                  border:       "none",
+                  borderRadius: V2_RADIUS.pill,
+                  padding:      "0.45rem 1.1rem",
+                  fontFamily:   UI.mono,
+                  fontSize:     "0.72rem",
+                  fontWeight:   700,
+                  cursor:       "pointer",
+                }}
+              >
+                {addingTour ? "Uploading…" : "Add to Tour"}
+              </button>
             </div>
           </div>
         </section>
@@ -638,40 +805,64 @@ export default function FsboListingManagerPage() {
         <div style={{ margin: "1rem 0" }}>
           <button
             data-testid="score-optin-toggle"
-            onClick={() => setScoreOptIn((v) => !v)}
+            onClick={handleToggleScore}
+            disabled={busy}
+            aria-pressed={!scoreHidden}
             style={{
               display:     "inline-flex",
               alignItems:  "center",
               gap:         "0.5rem",
-              background:  scoreOptIn ? UI.sageLight : "transparent",
-              border:      `1.5px solid ${scoreOptIn ? V2_COLORS.cobalTint : UI.rule}`,
+              background:  !scoreHidden ? UI.sageLight : "transparent",
+              border:      `1.5px solid ${!scoreHidden ? V2_COLORS.cobalTint : UI.rule}`,
               borderRadius: V2_RADIUS.pill,
               padding:     "0.4rem 1rem",
               fontFamily:  UI.mono,
               fontSize:    "0.72rem",
-              fontWeight:  scoreOptIn ? 700 : 400,
-              color:       scoreOptIn ? "#1E6B1A" : UI.inkLight,
+              fontWeight:  !scoreHidden ? 700 : 400,
+              color:       !scoreHidden ? "#1E6B1A" : UI.inkLight,
               cursor:      "pointer",
             }}
           >
             <Award size={13} />
-            {scoreOptIn ? "Score shown on public listing" : "Score hidden from public listing"}
+            {!scoreHidden ? "Score shown on public listing" : "Score hidden from public listing"}
           </button>
         </div>
 
         {/* ── Showing inbox ──────────────────────────────────────────────────── */}
         <div data-testid="showing-inbox-section" style={{ marginBottom: "1.25rem" }}>
-          <ShowingInbox propertyId={propertyId} />
+          <ShowingInbox requests={showings} onUpdate={handleShowingUpdate} />
         </div>
 
         {/* ── Showing calendar ──────────────────────────────────────────────── */}
         <div data-testid="showing-calendar-section" style={{ marginBottom: "1.25rem" }}>
-          <ShowingCalendar propertyId={propertyId} />
+          <ShowingCalendar requests={showings} />
         </div>
 
         {/* ── Offer panel ───────────────────────────────────────────────────── */}
         <div data-testid="offer-panel-section">
-          <FsboOfferPanel propertyId={propertyId} listPriceCents={record!.listPriceCents} />
+          <FsboOfferPanel propertyId={propertyId} listPriceCents={record!.listPriceCents} onOffersChange={setOffers} />
+        </div>
+
+        {/* ── 10.7.1 — Agent handoff ────────────────────────────────────────── */}
+        <div data-testid="agent-handoff-section" style={{ marginTop: "1.25rem", borderTop: `1px solid ${UI.rule}`, paddingTop: "1rem" }}>
+          {agentRequested ? (
+            <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.sage }}>
+              ✓ Agent request sent. Agents can now send you proposals in Bid to List.
+            </p>
+          ) : (
+            <>
+              <p style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight, marginBottom: "0.5rem" }}>
+                Changed your mind? Let agents compete for your listing.
+              </p>
+              <button
+                onClick={handleFindAgent}
+                disabled={busy}
+                style={{ background: "transparent", color: UI.sage, border: `1px solid ${V2_COLORS.cobalTint}`, borderRadius: V2_RADIUS.pill, padding: "0.45rem 1.1rem", fontFamily: UI.mono, fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }}
+              >
+                Find me an agent
+              </button>
+            </>
+          )}
         </div>
 
       </div>

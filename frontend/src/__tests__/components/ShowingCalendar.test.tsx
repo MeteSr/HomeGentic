@@ -1,79 +1,34 @@
-/**
- * ShowingCalendar — real logic worth locking down (against the real
- * in-memory showingRequestService, not mocks):
- *   - only Accepted requests are shown as confirmed showings; Pending/
- *     Declined/AlternatePending are excluded
- *   - the empty state and Export iCal button are mutually exclusive on
- *     whether there are any confirmed showings
- *   - exporting builds an .ics Blob download containing only the
- *     confirmed showings
- */
-
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+/** ShowingCalendar (10.4.2) — confirmed showings from the requests passed in. */
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
 import ShowingCalendar from "@/components/ShowingCalendar";
-import { showingRequestService } from "@/services/showingRequest";
+import type { ShowingRequest } from "@/services/showingRequest";
 
-beforeEach(() => {
-  (showingRequestService as any).__reset();
-});
+const base: ShowingRequest = {
+  id: "sr-1", propertyId: "p", name: "Alice", contact: "alice@example.com",
+  preferredTime: "Saturday 10am", createdAt: 0, status: "Pending",
+};
 
-function seed(overrides: Partial<Parameters<typeof showingRequestService.create>[0]> = {}) {
-  return showingRequestService.create({
-    propertyId: "prop-1", name: "Jamie Rivera", contact: "jamie@example.com",
-    preferredTime: "Saturday 10am", ...overrides,
-  });
-}
-
-describe("ShowingCalendar — empty state", () => {
-  it("shows the empty message and no export button with no confirmed showings", () => {
-    render(<ShowingCalendar propertyId="prop-1" />);
-    expect(screen.getByText("No confirmed showings yet.")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Export iCal")).not.toBeInTheDocument();
+describe("ShowingCalendar", () => {
+  it("shows the empty message when nothing is accepted", () => {
+    render(<ShowingCalendar requests={[base, { ...base, id: "2", status: "Declined" }]} />);
+    expect(screen.getByText(/no confirmed showings yet/i)).toBeInTheDocument();
+    expect(screen.queryByText("Alice")).not.toBeInTheDocument();
   });
 
-  it("stays empty when requests exist but none are Accepted", () => {
-    const req = seed();
-    showingRequestService.decline(req.id);
-    render(<ShowingCalendar propertyId="prop-1" />);
-    expect(screen.getByText("No confirmed showings yet.")).toBeInTheDocument();
+  it("lists only accepted showings with the buyer's time and a contact link", () => {
+    render(<ShowingCalendar requests={[
+      { ...base, id: "1", name: "Bob", status: "Accepted" },
+      { ...base, id: "2", name: "Carol", status: "Pending" },
+    ]} />);
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+    expect(screen.queryByText("Carol")).not.toBeInTheDocument();
+    expect(screen.getByText(/Saturday 10am/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "alice@example.com" })).toHaveAttribute("href", "mailto:alice@example.com");
   });
-});
 
-describe("ShowingCalendar — confirmed showings", () => {
-  it("lists only Accepted requests", () => {
-    const accepted = seed({ name: "Jamie Rivera" });
-    seed({ name: "Sam Lee" });
-    showingRequestService.accept(accepted.id);
-
-    render(<ShowingCalendar propertyId="prop-1" />);
-
-    expect(screen.getByText("Jamie Rivera")).toBeInTheDocument();
-    expect(screen.queryByText("Sam Lee")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Export iCal")).toBeInTheDocument();
-  });
-});
-
-describe("ShowingCalendar — iCal export", () => {
-  it("builds a calendar Blob download for the confirmed showings only", () => {
-    const accepted = seed({ name: "Jamie Rivera" });
-    seed({ name: "Sam Lee" });
-    showingRequestService.accept(accepted.id);
-
-    const createObjectURL = vi.fn().mockReturnValue("blob:showings");
-    const revokeObjectURL = vi.fn();
-    vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-
-    render(<ShowingCalendar propertyId="prop-1" />);
-    fireEvent.click(screen.getByLabelText("Export iCal"));
-
-    expect(createObjectURL).toHaveBeenCalledTimes(1);
-    const [blob] = createObjectURL.mock.calls[0];
-    expect(blob.type).toBe("text/calendar;charset=utf-8");
-    expect(clickSpy).toHaveBeenCalled();
-    expect(revokeObjectURL).toHaveBeenCalledWith("blob:showings");
-
-    clickSpy.mockRestore();
+  it("has no calendar export (buyer times are free text)", () => {
+    render(<ShowingCalendar requests={[{ ...base, status: "Accepted" }]} />);
+    expect(screen.queryByRole("button", { name: /ical/i })).not.toBeInTheDocument();
   });
 });

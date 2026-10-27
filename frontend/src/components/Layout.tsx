@@ -143,11 +143,13 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
   // Re-check FSBO state on every navigation so "My Listing" appears as soon as a listing is created.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (singlePropertyId) {
-      setHasActiveListing(!!fsboService.getRecord(singlePropertyId)?.isFsbo);
-    } else {
-      setHasActiveListing(false);
-    }
+    if (!singlePropertyId) { setHasActiveListing(false); return; }
+    let cancelled = false;
+    // A listing in setup counts too, so the seller can get back to it.
+    fsboService.getRecord(singlePropertyId)
+      .then((rec) => { if (!cancelled) setHasActiveListing(!!rec); })
+      .catch(() => { if (!cancelled) setHasActiveListing(false); });
+    return () => { cancelled = true; };
   }, [singlePropertyId, location.pathname]);
 
   const navLinks: NavLink[] = isContractor

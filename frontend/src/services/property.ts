@@ -33,6 +33,7 @@ export interface Property {
   identitySessionId    ?: string;
   nameOnId             ?: string;
   nameOnDocument       ?: string;
+  verificationMethod   ?: string;
   contestedWithId      ?: string;
   conflictWindowEndsAt ?: number;   // ms
 }
@@ -163,6 +164,7 @@ function fromProperty(raw: any): Property {
     identitySessionId    : raw.identitySessionId?.[0] ?? undefined,
     nameOnId             : raw.nameOnId?.[0] ?? undefined,
     nameOnDocument       : raw.nameOnDocument?.[0] ?? undefined,
+    verificationMethod   : raw.verificationMethod?.[0] ?? undefined,
     contestedWithId      : raw.contestedWithId?.[0] ?? undefined,
     conflictWindowEndsAt : raw.conflictWindowEndsAt?.[0] != null ? Number(raw.conflictWindowEndsAt[0]) / 1_000_000 : undefined,
   };

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, Star } from "lucide-react";
 import { photoService, type Photo } from "@/services/photo";
 import { type Property } from "@/services/property";
-import { type Job } from "@/services/job";
+import { type Job, isEditableRecord } from "@/services/job";
 import toast from "react-hot-toast";
 import { Panel, Pill } from "@/components/hud";
 
@@ -300,7 +300,7 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
                           <a href={`https://dashboard.internetcomputer.org/account/${property.owner}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: MONO, fontSize: "0.6rem", color: "var(--hg-good)", textDecoration: "none", borderBottom: "1px solid var(--hg-good)" }}>Verified on ICP ↗</a>
                         </div>
                       )}
-                      {!job.verified && job.homeowner === currentPrincipal && (
+                      {isEditableRecord(job) && job.homeowner === currentPrincipal && (
                         <div style={{ marginTop: "0.25rem" }}>
                           <button onClick={() => navigate("/jobs/new", { state: { editJob: job } })} style={{ fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.75rem", borderRadius: 6, border: "1px solid var(--hg-line-2)", background: "transparent", color: "var(--hg-muted)", cursor: "pointer" }}>Edit record</button>
                         </div>

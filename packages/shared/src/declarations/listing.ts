@@ -150,7 +150,92 @@ export const idlFactory = ({ IDL }: any) => {
     systemHighlights:  IDL.Vec(IDL.Text),
   });
 
+  const FsboDraft = IDL.Record({
+    owner:          IDL.Principal,
+    listPriceCents: IDL.Nat,
+    description:    IDL.Opt(IDL.Text),
+    step:           IDL.Nat,
+    startedAt:      IDL.Int,
+    updatedAt:      IDL.Int,
+  });
+  const FsboPricePoint = IDL.Record({ priceCents: IDL.Nat, recordedAt: IDL.Int });
+  const ShowingStatus = IDL.Variant({ Pending: IDL.Null, Accepted: IDL.Null, Declined: IDL.Null, AlternateProposed: IDL.Null });
+  const ShowingRequest = IDL.Record({
+    id:            IDL.Text,
+    propertyId:    IDL.Text,
+    requester:     IDL.Principal,
+    name:          IDL.Text,
+    contact:       IDL.Text,
+    preferredTime: IDL.Text,
+    createdAt:     IDL.Int,
+    status:        ShowingStatus,
+    alternateTime: IDL.Opt(IDL.Text),
+  });
+  const ShowingResponse = IDL.Variant({ Accept: IDL.Null, Decline: IDL.Null, ProposeAlternate: IDL.Text });
+  const FsboOfferStatus = IDL.Variant({ Active: IDL.Null, Countered: IDL.Null, Accepted: IDL.Null, Rejected: IDL.Null });
+  const FsboCounter = IDL.Record({
+    id:          IDL.Text,
+    amountCents: IDL.Nat,
+    notes:       IDL.Text,
+    fromSeller:  IDL.Bool,
+    createdAt:   IDL.Int,
+  });
+  const FsboOffer = IDL.Record({
+    id:                  IDL.Text,
+    propertyId:          IDL.Text,
+    buyerName:           IDL.Text,
+    offerAmountCents:    IDL.Nat,
+    earnestMoneyCents:   IDL.Nat,
+    contingencies:       IDL.Vec(IDL.Text),
+    closeDate:           IDL.Int,
+    hasEscalationClause: IDL.Bool,
+    status:              FsboOfferStatus,
+    loggedAt:            IDL.Int,
+    counters:            IDL.Vec(FsboCounter),
+  });
+  const FsboOfferInput = IDL.Record({
+    buyerName:           IDL.Text,
+    offerAmountCents:    IDL.Nat,
+    earnestMoneyCents:   IDL.Nat,
+    contingencies:       IDL.Vec(IDL.Text),
+    closeDate:           IDL.Int,
+    hasEscalationClause: IDL.Bool,
+  });
+  const NotifyEvent = IDL.Record({
+    seq:       IDL.Nat,
+    kind:      IDL.Text,
+    recipient: IDL.Opt(IDL.Principal),
+    refId:     IDL.Text,
+    summary:   IDL.Text,
+    createdAt: IDL.Int,
+  });
+  const OfferResult   = IDL.Variant({ ok: FsboOffer, err: Error });
+  const ShowingResult = IDL.Variant({ ok: ShowingRequest, err: Error });
+
   return IDL.Service({
+    getFsboListing: IDL.Func([IDL.Text], [IDL.Opt(PublicFsboListing)], ["query"]),
+    getFsboPriceHistory: IDL.Func([IDL.Text], [IDL.Vec(FsboPricePoint)], ["query"]),
+    saveFsboDraft: IDL.Func([IDL.Text, IDL.Nat, IDL.Opt(IDL.Text), IDL.Nat], [IDL.Variant({ ok: FsboDraft, err: Error })], []),
+    getFsboDraft: IDL.Func([IDL.Text], [IDL.Opt(FsboDraft)], ["query"]),
+    discardFsboDraft: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    updateFsboPrice: IDL.Func([IDL.Text, IDL.Nat], [IDL.Variant({ ok: PublicFsboListing, err: Error })], []),
+    setFsboScoreVisible: IDL.Func([IDL.Text, IDL.Bool], [IDL.Variant({ ok: PublicFsboListing, err: Error })], []),
+    isFsboScoreHidden: IDL.Func([IDL.Text], [IDL.Bool], ["query"]),
+    requestShowing: IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text], [ShowingResult], []),
+    getShowingRequests: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(ShowingRequest), err: Error })], ["query"]),
+    respondToShowing: IDL.Func([IDL.Text, IDL.Text, ShowingResponse], [ShowingResult], []),
+    logFsboOffer: IDL.Func([IDL.Text, FsboOfferInput], [OfferResult], []),
+    getFsboOffers: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(FsboOffer), err: Error })], ["query"]),
+    counterFsboOffer: IDL.Func([IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Bool], [OfferResult], []),
+    acceptFsboOffer: IDL.Func([IDL.Text, IDL.Text], [OfferResult], []),
+    rejectFsboOffer: IDL.Func([IDL.Text, IDL.Text], [OfferResult], []),
+    addNotifier: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    removeNotifier: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getNotificationEvents: IDL.Func(
+      [IDL.Nat, IDL.Nat],
+      [IDL.Variant({ ok: IDL.Record({ events: IDL.Vec(NotifyEvent), latestSeq: IDL.Nat }), err: Error })],
+      ["query"],
+    ),
     activateFsboListing: IDL.Func([PublicFsboListing], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     deactivateFsboListing: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     listActiveFsboListings: IDL.Func([], [IDL.Vec(PublicFsboListing)], ["query"]),

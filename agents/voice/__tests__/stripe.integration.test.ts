@@ -15,9 +15,10 @@ import "dotenv/config";
 import Stripe from "stripe";
 
 const SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
-const PRICE_PRO_MONTHLY = process.env.STRIPE_PRICE_PRO_MONTHLY ?? "";
+// Pro is annual only ($59/year), so the tests use the yearly price.
+const PRICE_PRO = process.env.STRIPE_PRICE_PRO_YEARLY ?? "";
 
-const describeIfConfigured = SECRET_KEY.startsWith("sk_test_") && PRICE_PRO_MONTHLY
+const describeIfConfigured = SECRET_KEY.startsWith("sk_test_") && PRICE_PRO
   ? describe
   : describe.skip;
 
@@ -31,13 +32,13 @@ describeIfConfigured("Stripe checkout integration", () => {
   it("creates a checkout session and returns a hosted URL", async () => {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      line_items: [{ price: PRICE_PRO_MONTHLY, quantity: 1 }],
+      line_items: [{ price: PRICE_PRO, quantity: 1 }],
       success_url: "http://localhost:5173/payment-success?session_id={CHECKOUT_SESSION_ID}",
       cancel_url:  "http://localhost:5173/payment-failure",
       metadata: {
         principal: "test-principal",
         tier:      "Pro",
-        billing:   "Monthly",
+        billing:   "Yearly",
         is_gift:   "false",
       },
     });
@@ -53,13 +54,13 @@ describeIfConfigured("Stripe checkout integration", () => {
   it("creates a gift checkout session with recipient metadata", async () => {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      line_items: [{ price: PRICE_PRO_MONTHLY, quantity: 1 }],
+      line_items: [{ price: PRICE_PRO, quantity: 1 }],
       success_url: "http://localhost:5173/payment-success?session_id={CHECKOUT_SESSION_ID}",
       cancel_url:  "http://localhost:5173/payment-failure",
       metadata: {
         principal:       "realtor-principal",
         tier:            "Pro",
-        billing:         "Monthly",
+        billing:         "Yearly",
         is_gift:         "true",
         recipient_email: "buyer@example.com",
         recipient_name:  "Jane Buyer",

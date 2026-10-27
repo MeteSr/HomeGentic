@@ -153,6 +153,16 @@ describe("notificationsFor", () => {
     expect(await notificationsFor(ask, lookups(null, [], async () => { throw new Error("down"); }))).toEqual([]);
   });
 
+  it("tells the FSBO seller about a showing request, linking to My Listing", async () => {
+    const ev = { seq: 5, kind: "showing_request", recipient: "seller-1", refId: "PROP_7", summary: "Jane" };
+    const out = await notificationsFor(ev, lookups(null, []));
+    expect(out).toEqual([{
+      type: "showing_request", principal: "seller-1", pushOptIn: true,
+      payload: { title: "New showing request", body: "Jane asked to see your home. Reply to them from My Listing.", route: "my-listing/PROP_7" },
+    }]);
+    expect(payloadFor({ ...ev, summary: "" })!.body).toMatch(/^A buyer asked/);
+  });
+
   it("doesn't look up tiers for recipient events", async () => {
     const l = lookups(null, []);
     await notificationsFor({ seq: 2, kind: "bid_accepted", recipient: "c-1", refId: "Q", summary: "HVAC" }, l);

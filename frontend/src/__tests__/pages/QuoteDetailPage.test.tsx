@@ -42,6 +42,7 @@ vi.mock("@/services/quote", () => ({
     cancel: mockCancel,
     getUsage: mockGetUsage,
     removeUsage: mockRemoveUsage,
+    isQuoteExpired: (q: Quote) => Date.now() > q.validUntil,
   },
 }));
 
@@ -78,7 +79,7 @@ const REQUEST: QuoteRequest = {
 function makeQuote(overrides: Partial<Quote> = {}): Quote {
   return {
     id: "q1", requestId: "req-1", contractor: "contractor-1",
-    amount: 50000, timeline: 3, validUntil: Date.now(), status: "pending", createdAt: Date.now(),
+    amount: 50000, timeline: 3, validUntil: Date.now() + 7 * 86_400_000, status: "pending", createdAt: Date.now(),
     ...overrides,
   };
 }
@@ -172,6 +173,15 @@ describe("QuoteDetailPage — accept flow", () => {
 
     await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("Quote expired"));
     expect(screen.queryByText("Accepted")).not.toBeInTheDocument();
+  });
+
+  it("offers no accept button on a quote past its valid-until date", async () => {
+    mockGetRequest.mockResolvedValue(REQUEST);
+    mockGetQuotesForRequest.mockResolvedValue([makeQuote({ validUntil: Date.now() - 1000 })]);
+
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/^Expired /)).toBeInTheDocument());
+    expect(screen.queryByText(/^Accept/)).not.toBeInTheDocument();
   });
 });
 

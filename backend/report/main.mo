@@ -1009,6 +1009,83 @@ persistent actor Report {
     found
   };
 
+  /// Buyer lookup (/check): the newest active, unexpired #Public report whose
+  /// street address matches. Anonymous query, so it only returns what the
+  /// public report itself shows. `address` is what the buyer typed: the street
+  /// line, optionally followed by city, state and ZIP; when it contains a
+  /// 5-digit ZIP that differs from the report's, it doesn't match.
+  /// Scans every link; fine at today's volumes, an address index would be the
+  /// next step if this grows.
+  public type PublicReportMatch = {
+    token:             Text;
+    address:           Text;
+    city:              Text;
+    state:             Text;
+    zipCode:           Text;
+    propertyType:      Text;
+    yearBuilt:         Nat;
+    verificationLevel: Text;
+  };
+
+  public query func findPublicReport(address: Text) : async ?PublicReportMatch {
+    if (address.size() == 0 or address.size() > 300) return null;
+    let wanted = addressWords(address);
+    if (wanted.size() == 0) return null;
+    var best : ?(Int, PublicReportMatch) = null;
+    for (link in links.values()) {
+      if (link.isActive and not isExpired(link) and effectiveVisibility(link) == #Public) {
+        switch (snapshots.get(link.snapshotId)) {
+          case null {};
+          case (?snap) {
+            if (streetMatches(wanted, snap.address, snap.zipCode)) {
+              let newer = switch (best) { case null true; case (?(t, _)) link.createdAt > t };
+              if (newer) best := ?(link.createdAt, {
+                token             = link.token;
+                address           = snap.address;
+                city              = snap.city;
+                state             = snap.state;
+                zipCode           = snap.zipCode;
+                propertyType      = snap.propertyType;
+                yearBuilt         = snap.yearBuilt;
+                verificationLevel = snap.verificationLevel;
+              });
+            };
+          };
+        };
+      };
+    };
+    switch (best) { case null null; case (?(_, m)) ?m }
+  };
+
+  /// Lowercased words with punctuation dropped: "12 Main St., Apt 4" → ["12","main","st","apt","4"].
+  private func addressWords(t: Text) : [Text] {
+    var cleaned = "";
+    for (c in t.toLower().chars()) {
+      cleaned #= (if (c.isAlphabetic() or c.isDigit()) c.toText() else " ");
+    };
+    cleaned.split(#char ' ').filter(func(w : Text) : Bool { w != "" }).toArray()
+  };
+
+  private func streetMatches(wanted: [Text], street: Text, zip: Text) : Bool {
+    let streetWords = addressWords(street);
+    if (streetWords.size() == 0 or wanted.size() < streetWords.size()) return false;
+    var i = 0;
+    while (i < streetWords.size()) {
+      if (wanted[i] != streetWords[i]) return false;
+      i += 1;
+    };
+    // Any 5-digit word after the street line is taken as a ZIP.
+    let zipWords = addressWords(zip);
+    while (i < wanted.size()) {
+      let w = wanted[i];
+      if (w.size() == 5 and w.chars().all(func(c : Char) : Bool { c.isDigit() })) {
+        if (zipWords.size() > 0 and w != zipWords[0]) return false;
+      };
+      i += 1;
+    };
+    true
+  };
+
   /// Settings → Privacy: whether anyone with a #Public link can view the
   /// caller's reports without signing in.
   public shared(msg) func setAllowPublicReports(allow: Bool) : async Result.Result<(), Error> {
