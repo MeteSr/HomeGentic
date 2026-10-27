@@ -36,7 +36,12 @@ async function install(name: string, b: Build, idl: any) {
   const pic: PocketIc = await createPic();
   const f = await pic.setupCanister({ idlFactory: idl, wasm: wasmFor(name, b) });
   const as = (id: Identity) => { const a = pic.createActor<any>({ idlFactory: idl, canisterId: f.canisterId }); a.setIdentity(id); return a; };
+  // One unmeasured call first. On PocketIC server 16 the first call after a
+  // fill costs ~1.6x more even for unchanged Wasm (server 12: ~1.0x), i.e. it
+  // also pays charges that track the canister's size over time rather than
+  // the call's own work; a call just before the measured one settles them.
   const cost = async (call: () => Promise<unknown>) => {
+    await call();
     const before = await pic.getCyclesBalance(f.canisterId);
     await call();
     return before - (await pic.getCyclesBalance(f.canisterId));
