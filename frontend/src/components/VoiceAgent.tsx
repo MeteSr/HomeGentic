@@ -147,7 +147,7 @@ export function VoiceAgent() {
 
           {isProcessing && !response && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Loader2 size={13} color={V2_COLORS.muted} style={{ animation: "spin 1s linear infinite" }} />
+              <Loader2 size={13} color={V2_COLORS.muted} data-motion="essential" style={{ animation: "spin 1s linear infinite" }} />
               <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: V2_COLORS.muted }}>Thinking…</span>
             </div>
           )}
@@ -256,7 +256,7 @@ export function VoiceAgent() {
           }}
         >
           {isListening  && <MicOff  size={20} color={V2_COLORS.paper} />}
-          {isProcessing && <Loader2 size={20} color={V2_COLORS.muted} style={{ animation: "spin 1s linear infinite" }} />}
+          {isProcessing && <Loader2 size={20} color={V2_COLORS.muted} data-motion="essential" style={{ animation: "spin 1s linear infinite" }} />}
           {isSpeaking   && <Volume2 size={20} color={V2_COLORS.muted} />}
           {isIdle       && <Mic     size={20} color={V2_COLORS.paper} />}
         </button>

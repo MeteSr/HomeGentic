@@ -353,7 +353,7 @@
 <body>
 
 <!-- Visitor CTA banner -->
-<div class="cta-banner no-print">
+<header class="cta-banner no-print">
   <span class="cta-banner-text">
     <strong>Sample Report</strong> — This is what your HomeGentic Report looks like. Start building yours today.
   </span>
@@ -361,10 +361,10 @@
     <a class="cta-back" href="/" onclick="window.history.length > 1 ? (event.preventDefault(), window.history.back()) : true">← Back</a>
     <a class="cta-signup" href="/login">Create My HomeGentic →</a>
   </div>
-</div>
+</header>
 
 
-<div class="report">
+<main class="report">
 
   <!-- ═══ COVER ══════════════════════════════════════════════════════ -->
   <div class="cover">
@@ -991,6 +991,6 @@
     </p>
   </div>
 
-</div>
+</main>
 </body>
 </html>

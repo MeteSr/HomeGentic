@@ -11,6 +11,7 @@ import { PageHead } from "@/components/PageHead";
 import { II_URL } from "@/services/actor";
 import { mobileRedirectUrl, parseMobileAuthRequest } from "@/services/mobileAuth";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { Main } from "@/components/MainLandmark";
 
 const UI = {
   page: { minHeight: "100vh", background: V2_COLORS.page, display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", padding: "3rem 1.25rem", fontFamily: V2_FONTS.body },
@@ -52,7 +53,7 @@ export default function MobileAuthPage() {
   return (
     <>
       <PageHead><title>Sign in to the app — HomeGentic</title></PageHead>
-      <main style={UI.page}>
+      <Main style={UI.page}>
         <div style={UI.card}>
           {!request ? (
             <>
@@ -78,7 +79,7 @@ export default function MobileAuthPage() {
             </>
           )}
         </div>
-      </main>
+      </Main>
     </>
   );
 }

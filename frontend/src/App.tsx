@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { errorTracker } from "@/services/errorTracker";
 import { RouteAnnouncer } from "@/components/RouteAnnouncer";
+import { AppMain, SkipLink } from "@/components/MainLandmark";
 
 /** Records route changes as navigation breadcrumbs in the error tracker. */
 function NavigationTracker() {
@@ -93,10 +94,11 @@ const AgentListingsPage          = React.lazy(() => import("@/pages/AgentListing
 const AgentBidFormPage           = React.lazy(() => import("@/pages/AgentBidFormPage"));
 const AgentBidsPage              = React.lazy(() => import("@/pages/AgentBidsPage"));
 const AgentAwardPage             = React.lazy(() => import("@/pages/AgentAwardPage"));
+const NotFoundPage               = React.lazy(() => import("@/pages/NotFoundPage"));
 
 const PageLoader = () => (
   <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#F4F1EB" }}>
-    <div className="spinner-lg" />
+    <div className="spinner-lg" role="status" aria-label="Loading" />
   </div>
 );
 
@@ -165,7 +167,9 @@ export default function App() {
           }}
         />
         <NavigationTracker />
+        <SkipLink />
         <RouteAnnouncer />
+        <AppMain>
         <Suspense fallback={<PageLoader />}>
           <RouteErrorBoundary>
             <Routes>
@@ -265,10 +269,11 @@ export default function App() {
           <Route path="/cert/:token"           element={<ScoreCertPage />} />
           <Route path="/verify-record"         element={<VerifyRecordPage />} />
           {/* /neighborhood/:zipCode removed — NeighborhoodHealthPage kept in codebase for future re-enable */}
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </RouteErrorBoundary>
         </Suspense>
+        </AppMain>
       </AuthProvider>
     </ErrorBoundary>
   );

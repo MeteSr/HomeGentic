@@ -126,7 +126,7 @@ export default function ListingNewPage() {
         <button
           onClick={() => navigate(-1)}
           style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "none", border: "none", cursor: "pointer",
-            fontFamily: V2_FONTS.mono, fontSize: "0.72rem", color: UI.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "1.5rem" }}
+            fontFamily: V2_FONTS.mono, fontSize: "0.72rem", color: UI.muted, letterSpacing: "0.06em", textTransform: "uppercase", padding: 0, minHeight: 44, margin: "-14px 0 calc(1.5rem - 14px)" }}
         >
           <ArrowLeft size={13} /> Back
         </button>

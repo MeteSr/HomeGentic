@@ -25,6 +25,7 @@ import SystemAgesModal from "@/components/SystemAgesModal";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { LoadError } from "@/components/LoadError";
 import { useDialog } from "@/hooks/useDialog";
+import { scrollBehavior } from "@/utils/motion";
 
 const C = V2_COLORS;
 const F = V2_FONTS;
@@ -181,7 +182,7 @@ function MaintenanceChatPanel({ yearBuilt, propertyAddress, report }: { yearBuil
   const [input, setInput]     = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef             = useRef<HTMLDivElement>(null);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: scrollBehavior() }); }, [messages]);
 
   const send = async () => {
     const msg = input.trim();

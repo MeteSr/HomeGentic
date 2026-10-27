@@ -36,6 +36,7 @@ import { ActivityFeedDrawer } from "./ActivityFeedDrawer";
 import { UserMenuPopover } from "./UserMenuPopover";
 import { deriveEvents } from "@/services/activityFeed";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { Main } from "./MainLandmark";
 import {
   BrandMark, HeaderDivider, RailChipCount, railChipStyle,
   RAIL_WIDTH, SHELL_GUTTER, RAIL_GAP,
@@ -320,7 +321,7 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
           {/* Bell */}
           <button
             onClick={openFeed}
-            style={{ position: "relative", background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}
+            style={{ position: "relative", background: "none", border: "none", cursor: "pointer", padding: "0.5rem", minWidth: 44, minHeight: 44 }}
             aria-label="Activity feed"
           >
             <Bell size={18} color={V2_COLORS.muted} />
@@ -338,7 +339,7 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
           </button>
         </header>
 
-        <main className="hf-main-content">{children}</main>
+        <Main className="hf-main-content">{children}</Main>
 
         {/* ── Mobile bottom tab bar ────────────────────────────────────────── */}
         {(() => {

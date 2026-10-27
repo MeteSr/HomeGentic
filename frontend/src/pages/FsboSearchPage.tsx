@@ -27,6 +27,7 @@ import {
   type PropertyType,
 } from "@/services/fsbo";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { Main } from "@/components/MainLandmark";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -738,7 +739,7 @@ export default function FsboSearchPage() {
         </div>
 
         {/* ── Main results grid ─────────────────────────────────────────────── */}
-        <main
+        <Main
           aria-label="FSBO listing results"
           style={{ maxWidth: "1200px", margin: "0 auto", padding: isMobile ? "0.5rem 1rem 3rem" : "0.75rem 2rem 4rem" }}
         >
@@ -766,7 +767,7 @@ export default function FsboSearchPage() {
               ))}
             </div>
           )}
-        </main>
+        </Main>
 
         {/* ── Value-prop footer strip ───────────────────────────────────────── */}
         <footer style={{

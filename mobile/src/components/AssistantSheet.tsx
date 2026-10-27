@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Pressable, Text, TextInput, View } from "react-native";
+import { AccessibilityInfo, Animated, Pressable, Text, TextInput, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useAppData } from "../context/AppData";
 import { useAssistant } from "../hooks/useAssistant";
@@ -41,12 +41,20 @@ function Waveform({ live }: { live: boolean }) {
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (!live) { pulse.setValue(1); return; }
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(pulse, { toValue: 0.45, duration: 420, useNativeDriver: true }),
-      Animated.timing(pulse, { toValue: 1, duration: 420, useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
+    let stopped = false;
+    let loop: Animated.CompositeAnimation | null = null;
+    // Respect "Reduce Motion": the bars stay still while listening.
+    AccessibilityInfo.isReduceMotionEnabled()
+      .catch(() => false)
+      .then((reduce) => {
+        if (stopped || reduce) return;
+        loop = Animated.loop(Animated.sequence([
+          Animated.timing(pulse, { toValue: 0.45, duration: 420, useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1, duration: 420, useNativeDriver: true }),
+        ]));
+        loop.start();
+      });
+    return () => { stopped = true; loop?.stop(); };
   }, [live, pulse]);
   return (
     <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 4, height: 26, marginTop: 16 }} accessibilityElementsHidden>

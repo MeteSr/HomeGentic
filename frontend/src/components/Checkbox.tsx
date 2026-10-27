@@ -11,7 +11,9 @@ interface CheckboxProps {
 /**
  * 20px box, 6px radius, 2px border, cobalt fill when checked. Matches the
  * checkbox already in use across the Bid to List flow, promoted here to a
- * shared primitive with its disabled state filled in.
+ * shared primitive with its disabled state filled in. The button itself is
+ * 28px (WCAG 2.5.8 asks for 24px) with a negative margin, so the bigger hit
+ * area doesn't change layout.
  */
 export function Checkbox({ checked, onChange, disabled, ...rest }: CheckboxProps) {
   const size = 20;
@@ -31,6 +33,7 @@ export function Checkbox({ checked, onChange, disabled, ...rest }: CheckboxProps
       : { background: "#FFFFFF", border: `2px solid ${V2_COLORS.divider}` }),
   };
 
+  const hit = 28;
   return (
     <button
       type="button"
@@ -39,13 +42,20 @@ export function Checkbox({ checked, onChange, disabled, ...rest }: CheckboxProps
       aria-label={rest["aria-label"]}
       disabled={disabled}
       onClick={(e) => { e.stopPropagation(); if (!disabled) onChange(!checked); }}
-      style={{ ...style, padding: 0, border: style.border, background: style.background }}
+      style={{
+        flexShrink: 0, width: hit, height: hit, margin: (size - hit) / 2, padding: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "none", border: "none", borderRadius: V2_RADIUS.sm,
+        cursor: style.cursor,
+      }}
     >
-      {checked && !disabled && (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={V2_COLORS.paper} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round">
-          <path d="m5 13 4.5 4.5L19 7" />
-        </svg>
-      )}
+      <span aria-hidden="true" style={style}>
+        {checked && !disabled && (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={V2_COLORS.paper} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round">
+            <path d="m5 13 4.5 4.5L19 7" />
+          </svg>
+        )}
+      </span>
     </button>
   );
 }

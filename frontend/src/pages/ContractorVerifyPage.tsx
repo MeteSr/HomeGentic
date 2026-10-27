@@ -122,7 +122,7 @@ export default function ContractorVerifyPage() {
         {/* ── Loading ─────────────────────────────────────────────────────────── */}
         {stage === "loading" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", padding: "2rem 0" }}>
-            <Loader2 size={28} color={UI.sage} style={{ animation: "spin 1s linear infinite" }} />
+            <Loader2 size={28} color={UI.sage} data-motion="essential" style={{ animation: "spin 1s linear infinite" }} />
             <p style={{ color: UI.muted, fontSize: "0.875rem" }}>Loading job details…</p>
           </div>
         )}
@@ -277,7 +277,7 @@ export default function ContractorVerifyPage() {
                   }}
                 >
                   {stage === "signing"
-                    ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Signing…</>
+                    ? <><Loader2 size={14} data-motion="essential" style={{ animation: "spin 1s linear infinite" }} /> Signing…</>
                     : "Confirm & Sign →"}
                 </button>
                 <p style={{ textAlign: "center", fontSize: "0.7rem", color: UI.muted, marginTop: "0.75rem" }}>

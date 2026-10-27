@@ -12,7 +12,7 @@
  * PS.3  /sample-report
  * PS.4  /contractors (auth required)
  * PS.5  /contractor/:id (public contractor profile)
- * PS.6  /neighborhood/:zipCode (public)
+ * PS.6  /neighborhood/:zipCode (route removed → 404)
  * PS.7  /market (auth + properties)
  * PS.8  /resale-ready (auth + properties)
  * PS.9  /cert/:token (public score cert)
@@ -200,15 +200,12 @@ test("PS.5 — /contractor/:id shows contractor profile", async ({ page }) => {
 
 // ── PS.6 — /neighborhood/:zipCode ─────────────────────────────────────────────
 
-test("PS.6 — /neighborhood/:zipCode shows neighborhood health data or loading", async ({ page }) => {
+test("PS.6 — /neighborhood/:zipCode (route removed) shows the 404 page", async ({ page }) => {
   await page.goto("/neighborhood/78701");
 
-  // NeighborhoodHealthPage: shows stats or loading
-  // The service uses mock data when no canister available
-  await expect(page.getByRole("main").or(page.locator("body"))).toBeVisible();
-  // TODO: inject __e2e_neighborhood_stats once the service layer checks for it
-  // For now just check the page doesn't crash
-  await expect(page.locator("body")).not.toBeEmpty();
+  // NeighborhoodHealthPage is no longer routed; unknown URLs get a real 404
+  // instead of silently landing on the marketing page.
+  await expect(page.getByRole("heading", { level: 1, name: "Page not found" })).toBeVisible();
 
   await assertNoA11yViolations(page);
 });
@@ -255,7 +252,7 @@ test("PS.9 — /cert/:token shows score certificate or error state", async ({ pa
   await page.goto(`/cert/${token}`);
 
   // ScoreCertPage shows the cert content or an invalid-token state
-  await expect(page.getByRole("main").or(page.locator("body"))).toBeVisible();
+  await expect(page.getByRole("main")).toBeVisible();
   await expect(page.locator("body")).not.toBeEmpty();
 
   await assertNoA11yViolations(page);

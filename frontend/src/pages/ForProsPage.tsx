@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { type PlanTier, type BillingCycle, PLANS } from "@/services/planConstants";
 import { referralService } from "@/services/referralService";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { scrollBehavior } from "@/utils/motion";
 
 const C = V2_COLORS;
 const F = V2_FONTS;
@@ -82,7 +83,7 @@ export default function ForProsPage() {
     if (!location.hash) return;
     const el = document.getElementById(location.hash.slice(1));
     if (!el) return;
-    setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 80);
+    setTimeout(() => el.scrollIntoView({ behavior: scrollBehavior() }), 80);
   }, [location.hash]);
 
   const { login, devLogin } = useAuth();
@@ -231,7 +232,7 @@ export default function ForProsPage() {
           </p>
           <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
             <button
-              onClick={() => document.getElementById("contractor-plans")?.scrollIntoView({ behavior: "smooth" })}
+              onClick={() => document.getElementById("contractor-plans")?.scrollIntoView({ behavior: scrollBehavior() })}
               style={{
                 fontFamily: F.body, fontSize: "1rem", fontWeight: 700,
                 padding: "14px 32px", borderRadius: "100px",
@@ -451,7 +452,7 @@ export default function ForProsPage() {
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "12px" }}>
                 <li>
                   <a
-                    onClick={(e) => { e.preventDefault(); document.getElementById("contractor-plans")?.scrollIntoView({ behavior: "smooth" }); }}
+                    onClick={(e) => { e.preventDefault(); document.getElementById("contractor-plans")?.scrollIntoView({ behavior: scrollBehavior() }); }}
                     style={{ fontFamily: F.body, fontSize: "14px", color: "rgba(252,252,253,0.6)", textDecoration: "none", cursor: "pointer" }}
                   >
                     Contractor Plans

@@ -273,10 +273,10 @@ export const chipTone = {
   yellow: { color: v3.ink,   bg: v3.yellowTint, border: v3.yellow },
 } as const;
 
-/** Round 34pt outlined close button used in sheets. */
+/** Round 34pt outlined close button used in sheets; hitSlop makes the touch area 44pt. */
 export function CloseButton({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={s.closeBtn} accessibilityRole="button" accessibilityLabel="Close">
+    <Pressable onPress={onPress} style={s.closeBtn} hitSlop={5} accessibilityRole="button" accessibilityLabel="Close">
       <Icon name="close" size={14} color={v3.muted} strokeWidth={2.6} />
     </Pressable>
   );

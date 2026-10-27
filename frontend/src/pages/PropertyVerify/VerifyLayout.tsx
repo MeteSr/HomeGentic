@@ -41,7 +41,7 @@ export default function VerifyLayout() {
       <Layout>
         <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ width: 40, height: 40, border: `3px solid ${V2_COLORS.border}`, borderTopColor: V2_COLORS.blue, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
+            <div data-motion="essential" style={{ width: 40, height: 40, border: `3px solid ${V2_COLORS.border}`, borderTopColor: V2_COLORS.blue, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
             <p style={{ fontFamily: V2_FONTS.body, color: V2_COLORS.muted, fontSize: 14 }}>Loading verification status…</p>
           </div>
         </div>

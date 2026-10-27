@@ -177,7 +177,7 @@ export function AIAssistantPanel() {
               }}
             >
               {isListening  && <MicOff size={16} />}
-              {isProcessing && <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />}
+              {isProcessing && <Loader2 size={16} data-motion="essential" style={{ animation: "spin 1s linear infinite" }} />}
               {isSpeaking   && <Volume2 size={16} />}
               {isIdle       && <Mic size={16} />}
             </button>

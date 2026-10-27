@@ -520,7 +520,7 @@ function ReferralPipeline() {
           disabled={loading}
           style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.paper, fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: V2_COLORS.muted }}
         >
-          <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
+          <RefreshCw size={11} data-motion="essential" style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
           Refresh
         </button>
       </div>
@@ -808,7 +808,7 @@ export default function AdminDashboardPage() {
               disabled={loadingPending}
               style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${UI.rule}`, background: loadingPending ? UI.paper : V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: loadingPending ? "not-allowed" : "pointer", color: UI.inkLight, opacity: loadingPending ? 0.7 : 1 }}
             >
-              <RefreshCw size={11} style={{ animation: loadingPending ? "spin 1s linear infinite" : "none" }} />
+              <RefreshCw size={11} data-motion="essential" style={{ animation: loadingPending ? "spin 1s linear infinite" : "none" }} />
               {loadingPending ? "Refreshing…" : "Refresh"}
             </button>
           </div>
@@ -851,7 +851,7 @@ export default function AdminDashboardPage() {
                 disabled={loadingPending}
                 style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
               >
-                <RefreshCw size={11} style={{ animation: loadingPending ? "spin 1s linear infinite" : "none" }} />
+                <RefreshCw size={11} data-motion="essential" style={{ animation: loadingPending ? "spin 1s linear infinite" : "none" }} />
                 Refresh
               </button>
             </div>

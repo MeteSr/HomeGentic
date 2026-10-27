@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHead } from "@/components/PageHead";
+import { scrollBehavior } from "@/utils/motion";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const BLUE   = "#2B34FF";
@@ -488,7 +489,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
 
   const scrollTo = (id: string) =>
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior() });
 
   const marqueeItems = [...MARQUEE_ITEMS, ...MARQUEE_ITEMS];
 
@@ -749,14 +750,14 @@ export default function LandingPage() {
               </p>
             </div>
             <div style={{ display: "flex", gap: 64, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: MUTED }}>PRODUCT</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: MUTED, marginBottom: 5 }}>PRODUCT</div>
                 {["The record", "The score", "Pricing", "For contractors"].map((l) => (
                   <FooterLink key={l} label={l} onClick={() => l === "For contractors" ? navigate("/for-pros") : scrollTo(l === "Pricing" ? "hg-pricing" : l === "The score" ? "hg-score" : "hg-how")} />
                 ))}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: MUTED }}>COMPANY</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: MUTED, marginBottom: 5 }}>COMPANY</div>
                 {[
                   { label: "Security",  path: "/support" },
                   { label: "Privacy",   path: "/privacy" },
@@ -1181,7 +1182,7 @@ function FooterLink({ label, onClick }: { label: string; onClick: () => void }) 
       type="button"
       onClick={onClick}
       {...handlers}
-      style={{ font: `500 13.5px/1 ${BODY}`, color: hovered ? BLUE : INK, cursor: "pointer", transition: "color .15s", background: "none", border: "none", padding: 0 }}
+      style={{ font: `500 13.5px/1 ${BODY}`, color: hovered ? BLUE : INK, cursor: "pointer", transition: "color .15s", background: "none", border: "none", padding: "6px 0" }}
     >
       {label}
     </button>

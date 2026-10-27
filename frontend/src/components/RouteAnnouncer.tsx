@@ -90,11 +90,17 @@ export function RouteAnnouncer() {
   const { pathname } = useLocation();
   const navType = useNavigationType();
   const [message, setMessage] = useState("");
-  const first = useRef(true);
+  // The path last handled. Comparing paths (not a "first run" flag) keeps
+  // StrictMode's double-run of effects from treating the initial load as a
+  // navigation and stealing focus before the skip link.
+  const handled = useRef<string | null>(null);
 
   useEffect(() => {
     document.title = titleForPath(pathname);
-    if (first.current) { first.current = false; return; }
+    const initial = handled.current === null;
+    if (handled.current === pathname) return;
+    handled.current = pathname;
+    if (initial) return;
     if (navType === "REPLACE") return;
     setMessage("");
 
