@@ -5,6 +5,8 @@ interface AuthContextValue {
   authState: AuthState;
   login: () => Promise<void>;
   logout: () => Promise<void>;
+  /** Retries Face ID / fingerprint for a saved session. */
+  unlock: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);

@@ -4,15 +4,14 @@
  * Call this hook from RootNavigator once the user is authenticated.
  * It requests push permissions (deferred, not on first launch), registers the
  * Expo push token with the relay, and routes notification taps to the correct
- * screen via Linking.
+ * screen via the navigation container's linking config (App.tsx).
  */
 import { useEffect, useRef } from "react";
 import * as Notifications    from "expo-notifications";
-import { Linking, Platform } from "react-native";
+import { Platform } from "react-native";
 import { useAuthContext }     from "../auth/AuthContext";
 import {
   buildTokenPayload,
-  parseNotificationRoute,
   registerPushToken,
   unregisterPushToken,
 } from "../services/notificationService";
@@ -72,20 +71,11 @@ export function useNotifications(): void {
       console.error("[useNotifications] setup error:", err)
     );
 
-    // 15.3.6 — Notification tap → deep-link routing
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data  = response.notification.request.content.data;
-      const route = parseNotificationRoute(data);
-      if (route) {
-        Linking.openURL(`homegentic://${route}`).catch((err) =>
-          console.error("[useNotifications] deep-link failed:", err)
-        );
-      }
-    });
+    // 15.3.6 — Taps are routed by the navigation container's `linking`
+    // (App.tsx), which also catches the tap that launched the app.
 
     return () => {
       cancelled = true;
-      subscription.remove();
 
       // Unregister token on logout
       if (tokenRef.current) {

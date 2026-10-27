@@ -13,10 +13,15 @@ export function setIcpAgent(agent: HttpAgent): void {
   _agent = agent;
 }
 
+/** Forgets the agent on sign-out so a later call can't use the old identity. */
+export function clearIcpAgent(): void {
+  _agent = null;
+}
+
 export function getIcpAgent(): HttpAgent {
   if (!_agent) {
     throw new Error(
-      "ICP agent not initialized. Ensure the user is authenticated before calling canister services."
+      "You're signed out. Sign in again to continue."
     );
   }
   return _agent;

@@ -35,4 +35,9 @@ export type RootStackParamList = {
   LeadDetail:     { lead: Lead };
   QueueStatus:    undefined;
   Report:         { token?: string } | undefined;
+  MyListing:      { propertyId: string };
+  /** Deep-link target for jobs/<id>: opens signing or the right tab for the role. */
+  JobLink:        { jobId?: string } | undefined;
+  /** Deep-link target for leads/<id>: opens the lead or the feed. */
+  LeadLink:       { leadId?: string } | undefined;
 };

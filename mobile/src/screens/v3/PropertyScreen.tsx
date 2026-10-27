@@ -8,8 +8,10 @@ import {
   verificationChip, verificationDocChip,
 } from "../../services/propertyService";
 import { getSensorSummaries } from "../../services/upkeepService";
+import { getFsboListing } from "../../services/listingService";
 import { Card, Chip, chipTone, EmptyRow, IconTile, Kicker, PageHeader, Row, SectionLabel, TabScroll } from "../../components/ui";
 import { NoProperty } from "./NoProperty";
+import { Icon } from "../../components/Icon";
 import { family, type, v3 } from "../../theme";
 
 const METHOD: Record<string, string> = {
@@ -52,12 +54,13 @@ export default function PropertyScreen() {
 
   const data = useLoad(async () => {
     if (!prop) return null;
-    const [rooms, sensors, managers] = await Promise.all([
+    const [rooms, sensors, managers, listing] = await Promise.all([
       getRooms(prop.id).catch(() => null),
       getSensorSummaries(prop.id).catch(() => []),
       app.pro ? getManagers(prop.id).catch(() => null) : Promise.resolve(null),
+      getFsboListing(prop.id).catch(() => null),
     ]);
-    return { rooms, sensors, sharedWith: managers ? managers.length : null };
+    return { rooms, sensors, sharedWith: managers ? managers.length : null, listing };
   }, `${prop?.id}:${app.pro}`);
 
   if (app.propertiesLoaded && !prop) return <TabScroll><NoProperty /></TabScroll>;
@@ -101,6 +104,19 @@ export default function PropertyScreen() {
         </Text>
         <Text style={[type.body, { lineHeight: 19.4, marginTop: 10 }]}>{ownershipLine(prop, data.data?.sharedWith ?? null)}</Text>
       </Card>
+
+      {data.data?.listing && (
+        <Card style={{ marginTop: 12 }} onPress={() => navigation.navigate("MyListing", { propertyId: prop.id })} accessibilityLabel="My listing, for sale by owner. Showing requests and offers">
+          <Row last style={{ paddingVertical: 16 }}>
+            <IconTile abbr="FS" bg={v3.yellowTint} color={v3.ink} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={type.rowTitle}>My listing</Text>
+              <Text style={[type.meta, { marginTop: 5 }]}>FOR SALE BY OWNER · SHOWINGS AND OFFERS</Text>
+            </View>
+            <Icon name="chevronRight" size={16} color={v3.muted} strokeWidth={2.4} />
+          </Row>
+        </Card>
+      )}
 
       <SectionLabel>ADD TO THE RECORD</SectionLabel>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>

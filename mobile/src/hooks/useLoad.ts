@@ -1,5 +1,9 @@
 import { useCallback, useRef, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
+import { withTimeout } from "../services/network";
+
+/** How long a screen waits for its data before showing the error state. */
+export const LOAD_TIMEOUT_MS = 30_000;
 
 export interface Loaded<T> {
   data:    T | undefined;
@@ -11,7 +15,8 @@ export interface Loaded<T> {
 /**
  * Runs `load` when the screen gains focus (so returning from LogJob, SignJob,
  * etc. shows fresh data) and whenever `key` changes. Keeps the last good data
- * while reloading.
+ * while reloading. A load that hangs (slow or dropped network) gives up after
+ * LOAD_TIMEOUT_MS so the screen can offer a retry instead of spinning.
  */
 export function useLoad<T>(load: () => Promise<T>, key: string): Loaded<T> {
   const [data, setData]       = useState<T>();
@@ -25,7 +30,7 @@ export function useLoad<T>(load: () => Promise<T>, key: string): Loaded<T> {
     const n = ++seq.current;
     setLoading(true);
     try {
-      const v = await loadRef.current();
+      const v = await withTimeout(loadRef.current(), LOAD_TIMEOUT_MS);
       if (n !== seq.current) return;
       setData(v);
       setError(false);

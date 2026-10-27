@@ -60,7 +60,7 @@ export async function authenticateWithBiometrics(): Promise<BiometricResult> {
 
   const result = await LocalAuthentication.authenticateAsync({
     promptMessage:     biometricPromptReason(),
-    cancelLabel:       "Use password",
+    cancelLabel:       "Cancel",
     disableDeviceFallback: false,  // allow PIN/passcode as fallback on iOS
   });
 
