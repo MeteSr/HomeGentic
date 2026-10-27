@@ -27,6 +27,7 @@
         ],
         "NSFaceIDUsageDescription": "HomeGentic uses Face ID to unlock your session when you re-open the app."
       },
+      "associatedDomains": ["applinks:homegentic.app"],
       "entitlements": {
         "aps-environment": "production"
       },
@@ -83,6 +84,14 @@
             ]
           },
           {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeCrashData",
+            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID",
             "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
@@ -112,6 +121,17 @@
         {
           "action": "VIEW",
           "data": [{ "scheme": "homegentic" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "homegentic.app", "path": "/dashboard" },
+            { "scheme": "https", "host": "homegentic.app", "path": "/people" },
+            { "scheme": "https", "host": "homegentic.app", "pathPrefix": "/report/" },
+            { "scheme": "https", "host": "homegentic.app", "pathPrefix": "/my-listing/" }
+          ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
@@ -143,7 +163,8 @@
           "faceIDPermission": "HomeGentic uses Face ID to unlock your session when you re-open the app."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@sentry/react-native"
     ]
   }
 }

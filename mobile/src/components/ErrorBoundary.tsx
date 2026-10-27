@@ -1,11 +1,12 @@
 /**
  * Last-resort catch for render errors: a calm "something went wrong" screen
  * with a way to carry on, instead of a white screen (release builds) or a
- * crash. Errors are logged; a crash reporter can hook in at componentDidCatch.
+ * crash. Errors are logged and sent to crash reporting when it's on.
  */
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { family, v3 } from "../theme";
+import { reportError } from "../services/crashReporting";
 
 interface State { error: Error | null }
 
@@ -18,6 +19,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+    reportError(error, { componentStack: info.componentStack });
   }
 
   reset = () => this.setState({ error: null });

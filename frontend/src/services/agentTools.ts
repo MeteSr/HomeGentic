@@ -24,7 +24,7 @@ const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
 };
 import { buildMaintenanceForecast } from "./maintenanceForecast";
 import { reportService, jobToInput, propertyToInput } from "./report";
-import { getPriceBenchmark } from "./priceBenchmark";
+import { getPriceBenchmark, hasSufficientSamples, benchmarkBasis } from "./priceBenchmark";
 import { proposeJob } from "./contractorJobProposal";
 
 export type ToolName =
@@ -703,12 +703,12 @@ export async function executeTool(
         const zipCode     = String(input.zip_code);
         const result = await getPriceBenchmark(serviceType, zipCode);
 
-        if (!result || result.sampleSize < 5) {
+        if (!result || !hasSufficientSamples(result)) {
           return {
             success: true,
             data: {
               found: false,
-              summary: `No benchmark data available for ${serviceType} in ${zipCode} (fewer than 5 closed bids on file).`,
+              summary: `No price data available for ${serviceType} in ${zipCode}.`,
             },
           };
         }
@@ -723,9 +723,11 @@ export async function executeTool(
             low:         result.low,
             median:      result.median,
             high:        result.high,
+            source:      result.source,
             sampleSize:  result.sampleSize,
-            lastUpdated: result.lastUpdated,
-            summary: `Typical ${serviceType} cost in ${zipCode}: ${fmt(result.low)}–${fmt(result.high)} (median ${fmt(result.median)}) · Based on ${result.sampleSize} closed bids · ${result.lastUpdated}`,
+            summary: result.source === "local"
+              ? `Typical ${serviceType} cost near ${result.area ?? zipCode}: ${fmt(result.low)}–${fmt(result.high)} (median ${fmt(result.median)}) · ${benchmarkBasis(result)}`
+              : `Typical U.S. ${serviceType} cost: ${fmt(result.low)}–${fmt(result.high)} (median ${fmt(result.median)}). This is a national range, not local bids; say so if you quote it.`,
           },
         };
       }

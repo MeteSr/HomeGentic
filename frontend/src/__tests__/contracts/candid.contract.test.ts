@@ -283,6 +283,7 @@ describe("property IDL factory", () => {
       "getPendingTransferByToken",
       "getPendingVerifications",
       "getProperty",
+      "getPropertyAddress",
       "getPropertyByManagerInviteToken",
       "getPropertyByTransferToken",
       "getPropertyLimitForTier",
@@ -330,6 +331,7 @@ describe("property IDL factory", () => {
       "getPendingTransferByToken",
       // getPendingVerifications is an admin-only update call returning a Result
       "getProperty",
+      "getPropertyAddress",
       "getPropertyByManagerInviteToken",
       "getPropertyByTransferToken",
       "getPropertyLimitForTier",
@@ -500,6 +502,7 @@ describe("quote IDL factory", () => {
       "createSealedBidRequest",
       "deleteMyData",
       "getIbePublicKey",
+      "getLocalPriceStats",
       "getMyBid",
       "getMyQuoteRequests",
       "getMyQuotes",
@@ -527,6 +530,7 @@ describe("quote IDL factory", () => {
       .map(([name]) => name)
       .sort();
     expect(queries).toEqual([
+      "getLocalPriceStats",
       "getMyBid",
       "getMyQuoteRequests",
       "getMyQuotes",

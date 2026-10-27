@@ -2665,6 +2665,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; verificationMethod:opt text; contestedWithId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
+  "getPropertyAddress": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt text",
+    ],
+  },
   "getPropertyByManagerInviteToken": {
     "args": [
       "text",
@@ -3027,6 +3038,18 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "vec nat8",
+    ],
+  },
+  "getLocalPriceStats": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {low:nat; area:text; high:nat; sampleSize:nat; median:nat}",
     ],
   },
   "getMyBid": {

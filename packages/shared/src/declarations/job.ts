@@ -167,7 +167,7 @@ export const idlFactory = ({ IDL }: any) => {
       ["query"]
     ),
     createInviteToken: IDL.Func(
-      [IDL.Text, IDL.Text],   // jobId, propertyAddress
+      [IDL.Text, IDL.Text],   // jobId, typed address (local-dev fallback; the canister reads the property's)
       [IDL.Variant({ ok: IDL.Text, err: Error })],
       []
     ),

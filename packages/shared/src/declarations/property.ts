@@ -267,5 +267,6 @@ export const idlFactory = ({ IDL }: any) => {
       ["query"],
     ),
     getPropertyYearBuilt: IDL.Func([IDL.Text], [IDL.Opt(IDL.Nat)], ["query"]),
+    getPropertyAddress:   IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ["query"]),
   });
 };

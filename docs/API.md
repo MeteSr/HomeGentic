@@ -201,6 +201,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `getMyQuoteRequests` | query | `()` | Caller's requests |
 | `submitQuote` | update | `(requestId: Text, amount: Nat, timeline: Nat, validUntil: Time.Time)` | Contractor submits a bid |
 | `getQuotesForRequest` | query | `(requestId: Text)` | All bids on a request |
+| `getLocalPriceStats` | query | `(serviceType: Text, zip: Text)` | p25/median/p75 of accepted quotes for a trade in a ZIP (or its first 3 digits); null under 5 quotes |
 | `acceptQuote` | update | `(quoteId: Text)` | Homeowner accepts a bid |
 | `closeQuoteRequest` | update | `(requestId: Text)` | Close a request without accepting |
 | `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: notification outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |
@@ -524,7 +525,7 @@ Handles IC HTTP outcalls: permit imports (ArcGIS / OpenPermit) and transactional
 | `sendEmail` | update | `(to: Text, subject: Text, html: Text, text: ?Text, replyTo: ?Text, from: ?Text)` | Send a transactional email via Resend |
 | `sendInviteEmail` | update | `(to: Text, contractorName: ?Text, propertyAddress: Text, serviceType: Text, amount: ?Nat, verifyUrl: Text)` | Branded contractor job co-sign invite |
 | `sendJobMatchEmail` | update | `(contractorEmail: Text, jobId: Text, serviceType: Text, zipCode: Text)` | Notify a contractor of a new job match; trusted-canister-only |
-| `getPriceBenchmark` | query | `(service: Text, zip: Text)` | Price benchmark lookup |
+| `getPriceBenchmark` | query | `(service: Text, zip: Text)` | Typical U.S. price range (fixed national figures, `source: "national"`) |
 | `instantForecast` | query | `(address: Text, yearBuilt: Nat, state: ?Text, _overrides: Text)` | 10-year maintenance forecast |
 | `importPermits` | update | `(address: Text, city: Text, state: Text, zip: Text)` | Fetch + import permits from ArcGIS/OpenPermit |
 | `emailUsage` | query | `()` | Resend usage summary |

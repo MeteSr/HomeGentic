@@ -5,6 +5,7 @@ import { PageHead } from "@/components/PageHead";
 const BLUE   = "#2B34FF";
 const YELLOW = "#FFD23F";
 const CORAL  = "#FF5C39";
+const CORAL_TEXT = "#C2341A"; // coral for text on light backgrounds (AA)
 const INK    = "#0B0D1A";
 const PAPER  = "#FCFCFD";
 const MUTED  = "#62677A";
@@ -130,11 +131,12 @@ const SCORE_FACTORS = [
 
 const CATEGORY_COLORS: Record<string, string> = {
   Structural: BLUE,
-  HVAC:       "#7B61FF",
-  Electrical: "#F59E0B",
-  Plumbing:   "#29ABE2",
-  Exterior:   CORAL,
-  Envelope:   "#34A853",
+  // Text on the light chip background, so each is AA (4.5:1+) on #F3F4FF.
+  HVAC:       "#5B3FD9",
+  Electrical: "#8A5A00",
+  Plumbing:   "#0B6E99",
+  Exterior:   CORAL_TEXT,
+  Envelope:   "#1E7A3A",
   DIY:        MUTED,
 };
 
@@ -441,7 +443,7 @@ export default function SampleReportPage() {
               Home<span style={{ color: YELLOW }}>Gentic</span>
             </span>
           </button>
-          <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: "rgba(252,252,253,0.55)", textTransform: "uppercase" }}>
+          <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: "rgba(252,252,253,0.9)", textTransform: "uppercase" }}>
             Sample Report
           </div>
           <button type="button" onClick={() => navigate("/login")} style={{ padding: "9px 20px", borderRadius: 100, background: YELLOW, border: "none", fontFamily: BODY, fontWeight: 700, fontSize: "0.8125rem", color: INK, cursor: "pointer" }}>
@@ -510,7 +512,7 @@ export default function SampleReportPage() {
             {/* Job history */}
             <div>
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL, textTransform: "uppercase", marginBottom: 6 }}>Work History</div>
+                <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL_TEXT, textTransform: "uppercase", marginBottom: 6 }}>Work History</div>
                 <div style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: "1.375rem", letterSpacing: "-0.03em", color: INK }}>
                   {JOBS.length} records · ${totalValue.toLocaleString()} in verified work
                 </div>
@@ -535,7 +537,7 @@ export default function SampleReportPage() {
             {/* Rooms */}
             <div>
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL, textTransform: "uppercase", marginBottom: 6 }}>Rooms & Fixtures</div>
+                <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL_TEXT, textTransform: "uppercase", marginBottom: 6 }}>Rooms & Fixtures</div>
                 <div style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: "1.375rem", letterSpacing: "-0.03em", color: INK }}>
                   {ROOMS.length} rooms documented
                 </div>
@@ -553,7 +555,7 @@ export default function SampleReportPage() {
             <div style={{ background: INK, borderRadius: 24, padding: 26 }}>
               <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: YELLOW, textTransform: "uppercase", marginBottom: 4 }}>Score Breakdown</div>
               <div style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: "3rem", color: PAPER, letterSpacing: "-0.05em", lineHeight: 1 }}>{PROPERTY.score}</div>
-              <div style={{ fontFamily: MONO, fontSize: "0.6rem", color: "rgba(252,252,253,0.45)", marginBottom: 22 }}>out of 100</div>
+              <div style={{ fontFamily: MONO, fontSize: "0.6rem", color: "rgba(252,252,253,0.9)", marginBottom: 22 }}>out of 100</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {SCORE_FACTORS.map((f) => (
                   <div key={f.label}>
@@ -567,14 +569,14 @@ export default function SampleReportPage() {
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid rgba(255,255,255,0.1)", fontSize: "0.75rem", color: "rgba(252,252,253,0.45)", lineHeight: 1.6 }}>
+              <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid rgba(255,255,255,0.1)", fontSize: "0.75rem", color: "rgba(252,252,253,0.9)", lineHeight: 1.6 }}>
                 Pending jobs and DIY records don't add points until both signatures are on file.
               </div>
             </div>
 
             {/* Share link demo */}
             <div style={{ background: PAPER, border: `1px solid ${BORDER}`, borderRadius: 24, padding: 26 }}>
-              <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL, textTransform: "uppercase", marginBottom: 14 }}>Share This Report</div>
+              <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL_TEXT, textTransform: "uppercase", marginBottom: 14 }}>Share This Report</div>
               <div style={{ background: LBLUE, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                 <LockIcon />
                 <span style={{ fontFamily: MONO, fontSize: "0.62rem", color: BLUE, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -598,7 +600,7 @@ export default function SampleReportPage() {
 
             {/* Maintenance */}
             <div style={{ background: PAPER, border: `1px solid ${BORDER}`, borderRadius: 24, padding: 26 }}>
-              <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL, textTransform: "uppercase", marginBottom: 14 }}>Upcoming Maintenance</div>
+              <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL_TEXT, textTransform: "uppercase", marginBottom: 14 }}>Upcoming Maintenance</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {[
                   { title: "HVAC filter",     due: "Due Sep 2",  tone: "#F59E0B", bg: "#FFFBEB" },
@@ -618,7 +620,7 @@ export default function SampleReportPage() {
 
             {/* Recurring services */}
             <div style={{ background: PAPER, border: `1px solid ${BORDER}`, borderRadius: 24, padding: 26 }}>
-              <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL, textTransform: "uppercase", marginBottom: 14 }}>Recurring Services</div>
+              <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL_TEXT, textTransform: "uppercase", marginBottom: 14 }}>Recurring Services</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {RECURRING.map((r) => (
                   <div key={r.name} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
@@ -640,7 +642,7 @@ export default function SampleReportPage() {
 
             {/* Connected sensors */}
             <div style={{ background: PAPER, border: `1px solid ${BORDER}`, borderRadius: 24, padding: 26 }}>
-              <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL, textTransform: "uppercase", marginBottom: 4 }}>Connected Sensors</div>
+              <div style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.14em", color: CORAL_TEXT, textTransform: "uppercase", marginBottom: 4 }}>Connected Sensors</div>
               <div style={{ fontSize: "0.75rem", color: MUTED, marginBottom: 14 }}>{SENSORS.filter(s => s.status === "ONLINE").length}/{SENSORS.length} online</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {SENSORS.map((s) => (
@@ -667,7 +669,7 @@ export default function SampleReportPage() {
             <div style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: "1.75rem", color: PAPER, letterSpacing: "-0.04em", lineHeight: 1.15 }}>
               Build yours — $59 a year.
             </div>
-            <p style={{ fontFamily: BODY, fontSize: "0.9375rem", color: "rgba(252,252,253,0.76)", marginTop: 10, maxWidth: 480 }}>
+            <p style={{ fontFamily: BODY, fontSize: "0.9375rem", color: "rgba(252,252,253,0.9)", marginTop: 10, maxWidth: 480 }}>
               Every plan comes with permanent storage and shareable reports. Start with the last repair you paid for.
             </p>
           </div>

@@ -1,0 +1,11 @@
+# Docker builds use the repo root as context (agents/*/Dockerfile) but only
+# need the server and packages/shared.
+*
+!packages/shared
+!agents/notifications
+!agents/iot-gateway
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/*.pem

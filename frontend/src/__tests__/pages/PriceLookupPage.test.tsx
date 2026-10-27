@@ -28,7 +28,7 @@ function renderAt(path: string) {
 function makeResult(overrides: Partial<PriceBenchmarkResult> = {}): PriceBenchmarkResult {
   return {
     serviceType: "HVAC", zipCode: "32114", low: 25000, median: 40000, high: 60000,
-    sampleSize: 8, lastUpdated: "2024-06",
+    sampleSize: 8, source: "local",
     ...overrides,
   };
 }
@@ -67,7 +67,7 @@ describe("PriceLookupPage — loading and results", () => {
     expect(await screen.findByText("HVAC in 32114")).toBeInTheDocument();
     expect(screen.getByText("$250")).toBeInTheDocument();
     expect(screen.getByText("$600")).toBeInTheDocument();
-    expect(screen.getByText("12 bids")).toBeInTheDocument();
+    expect(screen.getByText("12 accepted quotes · 32114")).toBeInTheDocument();
   });
 
   it("shows the not-enough-data panel when sampleSize is below the threshold", async () => {

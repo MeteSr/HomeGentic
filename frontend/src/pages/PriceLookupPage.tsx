@@ -11,6 +11,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   getPriceBenchmark,
   hasSufficientSamples,
+  benchmarkBasis,
   buildPriceLookupUrl,
   type PriceBenchmarkResult,
 } from "@/services/priceBenchmark";
@@ -54,7 +55,7 @@ function SearchForm({ defaultService = "", defaultZip = "" }: { defaultService?:
           Home repair cost lookup
         </h1>
         <p style={{ fontFamily: F.body, fontSize: "0.9375rem", color: C.muted, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
-          See real price benchmarks from closed bids in your zip code before you hire.
+          See what a job usually costs before you hire. Where enough homeowners near you have accepted quotes on HomeGentic, we show those prices; otherwise you get the typical U.S. range.
         </p>
 
         <div style={{ background: C.white, border: `1.5px solid ${C.border}`, borderRadius: "24px", padding: "2rem", boxShadow: "0 4px 18px rgba(43,52,255,0.08)", display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -150,7 +151,7 @@ function BenchmarkResult({ result, service, zip }: { result: PriceBenchmarkResul
       {!sufficient ? (
         <div style={{ padding: "1.75rem", border: `1.5px solid ${C.border}`, borderRadius: "24px", boxShadow: "0 4px 18px rgba(43,52,255,0.08)" }}>
           <p style={{ fontFamily: F.body, fontSize: "0.9375rem", color: C.muted, lineHeight: 1.7, fontWeight: 300 }}>
-            Not enough data — fewer than 5 closed bids on file for this zip code and service type.
+            Not enough data yet for this zip code and service type.
           </p>
         </div>
       ) : (
@@ -158,7 +159,7 @@ function BenchmarkResult({ result, service, zip }: { result: PriceBenchmarkResul
           {/* Price range */}
           <div style={{ padding: "2rem", background: C.blueFg, borderBottom: `1px solid ${C.border}` }}>
             <p style={{ fontFamily: F.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: "0.75rem" }}>
-              Typical Range
+              {result.source === "local" ? "Accepted quotes near you" : "Typical U.S. range"}
             </p>
             <div style={{ display: "flex", alignItems: "baseline", gap: "0.625rem" }}>
               <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.25rem", color: C.ink }}>{fmt(result.low)}</span>
@@ -173,13 +174,14 @@ function BenchmarkResult({ result, service, zip }: { result: PriceBenchmarkResul
               <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: "1.25rem", color: C.ink }}>{fmt(result.median)}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontFamily: F.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: C.muted }}>SAMPLE SIZE</span>
-              <span style={{ fontFamily: F.mono, fontSize: "0.75rem", color: C.muted }}>{result.sampleSize} bids</span>
+              <span style={{ fontFamily: F.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: C.muted }}>SOURCE</span>
+              <span style={{ fontFamily: F.mono, fontSize: "0.75rem", color: C.muted }}>
+                {result.source === "local" ? `${result.sampleSize} accepted quotes · ${result.area ?? zip}` : "U.S. typical range"}
+              </span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontFamily: F.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: C.muted }}>LAST UPDATED</span>
-              <span style={{ fontFamily: F.mono, fontSize: "0.75rem", color: C.muted }}>{result.lastUpdated}</span>
-            </div>
+            <p style={{ fontFamily: F.body, fontSize: "0.8rem", color: C.muted, lineHeight: 1.6, fontWeight: 300, margin: 0 }}>
+              {benchmarkBasis(result)}
+            </p>
           </div>
         </div>
       )}

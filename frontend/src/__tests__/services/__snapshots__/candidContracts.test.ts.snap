@@ -281,6 +281,7 @@ getPendingTransfer(1) -> (1) [query]
 getPendingTransferByToken(1) -> (1) [query]
 getPendingVerifications(0) -> (1)
 getProperty(1) -> (1) [query]
+getPropertyAddress(1) -> (1) [query]
 getPropertyByManagerInviteToken(1) -> (1) [query]
 getPropertyByTransferToken(1) -> (1) [query]
 getPropertyLimitForTier(1) -> (1) [query]
@@ -317,6 +318,7 @@ createQuoteRequest(9) -> (1)
 createSealedBidRequest(10) -> (1)
 deleteMyData(0) -> (1)
 getIbePublicKey(0) -> (1)
+getLocalPriceStats(2) -> (1) [query]
 getMyBid(1) -> (1) [query]
 getMyQuoteRequests(0) -> (1) [query]
 getMyQuotes(0) -> (1) [query]

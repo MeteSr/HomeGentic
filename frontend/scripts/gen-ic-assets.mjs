@@ -18,7 +18,8 @@
  *   dfx deploy frontend --network ic   (uploads dist/ including .ic-assets.json5)
  */
 
-import { writeFileSync, readFileSync, existsSync } from "fs";
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
+import { wellKnownFiles } from "./appLinks.mjs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -75,6 +76,18 @@ if (env.VITE_NOTIFICATIONS_URL?.trim()) {
   }
 }
 
+// The IoT gateway is optional too; the sensor "Connect account" popup calls
+// it (POST /oauth/device/link) from the page.
+let iotGatewayOrigin = "";
+if (env.VITE_IOT_GATEWAY_URL?.trim()) {
+  try {
+    iotGatewayOrigin = new URL(env.VITE_IOT_GATEWAY_URL.trim()).origin;
+  } catch {
+    console.error(`[gen-ic-assets] FATAL: VITE_IOT_GATEWAY_URL is not a valid URL: ${env.VITE_IOT_GATEWAY_URL}`);
+    process.exit(1);
+  }
+}
+
 // ── Build CSP ─────────────────────────────────────────────────────────────────
 // Production-appropriate directives — no localhost entries.
 // Matches the <meta> tag CSP in index.html but without the dev-only localhost
@@ -95,7 +108,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   // icp-api.io is an alternative boundary-node endpoint used by some @dfinity/* versions
-  `connect-src 'self' https://ic0.app https://*.ic0.app https://icp-api.io ${STRIPE_CONNECT} ${voiceOrigin}${notificationsOrigin ? ` ${notificationsOrigin}` : ""}`,
+  `connect-src 'self' https://ic0.app https://*.ic0.app https://icp-api.io ${STRIPE_CONNECT} ${voiceOrigin}${notificationsOrigin ? ` ${notificationsOrigin}` : ""}${iotGatewayOrigin ? ` ${iotGatewayOrigin}` : ""}`,
   `img-src 'self' data: blob: ${STRIPE_IMG}`,
   `frame-src ${STRIPE_FRAME}`,
   "object-src 'none'",
@@ -127,6 +140,22 @@ const icAssets = [
     },
   },
 ];
+
+// ── Universal links (.well-known) ─────────────────────────────────────────────
+// The assets canister skips dot-folders unless told otherwise, and iOS wants
+// the association file served as JSON despite having no extension.
+const wellKnown = wellKnownFiles(env);
+if (Object.keys(wellKnown).length) {
+  mkdirSync(resolve(DIST, ".well-known"), { recursive: true });
+  for (const [name, body] of Object.entries(wellKnown)) {
+    writeFileSync(resolve(DIST, ".well-known", name), JSON.stringify(body) + "\n");
+  }
+  icAssets.push(
+    { match: ".well-known", ignore: false },
+    { match: ".well-known/*", headers: { "Content-Type": "application/json" } },
+  );
+  console.log(`[gen-ic-assets] wrote .well-known/${Object.keys(wellKnown).join(", .well-known/")}`);
+}
 
 const outPath = resolve(DIST, ".ic-assets.json5");
 writeFileSync(outPath, JSON.stringify(icAssets, null, 2) + "\n");

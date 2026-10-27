@@ -1,0 +1,101 @@
+name: Deploy Relays
+
+# The notification relay and IoT gateway run as one always-on Fly.io machine
+# each (agents/<service>/fly.toml), with their state on a Fly volume. Pull
+# requests only build the images. A push to main deploys to testnet; production
+# is a manual run from main. Setup steps: docs/DEPLOYMENT.md → "Hosting on Fly.io".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'agents/notifications/**'
+      - 'agents/iot-gateway/**'
+      - 'packages/shared/**'
+      - '.dockerignore'
+      - '.github/workflows/deploy-relays.yml'
+  pull_request:
+    paths:
+      - 'agents/notifications/**'
+      - 'agents/iot-gateway/**'
+      - 'packages/shared/**'
+      - '.dockerignore'
+      - '.github/workflows/deploy-relays.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Where to deploy'
+        required: true
+        default: testnet
+        type: choice
+        options: [testnet, production]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-relays-${{ github.event_name == 'pull_request' && github.ref || inputs.environment || 'testnet' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.service }} image
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [notifications, iot-gateway]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build the image
+        run: docker build -f agents/${{ matrix.service }}/Dockerfile -t hg-${{ matrix.service }} .
+      - name: Starts and refuses production without its config
+        # The production startup checks must stop the server, not let it run
+        # half-configured.
+        run: |
+          set +e
+          out=$(timeout 30 docker run --rm hg-${{ matrix.service }} 2>&1)
+          code=$?
+          echo "$out" | tail -5
+          [ "$code" -ne 0 ] && [ "$code" -ne 124 ] && echo "$out" | grep -q "must be set in production"
+
+  deploy:
+    name: Deploy ${{ matrix.service }} (${{ inputs.environment || 'testnet' }})
+    needs: build
+    runs-on: ubuntu-latest
+    # Push to main → testnet. Manual runs only from main, so the production
+    # token is never used with an unreviewed branch.
+    if: >-
+      (github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    environment: ${{ inputs.environment || 'testnet' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [notifications, iot-gateway]
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      FLY_APP: homegentic-${{ matrix.service }}${{ (inputs.environment || 'testnet') == 'testnet' && '-testnet' || '' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check Fly is set up
+        id: gate
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::notice::FLY_API_TOKEN isn't set on the ${{ inputs.environment || 'testnet' }} environment; skipping $FLY_APP. See docs/DEPLOYMENT.md → Hosting on Fly.io."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: superfly/flyctl-actions/setup-flyctl@1.5
+        if: steps.gate.outputs.skip != 'true'
+      - name: Deploy
+        if: steps.gate.outputs.skip != 'true'
+        # --ha=false: exactly one machine. Two would each send every push,
+        # email and text (the relay) or every sensor event (the gateway).
+        run: |
+          flyctl deploy . \
+            --config agents/${{ matrix.service }}/fly.toml \
+            --dockerfile agents/${{ matrix.service }}/Dockerfile \
+            --app "$FLY_APP" --remote-only --ha=false --wait-timeout 300

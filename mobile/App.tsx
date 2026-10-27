@@ -23,7 +23,7 @@ import OfflineBanner from "./src/screens/OfflineBanner";
 import { useNotifications } from "./src/hooks/useNotifications";
 import { useIsOnline } from "./src/hooks/useOfflineQueue";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
-import { APP_SCHEME, isAuthCallback, targetForRoute } from "./src/services/deepLinks";
+import { APP_SCHEME, UNIVERSAL_LINK_ORIGIN, isAuthCallback, targetForRoute } from "./src/services/deepLinks";
 import { linkingConfig } from "./src/navigation/linking";
 import { parseNotificationRoute } from "./src/services/notificationService";
 import { HOMEGENTIC_WEB_URL } from "./src/services/reportService";
@@ -31,9 +31,10 @@ import { v3 } from "./src/theme";
 import type { RootStackParamList } from "./src/navigation/types";
 
 // Deep links: paths in navigation/linking.ts; this adds the sources (launch
-// URL, URL events, notification taps).
+// URL, URL events, notification taps). https://homegentic.app links open here
+// too (universal links, see UNIVERSAL_LINK_PATHS).
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: [APP_SCHEME],
+  prefixes: [APP_SCHEME, UNIVERSAL_LINK_ORIGIN],
   config: linkingConfig,
   // The container mounts after sign-in, so a link or notification tap that
   // opened the app while signed out is still picked up here.

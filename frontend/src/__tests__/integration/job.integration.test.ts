@@ -272,12 +272,15 @@ describe.skipIf(!deployed)("getCertificationData — counter from canister state
 describe.skipIf(!deployed)("createInviteToken / getJobByInviteToken — token lifecycle", () => {
   let jobId: string;
   let token: string;
-  const propAddress = "123 Test St, Orlando FL 32801";
+  // What the client passes; the canister ignores it once job is wired to
+  // property and shows the property record's own address instead.
+  const typedAddress = "123 Test St, Orlando FL 32801";
+  const streetOnRecord = `${RUN_ID} InviteToken Ln`;
 
   beforeAll(async () => {
     const prop = await propertyService.registerProperty({
       ...PROP_BASE,
-      address: `${RUN_ID} InviteToken Ln, Orlando FL 32801`,
+      address: streetOnRecord,
     });
     const job = await jobService.create({
       ...BASE,
@@ -287,7 +290,7 @@ describe.skipIf(!deployed)("createInviteToken / getJobByInviteToken — token li
       amount:         85_000,
     });
     jobId = job.id;
-    token = await jobService.createInviteToken(jobId, propAddress);
+    token = await jobService.createInviteToken(jobId, typedAddress);
   });
 
   it("createInviteToken returns a non-empty string token", () => {
@@ -301,7 +304,12 @@ describe.skipIf(!deployed)("createInviteToken / getJobByInviteToken — token li
     expect(preview.serviceType).toBe("Plumbing");
     expect(preview.amount).toBe(85_000);
     expect(preview.contractorName).toBe("Pipe Masters Inc");
-    expect(preview.propertyAddress).toBe(propAddress);
+  });
+
+  it("the invite shows the property's address, not the one the client typed", async () => {
+    const preview = await jobService.getJobByInviteToken(token);
+    expect(preview.propertyAddress.startsWith(`${streetOnRecord}, `)).toBe(true);
+    expect(preview.propertyAddress).not.toContain("123 Test St");
   });
 
   it("preview.alreadySigned is false before signing", async () => {

@@ -16,7 +16,13 @@ interface OAuthMessage {
   error?:     string;
 }
 
-const GATEWAY_URL = (import.meta as any).env?.VITE_IOT_GATEWAY_URL ?? "http://localhost:3002";
+// Built without VITE_IOT_GATEWAY_URL, production has no gateway to send the
+// sign-in to, so the "Connect account" button is hidden (see gatewayConfigured).
+const CONFIGURED_GATEWAY = ((import.meta as any).env?.VITE_IOT_GATEWAY_URL ?? "").replace(/\/+$/, "");
+const GATEWAY_URL = CONFIGURED_GATEWAY || ((import.meta as any).env?.DEV ? "http://localhost:3002" : "");
+
+/** Whether vendor-account sign-in can run in this build. */
+export const gatewayConfigured = GATEWAY_URL !== "";
 
 async function errorOf(res: Response): Promise<string> {
   try {

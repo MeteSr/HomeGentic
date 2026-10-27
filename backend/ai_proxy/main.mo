@@ -157,20 +157,23 @@ persistent actor AiProxy {
   };
 
   // ── Price benchmark seed data ──────────────────────────────────────────────
+  // Fixed typical U.S. ranges (cents). They are not local and not bids: the
+  // frontend labels them as national and prefers quote.getLocalPriceStats
+  // once an area has enough accepted quotes.
 
-  type BenchmarkSeed = { low: Nat; median: Nat; high: Nat; sampleSize: Nat };
+  type BenchmarkSeed = { low: Nat; median: Nat; high: Nat };
 
   private transient let PRICE_SEEDS : [(Text, BenchmarkSeed)] = [
-    ("Roofing",     { low = 800000;  median = 1400000; high = 2200000; sampleSize = 47 }),
-    ("HVAC",        { low = 350000;  median = 650000;  high = 1200000; sampleSize = 61 }),
-    ("Plumbing",    { low = 15000;   median = 45000;   high = 180000;  sampleSize = 83 }),
-    ("Electrical",  { low = 20000;   median = 55000;   high = 250000;  sampleSize = 54 }),
-    ("Flooring",    { low = 200000;  median = 450000;  high = 900000;  sampleSize = 38 }),
-    ("Painting",    { low = 60000;   median = 150000;  high = 400000;  sampleSize = 72 }),
-    ("Landscaping", { low = 30000;   median = 90000;   high = 350000;  sampleSize = 29 }),
-    ("Windows",     { low = 45000;   median = 120000;  high = 350000;  sampleSize = 22 }),
-    ("Foundation",  { low = 400000;  median = 900000;  high = 2500000; sampleSize = 11 }),
-    ("Other",       { low = 10000;   median = 40000;   high = 200000;  sampleSize = 15 }),
+    ("Roofing",     { low = 800000;  median = 1400000; high = 2200000 }),
+    ("HVAC",        { low = 350000;  median = 650000;  high = 1200000 }),
+    ("Plumbing",    { low = 15000;   median = 45000;   high = 180000 }),
+    ("Electrical",  { low = 20000;   median = 55000;   high = 250000 }),
+    ("Flooring",    { low = 200000;  median = 450000;  high = 900000 }),
+    ("Painting",    { low = 60000;   median = 150000;  high = 400000 }),
+    ("Landscaping", { low = 30000;   median = 90000;   high = 350000 }),
+    ("Windows",     { low = 45000;   median = 120000;  high = 350000 }),
+    ("Foundation",  { low = 400000;  median = 900000;  high = 2500000 }),
+    ("Other",       { low = 10000;   median = 40000;   high = 200000 }),
   ];
 
   // ── Instant forecast data (mirrors agents/voice/forecast.ts) ──────────────
@@ -312,21 +315,13 @@ persistent actor AiProxy {
     switch (PRICE_SEEDS.find(func(s) { s.0 == service })) {
       case null        { #err("No benchmark data for service: " # service) };
       case (?(_, seed)) {
-        // Approximate lastUpdated from Time.now() — YYYY-MM format
-        let nowNs  = Time.now();
-        let year   = 1970 + Int.abs(nowNs) / 31_557_600_000_000_000;
-        let month  = (Int.abs(nowNs) / 2_629_800_000_000_000) % 12 + 1;
-        let mmStr  = if (month < 10) "0" # month.toText() else month.toText();
-        let lastUpdated = year.toText() # "-" # mmStr;
-
         let json = "{" #
           jsonStr("serviceType", service) # "," #
           jsonStr("zipCode", zip) # "," #
           jsonNat("low", seed.low) # "," #
           jsonNat("median", seed.median) # "," #
           jsonNat("high", seed.high) # "," #
-          jsonNat("sampleSize", seed.sampleSize) # "," #
-          jsonStr("lastUpdated", lastUpdated) #
+          jsonStr("source", "national") #
         "}";
         #ok(json)
       };

@@ -149,6 +149,15 @@ persistent actor Quote {
     asOf:   Text;          // YYYY-MM-DD
   };
 
+  /// Accepted-quote prices for one trade in one area (see getLocalPriceStats).
+  public type LocalPriceStats = {
+    low:        Nat;   // 25th percentile, cents
+    median:     Nat;   // cents
+    high:       Nat;   // 75th percentile, cents
+    sampleSize: Nat;   // accepted quotes counted
+    area:       Text;  // the ZIP, or its first three digits ("327xx")
+  };
+
   public type Metrics = {
     totalRequests: Nat;
     openRequests: Nat;
@@ -209,11 +218,31 @@ persistent actor Quote {
       if (r.status == #Open or r.status == #Quoted) ?OPEN_KEY else null
     }),
   ]);
+  /// "Trade|<first `digits` of the ZIP>" for an accepted quote whose request
+  /// has a ZIP, else null.
+  private func priceKey(serviceType : ServiceType, zip : Text, digits : Nat) : Text {
+    ServiceTypes.toText(serviceType) # "|" # Text.fromIter(zip.trim(#char ' ').chars().take(digits))
+  };
+  private func acceptedPriceKey(q : Quote, digits : Nat) : ?Text {
+    if (q.status != #Accepted) return null;
+    switch (requests.get(q.requestId)) {
+      case (?{ serviceType; zipCode = ?zip }) {
+        if (zip.trim(#char ' ').size() < 5) null else ?priceKey(serviceType, zip, digits)
+      };
+      case _ { null };
+    }
+  };
+
   private transient let quotesByRequest    = Index.empty();
   private transient let quotesByContractor = Index.empty();
+  /// Accepted quotes by "Trade|ZIP" and "Trade|ZIP3", for local price stats.
+  private transient let acceptedByZip    = Index.empty();
+  private transient let acceptedByZip3   = Index.empty();
   private transient let quoteIndexes : [Index.Keyed<Quote>] = Index.indexed(quotes, [
     (quotesByRequest,    func(q : Quote) : ?Text { ?q.requestId }),
     (quotesByContractor, func(q : Quote) : ?Text { ?q.contractor.toText() }),
+    (acceptedByZip,  func(q : Quote) : ?Text { acceptedPriceKey(q, 5) }),
+    (acceptedByZip3, func(q : Quote) : ?Text { acceptedPriceKey(q, 3) }),
   ]);
 
   private func putRequest(r : QuoteRequest) { Index.put(requests, requestIndexes, r.id, r) };
@@ -639,6 +668,40 @@ persistent actor Quote {
     Index.records(requestsByHomeowner, msg.caller.toText(), requests).toArray(
       
     )
+  };
+
+  /// Fewest accepted quotes an area needs before its prices are shown, so a
+  /// single job's price can't be read back out of the stats.
+  private transient let MIN_PRICE_SAMPLES = 5;
+
+  /// Price range from quotes homeowners accepted for `serviceType` in `zip`,
+  /// widening to the ZIP's first three digits when the ZIP alone has fewer
+  /// than MIN_PRICE_SAMPLES. Null when neither has enough.
+  public query func getLocalPriceStats(serviceType : Text, zip : Text) : async ?LocalPriceStats {
+    let svc = switch (ServiceTypes.fromText(serviceType)) { case (?s) s; case null { return null } };
+    let z = zip.trim(#char ' ');
+    if (z.size() < 5) return null;
+    let tries : [(Index.Index, Nat, Text)] = [
+      (acceptedByZip,  5, Text.fromIter(z.chars().take(5))),
+      (acceptedByZip3, 3, Text.fromIter(z.chars().take(3)) # "xx"),
+    ];
+    for ((ix, digits, area) in tries.values()) {
+      let amounts = Index.records(ix, priceKey(svc, z, digits), quotes)
+        .map(func(q : Quote) : Nat { q.amount })
+        .toArray()
+        .sort(Nat.compare);
+      let n = amounts.size();
+      if (n >= MIN_PRICE_SAMPLES) {
+        return ?{
+          low        = amounts[n / 4];
+          median     = amounts[n / 2];
+          high       = amounts[(n * 3) / 4];
+          sampleSize = n;
+          area;
+        };
+      };
+    };
+    null
   };
 
   /// Fetch all quotes submitted by the caller (contractor bid history).

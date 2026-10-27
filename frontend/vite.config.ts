@@ -42,16 +42,22 @@ export default defineConfig(({ mode, command }) => {
     },
   };
 
-  // The notification relay is optional, so its CSP entry can't use Vite's
-  // %VITE_…% substitution (an unset variable is left in as a literal).
+  // The notification relay and IoT gateway are optional, so their CSP entries
+  // can't use Vite's %VITE_…% substitution (an unset variable is left in as a
+  // literal).
+  const originOf = (url: string | undefined): string => {
+    try {
+      return url ? new URL(url).origin : "";
+    } catch { return ""; /* malformed URL — leave it out of the CSP */ }
+  };
   const notificationsCsp = {
     name: "notifications-csp",
     transformIndexHtml(html: string): string {
-      let origin = "";
-      try {
-        if (env.VITE_NOTIFICATIONS_URL) origin = new URL(env.VITE_NOTIFICATIONS_URL).origin;
-      } catch { /* malformed URL — leave it out of the CSP */ }
-      return html.replace(" __NOTIFICATIONS_ORIGIN__", origin ? ` ${origin}` : "");
+      const relay   = originOf(env.VITE_NOTIFICATIONS_URL);
+      const gateway = originOf(env.VITE_IOT_GATEWAY_URL);
+      return html
+        .replace(" __NOTIFICATIONS_ORIGIN__", relay ? ` ${relay}` : "")
+        .replace(" __IOT_GATEWAY_ORIGIN__", gateway ? ` ${gateway}` : "");
     },
   };
 

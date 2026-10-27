@@ -9,6 +9,15 @@
  */
 export const APP_SCHEME = "homegentic://";
 
+/**
+ * Universal links (iOS) / verified App Links (Android): these web paths open
+ * the app when it's installed. They must match app.json (associatedDomains,
+ * the https intent filter) and the files the web build serves under
+ * /.well-known (frontend/scripts/appLinks.mjs).
+ */
+export const UNIVERSAL_LINK_ORIGIN = "https://homegentic.app";
+export const UNIVERSAL_LINK_PATHS = ["/dashboard", "/people", "/report/*", "/my-listing/*"] as const;
+
 /** Internet Identity sign-in callbacks share the scheme but aren't navigation. */
 export function isAuthCallback(url: string): boolean {
   return url.startsWith(`${APP_SCHEME}auth`);

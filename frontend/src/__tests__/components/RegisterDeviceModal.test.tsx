@@ -33,7 +33,11 @@ const { mockOAuth } = vi.hoisted(() => ({
     reset: vi.fn(),
   },
 }));
-vi.mock("@/hooks/useOAuthDevicePicker", () => ({ useOAuthDevicePicker: () => mockOAuth }));
+const gateway = vi.hoisted(() => ({ configured: true }));
+vi.mock("@/hooks/useOAuthDevicePicker", () => ({
+  useOAuthDevicePicker: () => mockOAuth,
+  get gatewayConfigured() { return gateway.configured; },
+}));
 
 const { mockToastError, mockToastSuccess } = vi.hoisted(() => ({
   mockToastError: vi.fn(),
@@ -61,6 +65,7 @@ function renderModal(props: Partial<React.ComponentProps<typeof RegisterDeviceMo
 beforeEach(() => {
   vi.clearAllMocks();
   mockOAuth.devices = [];
+  gateway.configured = true;
   mockOAuth.loading = false;
   mockOAuth.error = null;
 });
@@ -134,6 +139,16 @@ describe("RegisterDeviceModal — Tier A (default source)", () => {
 });
 
 describe("RegisterDeviceModal — Tier B (OAuth sources)", () => {
+  it("hides account sign-in and says so when the build has no gateway URL", () => {
+    gateway.configured = false;
+    renderModal();
+    fireEvent.change(screen.getByLabelText("Device Type"), { target: { value: "Ecobee" } });
+
+    expect(screen.queryByText("Connect Ecobee Account")).toBeNull();
+    expect(screen.getByText(/Signing in to Ecobee isn't available yet/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Register Device" })).toBeDisabled();
+  });
+
   it("keeps Register disabled until a device is picked from the OAuth list", async () => {
     renderModal();
     fireEvent.change(screen.getByLabelText("Device Type"), { target: { value: "Ecobee" } });
