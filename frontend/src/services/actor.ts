@@ -1,4 +1,4 @@
-import { AuthClient } from "@icp-sdk/auth/client";
+import type { AuthClient } from "@icp-sdk/auth/client";
 import { HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 
@@ -21,11 +21,14 @@ const II_CANISTER_ID = "rdmx6-jaaaa-aaaaa-aaadq-cai";
 let _authClient: AuthClient | null = null;
 let _agent: HttpAgent | null = null;
 
-export function getAuthClient(): AuthClient {
+// @icp-sdk/auth is loaded on first use rather than with the entry chunk, which
+// keeps it out of the first-load JS budget (perf/bundleSize1344).
+export async function getAuthClient(): Promise<AuthClient> {
   if (!_authClient) {
-    // Synchronous constructor; identityProvider is { authorizeUrl, canisterId }
-    // since @icp-sdk/auth 9 (a plain URL string throws).
-    _authClient = new AuthClient({
+    const { AuthClient } = await import("@icp-sdk/auth/client");
+    // identityProvider is { authorizeUrl, canisterId } since @icp-sdk/auth 9
+    // (a plain URL string throws).
+    _authClient ??= new AuthClient({
       identityProvider: { authorizeUrl: II_URL, canisterId: II_CANISTER_ID },
     });
   }
@@ -34,7 +37,7 @@ export function getAuthClient(): AuthClient {
 
 export async function getAgent(): Promise<HttpAgent> {
   if (!_agent) {
-    const client = getAuthClient();
+    const client = await getAuthClient();
     // getIdentity() is async
     const identity = await client.getIdentity();
     // Do NOT pass shouldFetchRootKey to HttpAgent.create() — on @icp-sdk/core/agent
@@ -104,7 +107,9 @@ export async function loginWithLocalIdentity(): Promise<string> {
 }
 
 export async function login(): Promise<void> {
-  const client = getAuthClient();
+  // The II popup has to open while the click's user activation is live, so use
+  // the client loaded by the startup isAuthenticated() check without awaiting.
+  const client = _authClient ?? (await getAuthClient());
   // signIn() opens the popup at identityProvider.authorizeUrl (set in the constructor),
   // establishes ICRC-29 heartbeat, then requests delegation via ICRC-34.
   // Throws if the popup can't establish the channel (wrong URL, old II, etc.)
@@ -118,7 +123,7 @@ export async function login(): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
-  const client = getAuthClient();
+  const client = await getAuthClient();
   await client.signOut();
   resetAgent();
   _authClient = null;
@@ -127,14 +132,14 @@ export async function logout(): Promise<void> {
 export async function isAuthenticated(): Promise<boolean> {
   try {
     // isAuthenticated() is synchronous
-    return getAuthClient().isAuthenticated();
+    return (await getAuthClient()).isAuthenticated();
   } catch {
     return false;
   }
 }
 
 export async function getPrincipal(): Promise<string> {
-  const client = getAuthClient();
+  const client = await getAuthClient();
   // getIdentity() is async
   const identity = await client.getIdentity();
   return identity.getPrincipal().toText();

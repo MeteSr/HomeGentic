@@ -22,7 +22,7 @@ normalized sensor readings to the HomeGentic Sensor canister on ICP.
 ```bash
 cd agents/iot-gateway
 npm install
-npm run dev        # ts-node server.ts, port 3002
+npm run dev        # tsx server.ts, port 3002
 ```
 
 Copy `.env.example` to `.env` and fill in the relevant vars before starting.
