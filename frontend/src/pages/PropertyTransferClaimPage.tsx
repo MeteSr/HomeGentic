@@ -143,7 +143,7 @@ export default function PropertyTransferClaimPage() {
     return (
       <Shell>
         <div style={{ padding: "2.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <Loader2 size={20} color={UI.inkLight} style={{ animation: "spin 1s linear infinite" }} />
+          <Loader2 size={20} color={UI.inkLight} data-motion="essential" style={{ animation: "spin 1s linear infinite" }} />
           <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, letterSpacing: "0.1em", textTransform: "uppercase" }}>
             Loading transfer…
           </span>
@@ -232,7 +232,7 @@ export default function PropertyTransferClaimPage() {
     return (
       <Shell>
         <div style={{ padding: "2.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <Loader2 size={20} color={UI.inkLight} style={{ animation: "spin 1s linear infinite" }} />
+          <Loader2 size={20} color={UI.inkLight} data-motion="essential" style={{ animation: "spin 1s linear infinite" }} />
           <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, letterSpacing: "0.1em", textTransform: "uppercase" }}>
             Transferring ownership on-chain…
           </span>

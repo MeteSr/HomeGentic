@@ -817,7 +817,7 @@ export default function BuyersTruthKitPage() {
       {/* ── Loading ───────────────────────────────────────────────────── */}
       {screen === "loading" && (
         <div style={{ maxWidth:480, margin:"0 auto", padding:"100px 24px", textAlign:"center" }}>
-          <div style={{ width:48, height:48, border:`3px solid ${C.border}`, borderTopColor:C.blue, borderRadius:"50%", animation:"btk-spin 0.8s linear infinite", margin:"0 auto 28px" }} />
+          <div data-motion="essential" style={{ width:48, height:48, border:`3px solid ${C.border}`, borderTopColor:C.blue, borderRadius:"50%", animation:"btk-spin 0.8s linear infinite", margin:"0 auto 28px" }} />
           <h2 style={{ fontFamily:F.display, fontSize:28, fontWeight:800, color:C.ink, marginBottom:8 }}>
             Building your kit…
           </h2>

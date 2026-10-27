@@ -484,3 +484,44 @@ table { border-collapse: collapse; }
 
 /* RouteAnnouncer focuses the page heading after navigation; it isn't a control. */
 h1[tabindex="-1"]:focus { outline: none; }
+
+/* ─── Skip link ──────────────────────────────────────────────────────────────── */
+/* Off-screen until a keyboard user tabs to it; then it shows top-left. */
+
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -100px;
+  z-index: 10000;
+  padding: 0.75rem 1rem;
+  min-height: 44px;
+  background: #0B0D1A;
+  color: #FFFFFF;
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 10px;
+}
+.skip-link:focus { top: 0.75rem; }
+
+/* ─── Reduced motion ─────────────────────────────────────────────────────────── */
+/* Honour the OS "reduce motion" setting (WCAG 2.3.3, 2.2.2). `!important` here
+   also beats the inline `animation`/`transition` styles many components set.
+   Animations jump to their end state; loading spinners keep turning, slowly,
+   because they're the only sign that something is still happening. */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+  .btn-spinner, .spinner-lg, [data-motion="essential"] {
+    animation-duration: 1.5s !important;
+    animation-iteration-count: infinite !important;
+  }
+}

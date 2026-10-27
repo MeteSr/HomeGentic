@@ -18,6 +18,7 @@ import {
   type AttestationKey, type CopyCheck,
 } from "@/services/attestation";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { Main } from "@/components/MainLandmark";
 import { formatCents } from "@/utils/format";
 
 const C = V2_COLORS;
@@ -134,7 +135,7 @@ export default function VerifyRecordPage() {
         <meta name="description" content="Check that a HomeGentic report or score certificate is exactly what HomeGentic issued." />
       </PageHead>
       <PublicNav />
-      <main style={{ flex: 1, padding: "3rem 1rem", display: "flex", justifyContent: "center" }}>
+      <Main style={{ flex: 1, padding: "3rem 1rem", display: "flex", justifyContent: "center" }}>
         <div style={{ width: "100%", maxWidth: "40rem" }}>
           <h1 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", lineHeight: 1.1, margin: "0 0 0.75rem" }}>
             Check a signed record
@@ -213,7 +214,7 @@ export default function VerifyRecordPage() {
             </p>
           </div>
         </div>
-      </main>
+      </Main>
       <PublicFooter />
     </div>
   );

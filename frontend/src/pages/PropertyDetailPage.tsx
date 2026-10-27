@@ -42,6 +42,7 @@ import { RoomsTab }     from "./PropertyDetail/RoomsTab";
 import { BillsTab }     from "./PropertyDetail/BillsTab";
 import { useState, useEffect } from "react";
 import { Panel, spinnerVars } from "@/components/hud";
+import { scrollBehavior } from "@/utils/motion";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
 const BODY = "'Hanken Grotesk',sans-serif";
@@ -381,7 +382,7 @@ export default function PropertyDetailPage() {
                 )}
               </div>
               <button
-                onClick={() => document.getElementById("property-tabs")?.scrollIntoView({ behavior: "smooth" })}
+                onClick={() => document.getElementById("property-tabs")?.scrollIntoView({ behavior: scrollBehavior() })}
                 style={{ background: "transparent", border: "2px solid rgba(255,255,255,0.75)", color: "white", padding: "0.5rem 1.25rem", borderRadius: "0.5rem", fontFamily: BODY, fontWeight: 600, cursor: "pointer", fontSize: "0.875rem" }}
               >
                 View Property Details
@@ -596,7 +597,7 @@ export default function PropertyDetailPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: "1px solid var(--hg-line)" }}>
               <h3 style={{ fontFamily: BODY, fontWeight: 600, fontSize: "0.9375rem", color: "var(--hg-ink)", margin: 0 }}>Recent Activity</h3>
               <button
-                onClick={() => { setTab("jobs"); document.getElementById("property-tabs")?.scrollIntoView({ behavior: "smooth" }); }}
+                onClick={() => { setTab("jobs"); document.getElementById("property-tabs")?.scrollIntoView({ behavior: scrollBehavior() }); }}
                 style={{ fontFamily: BODY, fontSize: "0.8125rem", color: "var(--hg-blue-ink)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}
               >
                 View All <ArrowRight size={13} />

@@ -14,7 +14,6 @@ const F = {
 };
 
 const FOOTER_LINKS = [
-  { label: "Security",        href: "/security" },
   { label: "Privacy",         href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
   { label: "Contact Us",      href: "/support" },
@@ -24,7 +23,7 @@ export function PublicFooter() {
   return (
     <footer style={{
       background:     C.ink,
-      padding:        "1.25rem 2.5rem",
+      padding:        "0.5rem 2.5rem",
       display:        "flex",
       alignItems:     "center",
       justifyContent: "space-between",
@@ -41,12 +40,15 @@ export function PublicFooter() {
         © {new Date().getFullYear()} HomeGentic. All rights reserved.
       </p>
 
-      <nav style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+      <nav aria-label="Footer" style={{ display: "flex", columnGap: "1.5rem", flexWrap: "wrap" }}>
         {FOOTER_LINKS.map(({ label, href }) => (
           <Link
             key={label}
             to={href}
             style={{
+              display:        "inline-flex",
+              alignItems:     "center",
+              minHeight:      44,
               textDecoration: "none",
               fontFamily:     F.body,
               fontSize:       "0.8125rem",

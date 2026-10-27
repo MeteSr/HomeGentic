@@ -137,7 +137,7 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
         {/* Loading / Error */}
         {!token && !error && (
           <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-            <Loader2 size={24} color={UI.sage} style={{ animation: "spin 1s linear infinite" }} />
+            <Loader2 size={24} color={UI.sage} data-motion="essential" style={{ animation: "spin 1s linear infinite" }} />
           </div>
         )}
         {error && (
@@ -234,7 +234,7 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
                     alignSelf: "flex-start",
                   }}
                 >
-                  {sending ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Mail size={13} />}
+                  {sending ? <Loader2 size={13} data-motion="essential" style={{ animation: "spin 1s linear infinite" }} /> : <Mail size={13} />}
                   {sent ? "Sent" : "Send"}
                 </button>
               </div>

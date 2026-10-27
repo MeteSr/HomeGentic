@@ -58,14 +58,19 @@ echo "── [5] setResendApiKey — non-admin is rejected ───────
 if ! dfx identity list 2>/dev/null | grep -q "^contractor-test$"; then
   dfx identity new contractor-test --disable-encryption 2>/dev/null || true
 fi
-dfx canister call $CANISTER setResendApiKey "(\"should-fail\")" \
-    --identity contractor-test \
-  && echo "  ↳ ❌ Expected rejection for non-admin" \
-  || echo "  ↳ Non-admin correctly rejected — ✓"
+# The call itself succeeds and returns an err variant, so check the reply.
+NONADMIN=$(dfx canister call $CANISTER setResendApiKey "(\"should-fail\")" \
+    --identity contractor-test 2>&1 || true)
+echo "$NONADMIN" | grep -q "NotAuthorized" \
+  && echo "  ↳ Non-admin correctly rejected — ✓" \
+  || (echo "  ↳ ❌ Expected NotAuthorized for non-admin: $NONADMIN"; exit 1)
 
 echo ""
 echo "── [6] lookupPropertyDetails / importPermits — moved to the Worker ──────"
-dfx canister call $CANISTER importPermits '("1 Main St", "austin", "TX", "78701")' | grep -q "moved off-chain" \
+# Capture first: piping dfx straight into `grep -q` makes dfx panic on a
+# broken pipe once grep exits, which pipefail turns into a failure.
+PERMITS=$(dfx canister call $CANISTER importPermits '("1 Main St", "austin", "TX", "78701")')
+echo "$PERMITS" | grep -q "moved off-chain" \
   && echo "  ↳ importPermits points to the voice Worker — ✓" \
   || (echo "  ↳ ❌ importPermits should return the moved-off-chain error"; exit 1)
 

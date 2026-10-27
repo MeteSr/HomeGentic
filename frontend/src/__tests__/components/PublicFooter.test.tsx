@@ -30,7 +30,8 @@ describe("PublicFooter — copyright year", () => {
 describe("PublicFooter — links", () => {
   it("links each item to its correct route", () => {
     render(<MemoryRouter><PublicFooter /></MemoryRouter>);
-    expect(screen.getByText("Security").closest("a")).toHaveAttribute("href", "/security");
+    // There is no /security page, so the footer no longer links to one.
+    expect(screen.queryByText("Security")).toBeNull();
     expect(screen.getByText("Privacy").closest("a")).toHaveAttribute("href", "/privacy");
     expect(screen.getByText("Terms of Service").closest("a")).toHaveAttribute("href", "/terms");
     expect(screen.getByText("Contact Us").closest("a")).toHaveAttribute("href", "/support");

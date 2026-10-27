@@ -127,14 +127,20 @@ export function PublicNav() {
         {/* Mobile hamburger */}
         <button
           aria-label="Toggle menu"
+          aria-expanded={menuOpen}
           onClick={() => setMenuOpen((o) => !o)}
           style={{
-            display:    "none",
-            background: "none",
-            border:     "none",
-            cursor:     "pointer",
-            padding:    "4px",
-            color:      C.ink,
+            display:        "none",
+            alignItems:     "center",
+            justifyContent: "center",
+            minWidth:       44,
+            minHeight:      44,
+            marginRight:    "-10px",
+            background:     "none",
+            border:         "none",
+            cursor:         "pointer",
+            padding:        "4px",
+            color:          C.ink,
           }}
           className="public-nav-hamburger"
         >
