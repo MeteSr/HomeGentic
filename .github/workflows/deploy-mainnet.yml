@@ -93,6 +93,9 @@ jobs:
           # Optional: the notification relay's URL. Unset hides the browser
           # push toggle and leaves the relay out of the CSP.
           VITE_NOTIFICATIONS_URL: ${{ secrets.VITE_NOTIFICATIONS_URL }}
+          # Optional: the IoT gateway's public URL, for sensor account sign-in.
+          # Unset hides the "Connect account" button.
+          VITE_IOT_GATEWAY_URL: ${{ vars.VITE_IOT_GATEWAY_URL || secrets.VITE_IOT_GATEWAY_URL }}
 
       - name: Commit canister IDs
         # Must run even when the deploy step above fails partway through:

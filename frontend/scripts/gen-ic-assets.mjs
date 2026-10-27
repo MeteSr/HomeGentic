@@ -75,6 +75,18 @@ if (env.VITE_NOTIFICATIONS_URL?.trim()) {
   }
 }
 
+// The IoT gateway is optional too; the sensor "Connect account" popup calls
+// it (POST /oauth/device/link) from the page.
+let iotGatewayOrigin = "";
+if (env.VITE_IOT_GATEWAY_URL?.trim()) {
+  try {
+    iotGatewayOrigin = new URL(env.VITE_IOT_GATEWAY_URL.trim()).origin;
+  } catch {
+    console.error(`[gen-ic-assets] FATAL: VITE_IOT_GATEWAY_URL is not a valid URL: ${env.VITE_IOT_GATEWAY_URL}`);
+    process.exit(1);
+  }
+}
+
 // ── Build CSP ─────────────────────────────────────────────────────────────────
 // Production-appropriate directives — no localhost entries.
 // Matches the <meta> tag CSP in index.html but without the dev-only localhost
@@ -95,7 +107,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   // icp-api.io is an alternative boundary-node endpoint used by some @dfinity/* versions
-  `connect-src 'self' https://ic0.app https://*.ic0.app https://icp-api.io ${STRIPE_CONNECT} ${voiceOrigin}${notificationsOrigin ? ` ${notificationsOrigin}` : ""}`,
+  `connect-src 'self' https://ic0.app https://*.ic0.app https://icp-api.io ${STRIPE_CONNECT} ${voiceOrigin}${notificationsOrigin ? ` ${notificationsOrigin}` : ""}${iotGatewayOrigin ? ` ${iotGatewayOrigin}` : ""}`,
   `img-src 'self' data: blob: ${STRIPE_IMG}`,
   `frame-src ${STRIPE_FRAME}`,
   "object-src 'none'",

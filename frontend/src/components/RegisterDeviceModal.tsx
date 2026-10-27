@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { X, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { Button } from "@/components/Button";
 import { sensorService, type SensorDevice, type DeviceSource } from "@/services/sensor";
-import { useOAuthDevicePicker, type OAuthPickedDevice } from "@/hooks/useOAuthDevicePicker";
+import { gatewayConfigured, useOAuthDevicePicker, type OAuthPickedDevice } from "@/hooks/useOAuthDevicePicker";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
@@ -227,7 +227,12 @@ export function RegisterDeviceModal({ isOpen, onClose, onSuccess, propertyId }: 
           {/* ── Tier B: OAuth button + device picker ── */}
           {isTierB && (
             <div>
-              {!oAuth.devices.length && !pickedDevice && (
+              {!gatewayConfigured && (
+                <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
+                  Signing in to {SOURCES.find((s) => s.value === source)?.label} isn't available yet. Choose another device type or check back soon.
+                </p>
+              )}
+              {gatewayConfigured && !oAuth.devices.length && !pickedDevice && (
                 <>
                   <button
                     type="button"

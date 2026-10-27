@@ -45,6 +45,7 @@ import {
   takeStateIntent, openPickSession, checkPick,
 } from "./deviceLink";
 import { startEcobeePoller } from "./pollers/ecobee";
+import { gatewayPublicBase, oauthCallbackUrl } from "./publicUrl";
 import { startHoneywellPoller, persistTokenState as persistHoneywellTokens } from "./pollers/honeywellHome";
 import { startEnphasePoller } from "./pollers/enphase";
 import { startTeslaPoller } from "./pollers/teslaGateway";
@@ -65,6 +66,8 @@ import type {
 
 const app = express();
 const port = Number(process.env.IOT_GATEWAY_PORT) || 3002;
+// Fail at startup, not on the first sign-in, when production has no public URL.
+gatewayPublicBase(port);
 
 // OAuth CSRF state store — maps state token → { platform, expiresAt }
 const oauthStateStore = new Map<string, { platform: string; expiresAt: number }>();
@@ -655,7 +658,7 @@ app.get("/oauth/start/honeywell", adminOAuthLimiter, (req: Request, res: Respons
   if (!clientId) { res.status(500).send("HONEYWELL_CLIENT_ID not set"); return; }
   const state = generateOAuthState();
   storeOAuthState(state, "honeywell");
-  const redirectUri = `http://localhost:${port}/oauth/callback/honeywell`;
+  const redirectUri = oauthCallbackUrl(port, `/oauth/callback/honeywell`);
   const url = honeywellOAuth.authUrl(clientId, redirectUri);
   const sep = url.includes("?") ? "&" : "?";
   res.redirect(`${url}${sep}state=${encodeURIComponent(state)}`);
@@ -674,7 +677,7 @@ app.get("/oauth/start/ge", adminOAuthLimiter, (req: Request, res: Response): voi
   if (!clientId) { res.status(500).send("GE_CLIENT_ID not set"); return; }
   const state = generateOAuthState();
   storeOAuthState(state, "ge");
-  const redirectUri = `http://localhost:${port}/oauth/callback/ge`;
+  const redirectUri = oauthCallbackUrl(port, `/oauth/callback/ge`);
   const url = geSmartHQOAuth.authUrl(clientId, redirectUri);
   const sep = url.includes("?") ? "&" : "?";
   res.redirect(`${url}${sep}state=${encodeURIComponent(state)}`);
@@ -705,7 +708,7 @@ app.get("/oauth/callback/honeywell", adminOAuthLimiter, async (req: Request, res
     return;
   }
 
-  const redirectUri = `http://localhost:${port}/oauth/callback/honeywell`;
+  const redirectUri = oauthCallbackUrl(port, `/oauth/callback/honeywell`);
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
   const body = new URLSearchParams({
     grant_type:   "authorization_code",
@@ -826,7 +829,7 @@ app.get("/oauth/callback/ge", adminOAuthLimiter, async (req: Request, res: Respo
     return;
   }
 
-  const redirectUri  = `http://localhost:${port}/oauth/callback/ge`;
+  const redirectUri  = oauthCallbackUrl(port, `/oauth/callback/ge`);
   const credentials  = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
   const body = new URLSearchParams({
     grant_type:   "authorization_code",
@@ -921,7 +924,7 @@ app.get("/oauth/device/start/:platform", deviceOAuthLimiter, (req: Request, res:
     sendPickerMessage(res, { type: "oauth-devices", error: "This link has expired — start again from HomeGentic" }, "Authorization failed: invalid ticket.");
     return;
   }
-  const redirectUri  = `http://localhost:${port}/oauth/device/callback/${platform}`;
+  const redirectUri  = oauthCallbackUrl(port, `/oauth/device/callback/${platform}`);
   const state = generateOAuthState();
   storeOAuthState(state, platform);
   bindState(state, intent);
@@ -978,7 +981,7 @@ app.get("/oauth/device/callback/:platform", deviceOAuthLimiter, async (req: Requ
     return;
   }
 
-  const redirectUri = `http://localhost:${port}/oauth/device/callback/${platform}`;
+  const redirectUri = oauthCallbackUrl(port, `/oauth/device/callback/${platform}`);
 
   try {
     let accessToken: string;
