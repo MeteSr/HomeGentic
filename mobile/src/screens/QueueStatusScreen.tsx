@@ -11,9 +11,16 @@ interface Props {
 
 const TYPE_LABEL: Record<string, string> = {
   addBill:     "Add Bill",
-  createJob:   "Create Job",
+  createJob:   "Log Job",
   uploadPhoto: "Upload Photo",
 };
+
+/** "Log Job · Replaced water heater" when the payload says what it is. */
+function itemLabel(item: QueuedOperation): string {
+  const base = TYPE_LABEL[item.type] ?? item.type;
+  const what = (item.payload as { description?: unknown } | null)?.description;
+  return typeof what === "string" && what.trim() ? `${base} · ${what.trim()}` : base;
+}
 
 export default function QueueStatusScreen({ items, onRetry, onDiscard }: Props) {
   const failedCount = items.filter((i) => i.status === "failed").length;
@@ -38,20 +45,20 @@ export default function QueueStatusScreen({ items, onRetry, onDiscard }: Props) 
           renderItem={({ item }) => (
             <View style={styles.row}>
               <View style={styles.rowInfo}>
-                <Text style={styles.rowType}>{TYPE_LABEL[item.type] ?? item.type}</Text>
+                <Text style={styles.rowType} numberOfLines={1}>{itemLabel(item)}</Text>
                 <Text style={[styles.rowStatus, item.status === "failed" && styles.failedStatus]}>
-                  {item.status}
+                  {item.status === "pending" ? "pending · sends when you're online" : "failed"}
                 </Text>
                 {item.failReason ? (
-                  <Text style={styles.rowReason} numberOfLines={1}>{item.failReason}</Text>
+                  <Text style={styles.rowReason} numberOfLines={2}>{item.failReason}</Text>
                 ) : null}
               </View>
               {item.status === "failed" && (
                 <View style={styles.rowActions}>
-                  <Pressable style={styles.retryBtn} onPress={() => onRetry(item.id)}>
+                  <Pressable style={styles.retryBtn} onPress={() => onRetry(item.id)} accessibilityRole="button" accessibilityLabel={`Retry ${itemLabel(item)}`}>
                     <Text style={styles.retryBtnText}>Retry</Text>
                   </Pressable>
-                  <Pressable style={styles.discardBtn} onPress={() => onDiscard(item.id)}>
+                  <Pressable style={styles.discardBtn} onPress={() => onDiscard(item.id)} accessibilityRole="button" accessibilityLabel={`Discard ${itemLabel(item)}`}>
                     <Text style={styles.discardBtnText}>Discard</Text>
                   </Pressable>
                 </View>

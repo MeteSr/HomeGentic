@@ -167,7 +167,7 @@ describe("offlineQueue — flush while online, operation fails", () => {
     expect(item.status).toBe("failed");
   });
 
-  it("skips items older than 24 h", async () => {
+  it("parks items older than 24 h as failed instead of sending them", async () => {
     const q = createOfflineQueue(makeMemoryStorage(), makeNetworkAdapter(true));
     await q.enqueue({ type: "addBill", payload: {} });
     // Manually age the item
@@ -179,7 +179,14 @@ describe("offlineQueue — flush while online, operation fails", () => {
     const handler = jest.fn().mockResolvedValue(undefined);
     await q2.flush(handler);
     expect(handler).not.toHaveBeenCalled();
-    // Aged items are removed
+    // Aged items stay visible for the user to retry or discard
+    const [parked] = await q2.getQueue();
+    expect(parked.status).toBe("failed");
+    expect(parked.failReason).toMatch(/within a day/);
+    // A manual retry sends it
+    await q2.retry(parked.id);
+    await q2.flush(handler);
+    expect(handler).toHaveBeenCalledTimes(1);
     expect(await q2.getQueue()).toHaveLength(0);
   });
 
@@ -237,5 +244,59 @@ describe("offlineQueue — discard and retry", () => {
     const [retried] = await q.getQueue();
     expect(retried.nextRetryAt).toBe(0);
     expect(retried.status).toBe("pending");
+  });
+});
+
+// ─── scope, concurrency and change notifications ─────────────────────────────
+
+describe("offlineQueue — per-user scope", () => {
+  it("keeps each signed-in user's queue separate", async () => {
+    const q = createOfflineQueue(makeMemoryStorage(), makeNetworkAdapter(false));
+    q.setScope("alice");
+    await q.enqueue({ type: "createJob", payload: { description: "Roof" } });
+    q.setScope("bob");
+    expect(await q.getQueue()).toHaveLength(0);
+    q.setScope("alice");
+    expect(await q.getQueue()).toHaveLength(1);
+  });
+});
+
+describe("offlineQueue — concurrent flushes", () => {
+  it("sends each item once when two flushes overlap", async () => {
+    const q = createOfflineQueue(makeMemoryStorage(), makeNetworkAdapter(true));
+    await q.enqueue({ type: "createJob", payload: {} });
+    let release!: () => void;
+    const handler = jest.fn(() => new Promise<void>((r) => { release = r; }));
+    const a = q.flush(handler);
+    const b = q.flush(handler);
+    await new Promise((r) => setTimeout(r, 0));
+    release();
+    await Promise.all([a, b]);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(await q.getQueue()).toHaveLength(0);
+  });
+
+  it("keeps an item enqueued while a flush is sending", async () => {
+    const q = createOfflineQueue(makeMemoryStorage(), makeNetworkAdapter(true));
+    await q.enqueue({ type: "createJob", payload: { n: 1 } });
+    const handler = jest.fn(async () => { await q.enqueue({ type: "createJob", payload: { n: 2 } }); });
+    await q.flush(handler);
+    const left = await q.getQueue();
+    expect(left).toHaveLength(1);
+    expect(left[0].payload).toEqual({ n: 2 });
+  });
+});
+
+describe("offlineQueue — subscribe", () => {
+  it("tells listeners when the queue changes", async () => {
+    const q = createOfflineQueue(makeMemoryStorage(), makeNetworkAdapter(false));
+    const listener = jest.fn();
+    const off = q.subscribe(listener);
+    await q.enqueue({ type: "createJob", payload: {} });
+    expect(listener).toHaveBeenCalled();
+    off();
+    listener.mockClear();
+    await q.enqueue({ type: "createJob", payload: {} });
+    expect(listener).not.toHaveBeenCalled();
   });
 });

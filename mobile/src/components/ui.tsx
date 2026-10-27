@@ -4,9 +4,12 @@
  */
 import React, { ReactNode, useEffect, useRef } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Animated,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -51,7 +54,7 @@ export function PageHeader({
 }) {
   const titleNode = (
     <View style={s.titleRow}>
-      <Text style={[type.pageTitle, { flexShrink: 1 }]}>{title}</Text>
+      <Text style={[type.pageTitle, { flexShrink: 1 }]} accessibilityRole="header">{title}</Text>
       {onTitlePress && <Icon name="chevronDown" size={18} color={v3.muted} strokeWidth={2.4} />}
     </View>
   );
@@ -291,6 +294,10 @@ export function BackLink({ label, onPress }: { label: string; onPress: () => voi
 
 // ── Screens ──────────────────────────────────────────────────────────────────
 
+/** Widest a column of content gets, so tablets don't stretch cards edge to edge. */
+export const CONTENT_MAX_WIDTH = 640;
+export const readable: ViewStyle = { width: "100%", maxWidth: CONTENT_MAX_WIDTH, alignSelf: "center" };
+
 /** Scrolling tab body. Leaves room at the bottom for the assistant button. */
 export function TabScroll({
   children,
@@ -305,7 +312,7 @@ export function TabScroll({
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: v3.bg }}
-      contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 18, paddingBottom: 96 }}
+      contentContainerStyle={[readable, { paddingTop: insets.top + 12, paddingHorizontal: 18, paddingBottom: 96 }]}
       refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={v3.muted} /> : undefined}
     >
       {children}
@@ -337,7 +344,7 @@ export function PushedScroll({
     <View style={{ flex: 1, backgroundColor: v3.bg }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 18, paddingBottom: footer ? 12 : insets.bottom + 24 }}
+        contentContainerStyle={[readable, { paddingTop: insets.top + 8, paddingHorizontal: 18, paddingBottom: footer ? 12 : insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
         refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={v3.muted} /> : undefined}
       >
@@ -346,7 +353,7 @@ export function PushedScroll({
       </ScrollView>
       {footer && (
         <View style={{ borderTopWidth: 1, borderTopColor: v3.line, backgroundColor: v3.paper, paddingTop: 14, paddingHorizontal: 18, paddingBottom: Math.max(insets.bottom, 16) + 8 }}>
-          {footer}
+          <View style={readable}>{footer}</View>
         </View>
       )}
     </View>
@@ -388,15 +395,25 @@ export function Sheet({
 
   useEffect(() => {
     if (!visible) return;
+    let live = true;
     rise.setValue(0);
-    Animated.timing(rise, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+    // Respect "Reduce Motion": appear without the slide.
+    AccessibilityInfo.isReduceMotionEnabled()
+      .catch(() => false)
+      .then((reduce) => {
+        if (!live) return;
+        if (reduce) rise.setValue(1);
+        else Animated.timing(rise, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+      });
+    return () => { live = false; };
   }, [visible, rise]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <View style={s.scrim}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Dismiss" />
+      <KeyboardAvoidingView style={s.scrim} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Dismiss" accessibilityRole="button" />
         <Animated.View
+          accessibilityViewIsModal
           style={[
             s.sheet,
             { maxHeight, paddingBottom: Math.max(30, insets.bottom + 12) },
@@ -408,7 +425,7 @@ export function Sheet({
         >
           <ScrollView bounces={false} keyboardShouldPersistTaps="handled">{children}</ScrollView>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -483,6 +500,9 @@ const s = StyleSheet.create({
   backLink: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, alignSelf: "flex-start" },
   scrim: { flex: 1, backgroundColor: v3.scrim, justifyContent: "flex-end" },
   sheet: {
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
     backgroundColor: v3.paper,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,

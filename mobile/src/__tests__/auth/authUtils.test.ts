@@ -6,8 +6,9 @@ import {
   parseAuthCallback,
   isDelegationExpired,
   delegationTargetsKey,
-  II_URL,
+  AUTH_BRIDGE_URL,
   REDIRECT_URI,
+  delegationExpiryMs,
 } from "../../auth/authUtils";
 
 // ── buildIIAuthUrl ────────────────────────────────────────────────────────────
@@ -15,15 +16,15 @@ import {
 describe("buildIIAuthUrl", () => {
   const SESSION_KEY = "a1b2c3d4e5f6";
 
-  it("returns a URL string that starts with the II origin", () => {
+  it("opens the web app's sign-in bridge, not Internet Identity directly", () => {
     const url = buildIIAuthUrl(SESSION_KEY);
-    expect(url).toMatch(/^https:\/\/identity\.ic0\.app/);
+    expect(url.startsWith(`${AUTH_BRIDGE_URL}?`)).toBe(true);
+    expect(AUTH_BRIDGE_URL).toMatch(/^https:\/\/.+\/mobile-auth$/);
   });
 
-  it("includes the redirect_uri query param pointing to homegentic://auth", () => {
-    const url = buildIIAuthUrl(SESSION_KEY);
-    expect(url).toContain("redirect_uri=");
-    expect(url).toContain(encodeURIComponent(REDIRECT_URI));
+  it("does not let the URL choose where the delegation is sent", () => {
+    expect(buildIIAuthUrl(SESSION_KEY)).not.toContain("redirect_uri");
+    expect(REDIRECT_URI).toBe("homegentic://auth");
   });
 
   it("includes the session public key as pubkey param", () => {
@@ -32,15 +33,11 @@ describe("buildIIAuthUrl", () => {
   });
 
   it("includes a maxTimeToLive param expressed in nanoseconds", () => {
-    const url = buildIIAuthUrl(SESSION_KEY);
-    // maxTimeToLive should be a large number (nanoseconds)
-    expect(url).toMatch(/maxTimeToLive=\d+/);
+    expect(buildIIAuthUrl(SESSION_KEY)).toMatch(/maxTimeToLive=\d+/);
   });
 
-  it("accepts a custom redirectUri override", () => {
-    const custom = "myapp://callback";
-    const url = buildIIAuthUrl(SESSION_KEY, custom);
-    expect(url).toContain(encodeURIComponent(custom));
+  it("accepts a custom bridge URL", () => {
+    expect(buildIIAuthUrl(SESSION_KEY, "http://localhost:3000/mobile-auth")).toMatch(/^http:\/\/localhost:3000\/mobile-auth\?/);
   });
 });
 
@@ -103,7 +100,8 @@ describe("isDelegationExpired", () => {
         {
           delegation: {
             pubkey: "aa",
-            expiration: expirationNs.toString(),
+            // DelegationChain.toJSON() writes hex without a 0x prefix
+            expiration: expirationNs.toString(16),
           },
           signature: "bb",
         },
@@ -127,6 +125,28 @@ describe("isDelegationExpired", () => {
 
   it("returns true for malformed JSON", () => {
     expect(isDelegationExpired("not-json")).toBe(true);
+  });
+
+  it("reads hex expirations that contain letters", () => {
+    // 0x18b... style values are what real chains carry; decimal parsing used to throw
+    const futureNs = BigInt(Date.now() + 3_600_000) * BigInt(1_000_000);
+    expect(futureNs.toString(16)).toMatch(/[a-f]/);
+    expect(isDelegationExpired(makeDelegationJSON(futureNs))).toBe(false);
+  });
+
+  it("uses the earliest expiration in a multi-delegation chain", () => {
+    const soon = BigInt(Date.now() + 60_000) * BigInt(1_000_000);
+    const later = BigInt(Date.now() + 8 * 3_600_000) * BigInt(1_000_000);
+    const json = JSON.stringify({
+      delegations: [
+        { delegation: { pubkey: "aa", expiration: later.toString(16) }, signature: "bb" },
+        { delegation: { pubkey: "cc", expiration: soon.toString(16) }, signature: "dd" },
+      ],
+      publicKey: "aa",
+    });
+    expect(delegationExpiryMs(json)).toBe(Number(soon / BigInt(1_000_000)));
+    expect(isDelegationExpired(json)).toBe(false);
+    expect(isDelegationExpired(json, Date.now(), 5 * 60_000)).toBe(true);
   });
 
   it("returns true when delegations array is empty", () => {

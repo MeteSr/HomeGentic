@@ -1,26 +1,27 @@
 // Pure utility functions for Internet Identity auth.
 // No side effects — safe to unit-test without native modules.
 
-export const II_URL = "https://identity.ic0.app";
+/**
+ * Sign-in runs on the web app's /mobile-auth page, opened in the system's
+ * auth browser. Internet Identity only talks to web pages (postMessage), so
+ * the page asks it for a delegation to this app's session key, then redirects
+ * to REDIRECT_URI with the chain. Signing in through the web app's origin
+ * also means the app gets the same principal as the website.
+ */
+export const WEB_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? "https://homegentic.app").replace(/\/$/, "");
+export const AUTH_BRIDGE_URL = `${WEB_URL}/mobile-auth`;
 export const REDIRECT_URI = "homegentic://auth";
 
 // 8 hours expressed in nanoseconds (ICP delegation TTL unit)
 const DEFAULT_TTL_NS = BigInt(8 * 60 * 60) * BigInt(1_000_000_000);
 
 /**
- * Build the Internet Identity authorization URL.
- * After the user authenticates, II redirects to:
- *   {redirectUri}?delegation=<base64-delegation-chain-JSON>&pubkey=<hex-user-public-key>
+ * The sign-in page URL for this login's session key (hex DER). The page only
+ * ever redirects to REDIRECT_URI.
  */
-export function buildIIAuthUrl(
-  sessionPublicKeyHex: string,
-  redirectUri: string = REDIRECT_URI,
-): string {
-  const url = new URL(`${II_URL}/#authorize`);
-  url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("pubkey", sessionPublicKeyHex);
-  url.searchParams.set("maxTimeToLive", DEFAULT_TTL_NS.toString());
-  return url.toString();
+export function buildIIAuthUrl(sessionPublicKeyHex: string, bridgeUrl: string = AUTH_BRIDGE_URL): string {
+  // Built by hand: React Native's URL can't edit search params reliably.
+  return `${bridgeUrl}?pubkey=${encodeURIComponent(sessionPublicKeyHex)}&maxTimeToLive=${DEFAULT_TTL_NS.toString()}`;
 }
 
 export interface ParsedAuthCallback {
@@ -60,25 +61,35 @@ export function parseAuthCallback(url: string): ParsedAuthCallback | null {
 }
 
 /**
- * Check whether the first delegation in the chain has expired.
- * Returns true (treat as expired) on any parse failure so callers
- * always re-authenticate on bad state.
+ * When the chain stops working (ms): the earliest expiration in it. The JSON
+ * form (DelegationChain.toJSON) writes expirations as hex nanoseconds without
+ * a 0x prefix. Null when the chain can't be read.
  */
-export function isDelegationExpired(delegationChainJSON: string): boolean {
+export function delegationExpiryMs(delegationChainJSON: string): number | null {
   try {
     const chain = JSON.parse(delegationChainJSON) as {
       delegations: Array<{ delegation: { expiration: string } }>;
     };
-
-    if (!chain.delegations?.length) return true;
-
-    const expirationNs = BigInt(chain.delegations[0].delegation.expiration);
-    // ICP expiration is in nanoseconds; Date.now() is milliseconds
-    const nowNs = BigInt(Date.now()) * BigInt(1_000_000);
-    return expirationNs <= nowNs;
+    if (!chain.delegations?.length) return null;
+    let earliest: bigint | null = null;
+    for (const d of chain.delegations) {
+      const raw = String(d.delegation.expiration);
+      const ns = BigInt(raw.startsWith("0x") ? raw : `0x${raw}`);
+      if (earliest === null || ns < earliest) earliest = ns;
+    }
+    return earliest === null ? null : Number(earliest / BigInt(1_000_000));
   } catch {
-    return true;
+    return null;
   }
+}
+
+/**
+ * Whether the chain has expired (or expires within `marginMs`). Treats an
+ * unreadable chain as expired so callers always re-authenticate on bad state.
+ */
+export function isDelegationExpired(delegationChainJSON: string, now = Date.now(), marginMs = 0): boolean {
+  const expiry = delegationExpiryMs(delegationChainJSON);
+  return expiry === null || expiry <= now + marginMs;
 }
 
 /**
