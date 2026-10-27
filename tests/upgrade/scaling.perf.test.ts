@@ -30,28 +30,16 @@ const builds: Build[] = baseWasmPath("job") ? ["head", "base"] : ["head"];
 const wasmFor = (name: string, b: Build) => (b === "head" ? wasmPath(name) : baseWasmPath(name)!);
 
 const results: string[] = [];
-afterAll(() => { if (results.length) console.log("\nCycles per call (net of a no-op call), before → after " + NOISE + " unrelated records\n" + results.join("\n")); });
+afterAll(() => { if (results.length) console.log("\nCycles per call, before → after " + NOISE + " unrelated records\n" + results.join("\n")); });
 
 async function install(name: string, b: Build, idl: any) {
   const pic: PocketIc = await createPic();
   const f = await pic.setupCanister({ idlFactory: idl, wasm: wasmFor(name, b) });
-  const as = (id: Identity) => { const a = pic.createActor<any>({ idlFactory: idl, canisterId: f.canisterId }); a.setIdentity(id); return a; };
-  // A call's cost, minus that of a no-op call measured just after it (unpause
-  // from a non-admin, refused before it touches state). PocketIC server 16
-  // (pic 0.25) adds a per-call charge that grows with the canister's size:
-  // with unchanged Wasm, main's server-12 run measured these calls x1.01
-  // after the fill and server 16 measures x1.5. The no-op call pays that
-  // charge too, so the difference is the call's own work.
-  const balance = () => pic.getCyclesBalance(f.canisterId);
-  const nobody = as(createIdentity("NOBODY"));
+  const as = (id: Identity) => { const a = pic.createActor<any>(idl, f.canisterId); a.setIdentity(id); return a; };
   const cost = async (call: () => Promise<unknown>) => {
-    const b0 = await balance();
+    const before = await pic.getCyclesBalance(f.canisterId);
     await call();
-    const b1 = await balance();
-    expect("err" in await nobody.unpause()).toBe(true);
-    const net = (b0 - b1) - (b1 - (await balance()));
-    expect(net > 0n, "call cost no more than a no-op call").toBe(true);
-    return net;
+    return before - (await pic.getCyclesBalance(f.canisterId));
   };
   return { pic, id: f.canisterId as Principal, as, cost };
 }
@@ -76,7 +64,6 @@ function check(label: string, b: Build, beforeCycles: bigint, afterCycles: bigin
 const ADMIN_IDL = (I: any) => ({
   setBootstrapNonce: I.Func([I.Text], [], []),
   addAdmin: I.Func([I.Principal, I.Text], [I.Variant({ ok: I.Null, err: I.Reserved })], []),
-  unpause: I.Func([], [I.Variant({ ok: I.Null, err: I.Reserved })], []),
 });
 
 /** Only a controller may open the bootstrap, so CONTROLLER (the installer) sets the nonce. */

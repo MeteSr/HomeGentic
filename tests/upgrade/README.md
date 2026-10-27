@@ -4,6 +4,8 @@ Verifies that [Enhanced Orthogonal Persistence (EOP)](https://docs.internetcompu
 
 **These tests require WSL 2.** The PocketIC server has no native Windows binary.
 
+**Why `@dfinity/pic` stays at 0.21 (with `@icp-sdk/core` 5) here.** The rest of the repo is on core 6. The first pic release that supports core 6 is 0.24, and it brings PocketIC server 16; this suite uses 0.21, which runs server 12. Under server 16, `scaling.perf.test.ts` measures about 1.5x growth after the fill even for main's unchanged Wasm (server 12 measures 1.01x). Since the check can't tell that apart from a full scan, the bump waits until the check is reworked.
+
 ---
 
 ## First-time setup
