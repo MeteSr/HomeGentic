@@ -124,7 +124,7 @@ export default function App() {
     <ErrorBoundary>
       <SafeAreaProvider>
         <AuthProvider>
-          <StatusBar style="dark" backgroundColor={v3.bg} />
+          <StatusBar style="dark" />
           <Root />
         </AuthProvider>
       </SafeAreaProvider>

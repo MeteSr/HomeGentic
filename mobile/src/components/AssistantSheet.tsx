@@ -76,7 +76,7 @@ export function AssistantSheet() {
   const navigation = useNavigation<any>();
   const [text, setText] = useState("");
   const [asked, setAsked] = useState<Prompt | null>(null);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   const buildContext = useCallback(
     () => app.contractor ? loadContractorContext(app.tier, app.limits) : loadHomeownerContext(app.activeProperty, app.tier, app.limits),
