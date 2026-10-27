@@ -38,6 +38,7 @@ const RECIPIENTS: Recipient[] = [
   { who: "Cloudflare", gets: "Your IP address and request details for calls to our AI, payment, email and notification services; Turnstile bot checks on our lead form", why: "Runs those services (Workers) and blocks abuse" },
   { who: "Resend", gets: "Email addresses and message content (invites, gift emails, notifications, lead-form messages)", why: "Sending email" },
   { who: "Twilio", gets: "Your phone number and text message content", why: "Text alerts and phone-number verification" },
+  { who: "Sentry (Functional Software, Inc.)", gets: "Crash reports from the mobile app: the error, the screen it happened on, device model and OS version. No name, email or IP address, and share or invite links are removed first", why: "Finding and fixing app crashes" },
   { who: "Apple (APNs), Google (FCM) and Expo", gets: "Push-notification tokens and notification content", why: "Push notifications" },
   { who: "ATTOM and RentCast", gets: "Property addresses", why: "Property records, valuations and rent estimates" },
   { who: "OpenPermit and city/county permit portals", gets: "Property addresses", why: "Building-permit lookups" },

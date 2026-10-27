@@ -467,6 +467,19 @@ Set these as EAS environment variables (they're inlined at build time):
 | `EXPO_PUBLIC_VOICE_AGENT_URL` | Voice Worker URL |
 | `EXPO_PUBLIC_WEB_URL` | Web app origin (default `https://homegentic.app`). Sign-in opens `<origin>/mobile-auth`, which asks Internet Identity for a delegation to the app's session key and redirects to `homegentic://auth`, so this origin must serve a frontend build that has that page. It's also used for shareable report links and the pages the app opens on the web |
 | `EXPO_PUBLIC_NOTIFICATIONS_URL` | Notification relay URL; without it the app skips push registration |
+| `EXPO_PUBLIC_SENTRY_DSN` | Sentry DSN for crash reports. Without it crash reporting is off (it's always off in development). Events carry no user or IP, and share/invite tokens are redacted (`src/services/crashReporting.ts`) |
+| `EXPO_PUBLIC_APP_ENV` | Sentry environment name (`production`, `preview`, …; default `production`) |
+| `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` (secret), `SENTRY_DISABLE_AUTO_UPLOAD=false` | Upload source maps so crash reports show source lines. `eas.json` sets `SENTRY_DISABLE_AUTO_UPLOAD=true` so builds don't fail before Sentry is set up; set it to `false` here once the other three exist |
+
+**Universal links.** `https://homegentic.app/dashboard`, `/people`,
+`/report/…` and `/my-listing/…` open the app when it's installed
+(`UNIVERSAL_LINK_PATHS` in `mobile/src/services/deepLinks.ts`, `associatedDomains`
+and the `autoVerify` intent filter in `app.json`). The web build serves the
+matching `/.well-known/apple-app-site-association` and `assetlinks.json` once the
+`APPLE_TEAM_ID` and `ANDROID_CERT_SHA256` (Play app-signing certificate,
+comma-separated if several) variables are set on the GitHub `testnet` /
+`production` environments. They only work once `homegentic.app` points at the
+frontend canister (custom domain); iOS caches the association at install time.
 
 For push, the app registers its native device token with the relay. iOS is set
 up already (`aps-environment` in `app.json`); the relay's APNs key must belong

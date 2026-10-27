@@ -108,6 +108,9 @@ jobs:
           # Optional: the IoT gateway's public URL, for sensor account sign-in.
           # Unset hides the "Connect account" button.
           VITE_IOT_GATEWAY_URL: ${{ vars.VITE_IOT_GATEWAY_URL || secrets.VITE_IOT_GATEWAY_URL }}
+          # Optional: universal links for the mobile app (/.well-known files).
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          ANDROID_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
 
       - name: Commit canister IDs
         # Must run even when the deploy step above fails partway through:
