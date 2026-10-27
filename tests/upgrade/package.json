@@ -8,8 +8,8 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "@dfinity/pic": "^0.21.0",
-    "@icp-sdk/core": "^5.0.0",
+    "@dfinity/pic": "^0.25.0",
+    "@icp-sdk/core": "^6.1.1",
     "vitest": "^4.1.11"
   }
 }

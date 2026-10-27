@@ -21,6 +21,8 @@ const IS_LOCAL    = DFX_NETWORK === "local";
 const II_URL = IS_LOCAL
   ? "http://id.ai.localhost:4943/authorize"
   : "https://id.ai/authorize";
+// II's backend canister id, the same on mainnet and on a local network.
+const II_CANISTER_ID = "rdmx6-jaaaa-aaaaa-aaadq-cai";
 
 const HOST = IS_LOCAL
   ? (process.env.IC_API_URL || "http://localhost:4943")
@@ -42,7 +44,11 @@ export const MISSING_LOCAL_ROOT_KEY = IS_LOCAL && !rootKey();
 let _client: AuthClient | null = null;
 
 function client(): AuthClient {
-  if (!_client) _client = new AuthClient({ identityProvider: II_URL });
+  if (!_client) {
+    _client = new AuthClient({
+      identityProvider: { authorizeUrl: II_URL, canisterId: II_CANISTER_ID },
+    });
+  }
   return _client;
 }
 

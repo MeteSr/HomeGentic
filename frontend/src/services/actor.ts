@@ -15,14 +15,19 @@ const IS_LOCAL = DFX_NETWORK === "local";
 export const II_URL = IS_LOCAL
   ? "http://id.ai.localhost:4943/authorize"
   : "https://id.ai/authorize";
+// II's backend canister id, the same on mainnet and on a local network.
+const II_CANISTER_ID = "rdmx6-jaaaa-aaaaa-aaadq-cai";
 
 let _authClient: AuthClient | null = null;
 let _agent: HttpAgent | null = null;
 
 export function getAuthClient(): AuthClient {
   if (!_authClient) {
-    // v6: synchronous constructor; identityProvider is set at creation time
-    _authClient = new AuthClient({ identityProvider: II_URL });
+    // Synchronous constructor; identityProvider is { authorizeUrl, canisterId }
+    // since @icp-sdk/auth 9 (a plain URL string throws).
+    _authClient = new AuthClient({
+      identityProvider: { authorizeUrl: II_URL, canisterId: II_CANISTER_ID },
+    });
   }
   return _authClient;
 }
@@ -30,7 +35,7 @@ export function getAuthClient(): AuthClient {
 export async function getAgent(): Promise<HttpAgent> {
   if (!_agent) {
     const client = getAuthClient();
-    // v6: getIdentity() is now async
+    // getIdentity() is async
     const identity = await client.getIdentity();
     // Do NOT pass shouldFetchRootKey to HttpAgent.create() — on @icp-sdk/core/agent
     // that flag triggers an eager synchronous root-key fetch that hangs when no
@@ -100,7 +105,7 @@ export async function loginWithLocalIdentity(): Promise<string> {
 
 export async function login(): Promise<void> {
   const client = getAuthClient();
-  // v6: signIn() opens popup at identityProvider URL (set in constructor),
+  // signIn() opens the popup at identityProvider.authorizeUrl (set in the constructor),
   // establishes ICRC-29 heartbeat, then requests delegation via ICRC-34.
   // Throws if the popup can't establish the channel (wrong URL, old II, etc.)
   try {
@@ -121,7 +126,7 @@ export async function logout(): Promise<void> {
 
 export async function isAuthenticated(): Promise<boolean> {
   try {
-    // v6: isAuthenticated() is synchronous, checks localStorage expiration flag
+    // isAuthenticated() is synchronous
     return getAuthClient().isAuthenticated();
   } catch {
     return false;
@@ -130,7 +135,7 @@ export async function isAuthenticated(): Promise<boolean> {
 
 export async function getPrincipal(): Promise<string> {
   const client = getAuthClient();
-  // v6: getIdentity() is async
+  // getIdentity() is async
   const identity = await client.getIdentity();
   return identity.getPrincipal().toText();
 }

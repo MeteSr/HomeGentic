@@ -39,8 +39,8 @@ function ok<T>(result: { ok: T } | { err: object }): T {
 describe("payment canister — upgrade persistence", () => {
   let pic: PocketIc;
   let actor: PaymentActor;
-  let canisterId: import("@dfinity/principal").Principal;
-  let bobPrincipal: import("@dfinity/principal").Principal;
+  let canisterId: import("@icp-sdk/core/principal").Principal;
+  let bobPrincipal: import("@icp-sdk/core/principal").Principal;
 
   beforeAll(async () => {
     pic = await createPic();

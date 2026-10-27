@@ -15,7 +15,8 @@
       "**/__tests__/**/*.test.ts"
     ],
     "transform": {
-      "^.+\\.tsx?$": "babel-jest"
+      "^.+\\.tsx?$": "babel-jest",
+      "^.+\\.m?js$": "babel-jest"
     },
     "collectCoverageFrom": [
       "*.ts",
@@ -37,11 +38,14 @@
         "branches": 38,
         "statements": 40
       }
-    }
+    },
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(.*/node_modules/)?(@noble|@scure)/)"
+    ]
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
-    "@icp-sdk/core": "^5.4.0",
+    "@icp-sdk/core": "^6.1.1",
     "postal-mime": "4.0.5",
     "resend": "^6.28.1",
     "stripe": "^22.6.2"

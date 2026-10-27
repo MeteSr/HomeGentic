@@ -14,11 +14,15 @@
       "**/__tests__/**/*.test.ts"
     ],
     "transform": {
-      "^.+\\.tsx?$": "babel-jest"
-    }
+      "^.+\\.tsx?$": "babel-jest",
+      "^.+\\.m?js$": "babel-jest"
+    },
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(.*/node_modules/)?(@noble|@scure)/)"
+    ]
   },
   "dependencies": {
-    "@icp-sdk/core": "^5.2.1",
+    "@icp-sdk/core": "^6.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^5.3.0",

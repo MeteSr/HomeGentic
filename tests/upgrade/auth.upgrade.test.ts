@@ -38,7 +38,7 @@ function ok<T>(result: { ok: T } | { err: object }): T {
 describe("auth canister — upgrade persistence", () => {
   let pic:      PocketIc;
   let actor:    AuthActor;
-  let canisterId: import("@dfinity/principal").Principal;
+  let canisterId: import("@icp-sdk/core/principal").Principal;
 
   beforeAll(async () => {
     pic = await createPic();
