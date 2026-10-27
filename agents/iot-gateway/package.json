@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "ts-node server.ts",
+    "dev": "tsx server.ts",
     "build": "tsc",
     "start": "node dist/agents/iot-gateway/server.js",
     "test": "jest --passWithNoTests"
@@ -38,8 +38,8 @@
     "@types/node": "^22.20.5",
     "babel-jest": "^30.3.0",
     "jest": "^30.3.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=22"
