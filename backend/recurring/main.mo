@@ -17,12 +17,10 @@ import Iter      "mo:core/Iter";
 import List      "mo:core/List";
 import Nat        "mo:core/Nat";
 import Principal "mo:core/Principal";
-import Random    "mo:core/Random";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Index     "../shared/Index";
-import Uuid      "../shared/Uuid";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
@@ -174,12 +172,16 @@ persistent actor Recurring {
     }
   };
 
-  /// New service / visit id: a random UUID. These used to be the current
-  /// millisecond, which every message in one round shares, so two services
-  /// (or visits) created in the same round got the same id and the second
-  /// replaced the first. Ids issued before keep their "REC_<ms>" / "VISIT_<ms>" form.
-  private func newId() : async* Text {
-    Uuid.fromBlob(await Random.blob())
+  /// Bumped for every new service / visit id.
+  private var idSeq : Nat = 0;
+
+  /// New service / visit id. The millisecond alone isn't unique: every
+  /// message in one round shares it, so two services (or visits) created in
+  /// the same round got the same id and the second replaced the first. The
+  /// sequence number makes each id unique without an extra call for randomness.
+  private func nextId(prefix : Text) : Text {
+    idSeq += 1;
+    prefix # Int.toText(Int.abs(Time.now()) / 1_000_000) # "_" # idSeq.toText()
   };
 
   // ─── Core: Recurring Services ────────────────────────────────────────────────
@@ -213,7 +215,7 @@ persistent actor Recurring {
     if (not (await checkPropertyAuth(propertyId, msg.caller, msg.caller, true)))
       return #err(#NotAuthorized);
 
-    let id  = await* newId();
+    let id  = nextId("REC_");
     let now = Time.now();
 
     let svc : RecurringService = {
@@ -419,8 +421,8 @@ persistent actor Recurring {
         // M8: owner/manager of the property, checked live (former owners lose access).
         if (not (await checkPropertyAuth(first.propertyId, first.homeowner, msg.caller, true)))
           return #err(#NotAuthorized);
-        let id  = await* newId();
-        // Re-read after the awaits (TOCTOU).
+        let id  = nextId("VISIT_");
+        // Re-read after the await (TOCTOU).
         let svc = switch (services.get(serviceId)) {
           case null { return #err(#NotFound) };
           case (?cur) { cur };
