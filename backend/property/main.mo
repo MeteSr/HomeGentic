@@ -381,6 +381,9 @@ persistent actor Property {
   /// getJobPropertyAddresses() to confirm the caller is a party to a job
   /// before revealing that job's street address. Unset = fail closed.
   private var jobCanisterId            : ?Principal  = null;
+  /// Listing canister ID — set post-deploy via setListingCanisterId(). A
+  /// claimed transfer tells it to take the seller's FSBO listing down (M-6).
+  private var listingCanisterId        : Text        = "";
 
   private var transferCounter        : Nat                            = 0;
 
@@ -1341,10 +1344,18 @@ persistent actor Property {
               case (?prop) {
                 let now = Time.now();
 
+                // M-6 (2026-10-28 audit): the seller's ID check and ownership
+                // evidence are about the seller, not the buyer.
                 let updated : Property = {
                   prop with
-                  owner     = msg.caller;
-                  updatedAt = now;
+                  owner               = msg.caller;
+                  updatedAt           = now;
+                  identityVerified    = null;
+                  identityVerifiedAt  = null;
+                  identitySessionId   = null;
+                  nameOnId            = null;
+                  nameOnDocument      = null;
+                  verificationDocHash = null;
                 };
                 putProperty(updated);
 
@@ -1367,6 +1378,12 @@ persistent actor Property {
                 // Invalidate token
                 pendingTransfers.remove(propertyId);
                 tokenIndex.remove(token);
+
+                // The seller's FSBO listing, showings and offers come down.
+                if (listingCanisterId != "") {
+                  let listing : actor { propertyTransferred : shared Text -> async { #ok : Any; #err : Any } } = actor (listingCanisterId);
+                  try { ignore await listing.propertyTransferred(propertyId) } catch _ { Debug.print("[property] listing transfer call failed") };
+                };
 
                 // A year of Pro for the buyer when the home's ownership was
                 // verified. payment.grantHandoffYear decides eligibility (once
@@ -2060,6 +2077,12 @@ persistent actor Property {
     #ok(())
   };
 
+  public shared(msg) func setListingCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    listingCanisterId := id.toText();
+    #ok(())
+  };
+
   /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
@@ -2298,6 +2321,22 @@ persistent actor Property {
         };
         case null {};
       };
+    };
+
+    // L-7 (2026-10-28 audit): homes the caller sold or bought keep their
+    // ownership history, with the deleted account replaced by the anonymous
+    // principal.
+    let anon = Principal.anonymous();
+    let named = transfers.entries()
+      .filter(func((_, r) : (Nat, TransferRecord)) : Bool { r.from == caller or r.to == caller })
+      .toArray();
+    for ((k, r) in named.values()) {
+      transfers.add(k, {
+        r with
+        from = if (r.from == caller) anon else r.from;
+        to   = if (r.to == caller) anon else r.to;
+      });
+      removed += 1;
     };
 
     updateCallLimits.remove(caller.toText());

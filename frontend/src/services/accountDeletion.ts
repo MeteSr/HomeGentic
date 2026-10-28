@@ -85,8 +85,16 @@ export const accountDeletionService = {
       if (!step.id) continue;                 // canister not deployed (mock/dev)
       onStep?.(step.label);
       const a = await step.actor();
+      // L-1 (2026-10-28 audit): photo bytes kept off-chain go too. Read the ids
+      // first; the Worker drops bytes only once their record is gone.
+      const offChain: string[] = step.label === "photos" ? await a.getMyOffChainPhotoIds() : [];
       const result = await a.deleteMyData();
       if ("err" in result) throw new Error(`Couldn't delete your ${step.label}: ${errText(result.err)}`);
+      for (const id of offChain) {
+        const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/photos/${encodeURIComponent(id)}`, { method: "DELETE" });
+        // A failed delete leaves bytes nobody can read (no record); the planned R2 orphan sweep removes them.
+        if (!resp.ok && resp.status !== 404) console.warn(`[accountDeletion] photo ${id} bytes not deleted (${resp.status})`);
+      }
     }
   },
 };

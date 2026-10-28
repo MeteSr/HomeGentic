@@ -131,7 +131,8 @@ deadline reminders.
 | `CANISTER_ID_AUTH` | Auth canister ID — resolves the `x-agent-session` tokens that identify callers on `/api/chat` and `/api/agent`. Without it those routes return 401 in production |
 | `CANISTER_ID_JOB` | Job canister ID — contractor-invite email, and filing forwarded invoices as drafts |
 | `CANISTER_ID_CONTRACTOR` | Contractor canister ID — records Florida DBPR licence lookups (`/api/license/check`). The Worker's identity must be added with `contractor.addLicenseRelay` (`scripts/deploy.sh` does it). Optional `DBPR_LICENSE_FILE_URL` overrides DBPR's construction licensee file URL |
-| `CANISTER_ID_FEE` | Fee canister ID — Contractor Free referral fees: saving cards (`/api/stripe/referral-card`, webhook `checkout.session.completed`) and the hourly charge run; declined cards get a Stripe invoice (`invoice.paid` settles it). The Worker's identity must be added with `fee.addReferralRelay` (`scripts/deploy.sh` does it) |
+| `CANISTER_ID_FEE` | Fee canister ID — Contractor Free referral fees: saving cards (`/api/stripe/referral-card`, webhook `checkout.session.completed`) and the hourly charge run; declined cards get a Stripe invoice (`invoice.paid` settles it). Subscribe the webhook to `payment_intent.succeeded` too, so a charge is recorded even when the hourly run couldn't record it. The Worker's identity must be added with `fee.addReferralRelay` (`scripts/deploy.sh` does it) |
+| `CANISTER_ID_LISTING` | Listing canister ID — files buyers' FSBO showing requests (`/api/fsbo/showing-request`, rate-limited per IP). The Worker's identity must be added with `listing.addShowingRelay` (`scripts/deploy.sh` does it); without both, the "Request a showing" form fails |
 | `RESEND_API_KEY`, `RESEND_FROM` | Transactional email (moved off `ai_proxy`, whose memory node operators can read) |
 | `ATTOM_API_KEY` | Property-record lookups |
 | `OPENPERMIT_API_KEY` | Permit imports |

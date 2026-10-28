@@ -117,7 +117,7 @@ describe("handlePhotos", () => {
     expect(ok.status).toBe(200);
     expect(new Uint8Array(await ok.arrayBuffer())).toEqual(BYTES);
     expect(ok.headers.get("Content-Type")).toBe("image/jpeg");
-    expect(ok.headers.get("Cache-Control")).toBe("private, max-age=86400");
+    expect(ok.headers.get("Cache-Control")).toBe("private, no-cache");
     expect(ok.headers.get("ETag")).toBe(`"${HASH}"`);
 
     const pub = await handlePhotos(get(), "/photos/p1", fakeEnv().env, deps(store, null, access({ isPublic: true })).d);

@@ -220,6 +220,7 @@ describe("job IDL factory", () => {
       "redeemInviteToken",
       "rejectJobProposal",
       "relayAddEmailDraft",
+      "relayCheckInboxToken",
       "removeInboxRelay",
       "resetMyInboxToken",
       "setFeeCanisterId",
@@ -250,6 +251,7 @@ describe("job IDL factory", () => {
       "getPendingProposals",
       // getReferralJobs is an admin-only update call returning a Result
       "getUnattestedJobIds",
+      "relayCheckInboxToken",
     ]);
   });
 
@@ -364,6 +366,7 @@ describe("listing IDL factory", () => {
       "addListingPhoto",
       "addNotifier",
       "addPanorama",
+      "addShowingRelay",
       "cancelBidRequest",
       "counterFsboOffer",
       "createBidRequest",
@@ -396,10 +399,13 @@ describe("listing IDL factory", () => {
       "logFsboOffer",
       "markListingFeePaid",
       "postMessage",
+      "propertyTransferred",
       "rejectFsboOffer",
+      "relayRequestShowing",
       "removeListingPhoto",
       "removeNotifier",
       "removePanorama",
+      "removeShowingRelay",
       "reorderListingPhotos",
       "requestShowing",
       "respondToShowing",
@@ -647,6 +653,7 @@ describe("photo IDL factory", () => {
       "deleteMyData",
       "deletePhoto",
       "getListingPhotoDataBatch",
+      "getMyOffChainPhotoIds",
       "getPhotoDataBatch",
       "getPhotosByJob",
       "getPhotosByProperty",

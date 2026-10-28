@@ -92,3 +92,17 @@ describe("removeToken", () => {
     expect(s.getTokensForPrincipal(P1)).toHaveLength(1);
   });
 });
+
+describe("L-5 per-principal cap", () => {
+  it("keeps the newest MAX_TOKENS_PER_PRINCIPAL devices", () => {
+    const s = freshStore();
+    for (let i = 0; i < s.MAX_TOKENS_PER_PRINCIPAL + 3; i++) s.registerToken(P1, `tok-${i}`, "ios");
+    const kept = s.getTokensForPrincipal(P1).map((r: any) => r.token);
+    expect(kept).toHaveLength(s.MAX_TOKENS_PER_PRINCIPAL);
+    expect(kept[0]).toBe("tok-3");
+    // Re-registering an old device makes it the newest.
+    s.registerToken(P1, "tok-3", "ios");
+    expect(s.getTokensForPrincipal(P1).map((r: any) => r.token).at(-1)).toBe("tok-3");
+  });
+});
+

@@ -54,6 +54,12 @@ describe("listing canister — FSBO", () => {
   const relay  = createIdentity("fsbo-relay");
   const admin  = createIdentity("fsbo-admin");
 
+  // Buyers' showing requests arrive through the Worker (the showing relay).
+  function ask(who: any, name: string, contact: string, preferredTime: string) {
+    listing.setIdentity(relay);
+    return listing.relayRequestShowing(propertyId, who.getPrincipal(), name, contact, preferredTime);
+  }
+
   function liveListing(priceCents: bigint) {
     return {
       propertyId, homeowner: alice.getPrincipal(), listPriceCents: priceCents, activatedAt: 0n,
@@ -80,6 +86,7 @@ describe("listing canister — FSBO", () => {
     ok(await listing.addAdmin(admin.getPrincipal(), "n"));
     ok(await listing.setPropertyCanisterId(p.canisterId.toText()));
     ok(await listing.addNotifier(relay.getPrincipal()));
+    ok(await listing.addShowingRelay(relay.getPrincipal()));
 
     property.setIdentity(alice);
     const prop = ok<any>(await property.registerProperty({
@@ -123,9 +130,16 @@ describe("listing canister — FSBO", () => {
       ok(await listing.saveFsboDraft(propertyId, 42_500_000n, ["Bright corner lot."], 3n));
     });
 
+    it("takes showing requests only from the relay", async () => {
+      listing.setIdentity(bob);
+      expect(errKey(await listing.requestShowing(propertyId, "Bob", "bob@example.com", "Saturday 10am"))).toBe("NotAuthorized");
+      expect(errKey(await listing.relayRequestShowing(propertyId, bob.getPrincipal(), "Bob", "bob@example.com", "Sat"))).toBe("NotAuthorized");
+      expect(errKey(await listing.propertyTransferred(propertyId))).toBe("NotAuthorized");
+    });
+
     it("refuses showings before the listing is live", async () => {
       listing.setIdentity(bob);
-      expect(errKey(await listing.requestShowing(propertyId, "Bob", "bob@example.com", "Saturday 10am"))).toBe("NotFound");
+      expect(errKey(await ask(bob, "Bob", "bob@example.com", "Saturday 10am"))).toBe("NotFound");
     });
   });
 
@@ -181,7 +195,7 @@ describe("listing canister — FSBO", () => {
 
     it("a buyer's request reaches the seller and the notification outbox", async () => {
       listing.setIdentity(bob);
-      const req = ok<any>(await listing.requestShowing(propertyId, "Bob Buyer", "bob@example.com", "Saturday 10am"));
+      const req = ok<any>(await ask(bob, "Bob Buyer", "bob@example.com", "Saturday 10am"));
       requestId = req.id;
       expect(Object.keys(req.status)[0]).toBe("Pending");
 
@@ -199,11 +213,11 @@ describe("listing canister — FSBO", () => {
 
     it("validates the request and the seller can't book their own home", async () => {
       listing.setIdentity(bob);
-      expect(errKey(await listing.requestShowing(propertyId, "", "bob@example.com", "Sat"))).toBe("InvalidInput");
-      expect(errKey(await listing.requestShowing(propertyId, "Bob", "b@x", "Sat"))).toBe("InvalidInput");
-      expect(errKey(await listing.requestShowing(propertyId, "Bob", "bob@example.com", ""))).toBe("InvalidInput");
+      expect(errKey(await ask(bob, "", "bob@example.com", "Sat"))).toBe("InvalidInput");
+      expect(errKey(await ask(bob, "Bob", "b@x", "Sat"))).toBe("InvalidInput");
+      expect(errKey(await ask(bob, "Bob", "bob@example.com", ""))).toBe("InvalidInput");
       listing.setIdentity(alice);
-      expect(errKey(await listing.requestShowing(propertyId, "Me", "me@example.com", "Sat"))).toBe("InvalidInput");
+      expect(errKey(await ask(alice, "Me", "me@example.com", "Sat"))).toBe("InvalidInput");
     });
 
     it("only the seller sees requests and answers them", async () => {
@@ -228,28 +242,26 @@ describe("listing canister — FSBO", () => {
 
     it("caps open requests per buyer; a declined one frees a slot", async () => {
       listing.setIdentity(bob);
-      ok(await listing.requestShowing(propertyId, "Bob Buyer", "bob@example.com", "Mon"));
-      const third = ok<any>(await listing.requestShowing(propertyId, "Bob Buyer", "bob@example.com", "Tue"));
-      expect(errKey(await listing.requestShowing(propertyId, "Bob Buyer", "bob@example.com", "Wed"))).toBe("InvalidInput");
+      ok(await ask(bob, "Bob Buyer", "bob@example.com", "Mon"));
+      const third = ok<any>(await ask(bob, "Bob Buyer", "bob@example.com", "Tue"));
+      expect(errKey(await ask(bob, "Bob Buyer", "bob@example.com", "Wed"))).toBe("InvalidInput");
 
       listing.setIdentity(alice);
       ok(await listing.respondToShowing(propertyId, third.id, { Decline: null }));
       listing.setIdentity(bob);
-      ok(await listing.requestShowing(propertyId, "Bob Buyer", "bob@example.com", "Wed"));
+      ok(await ask(bob, "Bob Buyer", "bob@example.com", "Wed"));
     });
 
     it("caps requests per listing per day, and the cap resets the next day", async () => {
       // 4 so far today; 25 a day.
       for (let i = 0; i < 7; i++) {
-        listing.setIdentity(createIdentity(`fsbo-crowd-${i}`));
-        for (let j = 0; j < 3; j++) ok(await listing.requestShowing(propertyId, `Buyer ${i}`, `b${i}@example.com`, `Slot ${j}`));
+        for (let j = 0; j < 3; j++) ok(await ask(createIdentity(`fsbo-crowd-${i}`), `Buyer ${i}`, `b${i}@example.com`, `Slot ${j}`));
       }
-      listing.setIdentity(createIdentity("fsbo-crowd-late"));
-      expect(errKey(await listing.requestShowing(propertyId, "Late", "late@example.com", "Any"))).toBe("InvalidInput");
+      expect(errKey(await ask(createIdentity("fsbo-crowd-late"), "Late", "late@example.com", "Any"))).toBe("InvalidInput");
 
       await pic.advanceTime(DAY_MS + 1000);
       await pic.tick();
-      ok(await listing.requestShowing(propertyId, "Late", "late@example.com", "Any"));
+      ok(await ask(createIdentity("fsbo-crowd-late"), "Late", "late@example.com", "Any"));
     });
   });
 
@@ -356,7 +368,7 @@ describe("listing canister — FSBO", () => {
       ok(await listing.saveFsboDraft(propertyId, 39_000_000n, [], 3n));
       ok(await listing.activateFsboListing(liveListing(39_000_000n)));
       listing.setIdentity(bob);
-      ok(await listing.requestShowing(propertyId, "Bob", "bob@example.com", "Fri"));
+      ok(await ask(bob, "Bob", "bob@example.com", "Fri"));
 
       listing.setIdentity(alice);
       ok(await listing.deleteMyData());

@@ -45,13 +45,14 @@ import { resolveSessionPrincipal, SESSION_HEADER } from "./session";
 import { resolveTier } from "./tier";
 import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
-import { canisterLedger, startCardSetup, saveCardFromSession, markInvoicePaid, chargeDueFees } from "./referralFees";
-import { handleInbound, addDraftInCanister } from "./inbox";
+import { canisterLedger, startCardSetup, saveCardFromSession, markInvoicePaid, markPaymentIntentPaid, chargeDueFees } from "./referralFees";
+import { handleInbound, addDraftInCanister, checkTokenInCanister, MAX_RAW_BYTES } from "./inbox";
 import { checkLicense } from "./dbpr";
 import { findRecalls } from "./recalls";
 import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead, sendGiftEmail } from "./offchainOutcalls";
 import { getInvitePreview } from "./jobCanister";
 import { handlePhotos } from "./photos";
+import { handleShowingRequest, fileShowingInCanister } from "./showings";
 import { r2PhotoStore } from "./photoStore";
 import { fetchPhotoAccess } from "../photoCanister";
 import { markIdentityCleared } from "./propertyCanister";
@@ -110,6 +111,7 @@ export interface Env {
   DBPR_LICENSE_FILE_URL?:  string; // override for DBPR's construction licensee file (src/dbpr.ts)
   CANISTER_ID_PROPERTY?: string;   // records Stripe Identity results (relayMarkIdentityCleared)
   CANISTER_ID_FEE?:      string;   // Contractor Free referral fees (src/referralFees.ts)
+  CANISTER_ID_LISTING?:  string;   // files FSBO showing requests (src/showings.ts)
   /** Domain whose mail Email Routing sends to email() (h-<token>@INBOX_DOMAIN). Unset → inbound mail ignored. */
   INBOX_DOMAIN?:         string;
 
@@ -375,9 +377,11 @@ export default {
     (process.env as any).CANISTER_ID_JOB  = env.CANISTER_ID_JOB ?? "";
     const provider = new AnthropicProvider(env.ANTHROPIC_API_KEY, resolveModel(env.AI_MODEL), env.ANTHROPIC_BASE_URL);
     try {
+      if (message.rawSize > MAX_RAW_BYTES) { logger.info("inbox", "inbound mail", { outcome: "too-large" }); return; }
       const raw = await new Response(message.raw).arrayBuffer();
       const outcome = await handleInbound(message.to, raw, message.rawSize, env.INBOX_DOMAIN, {
-        provider, addDraft: addDraftInCanister,
+        provider, addDraft: addDraftInCanister, checkToken: checkTokenInCanister,
+        allow: async (key, limit, ttl) => (await hitCounter(env, key, limit, ttl)).allowed,
       });
       logger.info("inbox", "inbound mail", { outcome });
     } catch (err) {
@@ -411,6 +415,7 @@ export default {
     (process.env as any).CANISTER_ID_PROPERTY    = env.CANISTER_ID_PROPERTY ?? "";
     (process.env as any).CANISTER_ID_CONTRACTOR  = env.CANISTER_ID_CONTRACTOR ?? "";
     (process.env as any).CANISTER_ID_FEE         = env.CANISTER_ID_FEE ?? "";
+    (process.env as any).CANISTER_ID_LISTING     = env.CANISTER_ID_LISTING ?? "";
     (process.env as any).AI_MODEL                = env.AI_MODEL ?? "";
 
     // CORS preflight
@@ -513,6 +518,19 @@ async function route(
       principal: () => callerPrincipal(request, env),
       access:    fetchPhotoAccess,
     }), cors);
+  }
+
+  // ── POST /api/fsbo/showing-request ─────────────────────────────────────────
+  // A buyer asks to see a live FSBO listing (src/showings.ts). Signed-in or
+  // not; per-IP limits run before the listing canister is called (M-2).
+  if (path === "/api/fsbo/showing-request" && method === "POST") {
+    const body = await readJsonBody(request, MAX_JSON_BYTES);
+    const ip   = request.headers.get("CF-Connecting-IP") ?? "unknown";
+    const r = await handleShowingRequest(body, ip, env, {
+      principal: () => callerPrincipal(request, env),
+      file: fileShowingInCanister,
+    });
+    return json(r.body as object, r.status, cors);
   }
 
   // X-1 / F-4: every route that costs money (Anthropic, Rentcast) or touches
@@ -1617,6 +1635,11 @@ Rules:
             const p   = (sub.metadata?.icp_principal ?? "") as string;
             if (p && (sub.status === "active" || sub.status === "trialing")) await activateFromSubscription(sub, p);
           }
+          break;
+        }
+        case "payment_intent.succeeded": {
+          // A referral-fee charge (M-4: a second path besides the hourly run).
+          await markPaymentIntentPaid(event.data.object, canisterLedger());
           break;
         }
         case "identity.verification_session.verified": {

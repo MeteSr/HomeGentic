@@ -10,6 +10,7 @@ app = "homegentic-notifications"
 primary_region = "iad"
 
 [env]
+  TRUST_PROXY_HOPS        = "1"   # Fly's proxy sets X-Forwarded-For (rate limits key on the client)
   NODE_ENV                = "production"
   NOTIFICATIONS_PORT      = "8080"
   NOTIFICATIONS_DATA_FILE = "/data/notifications.json"

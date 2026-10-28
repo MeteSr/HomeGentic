@@ -247,8 +247,10 @@ persistent actor Photo {
   /// Photos are listed by jobId; listing photos use the synthetic jobId
   /// "LISTING_<propertyId>" and are public.
   private func isListingPhoto(p: Photo) : Bool {
-    p.jobId.startsWith(#text "LISTING_")
+    p.jobId == listingJobId(p.propertyId)
   };
+
+  private func listingJobId(propertyId: Text) : Text { "LISTING_" # propertyId };
 
   // ─── Ingress Inspection ───────────────────────────────────────────────────────
 
@@ -328,7 +330,12 @@ persistent actor Photo {
     }
   };
 
-  private func countByJob(jobId: Text) : Nat { Index.count(photosByJob, jobId) };
+  /// Photos under `jobId` that belong to `propertyId`. Only those count
+  /// toward a job's quota, so photos someone files under another property's
+  /// job, room or listing id can't use up that property's quota.
+  private func countByJob(jobId: Text, propertyId: Text) : Nat {
+    Index.records(photosByJob, jobId, photoStore).filter(func(p : Photo) : Bool { p.propertyId == propertyId }).size()
+  };
 
   private func countByProperty(propertyId: Text) : Nat { Index.count(photosByProperty, propertyId) };
 
@@ -386,6 +393,10 @@ persistent actor Photo {
       return ?#InvalidInput("description exceeds " # MAX_DESCRIPTION_CHARS.toText() # " characters");
     if (Text.size(jobId) > MAX_ID_CHARS or Text.size(propertyId) > MAX_ID_CHARS)
       return ?#InvalidInput("jobId/propertyId too long");
+    // H-1 (2026-10-28 audit): a listing photo is public on that property's
+    // FSBO page, so it may only be filed under the property it is uploaded for.
+    if (jobId.startsWith(#text "LISTING_") and jobId != listingJobId(propertyId))
+      return ?#InvalidInput("listing photos must be uploaded to their own property");
 
     // Per-minute rate limit: 10 uploads/min regardless of tier
     if (not tryConsumePhotoSlot(caller)) {
@@ -434,7 +445,7 @@ persistent actor Photo {
       if (not authorized) return ?#NotAuthorized;
     };
 
-    if (quota.maxPerJob > 0 and countByJob(jobId) >= quota.maxPerJob) {
+    if (quota.maxPerJob > 0 and countByJob(jobId, propertyId) >= quota.maxPerJob) {
       return ?#QuotaExceeded(
         "Job photo limit (" # quota.maxPerJob.toText() # ") reached for your plan." # upgradeHint
       );
@@ -693,8 +704,7 @@ persistent actor Photo {
   /// Photos are stored with synthetic jobId "LISTING_<propertyId>" and phase #Listing.
   /// No ownership check so prospective buyers can view listing photos anonymously.
   public query func getPublicListingPhotos(propertyId: Text) : async [PhotoMeta] {
-    let syntheticJobId = "LISTING_" # propertyId;
-    Index.records(photosByJob, syntheticJobId, photoStore).map(meta).toArray()
+    Index.records(photosByJob, listingJobId(propertyId), photoStore).filter(isListingPhoto).map(meta).toArray()
   };
 
   /// The photos in `candidates` the caller may list: their own uploads, all
@@ -800,6 +810,17 @@ persistent actor Photo {
         #ok(())
       };
     }
+  };
+
+  /// Ids of the caller's photos whose bytes live off-chain. Account deletion
+  /// reads them before deleteMyData, then asks the Worker to drop the bytes
+  /// (it only does so once the record is gone).
+  public query(msg) func getMyOffChainPhotoIds() : async [Text] {
+    if (msg.caller.isAnonymous()) return [];
+    photoStore.values()
+      .filter(func(p : Photo) : Bool { p.owner == msg.caller and offChainIds.containsKey(p.id) })
+      .map(func(p : Photo) : Text { p.id })
+      .toArray()
   };
 
   /// Account deletion: removes everything this canister holds for the caller.

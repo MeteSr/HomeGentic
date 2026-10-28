@@ -6,17 +6,20 @@
  * canister, which notifies the seller of each new one. HomeGentic doesn't
  * message the buyer: the seller replies at the contact the buyer left.
  *
- * A buyer doesn't need an account. The canister rejects anonymous calls, so a
- * signed-out visitor's request is signed with a key kept in this browser
- * (services/visitorAgent.ts). Without a deployed canister the calls run
- * against an in-memory store.
+ * A buyer doesn't need an account. Requests go through the voice Worker
+ * (POST /api/fsbo/showing-request), which rate-limits per connection and
+ * files them on the listing canister; a signed-in buyer's session token rides
+ * along so the request is filed as them. Without a deployed canister the
+ * calls run against an in-memory store.
  */
 
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/listing";
 import { listingErrorMessage } from "./fsbo";
+import { voiceAgentFetch } from "./voiceAgentHeaders";
 
 const LISTING_CANISTER_ID = (process.env as any).LISTING_CANISTER_ID || "";
+const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 export type ShowingStatus = "Pending" | "Accepted" | "Declined" | "AlternateProposed";
 
@@ -87,9 +90,18 @@ function createShowingRequestService() {
         _store = [..._store, req];
         return req;
       }
-      const { visitorListingActor } = await import("./visitorAgent");
-      const actor = await visitorListingActor(LISTING_CANISTER_ID);
-      return fromShowing(unwrap(await actor.requestShowing(input.propertyId, input.name.trim(), input.contact.trim(), input.preferredTime.trim())));
+      const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/fsbo/showing-request`, {
+        method: "POST",
+        body: JSON.stringify({
+          propertyId:    input.propertyId,
+          name:          input.name.trim(),
+          contact:       input.contact.trim(),
+          preferredTime: input.preferredTime.trim(),
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error ?? "Couldn't send your request. Please try again.");
+      return { ...data, alternateTime: data.alternateTime ?? undefined } as ShowingRequest;
     },
 
     /** The seller's requests for their listing, newest first. */

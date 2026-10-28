@@ -865,6 +865,7 @@ if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
   grant job addInboxRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker file forwarded invoices as drafts"
   grant contractor addLicenseRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker record Florida DBPR licence lookups"
   grant fee addReferralRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker save referral-fee cards and record charges"
+  grant listing addShowingRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker file buyers' FSBO showing requests"
 fi
 if [ -n "${IOT_GATEWAY_PRINCIPAL:-}" ]; then
   # Once a gateway is registered, sensor refuses self-asserted registerDevice
@@ -961,6 +962,10 @@ fi
 if [ -n "$MARKET_ID" ]     && [ -n "$LISTING_ID" ]; then
   echo "  Wiring listing -> market (FSBO score lookups)..."
   bg_call market     setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV"
+fi
+if [ -n "$PROPERTY_ID" ]   && [ -n "$LISTING_ID" ]; then
+  echo "  Wiring property -> listing (a claimed transfer takes the FSBO listing down)..."
+  bg_call property   setListingCanisterId    "(principal \"$LISTING_ID\")"   -e "$ENV"
 fi
 if [ -n "$MONITORING_ID" ] && [ -n "$PROPERTY_ID" ] && [ -n "$JOB_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PAYMENT_ID" ]; then
   echo "  Wiring product metrics -> monitoring..."

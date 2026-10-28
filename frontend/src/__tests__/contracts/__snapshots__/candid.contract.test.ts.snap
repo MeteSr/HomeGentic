@@ -1310,6 +1310,17 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "variant {ok:text; err:variant {InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; TierLimitReached:text}}",
     ],
   },
+  "relayCheckInboxToken": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {full; accepting; unknown}",
+    ],
+  },
   "removeInboxRelay": {
     "args": [
       "principal",
@@ -1438,6 +1449,15 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
       "text",
       "text",
       "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "addShowingRelay": {
+    "args": [
+      "principal",
     ],
     "mode": [],
     "rets": [
@@ -1787,6 +1807,15 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; authorRole:variant {agent; seller}; scrubbedBody:text; sentAt:int; redactions:vec text; proposalId:text}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
+  "propertyTransferred": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
   "rejectFsboOffer": {
     "args": [
       "text",
@@ -1795,6 +1824,19 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; status:variant {Countered; Active; Rejected; Accepted}; closeDate:int; earnestMoneyCents:nat; hasEscalationClause:bool; offerAmountCents:nat; propertyId:text; counters:vec record {id:text; createdAt:int; amountCents:nat; notes:text; fromSeller:bool}; buyerName:text; contingencies:vec text; loggedAt:int}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "relayRequestShowing": {
+    "args": [
+      "text",
+      "principal",
+      "text",
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; status:variant {Accepted; Declined; AlternateProposed; Pending}; requester:principal; contact:text; name:text; createdAt:int; propertyId:text; alternateTime:opt text; preferredTime:text}; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
     ],
   },
   "removeListingPhoto": {
@@ -1820,6 +1862,15 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     "args": [
       "text",
       "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; SlotsFull; NotFound; NotAuthorized; AlreadyCancelled}}",
+    ],
+  },
+  "removeShowingRelay": {
+    "args": [
+      "principal",
     ],
     "mode": [],
     "rets": [
@@ -2380,6 +2431,15 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {text; vec nat8}",
+    ],
+  },
+  "getMyOffChainPhotoIds": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec text",
     ],
   },
   "getPhotoDataBatch": {

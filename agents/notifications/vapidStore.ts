@@ -2,6 +2,9 @@ import type { PushSubscription } from "web-push";
 import { loadSection, saveSection } from "./persist";
 
 // principal → list of browser push subscriptions
+
+/** L-5 (2026-10-28 audit): browsers kept per principal; the oldest is dropped past it. */
+export const MAX_SUBSCRIPTIONS_PER_PRINCIPAL = 10;
 const registry = new Map<string, PushSubscription[]>(
   Object.entries(loadSection<Record<string, PushSubscription[]>>("subscriptions", {})),
 );
@@ -18,13 +21,10 @@ export function registerSubscription(principal: string, subscription: PushSubscr
     if (kept.length === subs.length) continue;
     if (kept.length === 0) registry.delete(other); else registry.set(other, kept);
   }
-  const existing = registry.get(principal) ?? [];
-  const idx = existing.findIndex((s) => s.endpoint === subscription.endpoint);
-  if (idx >= 0) {
-    existing[idx] = subscription;
-  } else {
-    existing.push(subscription);
-  }
+  // Most recently registered last, so the cap drops the stalest browser.
+  const existing = (registry.get(principal) ?? []).filter((s) => s.endpoint !== subscription.endpoint);
+  existing.push(subscription);
+  while (existing.length > MAX_SUBSCRIPTIONS_PER_PRINCIPAL) existing.shift();
   registry.set(principal, existing);
   save();
 }

@@ -96,6 +96,22 @@ vi.mock("@/services/actor", () => ({
     signedIn: true,
   })),
 }));
+// Buyers' showing requests go through the voice Worker (M-2), which files
+// them with listing.relayRequestShowing; this stands in for both.
+const workerCalls = vi.hoisted(() => [] as Array<{ url: string; body: any }>);
+vi.mock("@/services/voiceAgentHeaders", () => ({
+  voiceAgentFetch: vi.fn(async (url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    workerCalls.push({ url, body });
+    const res = await actor.requestShowing(body.propertyId, body.name, body.contact, body.preferredTime);
+    if ("err" in res) return new Response(JSON.stringify({ error: "This listing isn't live any more." }), { status: 404 });
+    const r = res.ok;
+    return new Response(JSON.stringify({
+      id: r.id, propertyId: r.propertyId, name: r.name, contact: r.contact, preferredTime: r.preferredTime,
+      createdAt: Number(r.createdAt / 1_000_000n), status: Object.keys(r.status)[0], alternateTime: null,
+    }), { status: 201 });
+  }),
+}));
 vi.mock("@icp-sdk/core/agent", () => ({
   Actor: { createActor: vi.fn(() => actor) },
   HttpAgent: {
@@ -106,7 +122,6 @@ vi.mock("@icp-sdk/core/agent", () => ({
   },
 }));
 
-import { Actor } from "@icp-sdk/core/agent";
 import { fsboService, listPublicFsbos } from "@/services/fsbo";
 import { showingRequestService } from "@/services/showingRequest";
 import { fsboOfferService } from "@/services/fsboOffer";
@@ -195,27 +210,16 @@ describe("fsboService on the listing canister", () => {
 });
 
 describe("showingRequestService on the listing canister", () => {
-  it("a signed-out buyer's request is signed with a key kept in this browser", async () => {
+  it("a buyer's request goes to the voice Worker, trimmed, and maps back", async () => {
     await goLive();
+    workerCalls.length = 0;
     const req = await showingRequestService.create({ propertyId: "p1", name: " Ana ", contact: "ana@example.com", preferredTime: "Sat am" });
-    expect(actor.requestShowing).toHaveBeenCalledWith("p1", "Ana", "ana@example.com", "Sat am");
+    expect(workerCalls).toHaveLength(1);
+    expect(workerCalls[0].url).toMatch(/\/api\/fsbo\/showing-request$/);
+    expect(workerCalls[0].body).toEqual({ propertyId: "p1", name: "Ana", contact: "ana@example.com", preferredTime: "Sat am" });
     expect(req).toMatchObject({ status: "Pending", createdAt: 1_700_000_000_000, alternateTime: undefined });
-
-    // One visitor agent, built from a stored Ed25519 key that is reused.
-    expect(state.agentIdentities).toHaveLength(1);
-    const saved = localStorage.getItem("hg_visitor_key");
-    expect(saved).toBeTruthy();
-    const createActor = vi.mocked(Actor.createActor);
-    expect((createActor.mock.calls[createActor.mock.calls.length - 1][1] as any).agent.visitor).toBe(true);
-  });
-
-  it("a signed-in buyer signs as themselves", async () => {
-    await goLive();
-    state.signedIn = true;
-    await showingRequestService.create({ propertyId: "p1", name: "Ana", contact: "ana@example.com", preferredTime: "Sat" });
+    // No browser-made visitor key any more.
     expect(state.agentIdentities).toHaveLength(0);
-    const createActor = vi.mocked(Actor.createActor);
-    expect((createActor.mock.calls[createActor.mock.calls.length - 1][1] as any).agent.signedIn).toBe(true);
   });
 
   it("the seller reads requests newest first and records answers", async () => {
@@ -234,7 +238,7 @@ describe("showingRequestService on the listing canister", () => {
 
   it("an unknown listing reports that it no longer exists", async () => {
     await expect(showingRequestService.create({ propertyId: "gone", name: "A", contact: "a@example.com", preferredTime: "Sat" }))
-      .rejects.toThrow(/no longer exists/);
+      .rejects.toThrow(/isn't live any more/);
   });
 });
 

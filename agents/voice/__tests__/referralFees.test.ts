@@ -11,7 +11,7 @@
 import { describe, it, expect, jest } from "@jest/globals";
 import {
   startCardSetup, saveCardFromSession, chargeDueFees, markInvoicePaid, REFERRAL_TERMS_VERSION,
-  type FeeLedger, type DueFee,
+  markPaymentIntentPaid, type FeeLedger, type DueFee,
 } from "../src/referralFees";
 
 const P = "abcde-fghij";
@@ -32,8 +32,12 @@ function stripe(over: Record<string, any> = {}) {
     customers:      { create: jest.fn(async (_a: any) => ({ id: "cus_new" })), update: jest.fn(async (_id: string, _a: any) => ({})) },
     checkout:       { sessions: { create: jest.fn(async (_a: any) => ({ url: "https://checkout.stripe.com/c/x" })) } },
     setupIntents:   { retrieve: jest.fn(async (_id: string, _o: any) => ({ payment_method: { id: "pm_9", card: { brand: "mastercard", last4: "5555" } } })) },
-    paymentIntents: { create: jest.fn(async (_a: any, _o: any) => ({ id: "pi_1", status: "succeeded" })) },
+    paymentIntents: {
+      create: jest.fn(async (_a: any, _o: any) => ({ id: "pi_1", status: "succeeded" })),
+      search: jest.fn(async (_a: any) => ({ data: [] as any[] })),
+    },
     invoices: {
+      search:         jest.fn(async (_a: any) => ({ data: [] as any[] })),
       create:         jest.fn(async (_a: any, _o: any) => ({ id: "in_1", status: "draft" })),
       retrieve:       jest.fn(async (_id: string) => ({ id: "in_1", status: "draft" })),
       finalizeInvoice: jest.fn(async (_id: string) => ({ id: "in_1", status: "open" })),
@@ -105,7 +109,10 @@ describe("RF.3 charging due fees", () => {
 
 describe("RF.4 declined cards", () => {
   const declined = () => stripe({
-    paymentIntents: { create: jest.fn(async () => { throw Object.assign(new Error("Your card was declined."), { type: "StripeCardError", code: "card_declined" }); }) },
+    paymentIntents: {
+      create: jest.fn(async () => { throw Object.assign(new Error("Your card was declined."), { type: "StripeCardError", code: "card_declined" }); }),
+      search: jest.fn(async () => ({ data: [] })),
+    },
   });
 
   it("sends a 30-day invoice and records its link", async () => {
@@ -139,7 +146,10 @@ describe("RF.4 declined cards", () => {
 
 describe("RF.5 left for the next run", () => {
   it("a Stripe outage leaves the fee due", async () => {
-    const s = stripe({ paymentIntents: { create: jest.fn(async () => { throw Object.assign(new Error("down"), { type: "StripeConnectionError" }); }) } });
+    const s = stripe({ paymentIntents: {
+      create: jest.fn(async () => { throw Object.assign(new Error("down"), { type: "StripeConnectionError" }); }),
+      search: jest.fn(async () => ({ data: [] })),
+    } });
     const l = ledger([fee()]);
     expect(await chargeDueFees(s, l)).toEqual({ paid: 0, invoiced: 0, skipped: 0, errors: 1 });
     expect(s.invoices.create).not.toHaveBeenCalled();
@@ -152,3 +162,47 @@ describe("RF.5 left for the next run", () => {
     expect(s.paymentIntents.create).not.toHaveBeenCalled();
   });
 });
+
+describe("RF.6 no second charge (M-4)", () => {
+  it("finds an earlier successful charge and records it instead of charging again", async () => {
+    const s = stripe();
+    s.paymentIntents.search = jest.fn(async () => ({ data: [{ id: "pi_old", status: "succeeded" }] }));
+    const l = ledger([fee()]);
+    expect(await chargeDueFees(s, l)).toEqual({ paid: 1, invoiced: 0, skipped: 0, errors: 0 });
+    expect(s.paymentIntents.create).not.toHaveBeenCalled();
+    expect(l.markPaid).toHaveBeenCalledWith("RF_1", "pi_old");
+    expect(s.paymentIntents.search.mock.calls[0][0]).toMatchObject({ query: "metadata['fee_id']:'RF_1'" });
+  });
+
+  it("waits on a charge still processing", async () => {
+    const s = stripe();
+    s.paymentIntents.search = jest.fn(async () => ({ data: [{ id: "pi_p", status: "processing" }] }));
+    expect(await chargeDueFees(s, ledger([fee()]))).toEqual({ paid: 0, invoiced: 0, skipped: 1, errors: 0 });
+    expect(s.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
+  it("records an invoice already sent instead of charging or invoicing again", async () => {
+    const s = stripe();
+    s.invoices.search = jest.fn(async () => ({ data: [{ id: "in_old", status: "open", hosted_invoice_url: "https://invoice.stripe.com/i/old" }] }));
+    const l = ledger([fee()]);
+    expect(await chargeDueFees(s, l)).toEqual({ paid: 0, invoiced: 1, skipped: 0, errors: 0 });
+    expect(s.paymentIntents.create).not.toHaveBeenCalled();
+    expect(s.invoices.create).not.toHaveBeenCalled();
+    expect(l.markFailed).toHaveBeenCalledWith("RF_1", "in_old", "https://invoice.stripe.com/i/old");
+  });
+
+  it("doesn't charge when Stripe can't be searched", async () => {
+    const s = stripe();
+    s.paymentIntents.search = jest.fn(async () => { throw new Error("down"); });
+    expect(await chargeDueFees(s, ledger([fee()]))).toEqual({ paid: 0, invoiced: 0, skipped: 0, errors: 1 });
+    expect(s.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
+  it("payment_intent.succeeded for a referral fee marks it paid", async () => {
+    const l = ledger();
+    expect(await markPaymentIntentPaid({ id: "pi_9", status: "succeeded", metadata: { type: "referral_fee", fee_id: "RF_3" } }, l)).toBe(true);
+    expect(l.markPaid).toHaveBeenCalledWith("RF_3", "pi_9");
+    expect(await markPaymentIntentPaid({ id: "pi_8", status: "succeeded", metadata: {} }, l)).toBe(false);
+  });
+});
+

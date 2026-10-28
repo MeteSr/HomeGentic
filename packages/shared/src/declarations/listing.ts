@@ -222,6 +222,12 @@ export const idlFactory = ({ IDL }: any) => {
     setFsboScoreVisible: IDL.Func([IDL.Text, IDL.Bool], [IDL.Variant({ ok: PublicFsboListing, err: Error })], []),
     isFsboScoreHidden: IDL.Func([IDL.Text], [IDL.Bool], ["query"]),
     requestShowing: IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text], [ShowingResult], []),
+    // Showing relays (the voice Worker) only; buyers go through the Worker.
+    relayRequestShowing: IDL.Func([IDL.Text, IDL.Principal, IDL.Text, IDL.Text, IDL.Text], [ShowingResult], []),
+    addShowingRelay: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    removeShowingRelay: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    // Property canister only: a claimed transfer takes the FSBO listing down.
+    propertyTransferred: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     getShowingRequests: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(ShowingRequest), err: Error })], ["query"]),
     respondToShowing: IDL.Func([IDL.Text, IDL.Text, ShowingResponse], [ShowingResult], []),
     logFsboOffer: IDL.Func([IDL.Text, FsboOfferInput], [OfferResult], []),

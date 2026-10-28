@@ -341,6 +341,10 @@ persistent actor Listing {
   private let notifyLog       = Map.empty<Nat, Notify.Event>();
   private var notifyLatestSeq : Nat         = 0;
   private var notifierEntries : [Principal] = [];
+  /// The voice Worker: files buyers' showing requests after its per-IP limits
+  /// (relayRequestShowing). M-2, 2026-10-28 audit: direct calls let anyone
+  /// mint keys and flood a listing.
+  private var showingRelayEntries : [Principal] = [];
   /// propertyId → ordered list of photo IDs (first = cover image)
   private let listingPhotos      = Map.empty<Text, [Text]>();
   /// propertyId → the principal who first added a photo (owner lock)
@@ -1425,6 +1429,20 @@ persistent actor Listing {
     fsboScoreHidden.get(propertyId) != null
   };
 
+  /// Property canister only: the home changed hands. M-6, 2026-10-28 audit:
+  /// the seller's live listing, draft, showings (buyers' contact details) and
+  /// offers come down, and the listing photo lists are freed for the new owner.
+  public shared(msg) func propertyTransferred(propertyId: Text) : async Result.Result<(), Error> {
+    if (Text.size(propCanisterId) == 0 or msg.caller.toText() != propCanisterId) return #err(#NotAuthorized);
+    ignore fsboListings.remove(propertyId);
+    clearFsboState(propertyId);
+    listingPhotos.remove(propertyId);
+    listingPhotoOwners.remove(propertyId);
+    listingPanoramas.remove(propertyId);
+    listingPanoramaOwners.remove(propertyId);
+    #ok(())
+  };
+
   // ─── FSBO showings ───────────────────────────────────────────────────────────
 
   /// A buyer asks to see a live listing. Any signed-in caller (the public page
@@ -1433,17 +1451,47 @@ persistent actor Listing {
   /// per day and per buyer.
   public shared(msg) func requestShowing(propertyId: Text, name: Text, contact: Text, preferredTime: Text) : async Result.Result<ShowingRequest, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    // M-2: buyers' requests come through the voice Worker (relayRequestShowing),
+    // which rate-limits per IP. Admins may still file one directly.
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    await* fileShowing(msg.caller, propertyId, name, contact, preferredTime)
+  };
+
+  /// Showing relay (the voice Worker) only: file a buyer's request. `requester`
+  /// is the signed-in buyer, or a per-IP principal the Worker derives for a
+  /// signed-out visitor; it keys the per-buyer limit.
+  public shared(msg) func relayRequestShowing(propertyId: Text, requester: Principal, name: Text, contact: Text, preferredTime: Text) : async Result.Result<ShowingRequest, Error> {
+    if (not Admin.contains(showingRelayEntries, msg.caller)) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (requester.isAnonymous()) return #err(#InvalidInput("requester required"));
+    await* fileShowing(requester, propertyId, name, contact, preferredTime)
+  };
+
+  public shared(msg) func addShowingRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
+    showingRelayEntries := Admin.add(showingRelayEntries, p);
+    #ok(())
+  };
+
+  public shared(msg) func removeShowingRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    showingRelayEntries := Admin.remove(showingRelayEntries, p);
+    #ok(())
+  };
+
+  private func fileShowing(requester: Principal, propertyId: Text, name: Text, contact: Text, preferredTime: Text) : async* Result.Result<ShowingRequest, Error> {
     let listing = switch (fsboListings.get(propertyId)) { case null { return #err(#NotFound) }; case (?l) l };
     if (Text.size(name) == 0 or tooLong(name, MAX_SHORT_TEXT)) return #err(#InvalidInput("Enter your name (up to 200 characters)"));
     if (Text.size(contact) < 5 or tooLong(contact, MAX_EMAIL_TEXT)) return #err(#InvalidInput("Enter an email or phone number"));
     if (Text.size(preferredTime) == 0 or tooLong(preferredTime, MAX_SHORT_TEXT)) return #err(#InvalidInput("Enter a preferred time (up to 200 characters)"));
-    if (msg.caller == listing.homeowner) return #err(#InvalidInput("You can't request a showing of your own listing"));
+    if (requester == listing.homeowner) return #err(#InvalidInput("You can't request a showing of your own listing"));
 
     let id = Uuid.fromBlob(await Random.blob());
     // State checks after the await.
     if (fsboListings.get(propertyId) == null) return #err(#NotFound);
     let existing = switch (fsboShowings.get(propertyId)) { case null []; case (?xs) xs };
-    let open = existing.filter(func(r : ShowingRequest) : Bool { r.requester == msg.caller and r.status != #Declined });
+    let open = existing.filter(func(r : ShowingRequest) : Bool { r.requester == requester and r.status != #Declined });
     if (open.size() >= MAX_SHOWINGS_PER_BUYER) return #err(#InvalidInput("You already have requests open for this home"));
     let now = Time.now();
     let (count, dayStart) = switch (showingDayWindow.get(propertyId)) {
@@ -1460,7 +1508,7 @@ persistent actor Listing {
       };
     };
     let req : ShowingRequest = {
-      id; propertyId; requester = msg.caller; name; contact; preferredTime;
+      id; propertyId; requester = requester; name; contact; preferredTime;
       createdAt = now; status = #Pending; alternateTime = null;
     };
     fsboShowings.add(propertyId, kept.concat([req]));

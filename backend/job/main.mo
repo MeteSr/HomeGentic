@@ -1820,6 +1820,23 @@ persistent actor Job {
     #ok(t)
   };
 
+  public type InboxCheck = { #accepting; #unknown; #full };
+
+  /// Inbox relay only: would relayAddEmailDraft accept mail for `token` now?
+  /// The Worker asks before it spends a model call on a message (H-2,
+  /// 2026-10-28 audit), so mail to made-up or full inboxes costs nothing.
+  public query(msg) func relayCheckInboxToken(token : Text) : async InboxCheck {
+    if (not Admin.contains(inboxRelayEntries, msg.caller)) return #unknown;
+    let owner = switch (inboxTokens.get(token)) { case (?o) o; case null return #unknown };
+    if (Index.count(draftsByOwner, owner.toText()) >= MAX_OPEN_DRAFTS) return #full;
+    let day = Time.now() / 86_400_000_000_000;
+    switch (inboxDayCounts.get(owner.toText())) {
+      case (?(d, n)) { if (d == day and n >= MAX_DRAFTS_PER_DAY) return #full };
+      case null {};
+    };
+    #accepting
+  };
+
   /// Inbox relay (the voice Worker) only: file a draft for the owner of
   /// `token`. #NotFound for an unknown token; #InvalidInput when the owner
   /// has too many open drafts or hit today's cap.

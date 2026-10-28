@@ -14,6 +14,7 @@ vi.mock("@/services/lazyActor", () => ({
       calls.order.push(id);
       return id === calls.failOn ? { err: { NotAuthorized: null } } : { ok: 1n };
     },
+    getMyOffChainPhotoIds: async () => (id === "photo" ? ["PHOTO_7", "PHOTO_9"] : []),
   }),
 }));
 vi.mock("@/services/voiceAgentHeaders", () => ({
@@ -28,7 +29,11 @@ import { accountDeletionService } from "@/services/accountDeletion";
 beforeEach(() => {
   calls.order = [];
   calls.failOn = null;
-  global.fetch = vi.fn(async () => {
+  global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    if (/\/photos\//.test(url)) {
+      calls.order.push(`${init?.method} ${url.replace(/^.*\/photos\//, "photos/")}`);
+      return new Response(null, { status: 204 });
+    }
     calls.order.push("stripe");
     return new Response(JSON.stringify({ cancelled: 1, periodEnd: null }), { status: 200 });
   }) as any;
@@ -58,5 +63,11 @@ describe("accountDeletionService.deleteMyAccount", () => {
     global.fetch = vi.fn(async () => new Response(JSON.stringify({ error: "Payment provider error" }), { status: 502 })) as any;
     await expect(accountDeletionService.deleteMyAccount()).rejects.toThrow(/subscription/);
     expect(calls.order).toEqual([]);
+  });
+
+  it("L-1: drops off-chain photo bytes after the photo records are gone", async () => {
+    await accountDeletionService.deleteMyAccount();
+    const at = calls.order.indexOf("photo");
+    expect(calls.order.slice(at, at + 3)).toEqual(["photo", "DELETE photos/PHOTO_7", "DELETE photos/PHOTO_9"]);
   });
 });

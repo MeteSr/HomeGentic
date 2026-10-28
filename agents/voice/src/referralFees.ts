@@ -166,6 +166,41 @@ function isCardFailure(err: any): boolean {
 
 export interface ChargeSummary { paid: number; invoiced: number; skipped: number; errors: number }
 
+/** payment_intent.succeeded for a referral-fee charge: mark the fee paid. */
+export async function markPaymentIntentPaid(pi: any, ledger: FeeLedger): Promise<boolean> {
+  if (pi?.metadata?.type !== "referral_fee" || pi.status !== "succeeded") return false;
+  const feeId = String(pi.metadata.fee_id ?? "");
+  if (!/^RF_\d+$/.test(feeId)) return false;
+  await ledger.markPaid(feeId, pi.id);
+  return true;
+}
+
+type PriorAttempt =
+  | { kind: "none" }
+  | { kind: "paid"; ref: string }
+  | { kind: "pending" }
+  | { kind: "invoiced"; ref: string; payUrl: string };
+
+/**
+ * What Stripe already holds for this fee. M-4 (2026-10-28 audit): a fee stays
+ * Due until the canister records the outcome, and Stripe forgets idempotency
+ * keys after 24 hours, so if recording keeps failing the next run must find
+ * the earlier charge or invoice instead of charging again.
+ */
+async function priorAttempt(stripe: any, feeId: string): Promise<PriorAttempt> {
+  const query = `metadata['fee_id']:'${feeId}'`;
+  const pis = (await stripe.paymentIntents.search({ query, limit: 20 }))?.data ?? [];
+  const paid = pis.find((p: any) => p.status === "succeeded");
+  if (paid) return { kind: "paid", ref: paid.id };
+  if (pis.some((p: any) => p.status === "processing" || p.status === "requires_capture")) return { kind: "pending" };
+  const invs = (await stripe.invoices.search({ query, limit: 20 }))?.data ?? [];
+  const paidInv = invs.find((i: any) => i.status === "paid");
+  if (paidInv) return { kind: "paid", ref: paidInv.id };
+  const open = invs.find((i: any) => i.status === "open");
+  if (open) return { kind: "invoiced", ref: open.id, payUrl: String(open.hosted_invoice_url ?? "") };
+  return { kind: "none" };
+}
+
 /** Charge every Due fee to its saved card; invoice the ones that are declined. */
 export async function chargeDueFees(stripe: any, ledger: FeeLedger): Promise<ChargeSummary> {
   const out: ChargeSummary = { paid: 0, invoiced: 0, skipped: 0, errors: 0 };
@@ -173,6 +208,15 @@ export async function chargeDueFees(stripe: any, ledger: FeeLedger): Promise<Cha
     if (!f.card) { out.skipped += 1; continue; }
     const description = feeDescription(f);
     const metadata = { type: "referral_fee", fee_id: f.id, icp_principal: f.contractor };
+    try {
+      const prior = await priorAttempt(stripe, f.id);
+      if (prior.kind === "paid")     { await ledger.markPaid(f.id, prior.ref); out.paid += 1; continue; }
+      if (prior.kind === "pending")  { out.skipped += 1; continue; }
+      if (prior.kind === "invoiced") { await ledger.markFailed(f.id, prior.ref, prior.payUrl); out.invoiced += 1; continue; }
+    } catch {
+      out.errors += 1;   // can't tell what Stripe holds: don't risk a second charge
+      continue;
+    }
     try {
       const pi = await stripe.paymentIntents.create({
         amount: f.feeCents, currency: "usd",

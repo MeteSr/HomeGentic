@@ -189,6 +189,9 @@ function createCertService() {
       if ("err" in result) {
         const key = Object.keys(result.err)[0];
         const val = result.err[key];
+        if (key === "UnverifiedProperty") {
+          throw new Error("Verify your home's ownership before issuing a certificate.");
+        }
         throw new Error(typeof val === "string" ? val : key);
       }
       const certId = result.ok;
