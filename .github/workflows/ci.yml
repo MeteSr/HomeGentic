@@ -133,7 +133,7 @@ jobs:
       - name: Build canister Wasm (this branch and base)
         run: |
           bash scripts/ci/build-upgrade-wasms.sh "${{ steps.base.outputs.sha }}" \
-            auth contractor job monitoring payment property quote sensor photo audit listing fee report
+            auth contractor job monitoring payment property quote sensor photo audit listing fee report bills recurring
 
       - name: Install test dependencies (downloads the PocketIC server)
         run: cd tests/upgrade && npm ci
