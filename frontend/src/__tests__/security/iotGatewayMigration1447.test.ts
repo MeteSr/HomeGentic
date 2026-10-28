@@ -1,8 +1,8 @@
 /**
- * TDD — 14.4.7: Migrate iot-gateway from deprecated @dfinity/* 1.x to @icp-sdk/core 5.x
+ * TDD — 14.4.7: Migrate iot-gateway from deprecated @dfinity/* 1.x to @icp-sdk/core (now 6.x)
  *
  * The iot-gateway used @dfinity/* at ^1.0.1. This migration:
- *  1. Replaces individual @dfinity/* sub-packages with unified @icp-sdk/core at ^5.x
+ *  1. Replaces individual @dfinity/* sub-packages with unified @icp-sdk/core at ^6.x
  *  2. Replaces `new HttpAgent({...})` (1.x) with `await HttpAgent.create({...})` (3.x+)
  *  3. Uses shouldFetchRootKey in the create() options instead of agent.fetchRootKey()
  *  4. Imports from @icp-sdk/core/* path exports (not @dfinity/*)
@@ -21,8 +21,8 @@ function read(rel: string): string {
 describe("14.4.7: iot-gateway @icp-sdk/core version migration", () => {
   const pkg = JSON.parse(read("agents/iot-gateway/package.json")) as Record<string, any>;
 
-  it("uses unified @icp-sdk/core package at ^5.x (not individual @dfinity/* sub-packages)", () => {
-    expect(pkg.dependencies["@icp-sdk/core"]).toMatch(/^\^5\./);
+  it("uses unified @icp-sdk/core package at ^6.x (not individual @dfinity/* sub-packages)", () => {
+    expect(pkg.dependencies["@icp-sdk/core"]).toMatch(/^\^6\./);
   });
 
   it("does not depend on @dfinity/agent", () => {

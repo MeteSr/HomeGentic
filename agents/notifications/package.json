@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "ts-node server.ts",
+    "dev": "tsx server.ts",
     "build": "tsc",
     "start": "node dist/agents/notifications/server.js",
     "test": "jest --passWithNoTests"
@@ -14,11 +14,15 @@
       "**/__tests__/**/*.test.ts"
     ],
     "transform": {
-      "^.+\\.tsx?$": "babel-jest"
-    }
+      "^.+\\.tsx?$": "babel-jest",
+      "^.+\\.m?js$": "babel-jest"
+    },
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(.*/node_modules/)?(@noble|@scure)/)"
+    ]
   },
   "dependencies": {
-    "@icp-sdk/core": "^5.4.0",
+    "@icp-sdk/core": "^6.1.1",
     "cors": "^2.8.5",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -38,8 +42,8 @@
     "babel-jest": "^30.5.2",
     "jest": "^30.5.2",
     "supertest": "^7.2.2",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=22"

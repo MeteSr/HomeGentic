@@ -44,7 +44,7 @@ function encodeCents(cents: number): number[] {
 describe("quote canister — upgrade persistence", () => {
   let pic:        PocketIc;
   let actor:      QuoteActor;
-  let canisterId: import("@dfinity/principal").Principal;
+  let canisterId: import("@icp-sdk/core/principal").Principal;
 
   let hvacRequestId:     string;
   let plumbingRequestId: string;

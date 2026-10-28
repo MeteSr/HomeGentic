@@ -7,8 +7,8 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@icp-sdk/auth": "^7.0.0",
-    "@icp-sdk/core": "^5.2.1",
+    "@icp-sdk/auth": "^10.0.2",
+    "@icp-sdk/core": "^6.1.1",
     "lucide-react": "^1.59.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

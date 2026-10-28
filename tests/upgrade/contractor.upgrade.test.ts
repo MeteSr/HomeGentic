@@ -33,7 +33,7 @@ function ok<T>(result: { ok: T } | { err: object }): T {
 describe("contractor canister — upgrade persistence", () => {
   let pic:        PocketIc;
   let actor:      ContractorActor;
-  let canisterId: import("@dfinity/principal").Principal;
+  let canisterId: import("@icp-sdk/core/principal").Principal;
 
   const charlie = createIdentity("charlie");
   const alice   = createIdentity("alice");

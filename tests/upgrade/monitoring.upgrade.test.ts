@@ -68,8 +68,8 @@ const HEALTHY_BALANCE  = 20_000_000_000_000n;
 describe("monitoring canister — upgrade persistence", () => {
   let pic: PocketIc;
   let actor: MonitoringActor;
-  let canisterId: import("@dfinity/principal").Principal;
-  let fakeCanisterId: import("@dfinity/principal").Principal;
+  let canisterId: import("@icp-sdk/core/principal").Principal;
+  let fakeCanisterId: import("@icp-sdk/core/principal").Principal;
 
   beforeAll(async () => {
     pic = await createPic();

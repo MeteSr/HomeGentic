@@ -33,7 +33,7 @@ function ok<T>(result: { ok: T } | { err: object }): T {
 describe("sensor canister — upgrade persistence", () => {
   let pic:        PocketIc;
   let actor:      SensorActor;
-  let canisterId: import("@dfinity/principal").Principal;
+  let canisterId: import("@icp-sdk/core/principal").Principal;
 
   const PROPERTY_ID = "PROP-UPGRADE-TEST";
   const DEVICES = [

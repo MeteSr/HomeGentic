@@ -36,7 +36,7 @@ function ok<T>(result: { ok: T } | { err: object }): T {
 describe("job canister — upgrade persistence", () => {
   let pic:        PocketIc;
   let actor:      JobActor;
-  let canisterId: import("@dfinity/principal").Principal;
+  let canisterId: import("@icp-sdk/core/principal").Principal;
 
   let jobId: string;
 
