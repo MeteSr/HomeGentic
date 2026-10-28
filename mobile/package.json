@@ -60,7 +60,7 @@
     "text-encoding": "^0.7.0"
   },
   "devDependencies": {
-    "@babel/plugin-transform-class-static-block": "^7.29.7",
+    "@babel/plugin-transform-class-static-block": "^8.0.5",
     "@react-native/jest-preset": "^0.88.0",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^30.0.0",
