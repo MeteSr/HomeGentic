@@ -120,7 +120,8 @@ export default defineConfig(({ mode, command }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes("@dfinity/")) return "vendor-dfinity";
+            // @icp-sdk/auth stays out: it loads on demand, at sign-in.
+            if (id.includes("@dfinity/") || id.includes("@icp-sdk/core/")) return "vendor-dfinity";
             if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) return "vendor-react";
             if (
               id.includes("node_modules/react-router") ||

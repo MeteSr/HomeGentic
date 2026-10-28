@@ -54,7 +54,7 @@ vi.mock("@/services/sensor", async (importOriginal) => {
 const { mockGetBills } = vi.hoisted(() => ({ mockGetBills: vi.fn() }));
 vi.mock("@/services/billService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/billService")>();
-  return { ...actual, billService: { getBillsForProperty: mockGetBills } };
+  return { ...actual, billService: { getBillsForProperties: mockGetBills } };
 });
 
 const { mockEstimateInsurerDiscount } = vi.hoisted(() => ({ mockEstimateInsurerDiscount: vi.fn() }));

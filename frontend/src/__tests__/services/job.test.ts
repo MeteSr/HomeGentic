@@ -68,6 +68,10 @@ const mockJobActor = {
     return { ok: jobs };
   }),
 
+  getJobsForProperties: vi.fn(async (propertyIds: string[]) =>
+    _mockJobs.filter((j) => propertyIds.includes(j.propertyId))
+  ),
+
   updateJobStatus: vi.fn(async (jobId: string, status: any) => {
     const job = _mockJobs.find((j) => j.id === jobId);
     if (!job) return { err: { NotFound: null } };
@@ -946,5 +950,41 @@ describe("jobService.getJobSnapshotsForProperty", () => {
     const snapsB = await jobService.getJobSnapshotsForProperty("prop-b");
     expect(snapsA).toHaveLength(1);
     expect(snapsB).toHaveLength(1);
+  });
+});
+
+// ─── getByProperties: one query call for the dashboard ───────────────────────
+
+describe("jobService.getByProperties", () => {
+  beforeEach(() => jobService.reset());
+
+  const create = (propertyId: string) => jobService.create({
+    propertyId, serviceType: "HVAC", amount: 100_000, date: "2024-01-01", description: "d", isDiy: false,
+  });
+
+  it("reads every property's jobs in one getJobsForProperties call", async () => {
+    await create("batch-A");
+    await create("batch-B");
+    await create("batch-C");
+    mockJobActor.getJobsForProperties.mockClear();
+    mockJobActor.getJobsForProperty.mockClear();
+    const jobs = await jobService.getByProperties(["batch-A", "batch-B"]);
+    expect(jobs.map((j) => j.propertyId).sort()).toEqual(["batch-A", "batch-B"]);
+    expect(mockJobActor.getJobsForProperties).toHaveBeenCalledTimes(1);
+    expect(mockJobActor.getJobsForProperty).not.toHaveBeenCalled();
+  });
+
+  it("falls back to one call per property when the canister lacks the batch call", async () => {
+    await create("fallback-A");
+    await create("fallback-B");
+    mockJobActor.getJobsForProperties.mockRejectedValueOnce(new Error("method not found"));
+    const jobs = await jobService.getByProperties(["fallback-A", "fallback-B"]);
+    expect(jobs).toHaveLength(2);
+  });
+
+  it("makes no call for an empty list", async () => {
+    mockJobActor.getJobsForProperties.mockClear();
+    expect(await jobService.getByProperties([])).toEqual([]);
+    expect(mockJobActor.getJobsForProperties).not.toHaveBeenCalled();
   });
 });

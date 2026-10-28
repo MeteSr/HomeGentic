@@ -266,6 +266,11 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Opt(IDL.Variant({ Owner: IDL.Null, CoOwner: IDL.Null, Manager: IDL.Null, Viewer: IDL.Null, NoAccess: IDL.Null }))],
       ["query"],
     ),
+    getAccessRoles: IDL.Func(
+      [IDL.Vec(IDL.Text), IDL.Principal],
+      [IDL.Vec(IDL.Opt(IDL.Variant({ Owner: IDL.Null, CoOwner: IDL.Null, Manager: IDL.Null, Viewer: IDL.Null, NoAccess: IDL.Null })))],
+      ["query"],
+    ),
     getPropertyYearBuilt: IDL.Func([IDL.Text], [IDL.Opt(IDL.Nat)], ["query"]),
     getPropertyAddress:   IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ["query"]),
   });

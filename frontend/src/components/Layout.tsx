@@ -108,9 +108,7 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
     Promise.all([
       jobService.getAll().catch(() => [] as Job[]),
       quoteService.getRequests().catch(() => [] as QuoteRequest[]),
-      Promise.all(
-        propertyIds.map((pid) => billService.getBillsForProperty(pid).catch(() => [] as BillRecord[]))
-      ).then((nested) => nested.flat()),
+      billService.getBillsForProperties(propertyIds).catch(() => [] as BillRecord[]),
     ]).then(([jobs, quotes, bills]) => {
       setFeedJobs(jobs);
       setFeedQuotes(quotes);

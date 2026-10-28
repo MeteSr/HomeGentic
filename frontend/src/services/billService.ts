@@ -195,6 +195,23 @@ export const billService = {
     return records.map(toRecord);
   },
 
+  /**
+   * Bill records for several properties in one query call. Falls back to one
+   * getBillsForProperty per property when the bills canister predates it.
+   */
+  async getBillsForProperties(propertyIds: string[]): Promise<BillRecord[]> {
+    if (propertyIds.length === 0) return [];
+    const actor = await getBillsActor();
+    try {
+      return ((await actor.getBillsForProperties(propertyIds)) as any[]).map(toRecord);
+    } catch {
+      return (await Promise.all(propertyIds.map(async (id) => {
+        try { return (fromVariant(await actor.getBillsForProperty(id)) as any[]).map(toRecord); }
+        catch { return [] as BillRecord[]; }
+      }))).flat();
+    }
+  },
+
   /** Delete a bill record. */
   async deleteBill(id: string): Promise<void> {
     const actor = await getBillsActor();

@@ -94,6 +94,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `resignAsManager` | update | `(propertyId: Text)` | Manager voluntarily removes themselves. |
 | `recordManagerActivity` | update | `(propertyId: Text, description: Text)` | Called by a Manager-role user (via the frontend) after completing a significant write action to notify the property owner. |
 | `getAccessRole` | query | `(propertyId: Text, principal: Principal)` | Public query: the principal's role on a property, or null when the property doesn't exist. |
+| `getAccessRoles` | query | `(propertyIds: [Text], principal: Principal)` | `getAccessRole` for up to 100 properties, in the same order; lets job, bills and recurring check every property in one call. |
 | `isAuthorized` | query | `(propertyId: Text, caller: Principal, requireWrite: Bool)` | Public query: returns true if `caller` is the owner OR an authorised manager. |
 | `requestApproval` | update | `(propertyId: Text, description: Text, amountCents: Nat)` | Called by a Manager who wants to spend above their limit (or a Viewer requesting an action they can't take directly). |
 | `respondToApproval` | update | `(propertyId: Text, approvalId: Nat, approve: Bool)` | Owner approves or declines a pending approval request. |
@@ -117,6 +118,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `createJob` | update | `(propertyId: Text, title: Text, serviceType: ServiceType, description: Text, contractorName: ?Text, amount: Nat, completedDate: Time.Time, permitNumber: ?Text, warrantyMonths: ?Nat, isDiy: Bool, sourceQuoteId: ?Text)` | Create a maintenance job |
 | `getJob` | query | `(jobId: Text)` | Get job by ID |
 | `getJobsForProperty` | update | `(propertyId: Text)` | All jobs for a property |
+| `getJobsForProperties` | composite query | `(propertyIds: [Text])` | Jobs for up to 100 properties in one call; properties the caller has no role on are skipped |
 | `getJobsByOwner` | query | `(owner: Principal)` | All jobs for an owner (the owner, admins, trusted canisters and notifiers — the relay builds the weekly Home Pulse email from them) |
 | `getJobsPendingMySignature` | query | `()` | Jobs awaiting caller's signature |
 | `updateJobStatus` | update | `(jobId: Text, status: JobStatus)` | Update job status |
@@ -161,7 +163,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `getContractor` | query | `(c: Principal)` | Get contractor by principal |
 | `getAll` | query | `()` | List contractors in the directory (unlisted profiles are left out except for themselves, admins and trusted canisters; same for `getPage`, `getBySpecialty`, `getByZip`) |
 | `getBySpecialty` | query | `(s: ServiceType)` | Filter listed contractors by specialty |
-| `getByZip` | query | `(zipCode: Text)` | Listed contractors who explicitly list that zip code in `serviceZips` |
+| `getByZip` | query | `(zipCode: Text)` | Listed contractors who explicitly list that zip code in `serviceZips` (at most 500, as `getAll`; same for `getBySpecialty`) |
 | `getLeadAlertTargets` | query | `()` | Lead-matching fields for every contractor, listed or not, without name or contact details; used by the notification relay |
 | `setProfilePrivacy` | update | `(p: ProfilePrivacy)` | Settings → Privacy; `ProfilePrivacy = { listed: Bool, showTrustScore: Bool, showJobsCompleted: Bool }` (caller needs a profile) |
 | `getMyProfilePrivacy` | query | `()` | Caller's privacy settings (defaults: all true) |
@@ -488,6 +490,7 @@ Realtor profiles and performance tracking.
 | `createRecurringService` | update | `(propertyId: Text, serviceType: RecurringServiceType, providerName: Text, providerLicense: ?Text, providerPhone: ?Text, frequency: Frequency, startDate: Text, contractEndDate: ?Text, notes: ?Text)` | Create a recurring service contract (HVAC, pest, landscaping, etc.) |
 | `getRecurringService` | query | `(serviceId: Text)` | Get a service contract by ID |
 | `getByProperty` | query | `(propertyId: Text)` | All recurring services for a property |
+| `getScheduleForProperties` | composite query | `(propertyIds: [Text])` | Services on up to 100 properties plus their visit logs (newest first), in one call; same access rule as `getByProperty` |
 | `updateStatus` | update | `(serviceId: Text, status: ServiceStatus)` | Update service status |
 | `attachContractDoc` | update | `(serviceId: Text, photoId: Text)` | Attach a contract document |
 | `addVisitLog` | update | `(serviceId: Text, visitDate: Text, note: ?Text)` | Log a service visit |
@@ -505,6 +508,7 @@ Utility bills and fixed recurring housing costs per property. Tier-gated via `pa
 |---|---|---|---|
 | `addBill` | update | `(args: AddBillArgs)` | Add a bill record for a property. |
 | `getBillsForProperty` | update | `(propertyId: Text)` | Return a property's bills: all of them for anyone with a role on the property (owner, co-owner, manager, viewer), otherwise only the caller's own. |
+| `getBillsForProperties` | composite query | `(propertyIds: [Text])` | `getBillsForProperty` for up to 100 properties in one call |
 | `getUsageTrend` | update | `(propertyId: Text, billType: BillType, months: Nat)` | Return usage-tracked periods for (propertyId, billType) sorted chronologically, limited to the last `months` months. |
 | `deleteBill` | update | `(id: Text)` | Delete a bill. |
 | `addRecurringExpense` | update | `(propertyId: Text, fields: RecurringExpenseFields)` | Add a fixed recurring housing cost. |

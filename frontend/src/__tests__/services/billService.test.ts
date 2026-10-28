@@ -15,6 +15,7 @@ vi.mock("@homegentic/shared/declarations/bills", () => ({
 const mockActor = {
   addBill:              vi.fn(),
   getBillsForProperty:  vi.fn(),
+  getBillsForProperties: vi.fn(),
   deleteBill:           vi.fn(),
   addRecurringExpense:             vi.fn(),
   getRecurringExpensesForProperty: vi.fn(),
@@ -142,6 +143,28 @@ describe("billService.getBillsForProperty", () => {
 
     const results = await billService.getBillsForProperty("prop-1");
     expect(results[0].uploadedAt).toBe(Math.floor(Number(nsTimestamp) / 1_000_000));
+  });
+});
+
+describe("billService.getBillsForProperties", () => {
+  it("reads every property's bills in one call", async () => {
+    mockActor.getBillsForProperties.mockResolvedValueOnce([
+      makeRawBill({ id: "b1", propertyId: "prop-1" }),
+      makeRawBill({ id: "b2", propertyId: "prop-2" }),
+    ]);
+    const results = await billService.getBillsForProperties(["prop-1", "prop-2"]);
+    expect(results.map((b) => b.id)).toEqual(["b1", "b2"]);
+    expect(mockActor.getBillsForProperties).toHaveBeenCalledWith(["prop-1", "prop-2"]);
+    expect(mockActor.getBillsForProperty).not.toHaveBeenCalled();
+  });
+
+  it("falls back to one call per property when the canister lacks the batch call", async () => {
+    mockActor.getBillsForProperties.mockRejectedValueOnce(new Error("method not found"));
+    mockActor.getBillsForProperty
+      .mockResolvedValueOnce({ ok: [makeRawBill({ id: "b1" })] })
+      .mockRejectedValueOnce(new Error("down"));
+    const results = await billService.getBillsForProperties(["prop-1", "prop-2"]);
+    expect(results.map((b) => b.id)).toEqual(["b1"]);
   });
 });
 

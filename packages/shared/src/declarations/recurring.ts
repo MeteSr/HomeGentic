@@ -79,6 +79,11 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: RecurringService, err: Error })],
       []  // M8: update call (live property-auth check)
     ),
+    getScheduleForProperties: IDL.Func(
+      [IDL.Vec(IDL.Text)],
+      [IDL.Record({ services: IDL.Vec(RecurringService), visits: IDL.Vec(VisitLog) })],
+      ["composite_query"]
+    ),
     getByProperty: IDL.Func(
       [IDL.Text],
       [IDL.Vec(RecurringService)],

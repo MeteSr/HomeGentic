@@ -178,6 +178,8 @@ persistent actor Bills {
     (expensesByProperty, func(e : RecurringExpense) : ?Text { ?e.propertyId }),
   ]);
   private transient let MAX_RECURRING_PER_PROPERTY : Nat = 50;
+  /// Most properties one getBillsForProperties call reads (property answers up to 100).
+  private transient let MAX_PROPERTY_BATCH : Nat = 100;
 
   /// Property canister ID — set post-deploy via setPropertyCanisterId(). While
   /// unset, every record is visible only to the principal who created it.
@@ -435,6 +437,24 @@ persistent actor Bills {
       }
     );
     #ok(result)
+  };
+
+  /// Bills for several properties in one call (the dashboard's activity feed),
+  /// with the same rule as getBillsForProperty per property. A composite query,
+  /// so the roles come from one property call instead of one update per property.
+  public composite query(msg) func getBillsForProperties(propertyIds: [Text]) : async [BillRecord] {
+    if (msg.caller.isAnonymous()) return [];
+    let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
+    let roles : [?AccessRole] =
+      if (propCanisterId == "") [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
+    let out = List.empty<BillRecord>();
+    for (i in ids.keys()) {
+      let shared_ = i < roles.size() and seesProperty(roles[i]);
+      for (b in Index.records(billsByProperty, ids[i], bills)) {
+        if (shared_ or Principal.equal(b.homeowner, msg.caller)) out.add(b);
+      };
+    };
+    out.toArray()
   };
 
   /// Return usage-tracked periods for (propertyId, billType) sorted chronologically,
