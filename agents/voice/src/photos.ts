@@ -96,7 +96,9 @@ async function getPhoto(request: Request, id: string, env: KVEnv, deps: PhotoDep
   if (!access.offChain) return reply(404, { error: "not_off_chain" });
 
   const etag = `"${access.hash}"`;
-  const cacheControl = access.isPublic ? "public, max-age=31536000, immutable" : "private, max-age=86400";
+  // L-2 (2026-10-28 audit): private photos are revalidated on every view (a
+  // cheap 304 via the ETag), so revoked access doesn't linger in the browser.
+  const cacheControl = access.isPublic ? "public, max-age=31536000, immutable" : "private, no-cache";
   if (request.headers.get("If-None-Match") === etag) {
     return new Response(null, { status: 304, headers: { ETag: etag, "Cache-Control": cacheControl } });
   }

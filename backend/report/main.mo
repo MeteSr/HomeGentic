@@ -338,7 +338,7 @@ persistent actor Report {
   private transient let MAX_LINKS_PER_PROPERTY      : Nat = 200;
   private transient let MAX_LINKS_PER_PROPERTY_DAY  : Nat = 10;
   private transient let MAX_RISK_PER_PROPERTY_DAY   : Nat = 20;
-  private transient let MAX_CERTS_PER_PROPERTY_DAY  : Nat = 20;
+  private transient let MAX_CERTS_PER_PROPERTY_DAY  : Nat = 5;
   private transient let MAX_ROOMS                   : Nat = 100;
   private transient let MAX_RECURRING               : Nat = 50;
   private transient let MAX_FIELD_CHARS             : Nat = 200;
@@ -573,8 +573,28 @@ persistent actor Report {
   /// Sign `message` and store it under `ref`. Never fails the caller: if
   /// signing is unavailable (no key on a local replica, out of cycles) the
   /// record is kept unsigned and the pages say so.
+  /// M-3 (2026-10-28 audit): canister-wide cap on threshold signatures per
+  /// day (~26B cycles each on key_1), so a crowd of throwaway accounts can't
+  /// drain cycles. Past it, records are kept unsigned, as when signing is down.
+  /// Transient: a counter that resets on upgrade (reviewing-motoko S2).
+  private transient let MAX_ATTESTS_PER_DAY : Nat = 500;
+  private transient var attestDay   : Int = 0;
+  private transient var attestsToday : Nat = 0;
+
+  private func takeAttestSlot() : Bool {
+    let day = Time.now() / 86_400_000_000_000;
+    if (day != attestDay) { attestDay := day; attestsToday := 0 };
+    if (attestsToday >= MAX_ATTESTS_PER_DAY) return false;
+    attestsToday += 1;
+    true
+  };
+
   private func attest(ref : Text, message : Text) : async* () {
     let name = attestKeyName;
+    if (not takeAttestSlot()) {
+      Debug.print("attest " # ref # " skipped: daily signing budget used");
+      return;
+    };
     // Attaching more cycles than the canister holds would trap after the
     // record is saved; skip signing instead and leave it unsigned.
     if (Cycles.balance() < 2 * attestSignCycles(name)) {
@@ -1627,6 +1647,9 @@ persistent actor Report {
       case (?p) { p };
     };
     if (prop.owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    // M-3: like generateReport, only verified homes get a signed certificate.
+    let level = levelText(prop.verificationLevel);
+    if (level == "Unverified" or level == "PendingReview") return #err(#UnverifiedProperty);
 
     if (Text.size(riskJobCanisterId) == 0) return #err(#InvalidInput("Job canister not configured"));
     if (Text.size(marketCanisterId) == 0) return #err(#InvalidInput("Score service not configured"));

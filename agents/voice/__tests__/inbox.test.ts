@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, jest } from "@jest/globals";
-import { inboxToken, parseInvoice, parseMail, extractInvoice, handleInbound, MAX_RAW_BYTES, type InboxDeps } from "../src/inbox";
+import { inboxToken, parseInvoice, parseMail, extractInvoice, handleInbound, MAX_RAW_BYTES, MODEL_CALLS_PER_DAY, MODEL_CALLS_PER_INBOX_DAY, type InboxDeps } from "../src/inbox";
 
 const TOKEN  = "aaaaaaaaaaaaaaaaaaaa";
 const DOMAIN = "in.homegentic.app";
@@ -121,9 +121,18 @@ describe("INBOX.3 parseMail + extractInvoice", () => {
 });
 
 describe("INBOX.4 handleInbound", () => {
-  function deps(reply: string, res: "ok" | "unknown" | "rejected" = "ok") {
+  function deps(reply: string, res: "ok" | "unknown" | "rejected" = "ok", check: "accepting" | "unknown" | "full" = "accepting", quota = Infinity) {
     const addDraft = jest.fn(async (..._a: any[]) => res);
-    return { deps: { provider: provider(reply), addDraft } as unknown as InboxDeps, addDraft };
+    const checkToken = jest.fn(async (_t: string) => check);
+    const counts = new Map<string, number>();
+    const allow = jest.fn(async (key: string, limit: number) => {
+      const n = counts.get(key) ?? 0;
+      if (n >= Math.min(limit, quota)) return false;
+      counts.set(key, n + 1);
+      return true;
+    });
+    const p = provider(reply);
+    return { deps: { provider: p, addDraft, checkToken, allow } as unknown as InboxDeps, addDraft, checkToken, allow, p };
   }
   const to = `h-${TOKEN}@${DOMAIN}`;
 
@@ -150,5 +159,26 @@ describe("INBOX.4 handleInbound", () => {
     const raw = mime();
     expect(await handleInbound(to, raw, raw.byteLength, DOMAIN, deps(RECORD, "unknown").deps)).toBe("unknown-address");
     expect(await handleInbound(to, raw, raw.byteLength, DOMAIN, deps(RECORD, "rejected").deps)).toBe("rejected");
+  });
+
+  it("H-2: never calls the model for unknown or full inboxes", async () => {
+    const raw = mime();
+    const unknown = deps(RECORD, "ok", "unknown");
+    expect(await handleInbound(to, raw, raw.byteLength, DOMAIN, unknown.deps)).toBe("unknown-address");
+    expect((unknown.p as any).complete).not.toHaveBeenCalled();
+    const full = deps(RECORD, "ok", "full");
+    expect(await handleInbound(to, raw, raw.byteLength, DOMAIN, full.deps)).toBe("inbox-full");
+    expect((full.p as any).complete).not.toHaveBeenCalled();
+    expect(full.addDraft).not.toHaveBeenCalled();
+  });
+
+  it("H-2: stops calling the model once a daily cap is reached", async () => {
+    const raw = mime();
+    const d = deps(RECORD, "ok", "accepting", 1);
+    expect(await handleInbound(to, raw, raw.byteLength, DOMAIN, d.deps)).toBe("drafted");
+    expect(await handleInbound(to, raw, raw.byteLength, DOMAIN, d.deps)).toBe("over-quota");
+    expect((d.p as any).complete).toHaveBeenCalledTimes(1);
+    expect(d.allow).toHaveBeenCalledWith(expect.stringMatching(/^inbox:all:/), MODEL_CALLS_PER_DAY, expect.any(Number));
+    expect(d.allow).toHaveBeenCalledWith(expect.stringMatching(new RegExp(`^inbox:${TOKEN}:`)), MODEL_CALLS_PER_INBOX_DAY, expect.any(Number));
   });
 });

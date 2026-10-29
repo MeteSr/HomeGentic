@@ -71,6 +71,7 @@ export const idlFactory = ({ IDL }: any) => {
     getPublicListingPhotos:  IDL.Func([IDL.Text], [IDL.Vec(Photo)], ["query"]),
     getPhotoDataBatch:        IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Nat8)))], []),
     getListingPhotoDataBatch: IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Nat8)))], ["query"]),
+    getMyOffChainPhotoIds: IDL.Func([], [IDL.Vec(IDL.Text)], ["query"]),
     deletePhoto: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],

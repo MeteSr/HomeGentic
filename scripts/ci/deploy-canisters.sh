@@ -119,6 +119,9 @@ fi
 if has_method property setJobCanisterId; then
   dfx canister call property  setJobCanisterId        "(principal \"$JOB_ID\")"
 fi
+if has_method property setListingCanisterId; then
+  dfx canister call property  setListingCanisterId    "(principal \"$LISTING_ID\")"
+fi
 dfx canister call recurring   setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
 if has_method fee setQuoteCanisterId; then
   dfx canister call fee       setQuoteCanisterId      "(\"$QUOTE_ID\")"

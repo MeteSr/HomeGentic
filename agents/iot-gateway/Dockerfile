@@ -11,10 +11,13 @@ RUN cd agents/iot-gateway && npx tsc -p . && npm prune --omit=dev
 
 FROM node:22-slim
 ENV NODE_ENV=production
+# gosu: start as root only to hand the /data volume (mounted root-owned by
+# Fly) to the node user, then run the server as node (L-6, 2026-10-28 audit).
+RUN apt-get update && apt-get install -y --no-install-recommends gosu \
+ && rm -rf /var/lib/apt/lists/* && gosu nobody true
 WORKDIR /app/agents/iot-gateway
 COPY --from=build /app/agents/iot-gateway/node_modules ./node_modules
 COPY --from=build /app/agents/iot-gateway/dist ./dist
 COPY --from=build /app/agents/iot-gateway/package.json ./
-# Runs as root: Fly mounts the /data volume root-owned.
 EXPOSE 8080
-CMD ["node", "dist/agents/iot-gateway/server.js"]
+CMD ["sh", "-c", "mkdir -p /data && chown -R node:node /data && exec gosu node node dist/agents/iot-gateway/server.js"]

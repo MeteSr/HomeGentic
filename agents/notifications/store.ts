@@ -2,6 +2,9 @@ import { loadSection, saveSection } from "./persist";
 import type { Platform, TokenRecord } from "./types";
 
 // principal → list of device tokens (one user may have multiple devices)
+
+/** L-5 (2026-10-28 audit): devices kept per principal; the oldest is dropped past it. */
+export const MAX_TOKENS_PER_PRINCIPAL = 10;
 const registry = new Map<string, TokenRecord[]>(
   Object.entries(loadSection<Record<string, TokenRecord[]>>("tokens", {})),
 );
@@ -19,14 +22,10 @@ export function registerToken(principal: string, token: string, platform: Platfo
     if (kept.length === records.length) continue;
     if (kept.length === 0) registry.delete(other); else registry.set(other, kept);
   }
-  const existing = registry.get(principal) ?? [];
-  const idx      = existing.findIndex((r) => r.token === token);
-  const record: TokenRecord = { token, platform, updatedAt: Date.now() };
-  if (idx >= 0) {
-    existing[idx] = record;
-  } else {
-    existing.push(record);
-  }
+  // Most recently registered last, so the cap drops the stalest device.
+  const existing = (registry.get(principal) ?? []).filter((r) => r.token !== token);
+  existing.push({ token, platform, updatedAt: Date.now() });
+  while (existing.length > MAX_TOKENS_PER_PRINCIPAL) existing.shift();
   registry.set(principal, existing);
   save();
 }

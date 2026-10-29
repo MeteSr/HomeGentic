@@ -9,6 +9,7 @@ app = "homegentic-iot-gateway"
 primary_region = "iad"
 
 [env]
+  TRUST_PROXY_HOPS     = "1"   # Fly's proxy sets X-Forwarded-For (rate limits key on the client)
   NODE_ENV             = "production"
   IOT_GATEWAY_PORT     = "8080"
   ICP_HOST             = "https://icp-api.io"

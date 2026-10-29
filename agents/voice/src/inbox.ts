@@ -5,7 +5,10 @@
  * (job.getMyInboxToken). Cloudflare Email Routing sends mail for that domain
  * to this Worker's email() handler, which:
  *
- *   1. reads the token from the recipient address,
+ *   1. reads the token from the recipient address, asks the job canister
+ *      whether that inbox exists and has room, and counts the message against
+ *      per-inbox and Worker-wide daily caps (H-2: nothing reaches the model
+ *      for a made-up address or past a cap),
  *   2. parses the message (postal-mime) and picks the invoice: the first PDF
  *      or image attachment, else the message text,
  *   3. asks the model whether it's a record of work on the home and, if so,
@@ -27,10 +30,14 @@ import type { AIProvider } from "../provider";
 
 /** Attachments the model can read, and the largest one we send. */
 const READABLE = ["application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp"];
-const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024;
 const MAX_TEXT_CHARS = 20_000;
 /** Raw messages larger than this are dropped before parsing. */
-export const MAX_RAW_BYTES = 15 * 1024 * 1024;
+export const MAX_RAW_BYTES = 10 * 1024 * 1024;
+/** Model calls per inbox per day (above the canister's 30 drafts/day, for non-records). */
+export const MODEL_CALLS_PER_INBOX_DAY = 40;
+/** Model calls per day across every inbox, so a flood of valid tokens is still bounded. */
+export const MODEL_CALLS_PER_DAY = 2_000;
 
 /** The token in h-<token>@<domain>, or null when the address isn't an inbox address. */
 export function inboxToken(address: string, domain: string): string | null {
@@ -130,17 +137,34 @@ export async function extractInvoice(mail: ParsedMail, provider: AIProvider): Pr
   return parseInvoice(out);
 }
 
+export type InboxCheck = "accepting" | "unknown" | "full";
+
 export interface InboxDeps {
   provider: AIProvider;
+  /** job.relayCheckInboxToken: does the inbox exist and have room? */
+  checkToken: (token: string) => Promise<InboxCheck>;
+  /** Count one hit against `key`; false once `limit` is reached (rateLimiter.hitCounter). */
+  allow: (key: string, limit: number, ttlSeconds: number) => Promise<boolean>;
   addDraft: (token: string, from: string, subject: string, draft: InvoiceDraft) => Promise<"ok" | "unknown" | "rejected">;
+}
+
+async function jobActor(): Promise<any> {
+  const canisterId = process.env.CANISTER_ID_JOB;
+  if (!canisterId) throw new Error("CANISTER_ID_JOB is not set");
+  return Actor.createActor(idlFactory, { agent: await getAgent(), canisterId });
+}
+
+/** Ask the job canister whether `token` names an inbox that takes mail now. */
+export async function checkTokenInCanister(token: string): Promise<InboxCheck> {
+  const res = await (await jobActor()).relayCheckInboxToken(token);
+  if ("accepting" in res) return "accepting";
+  if ("full" in res) return "full";
+  return "unknown";
 }
 
 /** Add a draft through the job canister with the Worker's identity. */
 export async function addDraftInCanister(token: string, from: string, subject: string, d: InvoiceDraft): Promise<"ok" | "unknown" | "rejected"> {
-  const canisterId = process.env.CANISTER_ID_JOB;
-  if (!canisterId) throw new Error("CANISTER_ID_JOB is not set");
-  const actor = Actor.createActor(idlFactory, { agent: await getAgent(), canisterId }) as any;
-  const res = await actor.relayAddEmailDraft(token, {
+  const res = await (await jobActor()).relayAddEmailDraft(token, {
     fromAddress:    from.slice(0, 200),
     subject:        subject.slice(0, 200),
     title:          d.title,
@@ -158,7 +182,8 @@ export async function addDraftInCanister(token: string, from: string, subject: s
   return "rejected";
 }
 
-export type InboxOutcome = "drafted" | "not-inbox" | "too-large" | "not-a-record" | "unknown-address" | "rejected";
+export type InboxOutcome =
+  "drafted" | "not-inbox" | "too-large" | "not-a-record" | "unknown-address" | "inbox-full" | "over-quota" | "rejected";
 
 /**
  * Handle one inbound message. `to` is the envelope recipient; `raw` the full
@@ -171,6 +196,15 @@ export async function handleInbound(
   const token = inboxToken(to, domain);
   if (!token) return "not-inbox";
   if (size > MAX_RAW_BYTES) return "too-large";
+  // H-2: every check that can turn the message away runs before the model call.
+  const check = await deps.checkToken(token);
+  if (check === "unknown") return "unknown-address";
+  if (check === "full") return "inbox-full";
+  const day = new Date().toISOString().slice(0, 10);
+  if (!(await deps.allow(`inbox:all:${day}`, MODEL_CALLS_PER_DAY, 2 * 86_400)) ||
+      !(await deps.allow(`inbox:${token}:${day}`, MODEL_CALLS_PER_INBOX_DAY, 2 * 86_400))) {
+    return "over-quota";
+  }
   const mail = await parseMail(raw);
   const draft = await extractInvoice(mail, deps.provider);
   if (!draft) return "not-a-record";

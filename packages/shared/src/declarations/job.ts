@@ -69,6 +69,11 @@ export const idlFactory = ({ IDL }: any) => {
     getMyInboxToken:    IDL.Func([], [TextResult], []),
     resetMyInboxToken:  IDL.Func([], [TextResult], []),
     relayAddEmailDraft: IDL.Func([IDL.Text, EmailDraftInput], [TextResult], []),
+    relayCheckInboxToken: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ accepting: IDL.Null, unknown: IDL.Null, full: IDL.Null })],
+      ["query"],
+    ),
     getMyEmailDrafts:   IDL.Func([], [IDL.Vec(EmailDraft)], ["query"]),
     dismissEmailDraft:  IDL.Func([IDL.Text], [UnitResult], []),
     addInboxRelay:      IDL.Func([IDL.Principal], [UnitResult], []),

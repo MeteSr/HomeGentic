@@ -65,6 +65,13 @@ import type {
 } from "./types";
 
 const app = express();
+
+// M-1 (2026-10-28 audit): behind Fly's proxy every connection comes from the
+// proxy, so rate limits keyed on the socket address would be shared by all
+// users. TRUST_PROXY_HOPS (1 on Fly, see fly.toml) makes req.ip the client
+// address from X-Forwarded-For.
+const proxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0);
+if (Number.isInteger(proxyHops) && proxyHops > 0) app.set("trust proxy", proxyHops);
 const port = Number(process.env.IOT_GATEWAY_PORT) || 3002;
 // Fail at startup, not on the first sign-in, when production has no public URL.
 gatewayPublicBase(port);
@@ -116,35 +123,35 @@ const deviceOAuthLimiter = rateLimit({
 
 const moenFloLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 1_000, // per sending IP: one vendor's servers deliver every homeowner's events
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const ecobeeLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 60, // max 60 requests per minute per IP for Ecobee webhook
+  max: 600, // per sending IP (Ecobee's servers, shared by every homeowner); HMAC is the auth gate
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const nestLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 60,
+  max: 600, // per sending IP (the vendor's servers, shared by every homeowner)
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const smartThingsLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 120, // SmartThings hubs can send many device events in bursts
+  max: 1_200, // SmartThings' servers, shared by every homeowner, send bursts
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const lgThinQLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 60,
+  max: 600, // per sending IP (the vendor's servers, shared by every homeowner)
   standardHeaders: true,
   legacyHeaders: false,
 });

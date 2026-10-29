@@ -40,6 +40,13 @@ export { safeEqual, unsubscribeTokenFor };
 export function buildApp() {
   const app = express();
 
+  // M-1 (2026-10-28 audit): behind Fly's proxy every connection comes from the
+  // proxy, so rate limits keyed on the socket address would be shared by all
+  // users. TRUST_PROXY_HOPS (1 on Fly, see fly.toml) makes req.ip the client
+  // address from X-Forwarded-For.
+  const proxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0);
+  if (Number.isInteger(proxyHops) && proxyHops > 0) app.set("trust proxy", proxyHops);
+
   const allowedOrigin = process.env.FRONTEND_ORIGIN;
   if (!allowedOrigin && process.env.NODE_ENV === "production") {
     throw new Error("FRONTEND_ORIGIN must be set in production");

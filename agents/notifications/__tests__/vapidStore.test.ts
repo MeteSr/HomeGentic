@@ -88,3 +88,14 @@ describe("vapidStore.getSubscriptionsForPrincipal", () => {
     expect(s.getSubscriptionsForPrincipal("unknown")).toEqual([]);
   });
 });
+
+describe("L-5 per-principal cap", () => {
+  it("keeps the newest MAX_SUBSCRIPTIONS_PER_PRINCIPAL browsers", () => {
+    const s = freshVapidStore();
+    const sub = (i: number) => ({ endpoint: `https://push.example/${i}`, keys: { p256dh: "k", auth: `a${i}` } });
+    for (let i = 0; i < s.MAX_SUBSCRIPTIONS_PER_PRINCIPAL + 2; i++) s.registerSubscription(P1, sub(i));
+    const kept = s.getSubscriptionsForPrincipal(P1).map((x: any) => x.endpoint);
+    expect(kept).toHaveLength(s.MAX_SUBSCRIPTIONS_PER_PRINCIPAL);
+    expect(kept[0]).toBe("https://push.example/2");
+  });
+});

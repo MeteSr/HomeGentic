@@ -71,6 +71,8 @@ crons = ["0 * * * *"]   # every hour — scheduledBidtolist (deadline reminders)
 #                                 deploy.sh registers the principal with contractor.addLicenseRelay)
 #   CANISTER_ID_FEE               Contractor Free referral fees: card setup, the hourly charge run
 #                                 (deploy.sh registers the principal with fee.addReferralRelay)
+#   CANISTER_ID_LISTING           files FSBO showing requests (/api/fsbo/showing-request;
+#                                 deploy.sh registers the principal with listing.addShowingRelay)
 #   RESEND_API_KEY                transactional email (moved off ai_proxy)
 #   RESEND_FROM                   sender on a Resend-verified domain
 #   ATTOM_API_KEY                 property-record lookups (/api/property/details)
