@@ -2036,6 +2036,22 @@ persistent actor Property {
   /// property doesn't exist. Finer-grained than isAuthorized — called
   /// cross-canister by bills, which hides mortgage entries from #Manager/#Viewer.
   public query func getAccessRole(propertyId : Text, principal : Principal) : async ?AccessRole {
+    accessRoleOf(propertyId, principal)
+  };
+
+  /// Most property ids getAccessRoles answers in one call; the rest come back null.
+  private transient let MAX_ROLE_BATCH : Nat = 100;
+
+  /// getAccessRole for many properties at once, in the same order. Lets job,
+  /// bills and recurring answer "records for all my properties" with one
+  /// cross-canister call instead of one per property.
+  public query func getAccessRoles(propertyIds : [Text], principal : Principal) : async [?AccessRole] {
+    Array.tabulate<?AccessRole>(propertyIds.size(), func(i) {
+      if (i < MAX_ROLE_BATCH) accessRoleOf(propertyIds[i], principal) else null
+    })
+  };
+
+  private func accessRoleOf(propertyId : Text, principal : Principal) : ?AccessRole {
     switch (properties.get(propertyId)) {
       case null null;
       case (?prop) {

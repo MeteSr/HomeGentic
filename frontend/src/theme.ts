@@ -31,11 +31,14 @@ export const COLORS = {
   navInactive:   "#6B7280",
 } as const;
 
-/** @deprecated Use V2_FONTS instead. */
+/**
+ * @deprecated Use V2_FONTS instead. Points at the V2 families so index.html
+ * loads only those (Fraunces, Plus Jakarta Sans and IBM Plex Mono are gone).
+ */
 export const FONTS = {
-  serif: "'Fraunces', Georgia, serif",
-  sans:  "'Plus Jakarta Sans', system-ui, sans-serif",
-  mono:  "'IBM Plex Mono', 'Courier New', monospace",
+  serif: "'Bricolage Grotesque', system-ui, sans-serif",
+  sans:  "'Hanken Grotesk', system-ui, sans-serif",
+  mono:  "'JetBrains Mono', 'Courier New', monospace",
 } as const;
 
 /** @deprecated Use V2_RADIUS instead. */

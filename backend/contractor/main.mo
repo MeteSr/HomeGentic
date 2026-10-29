@@ -1114,25 +1114,22 @@ persistent actor Contractor {
     #ok(())
   };
 
-  /// Return all contractors who have explicitly listed the given zip code in their serviceZips.
+  /// Return the contractors who have explicitly listed the given zip code in their serviceZips,
+  /// at most 500 (as getAll) so the reply stays under the 2 MiB cap.
   /// Contractors with empty serviceZips are excluded (they haven't configured a service area yet).
   public query(msg) func getByZip(zipCode: Text) : async [ContractorProfile] {
     let listed = directoryFilter(msg.caller);
-    Iter.toArray(
-      contractors.values().filter(func(c: ContractorProfile) : Bool {
-        listed(c) and Option.isSome(c.serviceZips.find(func(z) { z == zipCode }))
-      })
-    )
+    contractors.values().filter(func(c: ContractorProfile) : Bool {
+      listed(c) and Option.isSome(c.serviceZips.find(func(z) { z == zipCode }))
+    }).take(500).toArray()
   };
 
-  /// Return all contractors who serve a given trade category.
+  /// Return the contractors who serve a given trade category, at most 500 (as getAll).
   public query(msg) func getBySpecialty(s: ServiceType) : async [ContractorProfile] {
     let listed = directoryFilter(msg.caller);
-    Iter.toArray(
-      contractors.values().filter(func(c: ContractorProfile) : Bool {
-        listed(c) and Option.isSome(c.specialties.find(func(t) { t == s }))
-      })
-    )
+    contractors.values().filter(func(c: ContractorProfile) : Bool {
+      listed(c) and Option.isSome(c.specialties.find(func(t) { t == s }))
+    }).take(500).toArray()
   };
 
   public query func getMetrics() : async Metrics {

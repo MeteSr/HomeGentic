@@ -449,6 +449,17 @@ exports[`bills IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized; TierLimitReached:text}}",
     ],
   },
+  "getBillsForProperties": {
+    "args": [
+      "vec text",
+    ],
+    "mode": [
+      "composite_query",
+    ],
+    "rets": [
+      "vec record {id:text; anomalyFlag:bool; provider:text; anomalyReason:opt text; propertyId:text; amountCents:nat; usageUnit:opt text; periodEnd:text; billType:variant {Gas; Internet; Water; Telecom; Electric; Other}; usageAmount:opt float64; periodStart:text; homeowner:principal; uploadedAt:int}",
+    ],
+  },
   "getBillsForProperty": {
     "args": [
       "text",
@@ -1184,6 +1195,17 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [
       "query",
+    ],
+    "rets": [
+      "vec record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}",
+    ],
+  },
+  "getJobsForProperties": {
+    "args": [
+      "vec text",
+    ],
+    "mode": [
+      "composite_query",
     ],
     "rets": [
       "vec record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}",
@@ -2601,6 +2623,18 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "opt variant {CoOwner; Viewer; NoAccess; Owner; Manager}",
+    ],
+  },
+  "getAccessRoles": {
+    "args": [
+      "vec text",
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec opt variant {CoOwner; Viewer; NoAccess; Owner; Manager}",
     ],
   },
   "getApprovals": {

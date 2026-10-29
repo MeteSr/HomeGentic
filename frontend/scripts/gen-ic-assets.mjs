@@ -109,7 +109,8 @@ const csp = [
   "font-src 'self' https://fonts.gstatic.com",
   // icp-api.io is an alternative boundary-node endpoint used by some @dfinity/* versions
   `connect-src 'self' https://ic0.app https://*.ic0.app https://icp-api.io ${STRIPE_CONNECT} ${voiceOrigin}${notificationsOrigin ? ` ${notificationsOrigin}` : ""}${iotGatewayOrigin ? ` ${iotGatewayOrigin}` : ""}`,
-  `img-src 'self' data: blob: ${STRIPE_IMG}`,
+  // The voice Worker serves off-chain photos (listing photos load straight from it).
+  `img-src 'self' data: blob: ${STRIPE_IMG} ${voiceOrigin}`,
   `frame-src ${STRIPE_FRAME}`,
   "object-src 'none'",
   "base-uri 'self'",
@@ -138,6 +139,18 @@ const icAssets = [
       "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
       "Content-Security-Policy": csp,
     },
+  },
+  // Vite names everything under /assets/ by content hash, so a changed file
+  // gets a new URL and these can be cached for good. index.html is served
+  // no-cache so a deploy is picked up at once (the canister answers a
+  // revalidation with 304 when nothing changed).
+  {
+    match: "assets/**/*",
+    headers: { "Cache-Control": "public, max-age=31536000, immutable" },
+  },
+  {
+    match: "**/*.html",
+    headers: { "Cache-Control": "no-cache" },
   },
 ];
 

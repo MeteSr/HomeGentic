@@ -53,6 +53,7 @@ addRecurringExpense(2) -> (1)
 deleteBill(1) -> (1)
 deleteMyData(0) -> (1)
 deleteRecurringExpense(1) -> (1)
+getBillsForProperties(1) -> (1) [composite_query]
 getBillsForProperty(1) -> (1)
 getRecurringExpensesForProperty(1) -> (1)
 getUsageTrend(3) -> (1)
@@ -102,6 +103,7 @@ getCertificationData(1) -> (1) [query]
 getJob(1) -> (1) [query]
 getJobByInviteToken(1) -> (1) [query]
 getJobsByOwner(1) -> (1) [query]
+getJobsForProperties(1) -> (1) [composite_query]
 getJobsForProperty(1) -> (1)
 getJobSnapshotsForProperty(1) -> (1) [query]
 getJobsPendingMySignature(0) -> (1) [query]
@@ -275,6 +277,7 @@ claimTransfer(1) -> (1)
 deleteMyData(0) -> (1)
 dismissNotifications(1) -> (1)
 getAccessRole(2) -> (1) [query]
+getAccessRoles(2) -> (1) [query]
 getApprovals(1) -> (1) [query]
 getJobPropertyAddresses(1) -> (1)
 getManagerInviteByToken(1) -> (1) [query]
@@ -352,6 +355,7 @@ deleteMyData(0) -> (1)
 getByProperty(1) -> (1)
 getMetrics(0) -> (1) [query]
 getRecurringService(1) -> (1)
+getScheduleForProperties(1) -> (1) [composite_query]
 getVisitLogs(1) -> (1)
 updateStatus(2) -> (1)"
 `;

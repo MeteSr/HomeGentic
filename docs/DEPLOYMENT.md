@@ -126,11 +126,13 @@ deadline reminders.
 | `STRIPE_PRICE_CONTRACTOR_PRO_YEARLY` | Stripe price ID |
 | `STRIPE_PRICE_CREDITS_25` | Stripe price ID — agent-credit pack |
 | `STRIPE_PRICE_CREDITS_100` | Stripe price ID — agent-credit pack |
-| `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity the Worker signs canister calls with. Make it a payment admin — [One-time canister configuration](#one-time-canister-configuration), step 2 |
+| `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity the Worker signs canister calls with. Its principal is `VOICE_WORKER_PRINCIPAL`, which `deploy.sh` grants on the canisters — see [One-time canister configuration](#one-time-canister-configuration) |
 | `CANISTER_ID_PAYMENT` | Payment canister ID |
 | `CANISTER_ID_AUTH` | Auth canister ID — resolves the `x-agent-session` tokens that identify callers on `/api/chat` and `/api/agent`. Without it those routes return 401 in production |
 | `CANISTER_ID_JOB` | Job canister ID — contractor-invite email, and filing forwarded invoices as drafts |
 | `CANISTER_ID_CONTRACTOR` | Contractor canister ID — records Florida DBPR licence lookups (`/api/license/check`). The Worker's identity must be added with `contractor.addLicenseRelay` (`scripts/deploy.sh` does it). Optional `DBPR_LICENSE_FILE_URL` overrides DBPR's construction licensee file URL |
+| `CANISTER_ID_PHOTO` | Photo canister ID — access checks for off-chain photos (`/photos/*`). The Worker's identity must be added with `photo.addPhotoRelay` (`scripts/deploy.sh` does it) |
+| `CANISTER_ID_PROPERTY` | Property canister ID — records Stripe Identity results (webhook `identity.verification_session.verified`). The Worker's identity must be added with `property.addIdentityRelay` (`scripts/deploy.sh` does it) |
 | `CANISTER_ID_FEE` | Fee canister ID — Contractor Free referral fees: saving cards (`/api/stripe/referral-card`, webhook `checkout.session.completed`) and the hourly charge run; declined cards get a Stripe invoice (`invoice.paid` settles it). Subscribe the webhook to `payment_intent.succeeded` too, so a charge is recorded even when the hourly run couldn't record it. The Worker's identity must be added with `fee.addReferralRelay` (`scripts/deploy.sh` does it) |
 | `CANISTER_ID_LISTING` | Listing canister ID — files buyers' FSBO showing requests (`/api/fsbo/showing-request`, rate-limited per IP). The Worker's identity must be added with `listing.addShowingRelay` (`scripts/deploy.sh` does it); without both, the "Request a showing" form fails |
 | `RESEND_API_KEY`, `RESEND_FROM` | Transactional email (moved off `ai_proxy`, whose memory node operators can read) |
@@ -162,7 +164,8 @@ Nothing becomes a job until the homeowner logs the draft. To turn it on:
 2. Add a **catch-all** rule: action *Send to a Worker*, destination the voice
    Worker.
 3. Set the Worker var `INBOX_DOMAIN` and the frontend build variable
-   `VITE_INBOX_DOMAIN` to that domain. The app hides the address while
+   `VITE_INBOX_DOMAIN` to that domain (a variable on the `testnet` /
+   `production` GitHub environment; both deploy workflows pass it to the build). The app hides the address while
    `VITE_INBOX_DOMAIN` is unset.
 4. Allowlist the Worker on the job canister: `deploy.sh` does it when
    `VOICE_WORKER_PRINCIPAL` is set, or by hand
@@ -294,6 +297,7 @@ icp canister call auth     addNotifier '(principal "<relay principal>")' -e <env
 icp canister call property addNotifier '(principal "<relay principal>")' -e <env>
 icp canister call job      addNotifier '(principal "<relay principal>")' -e <env>
 icp canister call quote    addNotifier '(principal "<relay principal>")' -e <env>
+icp canister call listing  addNotifier '(principal "<relay principal>")' -e <env>
 ```
 
 Until it is allowlisted on job and quote, the relay logs `NotAuthorized` each poll and sends
@@ -578,56 +582,27 @@ want those features.
 ## One-time canister configuration
 
 `deploy.sh` creates the canisters, makes the deploying identity an admin of
-each, wires them to each other and sets the `ai_proxy` keys. A few things it
-can't do, because they need values or principals from other services. Do these
-once per environment (`-e ic` or `-e testnet`), as the deploying identity:
+each and wires them to each other. Stripe keys are no longer stored on-chain:
+`payment.configureStripe` now refuses and clears any stored key, and checkout
+runs through the voice Worker on every network (its Stripe secrets are listed
+under [Voice Agent → Secrets](#secrets)).
 
-1. **Stripe on the payment canister (mainnet checkout).** On mainnet
-   (`DFX_NETWORK=ic`) the web app starts checkout by calling
-   `payment.createStripeCheckoutSession`, which calls Stripe itself; local and
-   testnet builds go through the voice Worker instead. Until it's configured,
-   mainnet checkout fails with "Stripe is not configured":
-   ```bash
-   icp canister call payment configureStripe '(record {
-     secretKey  = "sk_live_…";
-     priceIds   = record {
-       proMonthly           = "";
-       proYearly            = "price_…";
-       contractorProMonthly = "price_…";
-       contractorProYearly  = "price_…";
-     };
-     successUrl = "https://<app-origin>/payment-success";
-     cancelUrl  = "https://<app-origin>/payment-failure";
-   })' -e ic
-   ```
-   The secret key is stored in the canister's state, which the subnet's node
-   operators can read; use a [restricted key](https://docs.stripe.com/keys#limit-access)
-   limited to Checkout Sessions.
-2. **Let the voice Worker act on payments.** The Worker signs canister calls
-   with `DFX_IDENTITY_PEM` (see [Voice Agent](#voice-agent-cloudflare-workers)),
-   which must be an **Ed25519** key (`openssl genpkey -algorithm ed25519`).
-   Its principal must be a payment admin.
-3. **Allowlist the notification relay** on `auth`, `job` and `quote` — see
-   [Notification Relay](#allowlist-the-relay-on-the-canisters).
-4. **Allowlist the IoT gateway** on `sensor` — see [IoT Gateway](#iot-gateway).
-
-`deploy.sh` makes the grants in steps 2 and 3 itself when these are set, on
-every deploy (they're idempotent, and a failure is reported without stopping
-the deploy):
+What `deploy.sh` can't do on its own is know the principals of the services
+that call the canisters. Set these as **variables** (or secrets) on the
+GitHub environment, and it grants them on every deploy. The grants are
+idempotent; a failure is printed without stopping the deploy, so read the log.
 
 | Variable | Grant |
 |---|---|
-| `NOTIFIER_PRINCIPAL` | `addNotifier` on `auth`, `job` and `quote` for the relay's principal (logged by the relay at startup) |
-| `VOICE_WORKER_PRINCIPAL` | `payment.addStripeRelay`, `monitoring.addReporter`, `agent.addContactReader`, `photo.addPhotoRelay` and `job.addInboxRelay` for the voice Worker's principal |
+| `NOTIFIER_PRINCIPAL` | `addNotifier` on `auth`, `property`, `job`, `quote` and `listing` for the notification relay (its principal is logged at startup) |
+| `VOICE_WORKER_PRINCIPAL` | `payment.addStripeRelay`, `monitoring.addReporter`, `agent.addContactReader`, `photo.addPhotoRelay`, `job.addInboxRelay`, `contractor.addLicenseRelay`, `fee.addReferralRelay` and `property.addIdentityRelay` for the voice Worker (the principal of its `DFX_IDENTITY_PEM`, which must be **Ed25519**: `openssl genpkey -algorithm ed25519`) |
+| `IOT_GATEWAY_PRINCIPAL` | `sensor.addGateway` for the IoT gateway. Without it, sensor accepts self-asserted device IDs |
 
-The deploy workflows read them from the GitHub environment's **variables**
-(or secrets) of the same name. To grant by hand instead:
+To grant one by hand, as an admin of the canister:
 
 ```bash
-icp canister call auth    addNotifier "(principal \"<relay>\")" -e <env>
-icp canister call job     addNotifier "(principal \"<relay>\")" -e <env>
-icp canister call quote   addNotifier "(principal \"<relay>\")" -e <env>
-icp canister call payment addAdmin    "(principal \"<voice worker>\")" -e <env>
+icp canister call property addIdentityRelay '(principal "<voice worker>")' -e <env>
+icp canister call listing  addNotifier      '(principal "<relay>")' -e <env>
 ```
 
 ## Upgrading Canisters
@@ -720,17 +695,14 @@ returns `null` regardless of whether `STRIPE_PRICE_PRO_MONTHLY` is set.
 2. Set `STRIPE_SECRET_KEY=sk_live_...` and `VITE_STRIPE_PUBLISHABLE_KEY=pk_live_...`
    in your production environment.
 3. Configure a Stripe webhook pointing at `https://<voice-worker>/api/stripe/webhook`
-   and set its signing secret as `STRIPE_WEBHOOK_SECRET`. The Worker handles
-   `customer.subscription.updated`, `customer.subscription.deleted` and
-   `invoice.payment_failed` (reverting the tier when a subscription lapses);
-   activation itself still happens when the success page calls verify-subscription.
+   and set its signing secret as `STRIPE_WEBHOOK_SECRET`. Send these events:
+   `checkout.session.completed`, `invoice.paid`, `invoice.payment_succeeded`,
+   `invoice.payment_failed`, `customer.subscription.updated`,
+   `customer.subscription.deleted` and `identity.verification_session.verified`
+   (and enable Stripe Identity in the same mode). Activation itself still
+   happens when the success page calls verify-subscription.
 4. Ensure `DFX_IDENTITY_PEM` is set as a Worker secret — the Worker calls the ICP
    payment canister directly via `@dfinity/agent` (no `dfx` binary required).
-5. On mainnet, configure Stripe on the payment canister too
-   ([One-time canister configuration](#one-time-canister-configuration), step 1):
-   mainnet builds create and verify Checkout Sessions from the canister rather
-   than the Worker. It only calls the Checkout Sessions API, so a restricted key
-   with just that permission is enough.
 
 ### How payment verification works
 

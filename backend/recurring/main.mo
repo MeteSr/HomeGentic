@@ -14,6 +14,7 @@ import Array     "mo:core/Array";
 import Map       "mo:core/Map";
 import Int       "mo:core/Int";
 import Iter      "mo:core/Iter";
+import List      "mo:core/List";
 import Nat        "mo:core/Nat";
 import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
@@ -171,12 +172,16 @@ persistent actor Recurring {
     }
   };
 
-  private func nextRecurringId() : Text {
-    "REC_" # Int.toText(Int.abs(Time.now()) / 1_000_000)
-  };
+  /// Bumped for every new service / visit id.
+  private var idSeq : Nat = 0;
 
-  private func nextVisitId() : Text {
-    "VISIT_" # Int.toText(Int.abs(Time.now()) / 1_000_000)
+  /// New service / visit id. The millisecond alone isn't unique: every
+  /// message in one round shares it, so two services (or visits) created in
+  /// the same round got the same id and the second replaced the first. The
+  /// sequence number makes each id unique without an extra call for randomness.
+  private func nextId(prefix : Text) : Text {
+    idSeq += 1;
+    prefix # Int.toText(Int.abs(Time.now()) / 1_000_000) # "_" # idSeq.toText()
   };
 
   // ─── Core: Recurring Services ────────────────────────────────────────────────
@@ -210,7 +215,7 @@ persistent actor Recurring {
     if (not (await checkPropertyAuth(propertyId, msg.caller, msg.caller, true)))
       return #err(#NotAuthorized);
 
-    let id  = nextRecurringId();
+    let id  = nextId("REC_");
     let now = Time.now();
 
     let svc : RecurringService = {
@@ -265,6 +270,44 @@ persistent actor Recurring {
     Index.records(servicesByProperty, propertyId, services).toArray(
       
     )
+  };
+
+  /// Most properties one batch read covers (property answers up to 100).
+  private transient let MAX_PROPERTY_BATCH : Nat = 100;
+
+  /// The dashboard's maintenance schedule in one call: the services on
+  /// `propertyIds` the caller may read (same rule as getByProperty) and their
+  /// visit logs, newest first. A composite query, so the roles come from one
+  /// property call instead of an update per property and per service.
+  public composite query(msg) func getScheduleForProperties(propertyIds: [Text]) : async {
+    services : [RecurringService];
+    visits   : [VisitLog];
+  } {
+    if (msg.caller.isAnonymous()) return { services = []; visits = [] };
+    let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
+    let admin = isAdmin(msg.caller);
+    let localDev = Text.size(propCanisterId) == 0 and not admin;
+    let roles : [?Canisters.AccessRole] =
+      if (admin or localDev) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
+    let found = List.empty<RecurringService>();
+    let logs  = List.empty<VisitLog>();
+    for (i in ids.keys()) {
+      if (admin or localDev or (i < roles.size() and Canisters.hasRole(roles[i]))) {
+        for (svc in Index.records(servicesByProperty, ids[i], services)) {
+          // Local dev (property not wired): only the caller's own, as getByProperty.
+          if (not localDev or svc.homeowner == msg.caller) {
+            found.add(svc);
+            for (v in Index.records(visitsByService, svc.id, visits)) logs.add(v);
+          };
+        };
+      };
+    };
+    {
+      services = found.toArray();
+      visits   = logs.toArray().sort(func(x: VisitLog, y: VisitLog) : { #less; #equal; #greater } {
+        Text.compare(y.visitDate, x.visitDate)
+      });
+    }
   };
 
   /// Update the status of a recurring service.
@@ -378,13 +421,12 @@ persistent actor Recurring {
         // M8: owner/manager of the property, checked live (former owners lose access).
         if (not (await checkPropertyAuth(first.propertyId, first.homeowner, msg.caller, true)))
           return #err(#NotAuthorized);
+        let id  = nextId("VISIT_");
         // Re-read after the await (TOCTOU).
         let svc = switch (services.get(serviceId)) {
           case null { return #err(#NotFound) };
           case (?cur) { cur };
         };
-
-        let id  = nextVisitId();
         let now = Time.now();
 
         let entry : VisitLog = {

@@ -13,6 +13,7 @@ import Debug     "mo:core/Debug";
 import Int       "mo:core/Int";
 import Map       "mo:core/Map";
 import Iter      "mo:core/Iter";
+import List      "mo:core/List";
 import Nat       "mo:core/Nat";
 import Nat8      "mo:core/Nat8";
 import Option    "mo:core/Option";
@@ -203,6 +204,8 @@ persistent actor Job {
 
   /// M-1: hard cap on job records per property (storage-exhaustion guard).
   private transient let MAX_JOBS_PER_PROPERTY : Nat = 2_000;
+  /// Most properties one getJobsForProperties call reads (property answers up to 100).
+  private transient let MAX_PROPERTY_BATCH : Nat = 100;
 
   /// M-9: caps on open contractor proposals (#PendingHomeownerApproval).
   private transient let MAX_PENDING_PROPOSALS_PER_CONTRACTOR : Nat = 3;   // per property
@@ -568,6 +571,25 @@ persistent actor Job {
       
     );
     #ok(matches)
+  };
+
+  /// Jobs for several properties in one call (the dashboard's job summary and
+  /// activity feed), with the same access rule as getJobsForProperty: ids the
+  /// caller has no role on are skipped. A composite query, so the roles come
+  /// from one property call instead of one update per property.
+  public composite query(msg) func getJobsForProperties(propertyIds: [Text]) : async [Job] {
+    if (msg.caller.isAnonymous()) return [];
+    let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
+    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller) or Text.size(propCanisterId) == 0;
+    let roles : [?Canisters.AccessRole] =
+      if (open) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
+    let out = List.empty<Job>();
+    for (i in ids.keys()) {
+      if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
+        for (j in Index.records(jobsByProperty, ids[i], jobs)) out.add(j);
+      };
+    };
+    out.toArray()
   };
 
   /// Returns a lightweight snapshot of all jobs for a property, suitable for

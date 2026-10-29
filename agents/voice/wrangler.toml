@@ -65,6 +65,8 @@ crons = ["0 * * * *"]   # every hour — scheduledBidtolist (deadline reminders)
 #   CANISTER_ID_JOB               contractor-invite email (/api/email/contractor-invite)
 #   CANISTER_ID_PHOTO             photo access checks for /photos/* (deploy.sh registers the
 #                                 DFX_IDENTITY_PEM principal with photo.addPhotoRelay)
+#   CANISTER_ID_PROPERTY          records Stripe Identity results (identity.verification_session.verified;
+#                                 deploy.sh registers the principal with property.addIdentityRelay)
 #   CANISTER_ID_CONTRACTOR        records Florida DBPR licence lookups (/api/license/check;
 #                                 deploy.sh registers the principal with contractor.addLicenseRelay)
 #   CANISTER_ID_FEE               Contractor Free referral fees: card setup, the hourly charge run
@@ -87,6 +89,7 @@ crons = ["0 * * * *"]   # every hour — scheduledBidtolist (deadline reminders)
 # Optional:
 #   ADMIN_API_KEY                 real secret for GET /admin/cycle-status (header x-admin-key);
 #                                 the route is disabled (404) when unset
+#   DBPR_LICENSE_FILE_URL         overrides DBPR's construction licensee file URL
 #   RENTCAST_API_KEY              Add Property prefill (/api/rentcast/properties)
 #   CANISTER_ID_MONITORING
 #   BIDTOLIST_FRONTEND_ORIGIN     e.g. https://bidtolist.com

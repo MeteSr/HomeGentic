@@ -133,17 +133,44 @@ function createJobService() {
     }
   }
 
+  async function jobsForProperty(a: any, propertyId: string): Promise<Job[]> {
+    const result = await a.getJobsForProperty(propertyId);
+    if ("ok" in result) return markUnattested(a, propertyId, (result.ok as any[]).map(fromJob));
+    throw new Error(Object.keys(result.err)[0]);
+  }
+
+  async function jobsForProperties(propertyIds: string[]): Promise<Job[]> {
+    if (propertyIds.length === 0) return [];
+    if (typeof window !== "undefined" && (window as any).__e2e_jobs) {
+      const ids = new Set(propertyIds.map(String));
+      return ((window as any).__e2e_jobs as any[]).filter((j: any) => ids.has(String(j.propertyId)));
+    }
+    const a = await getActor();
+    let raw: any[];
+    try {
+      raw = await a.getJobsForProperties(propertyIds);
+    } catch {
+      return (await Promise.all(propertyIds.map((id) => jobsForProperty(a, id).catch(() => [] as Job[])))).flat();
+    }
+    const byProperty = new Map<string, Job[]>();
+    for (const j of raw.map(fromJob)) byProperty.set(j.propertyId, [...(byProperty.get(j.propertyId) ?? []), j]);
+    return (await Promise.all([...byProperty].map(([id, list]) => markUnattested(a, id, list)))).flat();
+  }
+
   return {
   async getByProperty(propertyId: string): Promise<Job[]> {
     if (typeof window !== "undefined" && (window as any).__e2e_jobs) {
       return ((window as any).__e2e_jobs as any[])
         .filter((j: any) => String(j.propertyId) === String(propertyId));
     }
-    const a = await getActor();
-    const result = await a.getJobsForProperty(propertyId);
-    if ("ok" in result) return markUnattested(a, propertyId, (result.ok as any[]).map(fromJob));
-    throw new Error(Object.keys(result.err)[0]);
+    return jobsForProperty(await getActor(), propertyId);
   },
+
+  /**
+   * Jobs for several properties in one query call. Falls back to one
+   * getByProperty per property when the job canister predates the batch call.
+   */
+  getByProperties: (propertyIds: string[]): Promise<Job[]> => jobsForProperties(propertyIds),
 
   async getJobSnapshotsForProperty(propertyId: string): Promise<JobSnapshot[]> {
     if (typeof window !== "undefined" && (window as any).__e2e_jobs) {
@@ -179,15 +206,7 @@ function createJobService() {
       const { propertyService } = await import("./property");
       const properties = await propertyService.getMyProperties();
       if (properties.length === 0) return [];
-      const results = await Promise.all(
-        properties.map(async (p) => {
-          const a = await getActor();
-          const result = await a.getJobsForProperty(String(p.id));
-          if ("ok" in result) return markUnattested(a, String(p.id), (result.ok as any[]).map(fromJob));
-          return [] as Job[];
-        })
-      );
-      return results.flat();
+      return await jobsForProperties(properties.map((p) => String(p.id)));
     } catch {
       return [];
     }

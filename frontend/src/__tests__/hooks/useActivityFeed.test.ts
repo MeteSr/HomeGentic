@@ -8,7 +8,7 @@
  *     localStorage
  *   - closeFeed hides the feed without re-fetching or touching
  *     lastReadAt
- *   - bills are fetched per property and flattened
+ *   - bills for every property are fetched in one call
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -23,7 +23,7 @@ const mockGetRequests = vi.fn();
 vi.mock("@/services/quote", () => ({ quoteService: { getRequests: (...a: any[]) => mockGetRequests(...a) } }));
 
 const mockGetBillsForProperty = vi.fn();
-vi.mock("@/services/billService", () => ({ billService: { getBillsForProperty: (...a: any[]) => mockGetBillsForProperty(...a) } }));
+vi.mock("@/services/billService", () => ({ billService: { getBillsForProperties: (...a: any[]) => mockGetBillsForProperty(...a) } }));
 
 const mockDeriveEvents = vi.fn();
 vi.mock("@/services/activityFeed", () => ({ deriveEvents: (...a: any[]) => mockDeriveEvents(...a) }));
@@ -61,7 +61,7 @@ describe("useActivityFeed — initial state", () => {
 });
 
 describe("useActivityFeed — loading on open", () => {
-  it("fetches jobs, quotes, and per-property bills once opened, then marks loaded", async () => {
+  it("fetches jobs, quotes, and all properties' bills once opened, then marks loaded", async () => {
     mockGetAllJobs.mockResolvedValue([{ id: "j1" }]);
     const { result } = renderHook(() => useActivityFeed([PROP1, PROP2]));
 
@@ -70,8 +70,8 @@ describe("useActivityFeed — loading on open", () => {
     await waitFor(() => expect(result.current.feedLoaded).toBe(true));
     expect(mockGetAllJobs).toHaveBeenCalled();
     expect(mockGetRequests).toHaveBeenCalled();
-    expect(mockGetBillsForProperty).toHaveBeenCalledWith("p1");
-    expect(mockGetBillsForProperty).toHaveBeenCalledWith("p2");
+    expect(mockGetBillsForProperty).toHaveBeenCalledTimes(1);
+    expect(mockGetBillsForProperty).toHaveBeenCalledWith(["p1", "p2"]);
   });
 
   it("still marks loaded even when a source rejects", async () => {

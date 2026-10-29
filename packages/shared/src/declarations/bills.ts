@@ -94,6 +94,7 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: BillRecord, err: Error })],
       []
     ),
+    getBillsForProperties: IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(BillRecord)], ["composite_query"]),
     getBillsForProperty: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Vec(BillRecord), err: Error })],

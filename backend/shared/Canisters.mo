@@ -18,14 +18,23 @@ module {
 
   public func payment(id : Text) : Payment = actor (id);
 
+  /// A principal's role on a property, as `property.getAccessRole` returns it.
+  public type AccessRole = { #Owner; #CoOwner; #Manager; #Viewer; #NoAccess };
+
   /// The property canister's ownership and access checks.
   public type Property = actor {
     isAuthorized         : shared query (Text, Principal, Bool) -> async Bool;
+    getAccessRoles       : shared query ([Text], Principal) -> async [?AccessRole];
     getPropertyOwner     : shared query Text -> async ?Principal;
     getVerificationLevel : shared query Text -> async ?Text;
   };
 
   public func property(id : Text) : Property = actor (id);
+
+  /// True for any role on the property, as `property.isAuthorized(_, _, false)` decides.
+  public func hasRole(role : ?AccessRole) : Bool {
+    switch role { case (?#Owner or ?#CoOwner or ?#Manager or ?#Viewer) true; case _ false }
+  };
 
   public type FeeError = { #NotFound; #NotAuthorized; #AlreadyExists; #InvalidInput : Text };
 

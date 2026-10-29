@@ -159,6 +159,36 @@ function createRecurringService() {
     return (await a.getByProperty(propertyId) as any[]).map(fromService);
   },
 
+  /**
+   * Services on several properties plus all their visit logs, in one query
+   * call. Falls back to getByProperty / getVisitLogs per item when the
+   * recurring canister predates the batch call.
+   */
+  async getScheduleForProperties(propertyIds: string[]): Promise<{ services: RecurringService[]; visitLogs: Record<string, VisitLog[]> }> {
+    if (propertyIds.length === 0) return { services: [], visitLogs: {} };
+    if (mockServices.length > 0 || !RECURRING_CANISTER_ID) {
+      const ids = new Set(propertyIds);
+      return { services: mockServices.filter((s) => ids.has(s.propertyId)), visitLogs: {} };
+    }
+    const a = await getActor();
+    try {
+      const raw = await a.getScheduleForProperties(propertyIds) as { services: any[]; visits: any[] };
+      const services = raw.services.map(fromService);
+      const visitLogs: Record<string, VisitLog[]> = Object.fromEntries(services.map((s) => [s.id, [] as VisitLog[]]));
+      for (const v of raw.visits.map(fromVisitLog)) (visitLogs[v.serviceId] ??= []).push(v);
+      return { services, visitLogs };
+    } catch {
+      const services = (await Promise.all(
+        propertyIds.map(async (id) => (await a.getByProperty(id) as any[]).map(fromService))
+      )).flat();
+      const visitLogs = Object.fromEntries(await Promise.all(services.map(async (s) => {
+        const logs = await (a.getVisitLogs(s.id) as Promise<any[]>).then((l) => l.map(fromVisitLog)).catch(() => [] as VisitLog[]);
+        return [s.id, logs] as [string, VisitLog[]];
+      })));
+      return { services, visitLogs };
+    }
+  },
+
   async create(input: CreateRecurringServiceInput): Promise<RecurringService> {
     const a = await getActor();
     const result = await a.createRecurringService(

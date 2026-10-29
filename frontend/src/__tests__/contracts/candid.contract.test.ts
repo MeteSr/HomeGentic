@@ -207,6 +207,7 @@ describe("job IDL factory", () => {
       "getJobByInviteToken",
       "getJobSnapshotsForProperty",
       "getJobsByOwner",
+      "getJobsForProperties",
       "getJobsForProperty",
       "getJobsPendingMySignature",
       "getMetrics",
@@ -273,6 +274,7 @@ describe("property IDL factory", () => {
       "deleteMyData",
       "dismissNotifications",
       "getAccessRole",
+      "getAccessRoles",
       "getApprovals",
       "getJobPropertyAddresses",
       "getManagerInviteByToken",
@@ -322,6 +324,7 @@ describe("property IDL factory", () => {
       .sort();
     expect(queries).toEqual([
       "getAccessRole",
+      "getAccessRoles",
       "getApprovals",
       "getManagerInviteByToken",
       "getMyManagedProperties",
@@ -817,6 +820,7 @@ describe("bills IDL factory", () => {
       "deleteBill",
       "deleteMyData",
       "deleteRecurringExpense",
+      "getBillsForProperties",
       "getBillsForProperty",
       "getRecurringExpensesForProperty",
       "getUsageTrend",
