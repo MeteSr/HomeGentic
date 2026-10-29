@@ -2,7 +2,7 @@
 set -euo pipefail
 ENV=${1:-local}
 echo "▶ Upgrading all canisters on $ENV..."
-for canister in auth property job contractor quote payment photo monitoring; do
+for canister in auth payment property job contractor quote photo monitoring; do
   echo "  Upgrading $canister..."
   icp deploy "$canister" --yes -e "$ENV"
 done
