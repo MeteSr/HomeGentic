@@ -43,9 +43,10 @@
   --ink-light:   #6B5B7B;
   --paper-dark:  #E0FAFA;
 
-  --serif: 'Fraunces', Georgia, serif;
-  --mono:  'IBM Plex Mono', 'Courier New', monospace;
-  --sans:  'Plus Jakarta Sans', system-ui, sans-serif;
+  /* Legacy names for the V2 families (theme.ts V2_FONTS), the only ones index.html loads. */
+  --serif: 'Bricolage Grotesque', system-ui, sans-serif;
+  --mono:  'JetBrains Mono', 'Courier New', monospace;
+  --sans:  'Hanken Grotesk', system-ui, sans-serif;
 }
 
 /* ─── Reset ─────────────────────────────────────────────────────────────────── */

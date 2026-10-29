@@ -24,7 +24,7 @@ const mockToastError          = vi.fn();
 
 vi.mock("@/services/job", () => ({
   jobService: {
-    getByProperty:        (...a: any[]) => mockGetByProperty(...a),
+    getByProperties:      (...a: any[]) => mockGetByProperty(...a),
     getPendingProposals:  (...a: any[]) => mockGetPendingProposals(...a),
     approveJobProposal:   (...a: any[]) => mockApproveProposal(...a),
     rejectJobProposal:    (...a: any[]) => mockRejectProposal(...a),
@@ -84,7 +84,7 @@ describe("JS.1 — loading transitions from true to false", () => {
 // ── JS.2 ─────────────────────────────────────────────────────────────────────
 
 describe("JS.2 — allJobs is empty when properties list is empty", () => {
-  it("skips getByProperty when no properties exist", async () => {
+  it("skips getByProperties when no properties exist", async () => {
     const { result } = renderHook(() => useJobSummary([], false));
     await waitFor(() => { expect(result.current.loading).toBe(false); });
     expect(result.current.allJobs).toHaveLength(0);
@@ -101,7 +101,7 @@ describe("JS.3 — loads jobs for each property on mount", () => {
       expect(result.current.allJobs).toHaveLength(1);
     });
     expect(result.current.allJobs[0].id).toBe("j1");
-    expect(mockGetByProperty).toHaveBeenCalledWith("p1");
+    expect(mockGetByProperty).toHaveBeenCalledWith(["p1"]);
   });
 });
 
@@ -148,7 +148,7 @@ describe("JS.6 — rejectProposal removes it from pendingProposals", () => {
 // ── JS.7 ─────────────────────────────────────────────────────────────────────
 
 describe("JS.7 — reload re-fetches jobs", () => {
-  it("calls getByProperty again on reload", async () => {
+  it("calls getByProperties again on reload", async () => {
     const { result } = renderHook(() => useJobSummary([PROP], false));
     await waitFor(() => { expect(result.current.loading).toBe(false); });
     await act(async () => { await result.current.reload(); });

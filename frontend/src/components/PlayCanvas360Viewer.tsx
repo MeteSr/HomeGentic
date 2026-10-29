@@ -14,7 +14,7 @@ interface Props {
 
 const S = {
   wrapper: {
-    fontFamily: "'IBM Plex Sans', sans-serif",
+    fontFamily: "'Hanken Grotesk', sans-serif",
   } as React.CSSProperties,
   canvasWrap: {
     position: "relative" as const,
@@ -29,7 +29,7 @@ const S = {
     display: "block",
   } as React.CSSProperties,
   roomLabel: {
-    fontFamily:    "'IBM Plex Mono', monospace",
+    fontFamily:    "'JetBrains Mono', monospace",
     fontSize:      "0.72rem",
     letterSpacing: "0.06em",
     textTransform: "uppercase" as const,
@@ -47,7 +47,7 @@ const S = {
     padding:   "0.75rem 0",
   },
   navBtn: (active: boolean): React.CSSProperties => ({
-    fontFamily:    "'IBM Plex Mono', monospace",
+    fontFamily:    "'JetBrains Mono', monospace",
     fontSize:      "0.68rem",
     letterSpacing: "0.05em",
     textTransform: "uppercase",
@@ -62,7 +62,7 @@ const S = {
     textAlign:  "center" as const,
     background: "#f4f1eb",
     border:     "1px solid #c8c3b8",
-    fontFamily: "'IBM Plex Mono', monospace",
+    fontFamily: "'JetBrains Mono', monospace",
     fontSize:   "0.8rem",
     color:      "#7a7268",
   },

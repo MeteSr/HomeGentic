@@ -25,20 +25,13 @@ export function useMaintenanceSchedule(
 
     async function load() {
       try {
-        // One call per property, all in flight at once (each is an update call).
-        const allServices: RecurringService[] = (await Promise.all(
-          properties.map((p) => recurringService.getByProperty(String(p.id)))
-        )).flat();
-        if (cancelled) return;
-        setRecurringServices(allServices);
-
-        const logEntries = await Promise.all(
-          allServices.map(async (s) => {
-            const logs = await recurringService.getVisitLogs(s.id).catch(() => [] as VisitLog[]);
-            return [s.id, logs] as [string, VisitLog[]];
-          })
+        // Services and visit logs for every property in one query call.
+        const { services, visitLogs } = await recurringService.getScheduleForProperties(
+          properties.map((p) => String(p.id))
         );
-        if (!cancelled) setVisitLogMap(Object.fromEntries(logEntries));
+        if (cancelled) return;
+        setRecurringServices(services);
+        setVisitLogMap(visitLogs);
       } catch { /* canister not deployed */ }
     }
 

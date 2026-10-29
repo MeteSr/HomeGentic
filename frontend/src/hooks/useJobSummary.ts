@@ -22,11 +22,7 @@ export function useJobSummary(properties: Property[], propLoading: boolean): Job
   const loadJobs = useCallback(async (propList: Property[]) => {
     try {
       if (propList.length === 0) { setAllJobs([]); return; }
-      const perProp = await Promise.all(
-        propList.map((p) => jobService.getByProperty(String(p.id)).catch(() => [] as Job[]))
-      );
-      const merged = perProp.flat();
-      setAllJobs(merged);
+      setAllJobs(await jobService.getByProperties(propList.map((p) => String(p.id))));
     } catch { /* canister not deployed */ }
   }, []);
 

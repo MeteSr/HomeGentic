@@ -3,7 +3,7 @@
  *
  * MS.1  Returns empty collections when propLoading=true
  * MS.2  Returns empty collections when properties array is empty
- * MS.3  Loads services for all properties once propLoading=false
+ * MS.3  Loads services for all properties, in one call, once propLoading=false
  * MS.4  visitLogMap is keyed by serviceId
  * MS.5  systemAges reloads when activePropertyId changes
  */
@@ -13,14 +13,12 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { Property } from "@/services/property";
 import type { RecurringService, VisitLog } from "@/services/recurringService";
 
-const mockGetByProperty = vi.fn();
-const mockGetVisitLogs  = vi.fn();
+const mockGetSchedule   = vi.fn();
 const mockSystemAgesGet = vi.fn();
 
 vi.mock("@/services/recurringService", () => ({
   recurringService: {
-    getByProperty: (...a: any[]) => mockGetByProperty(...a),
-    getVisitLogs:  (...a: any[]) => mockGetVisitLogs(...a),
+    getScheduleForProperties: (...a: any[]) => mockGetSchedule(...a),
   },
 }));
 
@@ -47,8 +45,7 @@ const LOG: VisitLog = { id: "v1", serviceId: "svc1", propertyId: "p1", visitDate
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetByProperty.mockResolvedValue([SVC]);
-  mockGetVisitLogs.mockResolvedValue([LOG]);
+  mockGetSchedule.mockResolvedValue({ services: [SVC], visitLogs: { svc1: [LOG] } });
   mockSystemAgesGet.mockReturnValue({ HVAC: 3 });
 });
 
@@ -60,7 +57,7 @@ describe("MS.1 — empty while propLoading=true", () => {
       useMaintenanceSchedule([PROP], true, null)
     );
     expect(result.current.recurringServices).toHaveLength(0);
-    expect(mockGetByProperty).not.toHaveBeenCalled();
+    expect(mockGetSchedule).not.toHaveBeenCalled();
   });
 });
 
@@ -72,7 +69,7 @@ describe("MS.2 — empty when properties array is empty", () => {
       useMaintenanceSchedule([], false, null)
     );
     expect(result.current.recurringServices).toHaveLength(0);
-    expect(mockGetByProperty).not.toHaveBeenCalled();
+    expect(mockGetSchedule).not.toHaveBeenCalled();
   });
 });
 
@@ -86,7 +83,8 @@ describe("MS.3 — loads services for all properties once propLoading=false", ()
     await waitFor(() => {
       expect(result.current.recurringServices).toHaveLength(1);
     });
-    expect(mockGetByProperty).toHaveBeenCalledWith("p1");
+    expect(mockGetSchedule).toHaveBeenCalledTimes(1);
+    expect(mockGetSchedule).toHaveBeenCalledWith(["p1"]);
   });
 });
 

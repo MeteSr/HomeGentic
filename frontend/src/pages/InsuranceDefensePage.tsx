@@ -73,9 +73,9 @@ export default function InsuranceDefensePage() {
         .then((perProp) => setSensorDevices(perProp.flat()))
         .catch((e) => console.error("[InsuranceDefensePage] secondary data load failed:", e));
       // Story 5 — load water bill anomalies for print report
-      Promise.all(props.map((p) => billService.getBillsForProperty(String(p.id)).catch(() => [] as BillRecord[])))
-        .then((perProp) => {
-          const anomalies = perProp.flat().filter((b) => b.anomalyFlag && b.billType === "Water");
+      billService.getBillsForProperties(props.map((p) => String(p.id)))
+        .then((bills) => {
+          const anomalies = bills.filter((b) => b.anomalyFlag && b.billType === "Water");
           setBillAnomalies(anomalies);
         })
         .catch((e) => console.error("[InsuranceDefensePage] bill anomalies load failed:", e));
