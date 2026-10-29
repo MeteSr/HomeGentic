@@ -139,6 +139,22 @@ describe("batch reads for the dashboard", () => {
     expect(await recurring.getScheduleForProperties([aliceProp, bobProp])).toEqual({ services: [], visits: [] });
   });
 
+  // Ids used to be the current millisecond, which every message in a round
+  // shares, so the second service replaced the first.
+  it("recurring: services and visits created in the same round keep distinct ids", async () => {
+    recurring.setIdentity(alice);
+    const before = (await recurring.getScheduleForProperties([aliceProp])).services.length;
+    const created = await Promise.all([0, 1, 2].map(() =>
+      recurring.createRecurringService(aliceProp, { PestControl: null }, "Bug Co", [], [], { Quarterly: null }, "2026-01-01", [], [])));
+    const ids = created.map((r: any) => ok<any>(r).id);
+    expect(new Set(ids).size).toBe(3);
+    const visits = await Promise.all([0, 1].map(() => recurring.addVisitLog(ids[0], "2026-10-20", [])));
+    expect(new Set(visits.map((r: any) => ok<any>(r).id)).size).toBe(2);
+    const after = await recurring.getScheduleForProperties([aliceProp]);
+    expect(after.services.length).toBe(before + 3);
+    expect(after.visits.filter((v: any) => v.serviceId === ids[0])).toHaveLength(2);
+  });
+
   it("an empty list reads nothing", async () => {
     job.setIdentity(alice);
     expect(await job.getJobsForProperties([])).toEqual([]);
