@@ -104,3 +104,28 @@ describe("PROD.12b — ci.yml test-backend wires every set*CanisterId defined in
     });
   }
 });
+
+// ─── Install order and relay grants ───────────────────────────────────────────
+// deploy.sh upgrades canisters one by one in CANISTERS order, so a caller must
+// come after the canister whose new method it calls.
+
+describe("deploy.sh — install order and relay grants", () => {
+  const deploySh = read("scripts/deploy.sh");
+  const order = (deploySh.match(/^CANISTERS=\(([^)]*)\)/m)?.[1] ?? "").trim().split(/\s+/);
+
+  for (const [first, then] of [
+    ["payment", "property"], // property.claimTransfer → payment.grantHandoffYear
+    ["property", "job"],     // job.createInviteToken → property.getPropertyAddress
+    ["job", "report"],
+    ["market", "report"],
+  ]) {
+    it(`installs ${first} before ${then}`, () => {
+      expect(order.indexOf(first), `${first} missing from CANISTERS`).toBeGreaterThanOrEqual(0);
+      expect(order.indexOf(first)).toBeLessThan(order.indexOf(then));
+    });
+  }
+
+  it("grants property.addIdentityRelay to the voice Worker (Stripe Identity results)", () => {
+    expect(deploySh).toMatch(/grant property addIdentityRelay "\$VOICE_WORKER_PRINCIPAL"/);
+  });
+});

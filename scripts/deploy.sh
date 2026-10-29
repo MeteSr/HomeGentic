@@ -239,9 +239,11 @@ fi
 #   non-local — three-phase: create (sequential) → build (sequential) → install
 #               (sequential). Sequential builds avoid concurrent writes to local.ids.json.
 
-# Install order matters on upgrades: report calls new job and market methods,
-# so both go before it.
-CANISTERS=(auth property job contractor quote payment photo market report maintenance sensor monitoring listing agent fee recurring bills ai_proxy audit referrals)
+# Install order matters on upgrades: a canister is upgraded before the ones
+# that call its new methods. payment before property (claimTransfer calls
+# payment.grantHandoffYear), property before job (createInviteToken calls
+# property.getPropertyAddress), job and market before report.
+CANISTERS=(auth payment property job contractor quote photo market report maintenance sensor monitoring listing agent fee recurring bills ai_proxy audit referrals)
 LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
 BG_LOG_DIR=$(mktemp -d /tmp/icp-deploy-bg-XXXXXX)
 trap 'rm -rf "$LOG_DIR" "$BG_LOG_DIR"' EXIT
@@ -865,6 +867,7 @@ if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
   grant job addInboxRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker file forwarded invoices as drafts"
   grant contractor addLicenseRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker record Florida DBPR licence lookups"
   grant fee addReferralRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker save referral-fee cards and record charges"
+  grant property addIdentityRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker record Stripe Identity results"
 fi
 if [ -n "${IOT_GATEWAY_PRINCIPAL:-}" ]; then
   # Once a gateway is registered, sensor refuses self-asserted registerDevice
