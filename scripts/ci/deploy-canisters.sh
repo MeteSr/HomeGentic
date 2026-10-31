@@ -106,7 +106,9 @@ dfx canister call listing     setReportCanisterId     "(\"$REPORT_ID\")"
 dfx canister call listing     setMarketCanisterId     "(\"$MARKET_ID\")"
 dfx canister call listing     setAgentCanisterId      "(\"$AGENT_ID\")"
 dfx canister call listing     setFeeCanisterId        "(\"$FEE_ID\")"
-dfx canister call listing     setPhotoCanisterId      "(\"$PHOTO_ID\")"
+if has_method listing setPhotoCanisterId; then
+  dfx canister call listing   setPhotoCanisterId      "(\"$PHOTO_ID\")"
+fi
 dfx canister call agent       setListingCanisterId    "(\"$LISTING_ID\")"
 dfx canister call fee         setListingCanisterId    "(\"$LISTING_ID\")"
 dfx canister call market      setPropertyCanisterId   "(\"$PROPERTY_ID\")"
