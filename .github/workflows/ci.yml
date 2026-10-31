@@ -140,9 +140,12 @@ jobs:
       - name: Install test dependencies (downloads the PocketIC server)
         run: cd tests/upgrade && npm ci
 
-      - name: Install voice Worker and dashboard dependencies (their canister clients run against PocketIC)
+      - name: Install the dependencies of the clients that run against PocketIC (frontend, mobile via the frontend's, voice Worker, relay, IoT gateway, dashboard)
         run: |
+          npm ci
           (cd agents/voice && npm ci)
+          (cd agents/notifications && npm ci)
+          (cd agents/iot-gateway && npm ci)
           (cd dashboard && npm ci)
 
       - name: Run upgrade tests

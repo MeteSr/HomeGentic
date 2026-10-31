@@ -116,8 +116,11 @@ export async function readOutbox(canisterId: string, afterSeq: number): Promise<
 }
 
 export async function getQuoteRequest(requestId: string): Promise<QuoteRequestInfo | null> {
+  // Signed as the relay (a notifier on quote): anonymous callers get the
+  // homeowner redacted, and contractorWantsLead needs it to skip the
+  // homeowner's own request.
   const actor = Actor.createActor(quoteIdl, {
-    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_QUOTE"),
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_QUOTE"),
   }) as any;
   const res = await actor.getQuoteRequest(requestId);
   if ("err" in res) return null;

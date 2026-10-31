@@ -406,8 +406,10 @@ persistent actor Quote {
   /// L8/H1: strangers (contractors browsing leads) don't get the homeowner
   /// principal or propertyId — either resolves to a street address via the
   /// property canister. The homeowner and admins see the full record.
+  /// The notification relay (a notifier) sees the homeowner too, so it never
+  /// sends a homeowner who is also a contractor a lead for their own request.
   private func redactFor(r: QuoteRequest, caller: Principal) : QuoteRequest {
-    if (caller == r.homeowner or isAdmin(caller)) r
+    if (caller == r.homeowner or isAdmin(caller) or isNotifier(caller)) r
     else { { r with propertyId = ""; homeowner = Principal.anonymous() } }
   };
 

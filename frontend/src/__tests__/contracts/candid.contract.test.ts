@@ -421,6 +421,7 @@ describe("listing IDL factory", () => {
       "setFsboScoreVisible",
       "setJobCanisterId",
       "setMarketCanisterId",
+      "setPhotoCanisterId",
       "setPlatformFeeCents",
       "setPropertyCanisterId",
       "setReportCanisterId",
