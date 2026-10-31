@@ -89,7 +89,7 @@ function patchRecurringService(svc: any): void {
   };
 
   svc.getVisitLogs = async (serviceId: string): Promise<VisitLog[]> => {
-    return [...visits.filter((v) => v.serviceId === serviceId)]
+    return visits.filter((v) => v.serviceId === serviceId)
       .sort((a, b) => b.visitDate.localeCompare(a.visitDate));
   };
 

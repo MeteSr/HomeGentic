@@ -37,6 +37,26 @@ type PageState =
   | { status: "claiming" }
   | { status: "claimed"; role: string; propertyId: string };
 
+/** Page frame shared by every state below. Module-level so React keeps the subtree mounted across re-renders. */
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      minHeight: "100vh", background: UI.paper,
+      display: "flex", flexDirection: "column", alignItems: "center",
+      justifyContent: "flex-start", padding: "4rem 1.5rem",
+    }}>
+      <Link to="/" style={{ textDecoration: "none", marginBottom: "2.5rem" }}>
+        <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.35rem", color: UI.ink, letterSpacing: "-0.01em" }}>
+          Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+        </span>
+      </Link>
+      <div style={{ width: "100%", maxWidth: "28rem", border: `1px solid ${UI.rule}`, background: UI.paper }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function PropertyManagerClaimPage() {
   const { token }   = useParams<{ token: string }>();
   const navigate    = useNavigate();
@@ -88,27 +108,6 @@ export default function PropertyManagerClaimPage() {
       setClaimError(e.message ?? "Could not accept role. Please try again.");
       setPage(page);
     }
-  }
-
-  // ── Shared layout wrapper ─────────────────────────────────────────────────
-
-  function Shell({ children }: { children: React.ReactNode }) {
-    return (
-      <div style={{
-        minHeight: "100vh", background: UI.paper,
-        display: "flex", flexDirection: "column", alignItems: "center",
-        justifyContent: "flex-start", padding: "4rem 1.5rem",
-      }}>
-        <Link to="/" style={{ textDecoration: "none", marginBottom: "2.5rem" }}>
-          <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.35rem", color: UI.ink, letterSpacing: "-0.01em" }}>
-            Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
-          </span>
-        </Link>
-        <div style={{ width: "100%", maxWidth: "28rem", border: `1px solid ${UI.rule}`, background: UI.paper }}>
-          {children}
-        </div>
-      </div>
-    );
   }
 
   // ── Loading ───────────────────────────────────────────────────────────────

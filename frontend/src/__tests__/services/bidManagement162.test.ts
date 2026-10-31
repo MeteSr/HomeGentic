@@ -129,7 +129,7 @@ describe("list_bids", () => {
     const result = await executeTool("list_bids", { request_id: "REQ_1" });
 
     expect(result.success).toBe(true);
-    const bid = (result.data?.bids as any[])[0];
+    const bid = (result.data!.bids as any[])[0];
     expect(bid.contractorName).toBe("Apex HVAC");
     expect(bid.trustScore).toBe(82);
   });
@@ -143,7 +143,7 @@ describe("list_bids", () => {
 
     const result = await executeTool("list_bids", { request_id: "REQ_1" });
 
-    expect((result.data?.bids as any[]).length).toBeLessThanOrEqual(3);
+    expect((result.data!.bids as any[]).length).toBeLessThanOrEqual(3);
   });
 
   it("summary mentions bid count and lowest price", async () => {

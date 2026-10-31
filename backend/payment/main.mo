@@ -329,7 +329,7 @@ persistent actor Payment {
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
-    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { await auditLog("TrustedCanisterAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -369,7 +369,7 @@ persistent actor Payment {
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     adminEntries := Admin.add(adminEntries, newAdmin);
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -377,7 +377,7 @@ persistent actor Payment {
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     adminEntries := Admin.remove(adminEntries, target);
-    try { ignore await auditLog("AdminRemoved", ?target, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { await auditLog("AdminRemoved", ?target, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -391,14 +391,14 @@ persistent actor Payment {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
     stripeRelayEntries := Admin.add(stripeRelayEntries, p);
-    try { ignore await auditLog("StripeRelayAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { await auditLog("StripeRelayAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
   public shared(msg) func removeStripeRelay(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     stripeRelayEntries := Admin.remove(stripeRelayEntries, p);
-    try { ignore await auditLog("StripeRelayRemoved", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { await auditLog("StripeRelayRemoved", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -409,7 +409,7 @@ persistent actor Payment {
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };
@@ -612,7 +612,7 @@ persistent actor Payment {
     subscriptions.add(buyer, sub);
     handoffGrantsByBuyer.add(buyer, now);
     handoffGrantsByProperty.add(propertyId, now);
-    try { ignore await auditLog("HandoffYearGranted", ?buyer, "property=" # propertyId) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { await auditLog("HandoffYearGranted", ?buyer, "property=" # propertyId) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
 
@@ -774,7 +774,7 @@ persistent actor Payment {
       cancelledAt = null;
     };
     subscriptions.add(userPrincipal, sub);
-    try { ignore await auditLog("TierActivated", ?userPrincipal, "months=" # months.toText() # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { await auditLog("TierActivated", ?userPrincipal, "months=" # months.toText() # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
 
@@ -825,7 +825,7 @@ persistent actor Payment {
     // Consume and write before any await.
     consumedStripeRefs.add(stripeRef, userPrincipal);
     subscriptions.add(userPrincipal, sub);
-    try { ignore await auditLog("TierActivated", ?userPrincipal, "ref=" # stripeRef # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { await auditLog("TierActivated", ?userPrincipal, "ref=" # stripeRef # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
 
@@ -847,7 +847,7 @@ persistent actor Payment {
       cancelledAt = null;
     };
     subscriptions.add(principal, sub);
-    try { ignore await auditLog("TierGranted", ?principal, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    try { await auditLog("TierGranted", ?principal, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
 

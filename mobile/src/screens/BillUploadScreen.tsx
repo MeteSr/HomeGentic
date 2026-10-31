@@ -18,7 +18,6 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -39,7 +38,7 @@ const BILL_TYPES: BillType[] = ["Electric", "Gas", "Water", "Internet", "Telecom
 const USAGE_UNITS = ["kWh", "gallons", "therms", "Mbps"];
 
 export default function BillUploadScreen({ route, navigation }: Props) {
-  const { propertyId, propertyAddress } = route.params;
+  const { propertyId } = route.params;
 
   const [step, setStep]             = useState<"pick" | "confirm" | "saving">("pick");
   const [extraction, setExtraction] = useState<BillExtraction | null>(null);

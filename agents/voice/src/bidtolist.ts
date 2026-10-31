@@ -771,7 +771,17 @@ export async function scheduledBidtolist(env: BidtolistEnv): Promise<void> {
       console.error(`[bidtolist:cron] getAgentsForCity failed for "${city}":`, err);
       continue;
     }
-    const unsubmitted = agents.filter((a: any) => Number(listing.proposalCount) < Number(listing.proposalCount) || true);
+    // Remind only agents who haven't bid yet. If the proposals can't be read, skip
+    // this listing rather than nag agents who already submitted.
+    let submitted: Set<string>;
+    try {
+      const proposals = await (listingActor as any).getProposalsForRequest(listing.id) as any[];
+      submitted = new Set(proposals.map((p: any) => p.agentId.toText()));
+    } catch (err) {
+      console.error(`[bidtolist:cron] getProposalsForRequest failed for "${listing.id}":`, err);
+      continue;
+    }
+    const unsubmitted = agents.filter((a: any) => !submitted.has(a.id.toText()));
     const results = await Promise.allSettled(
       unsubmitted.map((agent: any) =>
         sendOrThrow(resend, {

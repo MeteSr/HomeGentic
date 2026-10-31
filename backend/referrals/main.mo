@@ -120,7 +120,7 @@ persistent actor Referrals {
 
   private func addCredit(p : Text, amount : Nat) {
     let current = credits.get(p).get(0);
-    ignore credits.add(p, current + amount);
+    credits.add(p, current + amount);
   };
 
   // ─── Public API ───────────────────────────────────────────────────────────────
@@ -135,8 +135,8 @@ persistent actor Referrals {
       case null {
         switch (requireActive(msg.caller)) { case (#err _) return ""; case _ {} };
         let code = makeCode();
-        ignore referrerCode.add(key, code);
-        ignore codeOwner.add(code, key);
+        referrerCode.add(key, code);
+        codeOwner.add(code, key);
         code
       };
     }
@@ -189,7 +189,7 @@ persistent actor Referrals {
       referredAt = Time.now();
       convertedAt = null;
     };
-    ignore referralOf.add(callerId, r);
+    referralOf.add(callerId, r);
     #ok(())
   };
 
@@ -214,7 +214,7 @@ persistent actor Referrals {
           referredAt  = r.referredAt;
           convertedAt = ?Time.now();
         };
-        ignore referralOf.add(refText, updated);
+        referralOf.add(refText, updated);
         addCredit(r.referrer, CREDIT_CENTS);
         addCredit(r.referee,  CREDIT_CENTS);
         #ok(())

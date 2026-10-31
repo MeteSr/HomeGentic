@@ -1,0 +1,19 @@
+# Prettier is checked only on files a PR changes (see the lint job in ci.yml).
+node_modules/
+dist/
+build/
+coverage/
+.dfx/
+.mops/
+.wrangler/
+.expo/
+.claude/
+package-lock.json
+**/*.snap
+**/*.md
+**/*.html
+**/*.yml
+**/*.yaml
+frontend/public/
+# Hand-aligned Candid declarations: column alignment is deliberate.
+packages/shared/src/declarations/

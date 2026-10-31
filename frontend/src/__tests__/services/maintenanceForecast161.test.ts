@@ -261,7 +261,7 @@ describe("executeTool — get_maintenance_forecast", () => {
     vi.mocked(jobService.getAll).mockResolvedValue([]);
     const result = await executeTool("get_maintenance_forecast", {});
     expect(result.success).toBe(true);
-    expect((result.data?.systems as any[]).length).toBeGreaterThan(0);
+    expect((result.data!.systems as any[]).length).toBeGreaterThan(0);
     expect(result.data?.urgentCount).toBeGreaterThan(0);
   });
 

@@ -208,7 +208,7 @@ describe("list_leads", () => {
 
     const result = await executeTool("list_leads", {});
 
-    expect((result.data?.leads as any[]).length).toBeLessThanOrEqual(5);
+    expect((result.data!.leads as any[]).length).toBeLessThanOrEqual(5);
   });
 });
 

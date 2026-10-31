@@ -22,6 +22,15 @@ The voice agent runs separately (Cloudflare Workers via wrangler):
 cd agents/voice && npm install && npm run dev   # wrangler dev at :8787
 ```
 
+### Lint and static checks
+```bash
+npm run lint                  # oxlint over every TS/JS project (config: .oxlintrc.json); npm run lint:fix applies safe fixes
+npm run knip                  # fails on frontend files nothing in the app imports (tests don't count as users)
+npm run check:motoko-warnings # fails on moc warnings not in scripts/ci/motoko-warnings-allowed.txt (needs moc)
+npx prettier --write <file>   # CI checks Prettier only on files a PR adds; existing files aren't reformatted yet
+```
+oxlint is used instead of ESLint because typescript-eslint needs the TypeScript JS API, which TypeScript 7 doesn't ship. Lint errors fail CI's `lint` job; warnings (currently `react-hooks/exhaustive-deps`) are shown but don't. Delete code you replace rather than leaving it for its tests: knip fails the build on a file only tests import.
+
 ### Testing
 ```bash
 # Unit tests (Vitest)

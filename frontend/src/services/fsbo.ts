@@ -133,7 +133,7 @@ export async function listPublicFsbos(): Promise<FsboPublicListing[]> {
   if (typeof window !== "undefined" && (window as any).__e2e_fsbo_listings) {
     return (window as any).__e2e_fsbo_listings as FsboPublicListing[];
   }
-  if (useMock()) return [...mock.live.values()];
+  if (isMockMode()) return [...mock.live.values()];
   const { listingService } = await import("./listing");
   return listingService.listActiveFsboListings();
 }
@@ -143,7 +143,7 @@ export async function listPublicFsbos(): Promise<FsboPublicListing[]> {
 const getActor = lazyActor(idlFactory, LISTING_CANISTER_ID);
 
 /** No canister (or E2E mock mode): use the in-memory store below. */
-function useMock(): boolean {
+function isMockMode(): boolean {
   return !LISTING_CANISTER_ID || (typeof window !== "undefined" && !!(window as any).__e2e_properties);
 }
 
@@ -246,7 +246,7 @@ function createFsboService() {
 
     /** The seller's FSBO state for a property, or null when there is none. */
     async getRecord(propertyId: string): Promise<FsboRecord | null> {
-      if (useMock()) {
+      if (isMockMode()) {
         const live = mock.live.get(propertyId);
         if (live) return recordFromLive(live);
         const d = mock.drafts.get(propertyId);
@@ -257,7 +257,7 @@ function createFsboService() {
         const injected = (window as any).__e2e_fsbo[propertyId];
         if (injected) return injected as FsboRecord;
       }
-      if (useMock()) return null;
+      if (isMockMode()) return null;
       const actor = await getActor();
       const [live, draft] = await Promise.all([
         actor.getFsboListing(propertyId) as Promise<any[]>,
@@ -274,7 +274,7 @@ function createFsboService() {
     async saveDraft(propertyId: string, listPriceCents: number, description: string | undefined, step: 1 | 2 | 3): Promise<FsboRecord> {
       if (!Number.isFinite(listPriceCents) || listPriceCents <= 0) throw new Error("Enter an asking price above $0.");
       const desc = description?.trim() || undefined;
-      if (useMock()) {
+      if (isMockMode()) {
         const prev = mock.drafts.get(propertyId);
         mock.drafts.set(propertyId, { listPriceCents, description: desc, step, startedAt: prev?.startedAt ?? Date.now() });
         return (await this.getRecord(propertyId))!;
@@ -305,7 +305,7 @@ function createFsboService() {
         hasPublicReport:   false,
         systemHighlights:  [],
       };
-      if (useMock()) {
+      if (isMockMode()) {
         mock.live.set(listing.propertyId, listing);
         mockPricePoint(listing.propertyId, listing.listPriceCents);
         mock.drafts.delete(listing.propertyId);
@@ -319,7 +319,7 @@ function createFsboService() {
     /** Change the asking price of a live listing; each change is kept in the price history. */
     async updatePrice(propertyId: string, listPriceCents: number): Promise<FsboRecord> {
       if (!Number.isFinite(listPriceCents) || listPriceCents <= 0) throw new Error("Enter an asking price above $0.");
-      if (useMock()) {
+      if (isMockMode()) {
         const l = mock.live.get(propertyId);
         if (!l) throw new Error("This listing no longer exists.");
         const updated = { ...l, listPriceCents };
@@ -336,7 +336,7 @@ function createFsboService() {
      * listing's showing requests, logged offers and price history are deleted.
      */
     async deactivate(propertyId: string): Promise<void> {
-      if (useMock()) {
+      if (isMockMode()) {
         mock.live.delete(propertyId);
         mock.drafts.delete(propertyId);
         mock.history.delete(propertyId);
@@ -355,7 +355,7 @@ function createFsboService() {
 
     /** Asking-price history of a live listing, oldest first. */
     async getPriceHistory(propertyId: string): Promise<PriceEntry[]> {
-      if (useMock()) return [...(mock.history.get(propertyId) ?? [])];
+      if (isMockMode()) return [...(mock.history.get(propertyId) ?? [])];
       const actor = await getActor();
       const raw = (await actor.getFsboPriceHistory(propertyId)) as any[];
       return raw.map((p) => ({ priceCents: Number(p.priceCents), recordedAt: Number(p.recordedAt) / 1_000_000 }));
@@ -367,7 +367,7 @@ function createFsboService() {
         const all = (window as any).__e2e_fsbo_listings as FsboPublicListing[];
         return all.find((l) => l.propertyId === propertyId) ?? null;
       }
-      if (useMock()) {
+      if (isMockMode()) {
         const l = mock.live.get(propertyId);
         return l ? { ...l, score: mock.scoreHidden.has(propertyId) ? undefined : l.score } : null;
       }
@@ -378,7 +378,7 @@ function createFsboService() {
 
     /** Show or hide the HomeGentic score on the public listing. */
     async setScoreVisible(propertyId: string, visible: boolean): Promise<void> {
-      if (useMock()) {
+      if (isMockMode()) {
         if (visible) mock.scoreHidden.delete(propertyId); else mock.scoreHidden.add(propertyId);
         return;
       }
@@ -387,7 +387,7 @@ function createFsboService() {
     },
 
     async isScoreHidden(propertyId: string): Promise<boolean> {
-      if (useMock()) return mock.scoreHidden.has(propertyId);
+      if (isMockMode()) return mock.scoreHidden.has(propertyId);
       const actor = await getActor();
       return (await actor.isFsboScoreHidden(propertyId)) as boolean;
     },

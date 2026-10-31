@@ -16,7 +16,7 @@ config.resolver.nodeModulesPaths = [
   path.resolve(__dirname, "node_modules"),
 ];
 config.resolver.extraNodeModules = {
-  ...(config.resolver.extraNodeModules ?? {}),
+  ...config.resolver.extraNodeModules,
   "@homegentic/shared": path.join(shared, "src"),
 };
 

@@ -27,13 +27,20 @@
     "frontend": "cd frontend && npm run dev",
     "generate": "dfx generate",
     "status": "bash scripts/status.sh",
-    "upgrade": "bash scripts/upgrade.sh"
+    "upgrade": "bash scripts/upgrade.sh",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "knip": "knip --workspace frontend --production",
+    "check:motoko-warnings": "bash scripts/ci/check-motoko-warnings.sh"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
     "@dfinity/internet-identity-playwright": "^3.0.0",
     "@playwright/test": "^1.44.0",
     "axe-playwright": "^2.2.2",
+    "knip": "^6.44.1",
+    "oxlint": "^1.90.0",
+    "prettier": "^3.9.10",
     "typescript": "^7.0.2"
   },
   "overrides": {

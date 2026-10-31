@@ -90,6 +90,7 @@ function readAddress(input: unknown): Addr | string {
   for (const name of ["address", "city", "state", "zip"]) {
     const v = b[name] ?? (name === "zip" ? b.zipCode : undefined) ?? "";
     if (typeof v !== "string" || v.length > MAX_FIELD) return `${name} must be a string of at most ${MAX_FIELD} characters`;
+    // oxlint-disable-next-line no-control-regex -- stripping control characters is the point
     out[name] = v.replace(/[\u0000-\u001f\u007f]/g, " ").trim();
   }
   if (!out.address) return "address is required";
@@ -185,7 +186,8 @@ export function orlandoAddressPrefix(address: string): string | null {
 
 /** M-08 / L4: safe inside an ArcGIS SQL LIKE literal. */
 export function escapeArcGISLike(s: string): string {
-  return s.replace(/[%_\[\]\u0000-\u001f\u007f]/g, "").replace(/'/g, "''");
+  // oxlint-disable-next-line no-control-regex -- stripping control characters is the point
+  return s.replace(/[%_[\]\u0000-\u001f\u007f]/g, "").replace(/'/g, "''");
 }
 
 export async function importPermits(

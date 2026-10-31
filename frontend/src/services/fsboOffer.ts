@@ -73,7 +73,7 @@ export function computeContingencyRisk(contingencies: string[]): number {
 
 const getActor = lazyActor(idlFactory, LISTING_CANISTER_ID);
 
-function useMock(): boolean {
+function isMockMode(): boolean {
   return !LISTING_CANISTER_ID || (typeof window !== "undefined" && !!(window as any).__e2e_properties);
 }
 
@@ -120,7 +120,7 @@ function createFsboOfferService() {
 
   return {
     async logOffer(propertyId: string, input: LogFsboOfferInput): Promise<FsboOffer> {
-      if (useMock()) {
+      if (isMockMode()) {
         const offer: FsboOffer = {
           id:            `fo-${++_seq}`,
           propertyId,
@@ -146,14 +146,14 @@ function createFsboOfferService() {
 
     /** Offers on the seller's listing, oldest first. */
     async getByProperty(propertyId: string): Promise<FsboOffer[]> {
-      if (useMock()) return _store.filter((o) => o.propertyId === propertyId);
+      if (isMockMode()) return _store.filter((o) => o.propertyId === propertyId);
       const actor = await getActor();
       return (unwrap(await actor.getFsboOffers(propertyId)) as any[]).map(fromOffer);
     },
 
     /** Accept one offer; the listing's other open offers are marked rejected. */
     async accept(propertyId: string, id: string): Promise<FsboOffer> {
-      if (useMock()) {
+      if (isMockMode()) {
         _store = _store.map((o) =>
           o.propertyId === propertyId && o.id !== id && (o.status === "Active" || o.status === "Countered")
             ? { ...o, status: "Rejected" } : o);
@@ -164,13 +164,13 @@ function createFsboOfferService() {
     },
 
     async reject(propertyId: string, id: string): Promise<FsboOffer> {
-      if (useMock()) return _update(id, { status: "Rejected" });
+      if (isMockMode()) return _update(id, { status: "Rejected" });
       const actor = await getActor();
       return fromOffer(unwrap(await actor.rejectFsboOffer(propertyId, id)));
     },
 
     async addCounter(propertyId: string, id: string, input: AddCounterInput): Promise<FsboOffer> {
-      if (useMock()) {
+      if (isMockMode()) {
         const offer = _store.find((o) => o.id === id);
         if (!offer) throw new Error("That offer no longer exists.");
         const counter: FsboCounter = {
