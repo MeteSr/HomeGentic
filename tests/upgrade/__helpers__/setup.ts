@@ -15,7 +15,7 @@
  *      cd tests/upgrade && npm install
  */
 
-import { PocketIc, PocketIcServer, createIdentity } from "@dfinity/pic";
+import { PocketIc, PocketIcServer, createIdentity, type CreateInstanceOptions } from "@dfinity/pic";
 import { IDL }      from "@icp-sdk/core/candid";
 import type { Principal } from "@icp-sdk/core/principal";
 import { copyFileSync, existsSync, rmSync } from "fs";
@@ -58,9 +58,10 @@ export function baseWasmPath(canisterName: string): string | null {
  *
  * Canisters use enhanced orthogonal persistence, which refuses an upgrade
  * without `wasm_memory_persistence = keep`, so upgradeCanister defaults to
- * that. tearDown also stops the server.
+ * that. tearDown also stops the server. `opts` adds subnets, e.g. an II
+ * subnet for the threshold (vetKD / ECDSA / Schnorr) keys.
  */
-export async function createPic(): Promise<PocketIc> {
+export async function createPic(opts?: CreateInstanceOptions): Promise<PocketIc> {
   const bundled = resolve(__dirname, "../node_modules/@dfinity/pic/pocket-ic");
   const bin = process.env.POCKET_IC_BIN;
   if (bin && existsSync(bin)) copyFileSync(bin, bundled);
@@ -71,7 +72,7 @@ export async function createPic(): Promise<PocketIc> {
   const server = await PocketIcServer.start();
   const proc = (server as any).serverProcess as import("child_process").ChildProcess;
   let stopping = false;
-  const pic = await PocketIc.create(server.getUrl());
+  const pic = await PocketIc.create(server.getUrl(), opts);
 
   // Upgrades default to the principal that installed the canister (its
   // controller) and to its install argument (actor classes need it). Calls default to a non-anonymous identity, because the

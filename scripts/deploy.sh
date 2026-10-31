@@ -852,7 +852,7 @@ grant() {  # grant <canister> <method> <principal> <description>
   fi
 }
 if [ -n "${NOTIFIER_PRINCIPAL:-}" ]; then
-  for c in auth property job quote listing; do
+  for c in auth property job quote listing contractor; do
     grant "$c" addNotifier "$NOTIFIER_PRINCIPAL" "Allowlisting notification relay"
   done
 fi
@@ -880,6 +880,10 @@ fi
 if [ -n "$CONTRACTOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> contractor..."
   bg_call contractor setJobCanisterId        "(\"$JOB_ID\")"               -e "$ENV"
+fi
+if [ -n "$CONTRACTOR_ID" ] && [ -n "$QUOTE_ID" ]; then
+  echo "  Wiring quote -> contractor (who may see a contractor's email)..."
+  bg_call contractor setQuoteCanisterId      "(\"$QUOTE_ID\")"             -e "$ENV"
 fi
 if [ -n "$SENSOR_ID" ]     && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> sensor..."
@@ -926,6 +930,10 @@ fi
 if [ -n "$LISTING_ID" ]    && [ -n "$FEE_ID" ]; then
   echo "  Wiring fee -> listing (bid-to-list fee record)..."
   bg_call listing    setFeeCanisterId        "(\"$FEE_ID\")"              -e "$ENV"
+fi
+if [ -n "$LISTING_ID" ]    && [ -n "$PHOTO_ID" ]; then
+  echo "  Wiring photo -> listing (listing photos must be the property's own)..."
+  bg_call listing    setPhotoCanisterId      "(\"$PHOTO_ID\")"            -e "$ENV"
 fi
 if [ -n "$AGENT_ID" ]      && [ -n "$LISTING_ID" ]; then
   echo "  Wiring listing -> agent (recordListingClose trust)..."

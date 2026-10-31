@@ -34,7 +34,7 @@ const CALLEE = {
   contrCanisterId: "contractor", feeCanisterId: "fee", agentCanisterId: "agent",
   listingCanisterId: "listing", marketCanisterId: "market", payCanisterId: "payment",
   paymentCanisterId: "payment", quoteCanisterId: "quote", reportCanisterId: "report",
-  sensorCanisterId: "sensor",
+  sensorCanisterId: "sensor", photoCanisterId: "photo",
 };
 /** backend/shared/Canisters.mo: constructor function, or the audit helper's id, → canister. */
 const SHARED = { "func payment": "payment", "func property": "property", "func fee": "fee", "id.toText()": "audit" };

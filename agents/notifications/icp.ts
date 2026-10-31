@@ -116,8 +116,11 @@ export async function readOutbox(canisterId: string, afterSeq: number): Promise<
 }
 
 export async function getQuoteRequest(requestId: string): Promise<QuoteRequestInfo | null> {
+  // Signed as the relay (a notifier on quote): anonymous callers get the
+  // homeowner redacted, and contractorWantsLead needs it to skip the
+  // homeowner's own request.
   const actor = Actor.createActor(quoteIdl, {
-    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_QUOTE"),
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_QUOTE"),
   }) as any;
   const res = await actor.getQuoteRequest(requestId);
   if ("err" in res) return null;
@@ -177,12 +180,14 @@ export async function resolveAgentSession(token: string): Promise<string | null>
 /**
  * Where to email `principal`: a contractor's alert-email override
  * (notifyEmail) when they set one, else the email they registered with. Null
- * when there's no address. Needs the relay allowlisted on auth (addNotifier).
+ * when there's no address. Needs the relay allowlisted on auth and contractor (addNotifier).
  */
 export async function getNotificationEmail(principal: string): Promise<string | null> {
   const p = Principal.fromText(principal);
+  // Contractor emails are hidden from anonymous reads; the relay is on
+  // contractor's notifier list (addNotifier).
   const contractor = Actor.createActor(contractorIdl, {
-    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_CONTRACTOR"),
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_CONTRACTOR"),
   }) as any;
   const profile = await contractor.getContractor(p);
   if ("ok" in profile && profile.ok.notifyEmail[0]) return profile.ok.notifyEmail[0] as string;

@@ -10,6 +10,7 @@
 import Array     "mo:core/Array";
 import Map       "mo:core/Map";
 import Int       "mo:core/Int";
+import Debug     "mo:core/Debug";
 import Iter      "mo:core/Iter";
 import List      "mo:core/List";
 import Nat       "mo:core/Nat";
@@ -294,6 +295,9 @@ persistent actor Listing {
   private var marketCanisterId : Text = "";
   private var agentCanisterId  : Text = "";
   private var feeCanisterId    : Text = "";
+  /// Photo canister: addListingPhoto/addPanorama check the photo really is a
+  /// listing photo of that property. Empty (local dev) skips the check.
+  private var photoCanisterId  : Text = "";
   /// Bid to List platform fee, in cents. $399.00 default — a tweakable parameter,
   /// not a literal (design handoff explicitly calls this out as configuration).
   private var platformFeeCents : Nat = 39900;
@@ -304,11 +308,19 @@ persistent actor Listing {
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let requestsByHomeowner = Index.empty();
   private transient let openBidRequests = Index.empty();
+  private transient let requestsByProperty = Index.empty();
   private transient let requestsIndexes : [Index.Keyed<ListingBidRequest>] = Index.indexed(requests, [
     (requestsByHomeowner, func(r : ListingBidRequest) : ?Text { ?r.homeowner.toText() }),
+    (requestsByProperty, func(r : ListingBidRequest) : ?Text { ?r.propertyId }),
     (openBidRequests, func(r : ListingBidRequest) : ?Text { if (r.status == #Open) ?"open" else null }),
   ]);
   private let proposals      = Map.empty<Text, ListingProposal>();
+  /// When each request was awarded (its fee settled): requestId -> time. A
+  /// side map so ListingBidRequest's stored type is unchanged.
+  private let awardedAt      = Map.empty<Text, Int>();
+  /// Awarded requests whose sale has been counted on the agent's record
+  /// (agent.recordListingClose), so a home is counted once per award.
+  private let closesRecorded = Map.empty<Text, ()>();
 
   // Secondary indexes over `proposals` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
@@ -498,6 +510,19 @@ persistent actor Listing {
     if (Text.size(propCanisterId) == 0) return false;
     let propActor = Canisters.property(propCanisterId);
     await propActor.isAuthorized(propertyId, caller, true)
+  };
+
+  /// Whether `photoId` was uploaded to the photo canister as a listing photo
+  /// of `propertyId`. Photo ids are sequential, so without this anyone could
+  /// claim another seller's next ids for their own listing and lock the
+  /// seller out of adding them ("Photo belongs to another listing").
+  private func isListingPhotoOf(propertyId: Text, photoId: Text) : async Bool {
+    if (Text.size(photoCanisterId) == 0) return true;
+    let photoActor = actor(photoCanisterId) : actor {
+      getPublicListingPhotos : query (Text) -> async [{ id : Text }];
+    };
+    let photos = try { await photoActor.getPublicListingPhotos(propertyId) } catch (_) { return false };
+    Option.isSome(photos.find(func(p : { id : Text }) : Bool { p.id == photoId }))
   };
 
   // ─── Homeowner: Bid Request Lifecycle ────────────────────────────────────────
@@ -828,6 +853,17 @@ persistent actor Listing {
             if (req.homeowner != msg.caller) return #err(#NotAuthorized);
             if (req.status != #Open)         return #err(#InvalidInput("Request is no longer open"));
             if (p.status != #Pending)        return #err(#InvalidInput("This bid is no longer sealed/pending"));
+            // Invariant 05: a licence revoked after the bid went in can't win.
+            if (not (await agentStillVerified(p.agentId)))
+              return #err(#InvalidInput("This agent's licence is no longer verified"));
+            // Re-read after the await (TOCTOU): withdrawn or cancelled meanwhile.
+            switch (proposals.get(proposalId), requests.get(p.requestId)) {
+              case (?p2, ?r2) {
+                if (r2.status != #Open or p2.status != #Pending)
+                  return #err(#InvalidInput("This bid is no longer sealed/pending"));
+              };
+              case _ { return #err(#NotFound) };
+            };
 
             type FeeError = { #NotFound; #NotAuthorized; #AlreadyExists; #InvalidInput: Text };
             let feeActor = actor(feeCanisterId) : actor {
@@ -845,6 +881,14 @@ persistent actor Listing {
         }
       };
     }
+  };
+
+  /// Whether the agent canister still has `agentId` as verified. Fails closed
+  /// when the agent canister isn't wired (submitProposal needs it anyway).
+  private func agentStillVerified(agentId: Principal) : async Bool {
+    if (Text.size(agentCanisterId) == 0) return false;
+    let agentActor = actor(agentCanisterId) : actor { isVerifiedAgent : query (Principal) -> async Bool };
+    try { await agentActor.isVerifiedAgent(agentId) } catch (_) { false }
   };
 
   /// Called only from the settled Stripe webhook (via an admin-held identity,
@@ -902,6 +946,7 @@ persistent actor Listing {
               };
             };
             Index.put(requests, requestsIndexes, requestId, { req with status = #Awarded; feePaid = true });
+            awardedAt.add(requestId, Time.now());
             #ok(())
           };
         }
@@ -1097,6 +1142,7 @@ persistent actor Listing {
     // M7: authorise against the property canister (owner or write-capable
     // manager) instead of a first-come owner lock. State is read after the await.
     if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (not (await isListingPhotoOf(propertyId, photoId))) return #err(#InvalidInput("Not a listing photo of this property"));
     // A photo belongs to one listing, so another property can't claim it and
     // clear its review gate.
     switch (photoPropertyOf(photoId)) {
@@ -1140,6 +1186,12 @@ persistent actor Listing {
       if (not Option.isSome(existing.find(func(e) { e == id })))
         return #err(#InvalidInput("Unknown photo ID in reorder list: " # id));
     };
+    // Same size and every id known still allows [a, a] for [a, b], which
+    // would drop b from the listing: every photo must appear in the new order.
+    for (id in existing.values()) {
+      if (not Option.isSome(photoIds.find(func(e) { e == id })))
+        return #err(#InvalidInput("Reorder list must contain every photo once"));
+    };
     listingPhotos.add(propertyId, photoIds);
     #ok(())
   };
@@ -1156,6 +1208,7 @@ persistent actor Listing {
 
     // M7: property-canister ownership instead of a first-come owner lock.
     if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (not (await isListingPhotoOf(propertyId, photoId))) return #err(#InvalidInput("Not a listing photo of this property"));
     switch (photoPropertyOf(photoId)) {
       case (?pid) { if (pid != propertyId) return #err(#InvalidInput("Photo belongs to another listing")) };
       case null {};
@@ -1445,7 +1498,47 @@ persistent actor Listing {
     listingPhotoOwners.remove(propertyId);
     listingPanoramas.remove(propertyId);
     listingPanoramaOwners.remove(propertyId);
+    await* recordSaleCloses(propertyId);
     #ok(())
+  };
+
+  private transient let YEAR_NS : Int = 365 * DAY_NS;
+
+  /// The home changed hands: count the sale on the record of the agent who
+  /// won its Bid to List auction (agent.recordListingClose), with days on
+  /// market from the award to now. Only awards from the last year count, and
+  /// each award once. Best effort: a failed call leaves it uncounted so a
+  /// later transfer can't double count it, and is logged.
+  private func recordSaleCloses(propertyId: Text) : async* () {
+    if (Text.size(agentCanisterId) == 0) return;
+    let now = Time.now();
+    let agentActor = actor(agentCanisterId) : actor {
+      recordListingClose : (Principal, Nat) -> async { #ok; #err : Any };
+    };
+    let awarded = Index.records(requestsByProperty, propertyId, requests).filter(
+      func(r : ListingBidRequest) : Bool { r.status == #Awarded and r.feePaid and closesRecorded.get(r.id) == null }
+    ).toArray();
+    for (r in awarded.values()) {
+      let since = switch (awardedAt.get(r.id)) { case (?t) t; case null r.targetListDate };
+      let winner = proposalsFor(r.id).find(func(p : ListingProposal) : Bool { p.status == #Accepted });
+      switch (winner) {
+        case (?w) {
+          if (since <= now and now - since <= YEAR_NS) {
+            // Marked before the await, so a second transfer in the same
+            // round can't count it again.
+            closesRecorded.add(r.id, ());
+            let days = Int.abs(now - since) / Int.abs(DAY_NS);
+            try {
+              switch (await agentActor.recordListingClose(w.agentId, days)) {
+                case (#ok) {};
+                case (#err _) { Debug.print("[listing] recordListingClose refused for " # r.id) };
+              };
+            } catch (_) { Debug.print("[listing] recordListingClose failed for " # r.id) };
+          };
+        };
+        case null {};
+      };
+    };
   };
 
   // ─── FSBO showings ───────────────────────────────────────────────────────────
@@ -1847,6 +1940,9 @@ persistent actor Listing {
   };
   public shared(msg) func setFeeCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized); feeCanisterId := id; #ok(())
+  };
+  public shared(msg) func setPhotoCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized); photoCanisterId := id; #ok(())
   };
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized); maxUpdatesPerMin := n; #ok(())

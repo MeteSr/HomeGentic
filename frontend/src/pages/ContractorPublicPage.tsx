@@ -264,7 +264,7 @@ export default function ContractorPublicPage() {
             {/* Contact info: held back while the viewer has an open request in this contractor's trade */}
             {openTradeRequest && (contractor.email || contractor.phone) && (
               <p data-testid="contact-held" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, paddingTop: "0.75rem", borderTop: `1px solid ${UI.rule}`, margin: 0, lineHeight: 1.6 }}>
-                You have an open {openTradeRequest.serviceType} request, so {contractor.name}'s phone and email show once you accept a bid or close it.{" "}
+                You have an open {openTradeRequest.serviceType} request, so {contractor.name}'s contact details are held back until you accept a bid or close it.{" "}
                 <a href={`/quotes/${openTradeRequest.id}`} style={{ color: UI.ink }}>Compare bids</a>
               </p>
             )}

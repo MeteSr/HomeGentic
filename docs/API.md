@@ -129,7 +129,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `redeemInviteToken` | update | `(token: Text, contractorName: Text, phone: Text, email: Text, licenseNumber: ?Text)` | Contractor redeems token to link themselves |
 | `getCertificationData` | query | `(propertyId: Text)` | Aggregated score + verified job count |
 | `createSensorJob` | update | `(propertyId: Text, homeowner: Principal, title: Text, serviceType: ServiceType, description: Text)` | Trusted: auto-create job from IoT event |
-| `builderImportJob` | update | `(propertyId: Text, serviceType: ServiceType, contractorName: Text, amount: Nat, completedDate: Time.Time, description: Text, permitNumber: ?Text, warrantyMonths: ?Nat)` | Builder: import a job record |
+| `builderImportJob` | update | `(propertyId: Text, serviceType: ServiceType, contractorName: Text, amount: Nat, completedDate: Time.Time, description: Text, permitNumber: ?Text, warrantyMonths: ?Nat)` | Admin only: import a builder's pre-verified job record |
 | `createJobProposal` | update | `(propertyId: Text, title: Text, serviceType: ServiceType, description: Text, contractorName: ?Text, amount: Nat, completedDate: Time.Time, permitNumber: ?Text, warrantyMonths: ?Nat)` | Called by a contractor to propose a completed job for homeowner approval. |
 | `approveJobProposal` | update | `(jobId: Text)` | Homeowner approves a pending contractor proposal. |
 | `rejectJobProposal` | update | `(jobId: Text)` | Homeowner rejects a pending contractor proposal. |
@@ -160,7 +160,8 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 |---|---|---|---|
 | `register` | update | `(args: RegisterArgs)` | Register as a contractor; initializes `serviceZips=[]` |
 | `getMyProfile` | query | `()` | Caller's contractor profile |
-| `getContractor` | query | `(c: Principal)` | Get contractor by principal |
+| `getContractor` | query | `(c: Principal)` | Get contractor by principal. `email` and `notifyEmail` are blank unless the caller is the contractor, an admin, a trusted canister, the voice Worker (licence relay) or the notification relay (notifier); the same applies to `getAll`, `getPage`, `getByZip` and `getBySpecialty` |
+| `getContractorEmail` | composite query | `(c: Principal)` | The contractor's email for a homeowner who has worked with them: a job with them (an approved proposal counts) or a bid from them on a request that's accepted, closed or cancelled. Asks `job.hasJobWithContractor` and `quote.hasBidFrom`, which answer only the contractor canister |
 | `getAll` | query | `()` | List contractors in the directory (unlisted profiles are left out except for themselves, admins and trusted canisters; same for `getPage`, `getBySpecialty`, `getByZip`) |
 | `getBySpecialty` | query | `(s: ServiceType)` | Filter listed contractors by specialty |
 | `getByZip` | query | `(zipCode: Text)` | Listed contractors who explicitly list that zip code in `serviceZips` (at most 500, as `getAll`; same for `getBySpecialty`) |
@@ -181,6 +182,8 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `relayRecordLicenseCheck` | update | `(contractor: Principal, input: LicenseCheckInput)` | Licence relay (the voice Worker) or admin: record what Florida DBPR's licensee file says about the contractor's licence number. Refused when `input.licenseNumber` isn't the profile's current number (compared uppercased, without spaces or dashes) |
 | `getLicenseCheck` | query | `(contractor: Principal)` | Public: the last DBPR lookup (`LicenseCheck`: number, found, licensee and DBA name, licence type, status, active, expiry, nameMatches, DBPR file date, checkedAt), or null when never checked or the number has changed since |
 | `addLicenseRelay` / `removeLicenseRelay` | update | `(p: Principal)` | Admin: allow or revoke a principal recording licence checks |
+| `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke the notification relay reading contractors' emails |
+| `setQuoteCanisterId` | update | `(id: Text)` | Admin: wire the quote canister for `getContractorEmail` |
 | `setPortfolio` | update | `(entries: [PortfolioInput])` | ContractorPro only (tier read live from `payment`; refused when payment isn't wired): replace the caller's featured jobs. `PortfolioInput = { credentialId: Nat, title: Text (1–80), description: Text (≤600) }`; each credential must be the caller's own, at most 12, no repeats. Returns `[PortfolioItem]` |
 | `getPortfolio` | query | `(contractor: Principal)` | Public: featured jobs in order, each with the credential's `serviceType` and `verifiedAt`. The public page shows them only while `payment.getTierForPrincipal` says ContractorPro |
 
@@ -453,7 +456,7 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | `removePanorama` | update | `(propertyId: Text, roomLabel: Text)` | Remove a room's panorama |
 | `getPanoramas` | query | `(propertyId: Text)` | All panoramas for a listing |
 
-**Admin / Lifecycle:** `setPropertyCanisterId(id: Text)` · `setJobCanisterId(id: Text)` · `setReportCanisterId(id: Text)` · `setMarketCanisterId(id: Text)` · `setAgentCanisterId(id: Text)` · `setFeeCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
+**Admin / Lifecycle:** `setPropertyCanisterId(id: Text)` · `setJobCanisterId(id: Text)` · `setReportCanisterId(id: Text)` · `setMarketCanisterId(id: Text)` · `setAgentCanisterId(id: Text)` · `setFeeCanisterId(id: Text)` · `setPhotoCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
 
 ---
 
@@ -471,7 +474,7 @@ Realtor profiles and performance tracking.
 | `addReview` | update | `(args: AddReviewArgs)` | Submit a review for an agent |
 | `getReviews` | query | `(agentId: Principal)` | All reviews for an agent |
 | `verifyAgent` | update | `(agentId: Principal)` | Admin: mark agent as verified |
-| `recordListingClose` | update | `(agentId: Principal, daysOnMarket: Nat)` | Admin/trusted: record a completed transaction |
+| `recordListingClose` | update | `(agentId: Principal, daysOnMarket: Nat)` | Admin or the listing canister: count a closed sale. Listing calls it when `property.claimTransfer` hands over a home whose Bid to List auction was awarded in the last year (once per award; days on market from the award to the transfer) |
 | `metrics` | query | `()` | Agent canister metrics |
 | `getAgentsForCity` | query | `(city: Text, limit: Nat)` | Cities are matched lowercase; caller passes an already-lowercased city. |
 | `getProfilesByCounty` | query | `(county: Text)` | Agent profiles serving a county |

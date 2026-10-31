@@ -124,6 +124,10 @@ export const idlFactory = ({ IDL }: any) => {
     setPaymentCanisterId: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     addLicenseRelay: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     removeLicenseRelay: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    addNotifier: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    removeNotifier: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    setQuoteCanisterId: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getContractorEmail: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Text, err: Error })], ["composite_query"]),
     getMyProfile: IDL.Func(
       [],
       [IDL.Variant({ ok: ContractorProfile, err: Error })],

@@ -1187,11 +1187,12 @@ persistent actor Job {
   /// • The `homeowner` field is set to the property's current owner (or the
   ///   caller when the property canister is not wired).
   ///
-  /// J-1/H-2: because these jobs skip the dual signature, only admins and
-  /// trusted canisters may call this. The auth canister has no cross-canister
-  /// role lookup (hasRole only answers for msg.caller), so a self-declared
-  /// Builder role cannot be checked here; builder imports go through an
-  /// admin / back-office identity.
+  /// J-1/H-2: because these jobs skip the dual signature, only admins may
+  /// call this. The auth canister has no cross-canister role lookup (hasRole
+  /// only answers for msg.caller), so a self-declared Builder role cannot be
+  /// checked here; builder imports go through an admin / back-office
+  /// identity. Trusted canisters (sensor, report, contractor, property) are
+  /// trusted to read jobs, not to mint pre-signed ones, and none calls this.
   public shared(msg) func builderImportJob(
     propertyId:     Text,
     serviceType:    ServiceType,
@@ -1203,7 +1204,7 @@ persistent actor Job {
     warrantyMonths: ?Nat
   ) : async Result.Result<Job, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return #err(#NotAuthorized);
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
 
     if (Text.size(propertyId)    == 0) return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(contractorName) == 0) return #err(#InvalidInput("contractorName is required"));
@@ -1974,6 +1975,20 @@ persistent actor Job {
       }
     );
     #ok(result)
+  };
+
+  /// Whether `homeowner` has a job with `contractor` (logged by either side;
+  /// a proposal counts once the homeowner approves it), for the
+  /// contractor canister's getContractorEmail. Trusted canisters only, so it
+  /// can't be used to probe who hired whom.
+  public query(msg) func hasJobWithContractor(homeowner: Principal, contractor: Principal) : async Bool {
+    if (not isTrustedCanister(msg.caller) and not isAdmin(msg.caller)) return false;
+    Option.isSome(Index.records(jobsByHomeowner, homeowner.toText(), jobs).find(
+      // A proposal the homeowner hasn't approved (or turned down) doesn't count.
+      func(j : Job) : Bool {
+        j.contractor == ?contractor and j.status != #PendingHomeownerApproval and j.status != #RejectedByHomeowner
+      }
+    ))
   };
 
   public query func getMetrics() : async Metrics {

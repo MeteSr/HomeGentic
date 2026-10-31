@@ -29,6 +29,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Score "../shared/Score";
 import Canisters "../shared/Canisters";
+import ThresholdCost "../shared/ThresholdCost";
 
 persistent actor MarketIntelligence {
 
@@ -184,12 +185,9 @@ persistent actor MarketIntelligence {
   /// "key_1" via setVetkdKeyName (scripts/deploy.sh does this for ic). Stored —
   /// not a constant — so it can be changed without reinstalling.
   private var vetkdKeyName : Text = "test_key_1";
-  /// H2/V-1: vetkd_derive_key fee per key. key_1 costs ~26.15B cycles, so the
-  /// old flat 10B made every mainnet derive fail. Unused cycles are refunded.
-  transient let VETKD_KEY_CYCLES : Nat  = 26_153_846_153;
-  private func vetkdDeriveCycles() : Nat {
-    if (vetkdKeyName == "key_1") VETKD_KEY_CYCLES else 10_000_000_000
-  };
+  /// H2/V-1: vetkd_derive_key fee, as the IC prices it for this key (a flat
+  /// 10B made every key_1 derive fail). Unused cycles are refunded.
+  private func vetkdDeriveCycles() : Nat { ThresholdCost.vetkdDerive(vetkdKeyName) };
   /// M12: per-principal cap on vetKD derives (each one burns cycles).
   private let deriveLimits = Map.empty<Principal, (Nat, Int)>();
   transient let MAX_DERIVES_PER_DAY : Nat = 10;
@@ -688,7 +686,7 @@ persistent actor MarketIntelligence {
   /// via vetKeys key derivation. The encryptedKey allows the frontend to prove
   /// the canister issued this response for this specific principal.
   ///
-  /// Caller must have previously called submitScore. Costs VETKD_KEY_CYCLES cycles.
+  /// Caller must have previously called submitScore. Costs one vetkd_derive_key fee.
   public shared(msg) func getMyScoreEncrypted(
     transportPublicKey: Blob,
   ) : async Result.Result<ScoreEnvelope, Error> {

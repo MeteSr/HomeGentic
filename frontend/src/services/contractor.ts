@@ -236,7 +236,17 @@ function createContractorService() {
     const a = await getActor();
     const result = await a.getContractor(principal);
     if ("err" in result) return null;
-    return fromProfile(result.ok);
+    const profile = fromProfile(result.ok);
+    // Profile reads blank the email for anyone who hasn't worked with the
+    // contractor; getContractorEmail returns it to those who have (a job
+    // logged with them, or a bid on a request that's no longer open).
+    if (!profile.email) {
+      try {
+        const email = await a.getContractorEmail(principal);
+        if ("ok" in email) profile.email = email.ok;
+      } catch { /* leave it blank */ }
+    }
+    return profile;
   },
 
   async register(args: RegisterContractorArgs): Promise<ContractorProfile> {
