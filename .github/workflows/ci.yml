@@ -148,6 +148,10 @@ jobs:
           (cd agents/iot-gateway && npm ci)
           (cd dashboard && npm ci)
 
+      - name: Install Chromium for the browser test against real canisters (browser-flow.live.test.ts)
+        # After the root npm ci, so the browser matches the pinned Playwright.
+        run: npx playwright install --with-deps chromium
+
       - name: Run upgrade tests
         run: cd tests/upgrade && npm test
 
