@@ -131,9 +131,8 @@ jobs:
           "$(mops toolchain bin moc)" --version
 
       - name: Build canister Wasm (this branch and base)
-        run: |
-          bash scripts/ci/build-upgrade-wasms.sh "${{ steps.base.outputs.sha }}" \
-            auth contractor job monitoring payment property quote sensor photo audit listing fee report bills recurring
+        # Every canister: the authz sweep and the all-canisters upgrade test cover all 20.
+        run: bash scripts/ci/build-upgrade-wasms.sh "${{ steps.base.outputs.sha }}"
 
       - name: Install test dependencies (downloads the PocketIC server)
         run: cd tests/upgrade && npm ci

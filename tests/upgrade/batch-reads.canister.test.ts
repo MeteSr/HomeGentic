@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PocketIc, createIdentity } from "@dfinity/pic";
-import { createPic, wasmPath, withMethods, unitResult, paymentIdlFactory } from "./__helpers__/setup";
+import { createPic, wasmPath, withMethods, unitResult, paymentIdlFactory, sameRound } from "./__helpers__/setup";
 import { idlFactory as propertyIdl }  from "../../packages/shared/src/declarations/property";
 import { idlFactory as jobIdl }       from "../../packages/shared/src/declarations/job";
 import { idlFactory as billsIdl }     from "../../packages/shared/src/declarations/bills";
@@ -33,6 +33,11 @@ describe("batch reads for the dashboard", () => {
   let pic: PocketIc;
   let property: any, job: any, bills: any, recurring: any;
   let aliceProp = "", bobProp = "";
+  let recurringId: any;
+  const recurringTestIdl = withMethods(recurringIdl, (I) => ({
+    ...bootstrap(I),
+    setPropertyCanisterId: I.Func([I.Principal], [unitResult(I)], []),
+  }));
 
   const admin   = createIdentity("br-admin");
   const alice   = createIdentity("br-alice");
@@ -65,13 +70,8 @@ describe("batch reads for the dashboard", () => {
       })) as any,
       wasm: wasmPath("bills"),
     });
-    const r = await pic.setupCanister({
-      idlFactory: withMethods(recurringIdl, (I) => ({
-        ...bootstrap(I),
-        setPropertyCanisterId: I.Func([I.Principal], [unitResult(I)], []),
-      })) as any,
-      wasm: wasmPath("recurring"),
-    });
+    const r = await pic.setupCanister({ idlFactory: recurringTestIdl as any, wasm: wasmPath("recurring") });
+    recurringId = r.canisterId;
     const pay = await pic.setupCanister({ idlFactory: paymentIdlFactory as any, wasm: wasmPath("payment") });
     property = p.actor; job = j.actor; bills = b.actor; recurring = r.actor;
 
@@ -144,11 +144,14 @@ describe("batch reads for the dashboard", () => {
   it("recurring: services and visits created in the same round keep distinct ids", async () => {
     recurring.setIdentity(alice);
     const before = (await recurring.getScheduleForProperties([aliceProp])).services.length;
-    const created = await Promise.all([0, 1, 2].map(() =>
-      recurring.createRecurringService(aliceProp, { PestControl: null }, "Bug Co", [], [], { Quarterly: null }, "2026-01-01", [], [])));
+    const created = await sameRound(pic, recurringTestIdl as any, recurringId, [0, 1, 2].map(() => ({
+      as: alice, method: "createRecurringService",
+      args: [aliceProp, { PestControl: null }, "Bug Co", [], [], { Quarterly: null }, "2026-01-01", [], []],
+    })));
     const ids = created.map((r: any) => ok<any>(r).id);
     expect(new Set(ids).size).toBe(3);
-    const visits = await Promise.all([0, 1].map(() => recurring.addVisitLog(ids[0], "2026-10-20", [])));
+    const visits = await sameRound(pic, recurringTestIdl as any, recurringId,
+      [0, 1].map(() => ({ as: alice, method: "addVisitLog", args: [ids[0], "2026-10-20", []] })));
     expect(new Set(visits.map((r: any) => ok<any>(r).id)).size).toBe(2);
     const after = await recurring.getScheduleForProperties([aliceProp]);
     expect(after.services.length).toBe(before + 3);

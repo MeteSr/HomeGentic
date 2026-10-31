@@ -2385,50 +2385,58 @@ persistent actor Property {
       // Duplicate address check against the same index registerProperty uses
       // (an active property at this address, or an earlier row in this batch).
       let key = addressKey(args.address, args.city, args.state, args.zipCode);
-      let duplicate = switch (addressIdx.get(key)) {
-        case (?existingId) {
-          switch (properties.get(existingId)) {
-            case (?existing) { existing.isActive };
-            case null        { false };
-          }
-        };
-        case null { false };
+      let addressTaken = func() : Bool {
+        switch (addressIdx.get(key)) {
+          case (?existingId) {
+            switch (properties.get(existingId)) {
+              case (?existing) { existing.isActive };
+              case null        { false };
+            }
+          };
+          case null { false };
+        }
       };
 
-      if (duplicate) {
+      if (addressTaken()) {
         failed.add({ index = i; reason = "DuplicateAddress" });
       } else {
-        let now   = Time.now();
         let newId = await nextPropertyId();
-        let prop : Property = {
-          id                  = newId;
-          owner               = msg.caller;
-          address             = args.address;
-          city                = args.city;
-          state               = args.state;
-          zipCode             = args.zipCode;
-          propertyType        = args.propertyType;
-          yearBuilt           = args.yearBuilt;
-          squareFeet          = args.squareFeet;
-          verificationLevel   = #Unverified;
-          verificationDate    = null;
-          verificationMethod  = null;
-          verificationDocHash = null;
-          tier                = #ContractorPro; // builders get unlimited tier
-          createdAt           = now;
-          updatedAt           = now;
-          isActive            = true;
-          identityVerified     = null;
-          identityVerifiedAt   = null;
-          identitySessionId    = null;
-          nameOnId             = null;
-          nameOnDocument       = null;
-          contestedWithId      = null;
-          conflictWindowEndsAt = null;
+        // Checked again after the await: a registerProperty for the same
+        // address can finish while we wait, and must not be duplicated.
+        if (addressTaken()) {
+          failed.add({ index = i; reason = "DuplicateAddress" });
+        } else {
+          let now   = Time.now();
+          let prop : Property = {
+            id                  = newId;
+            owner               = msg.caller;
+            address             = args.address;
+            city                = args.city;
+            state               = args.state;
+            zipCode             = args.zipCode;
+            propertyType        = args.propertyType;
+            yearBuilt           = args.yearBuilt;
+            squareFeet          = args.squareFeet;
+            verificationLevel   = #Unverified;
+            verificationDate    = null;
+            verificationMethod  = null;
+            verificationDocHash = null;
+            tier                = #ContractorPro; // builders get unlimited tier
+            createdAt           = now;
+            updatedAt           = now;
+            isActive            = true;
+            identityVerified     = null;
+            identityVerifiedAt   = null;
+            identitySessionId    = null;
+            nameOnId             = null;
+            nameOnDocument       = null;
+            contestedWithId      = null;
+            conflictWindowEndsAt = null;
+          };
+          putProperty(prop);
+          addressIdx.add(key, newId);
+          succeeded.add(newId);
         };
-        putProperty(prop);
-        addressIdx.add(key, newId);
-        succeeded.add(newId);
       };
       i += 1;
     };

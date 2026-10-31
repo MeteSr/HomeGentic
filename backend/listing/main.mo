@@ -1246,6 +1246,9 @@ persistent actor Listing {
       resolvedScore := await marketActor.computePropertyScore(listing.propertyId);
     };
 
+    // The seller may have hidden the score while we waited on the market canister.
+    if (fsboScoreHidden.get(listing.propertyId) != null) resolvedScore := null;
+
     let stamped : PublicFsboListing = {
       listing with homeowner = msg.caller; activatedAt = Time.now();
       verificationLevel = resolvedVerificationLevel; score = resolvedScore;
@@ -1412,10 +1415,12 @@ persistent actor Listing {
       let marketActor = actor(marketCanisterId) : actor { computePropertyScore : (Text) -> async ?Nat };
       score := await marketActor.computePropertyScore(propertyId);
     };
-    // The listing may have changed during the await.
+    // The listing may have changed during the await, and a "hide" sent in the
+    // same round may have landed meanwhile: it wins, so the score stays hidden.
     switch (fsboListings.get(propertyId)) {
       case null #err(#NotFound);
       case (?cur) {
+        if (fsboScoreHidden.get(propertyId) != null) return #ok(cur);
         let updated = { cur with score };
         fsboListings.add(propertyId, updated);
         #ok(updated)

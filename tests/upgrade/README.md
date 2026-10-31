@@ -39,6 +39,8 @@ bash scripts/ci/build-upgrade-wasms.sh main photo job # also build `main` as the
 
 This checkout's Wasm lands at `.dfx/local/canisters/<name>/<name>.wasm`; a base ref's at `.dfx/base/canisters/<name>/<name>.wasm`. `from-base.upgrade.test.ts` upgrades from the base build to this one and skips when no base build exists. Rebuild whenever you change a Motoko source file. CI's `test-upgrade` job does the same against the PR's base commit.
 
+**Same-round calls.** `Promise.all` over ordinary actors doesn't guarantee two calls interleave: the first can finish before the second is submitted. Use `sameRound()` from `__helpers__/setup.ts`, which submits every call before awaiting any. Within one round the execution order isn't the submission order, so a race test should check its invariant for either order (see the FSBO case in `concurrency.canister.test.ts`).
+
 ---
 
 ## Running the tests
@@ -60,6 +62,11 @@ POCKET_IC_BIN=~/.local/bin/pocket-ic npm test
 |---|---|---|
 | `auth.upgrade.test.ts` | auth | Profile fields, lastLoggedIn timestamp, getUserStats total, metrics consistency, three successive upgrades |
 | `payment.upgrade.test.ts` | payment | Pro/ContractorPro subscription tier + timestamps, getSubscriptionStats totals, estimatedMrrUsd |
+| `all-canisters.upgrade.test.ts` | all 20 | Generic: writes through every non-destructive update with plausible arguments, upgrades from the base build, and checks every query answers the same |
+| `authz-sweep.canister.test.ts` | all 20, wired | Every update method called by a stranger and anonymously; what gets through must match `authz-expectations.json` (regenerate with `UPDATE_AUTHZ=1` after a deliberate change, and review the diff) |
+| `concurrency.canister.test.ts` | property, payment, job, quote, listing, market | Calls submitted in the same round (`sameRound`): tier limits, one home per address (incl. bulk import), one accepted quote, one invite redemption, FSBO score hide during a show |
+| `property-access.canister.test.ts` | property, job, bills, recurring, payment | Ownership transfer (seller and delegates lose access everywhere, buyer keeps history), managers and their roles, approval requests |
+| `payment.canister.test.ts` | payment | Stripe relay rules: relay-only, one grant per Stripe reference (also same-round), gifts never shorten a running plan, agent credits never below zero |
 
 ---
 

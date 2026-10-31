@@ -557,11 +557,17 @@ persistent actor Payment {
       case (?gift) {
         if (Option.isSome(gift.redeemedBy)) return #err(#InvalidInput("Gift already redeemed"));
         let now = Time.now();
+        // A gift of the plan the recipient already has running adds to it
+        // instead of restarting it from today, so no paid time is lost.
+        let (createdAt, from) = switch (subscriptions.get(msg.caller)) {
+          case (?e) { if (e.tier == gift.tier and e.expiresAt > now) (e.createdAt, e.expiresAt) else (now, now) };
+          case null { (now, now) };
+        };
         let sub : Subscription = {
           owner       = msg.caller;
           tier        = gift.tier;
-          expiresAt   = now + durationNsFor(gift.billing);
-          createdAt   = now;
+          expiresAt   = from + durationNsFor(gift.billing);
+          createdAt;
           cancelledAt = null;
         };
         subscriptions.add(msg.caller, sub);

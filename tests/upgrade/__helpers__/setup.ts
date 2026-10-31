@@ -442,3 +442,26 @@ export function withMethods(
 
 /** `Result<(), E>` for any E: the tests only look at which side came back. */
 export const unitResult = (I: any) => I.Variant({ ok: I.Null, err: I.Reserved });
+
+// ── Same-round calls ──────────────────────────────────────────────────────────
+
+/**
+ * Sends every call before any of them runs, then waits for all of them, so
+ * they execute in the same round and interleave at each other's awaits.
+ * (Promise.all over ordinary actors doesn't guarantee that: the first call can
+ * be processed before the next one is submitted.) Results come back in order.
+ */
+export async function sameRound(
+  pic: PocketIc,
+  idlFactory: (a: { IDL: any }) => any,
+  canisterId: Principal,
+  calls: { as: { getPrincipal(): Principal }; method: string; args: unknown[] }[],
+): Promise<any[]> {
+  const pending: (() => Promise<any>)[] = [];
+  for (const c of calls) {
+    const a = pic.createDeferredActor<any>(idlFactory as any, canisterId);
+    a.setPrincipal(c.as.getPrincipal());
+    pending.push(await a[c.method](...c.args));
+  }
+  return Promise.all(pending.map((wait) => wait()));
+}

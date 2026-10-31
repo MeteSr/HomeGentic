@@ -1,0 +1,169 @@
+{
+  "agent": {
+    "stranger": [
+      "deleteMyData",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "ai_proxy": {
+    "stranger": [
+      "requestReport",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "audit": {
+    "stranger": [
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "auth": {
+    "stranger": [
+      "completeOnboarding?",
+      "deleteMyData",
+      "recordLogin?",
+      "register",
+      "revokeAgentSession?"
+    ],
+    "anonymous": []
+  },
+  "bills": {
+    "stranger": [
+      "deleteMyData",
+      "getBillsForProperty",
+      "getRecurringExpensesForProperty",
+      "getUsageTrend",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "contractor": {
+    "stranger": [
+      "deleteMyData",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "fee": {
+    "stranger": [
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "job": {
+    "stranger": [
+      "deleteMyData",
+      "getJobsForProperty",
+      "getMyInboxToken",
+      "resetMyInboxToken",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "listing": {
+    "stranger": [
+      "deleteMyData",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "maintenance": {
+    "stranger": [
+      "deleteMyData",
+      "getScheduleByProperty?",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "market": {
+    "stranger": [
+      "computePropertyScore?",
+      "deleteMyData",
+      "setBootstrapNonce?",
+      "submitScore"
+    ],
+    "anonymous": []
+  },
+  "monitoring": {
+    "stranger": [
+      "checkCycleLevels?",
+      "recordCallCycles?",
+      "recordCanisterMetrics?",
+      "recordFrontendError?",
+      "resolveAlert?",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "payment": {
+    "stranger": [
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "photo": {
+    "stranger": [
+      "deleteMyData",
+      "getPhotoDataBatch?",
+      "getPhotosByJob?",
+      "getPhotosByPhase?",
+      "getPhotosByProperty?",
+      "getPhotosByRoom?",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "property": {
+    "stranger": [
+      "bulkRegisterProperties?",
+      "deleteMyData",
+      "getJobPropertyAddresses?",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "quote": {
+    "stranger": [
+      "deleteMyData",
+      "getOpenRequestsForMe?",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "recurring": {
+    "stranger": [
+      "deleteMyData",
+      "getByProperty?",
+      "getVisitLogs?",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "referrals": {
+    "stranger": [
+      "getMyCode",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "report": {
+    "stranger": [
+      "deleteMyData",
+      "listShareLinks?",
+      "setAllowPublicReports",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  },
+  "sensor": {
+    "stranger": [
+      "deleteMyData",
+      "getEventsForProperty?",
+      "getPendingAlerts?",
+      "setBootstrapNonce?"
+    ],
+    "anonymous": []
+  }
+}
