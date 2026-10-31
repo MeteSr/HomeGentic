@@ -27,7 +27,11 @@ async function waitFor(url: string, ms: number, proc: ChildProcess, log: () => s
   const until = Date.now() + ms;
   while (Date.now() < until) {
     if (proc.exitCode !== null) throw new Error(`Vite exited (${proc.exitCode}):\n${log()}`);
-    try { if ((await fetch(url)).ok) return; } catch { /* not up yet */ }
+    try {
+      if ((await fetch(url)).ok) return;
+    } catch {
+      /* not up yet */
+    }
     await new Promise((r) => setTimeout(r, 300));
   }
   throw new Error(`Vite didn't start within ${ms} ms:\n${log()}`);
@@ -43,7 +47,7 @@ export async function startLiveApp(port = 3123): Promise<LiveApp> {
   const gatewayUrl = `http://localhost:${await pic.makeLive()}`;
 
   const env: Record<string, string> = {
-    ...process.env as Record<string, string>,
+    ...(process.env as Record<string, string>),
     DFX_NETWORK: "local",
     LOCAL_IC_HOST: gatewayUrl,
     // No voice agent or Stripe in these tests.
@@ -54,16 +58,31 @@ export async function startLiveApp(port = 3123): Promise<LiveApp> {
   const baseUrl = `http://localhost:${port}`;
   // Another server already on the port would answer for ours, pointed at
   // the wrong canisters.
-  if (await fetch(baseUrl).then(() => true, () => false)) {
+  if (
+    await fetch(baseUrl).then(
+      () => true,
+      () => false,
+    )
+  ) {
     await pic.tearDown();
     throw new Error(`Something is already listening on ${baseUrl}`);
   }
   let out = "";
-  const vite = spawn(process.execPath, [resolve(ROOT, "node_modules/vite/bin/vite.js"), "--port", String(port), "--strictPort"], {
-    cwd: resolve(ROOT, "frontend"), env, stdio: ["ignore", "pipe", "pipe"],
+  const vite = spawn(
+    process.execPath,
+    [resolve(ROOT, "node_modules/vite/bin/vite.js"), "--port", String(port), "--strictPort"],
+    {
+      cwd: resolve(ROOT, "frontend"),
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  vite.stdout!.on("data", (d) => {
+    out += d;
   });
-  vite.stdout!.on("data", (d) => { out += d; });
-  vite.stderr!.on("data", (d) => { out += d; });
+  vite.stderr!.on("data", (d) => {
+    out += d;
+  });
   try {
     await waitFor(baseUrl, 60_000, vite, () => out);
   } catch (e) {
@@ -74,10 +93,16 @@ export async function startLiveApp(port = 3123): Promise<LiveApp> {
 
   // The PocketIC server stops itself after a minute without calls to its own
   // API; browser traffic goes to the gateway, so keep the server busy.
-  const heartbeat = setInterval(() => { pic.getTime().catch(() => {}); }, 15_000);
+  const heartbeat = setInterval(() => {
+    pic.getTime().catch(() => {});
+  }, 15_000);
 
   return {
-    pic, deployment, admin, baseUrl, gatewayUrl,
+    pic,
+    deployment,
+    admin,
+    baseUrl,
+    gatewayUrl,
     stop: async () => {
       clearInterval(heartbeat);
       vite.kill();

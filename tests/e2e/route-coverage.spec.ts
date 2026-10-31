@@ -29,7 +29,13 @@ async function asRole(page: Page, role: "Homeowner" | "Realtor" | "Contractor") 
   }, role);
 }
 
-const REALTOR_PAGES = ["/agents/verify", "/agents/browse", "/agents/bids", "/agents/bids/b1", "/agents/listings/r1/bid"];
+const REALTOR_PAGES = [
+  "/agents/verify",
+  "/agents/browse",
+  "/agents/bids",
+  "/agents/bids/b1",
+  "/agents/listings/r1/bid",
+];
 
 test.describe("RC.1 — realtor pages, signed out", () => {
   for (const path of REALTOR_PAGES) {
@@ -98,12 +104,36 @@ test("RC.7 — /plans needs sign-in, then offers Pro at $59/year", async ({ page
 test("RC.8 — /homes lists FSBO homes, filters by type and links to each listing", async ({ page }) => {
   await page.addInitScript(() => {
     const base = {
-      activatedAt: Date.now() - 3 * 86_400_000, state: "FL", yearBuilt: 2004, squareFeet: 1850,
-      bedrooms: 3, bathrooms: 2, verificationLevel: "Basic", verifiedJobCount: 4, hasPublicReport: true,
+      activatedAt: Date.now() - 3 * 86_400_000,
+      state: "FL",
+      yearBuilt: 2004,
+      squareFeet: 1850,
+      bedrooms: 3,
+      bathrooms: 2,
+      verificationLevel: "Basic",
+      verifiedJobCount: 4,
+      hasPublicReport: true,
     };
     (window as any).__e2e_fsbo_listings = [
-      { ...base, propertyId: "p-house", listPriceCents: 425_000_00, address: "12 Live Oak Ln", city: "Orlando", zipCode: "32801", propertyType: "SingleFamily", score: 82 },
-      { ...base, propertyId: "p-condo", listPriceCents: 289_000_00, address: "300 Lake Ave #4", city: "Winter Park", zipCode: "32789", propertyType: "Condo" },
+      {
+        ...base,
+        propertyId: "p-house",
+        listPriceCents: 425_000_00,
+        address: "12 Live Oak Ln",
+        city: "Orlando",
+        zipCode: "32801",
+        propertyType: "SingleFamily",
+        score: 82,
+      },
+      {
+        ...base,
+        propertyId: "p-condo",
+        listPriceCents: 289_000_00,
+        address: "300 Lake Ave #4",
+        city: "Winter Park",
+        zipCode: "32789",
+        propertyType: "Condo",
+      },
     ];
   });
   await page.goto("/homes");
@@ -138,6 +168,7 @@ test("RC.11 — /gift/redeem signed out offers sign-in and remembers where to re
   await expect(page.getByRole("heading", { name: "You've been given HomeGentic Pro" })).toBeVisible();
   await page.getByRole("button", { name: "Sign in to redeem" }).click();
   // Dev builds sign in with the local key; the gift page is kept to return to.
-  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("pendingVerification")))
+  await expect
+    .poll(() => page.evaluate(() => sessionStorage.getItem("pendingVerification")))
     .toBe("/gift/redeem?token=cs_test_abc123");
 });

@@ -17,16 +17,38 @@ import { wasmPath, CONTROLLER } from "./setup";
 import { serviceFromWasm } from "./candid";
 
 export const ALL_CANISTERS = [
-  "auth", "ai_proxy", "property", "job", "contractor", "quote", "payment", "photo",
-  "monitoring", "market", "report", "maintenance", "sensor", "listing", "agent",
-  "fee", "bills", "recurring", "audit", "referrals",
+  "auth",
+  "ai_proxy",
+  "property",
+  "job",
+  "contractor",
+  "quote",
+  "payment",
+  "photo",
+  "monitoring",
+  "market",
+  "report",
+  "maintenance",
+  "sensor",
+  "listing",
+  "agent",
+  "fee",
+  "bills",
+  "recurring",
+  "audit",
+  "referrals",
 ] as const;
-export type CanisterName = typeof ALL_CANISTERS[number];
+export type CanisterName = (typeof ALL_CANISTERS)[number];
 
 const SCRIPT = resolve(__dirname, "../../../scripts/ci/deploy-canisters.sh");
 
 type Arg = { kind: "var"; name: string } | { kind: "lit"; value: string };
-export interface WiringCall { canister: string; method: string; args: Arg[]; guard?: { canister: string; method: string } }
+export interface WiringCall {
+  canister: string;
+  method: string;
+  args: Arg[];
+  guard?: { canister: string; method: string };
+}
 
 /** The wiring calls in deploy-canisters.sh, in order. */
 export function wiringCalls(src = readFileSync(SCRIPT, "utf8")): WiringCall[] {
@@ -35,20 +57,33 @@ export function wiringCalls(src = readFileSync(SCRIPT, "utf8")): WiringCall[] {
   for (const raw of src.split("\n")) {
     const line = raw.trim();
     const g = line.match(/^if has_method (\w+) (\w+); then$/);
-    if (g) { guard = { canister: g[1], method: g[2] }; continue; }
-    if (line === "fi") { guard = undefined; continue; }
+    if (g) {
+      guard = { canister: g[1], method: g[2] };
+      continue;
+    }
+    if (line === "fi") {
+      guard = undefined;
+      continue;
+    }
     const m = line.match(/^dfx canister call\s+(\w+)\s+(\w+)\s+"\((.*)\)"/);
     if (!m) continue;
     const [, canister, method, inner] = m;
-    if (canister.startsWith("$") || method === "setBootstrapNonce" || method === "addAdmin" || method === "initAdmins") continue;
+    if (canister.startsWith("$") || method === "setBootstrapNonce" || method === "addAdmin" || method === "initAdmins")
+      continue;
     const args: Arg[] = [];
     let ok = true;
-    for (const part of inner.split(",").map((s) => s.trim()).filter(Boolean)) {
+    for (const part of inner
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)) {
       const v = part.match(/^(?:principal\s+)?\\"\$(\w+)\\"$/);
       const l = part.match(/^\\"([^"$\\]*)\\"$/);
       if (v) args.push({ kind: "var", name: v[1] });
       else if (l) args.push({ kind: "lit", value: l[1] });
-      else { ok = false; break; }   // variants, vectors: not wiring
+      else {
+        ok = false;
+        break;
+      } // variants, vectors: not wiring
     }
     if (ok) calls.push({ canister, method, args, guard });
   }
@@ -65,7 +100,11 @@ export interface Deployment {
  * Installs every canister with `admin` as its admin and wires them as CI does.
  * `wasm` picks each canister's build (default: this branch's).
  */
-export async function deployAll(pic: PocketIc, admin: Identity, wasm: (name: CanisterName) => string = wasmPath): Promise<Deployment> {
+export async function deployAll(
+  pic: PocketIc,
+  admin: Identity,
+  wasm: (name: CanisterName) => string = wasmPath,
+): Promise<Deployment> {
   const ids = {} as Record<CanisterName, Principal>;
   const svcs = {} as Record<CanisterName, IDL.ServiceClass>;
   const actor = (name: CanisterName, who: Identity) => {
@@ -74,20 +113,30 @@ export async function deployAll(pic: PocketIc, admin: Identity, wasm: (name: Can
     return a;
   };
   const okOrThrow = (what: string, r: any) => {
-    if (r && typeof r === "object" && "err" in r) throw new Error(`${what}: ${JSON.stringify(r.err, (_k, v) => typeof v === "bigint" ? v.toString() : v)}`);
+    if (r && typeof r === "object" && "err" in r)
+      throw new Error(`${what}: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`);
   };
 
   for (const name of ALL_CANISTERS) {
     const { idlFactory, initArgs } = serviceFromWasm(wasm(name));
     svcs[name] = idlFactory({ IDL });
-    const arg = new Uint8Array(IDL.encode(initArgs, initArgs.map(() => admin.getPrincipal())));
+    const arg = new Uint8Array(
+      IDL.encode(
+        initArgs,
+        initArgs.map(() => admin.getPrincipal()),
+      ),
+    );
     ids[name] = (await pic.setupCanister({ idlFactory: (() => svcs[name]) as any, wasm: wasm(name), arg })).canisterId;
     const methods = new Map(svcs[name]._fields);
     if (methods.has("setBootstrapNonce")) await actor(name, CONTROLLER).setBootstrapNonce("n");
-    if (methods.has("initAdmins")) okOrThrow(`${name}.initAdmins`, await actor(name, admin).initAdmins([admin.getPrincipal()], "n"));
+    if (methods.has("initAdmins"))
+      okOrThrow(`${name}.initAdmins`, await actor(name, admin).initAdmins([admin.getPrincipal()], "n"));
     else if (methods.has("addAdmin")) {
       const two = methods.get("addAdmin")!.argTypes.length === 2;
-      okOrThrow(`${name}.addAdmin`, await actor(name, admin).addAdmin(...(two ? [admin.getPrincipal(), "n"] : [admin.getPrincipal()])));
+      okOrThrow(
+        `${name}.addAdmin`,
+        await actor(name, admin).addAdmin(...(two ? [admin.getPrincipal(), "n"] : [admin.getPrincipal()])),
+      );
     }
   }
 
@@ -99,7 +148,8 @@ export async function deployAll(pic: PocketIc, admin: Identity, wasm: (name: Can
     if (!svcs[name]) throw new Error(`deploy-canisters.sh calls unknown canister ${call.canister}`);
     if (call.guard && !new Map(svcs[call.guard.canister as CanisterName]._fields).has(call.guard.method)) continue;
     const fn = new Map(svcs[name]._fields).get(call.method);
-    if (!fn) throw new Error(`deploy-canisters.sh calls ${call.canister}.${call.method}, which the canister doesn't export`);
+    if (!fn)
+      throw new Error(`deploy-canisters.sh calls ${call.canister}.${call.method}, which the canister doesn't export`);
     const values = call.args.map((a, i) => {
       const t = fn.argTypes[i];
       if (a.kind === "lit") return a.value;

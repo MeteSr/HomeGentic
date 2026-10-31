@@ -16,11 +16,19 @@ export function safeReturnPath(path: string | null | undefined): string | null {
 export function setReturnPath(path: string | null | undefined): void {
   const safe = safeReturnPath(path);
   if (!safe) return;
-  try { sessionStorage.setItem(KEY, safe); } catch { /* storage blocked: they land on the default page */ }
+  try {
+    sessionStorage.setItem(KEY, safe);
+  } catch {
+    /* storage blocked: they land on the default page */
+  }
 }
 
 export function hasReturnPath(): boolean {
-  try { return safeReturnPath(sessionStorage.getItem(KEY)) !== null; } catch { return false; }
+  try {
+    return safeReturnPath(sessionStorage.getItem(KEY)) !== null;
+  } catch {
+    return false;
+  }
 }
 
 /** Reads and clears the return path. */
@@ -29,5 +37,7 @@ export function takeReturnPath(): string | null {
     const path = sessionStorage.getItem(KEY);
     sessionStorage.removeItem(KEY);
     return safeReturnPath(path);
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }

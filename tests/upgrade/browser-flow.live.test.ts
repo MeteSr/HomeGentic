@@ -55,13 +55,19 @@ const principalOf = (seed: number): Principal => {
 
 type R<T> = { ok: T } | { err: Record<string, unknown> };
 function ok<T>(r: R<T>): T {
-  if ("err" in r) throw new Error(`Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => typeof v === "bigint" ? v.toString() : v)}`);
+  if ("err" in r)
+    throw new Error(
+      `Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`,
+    );
   return r.ok;
 }
 
 /** Client-side navigation: a full page load would drop the dev sign-in. */
 const go = (page: Page, path: string) =>
-  page.evaluate((p) => { history.pushState({}, "", p); dispatchEvent(new PopStateEvent("popstate")); }, path);
+  page.evaluate((p) => {
+    history.pushState({}, "", p);
+    dispatchEvent(new PopStateEvent("popstate"));
+  }, path);
 
 describe("browser: log a job and get it countersigned", () => {
   let app: LiveApp;
@@ -72,7 +78,9 @@ describe("browser: log a job and get it countersigned", () => {
   const person = async (seed: number) => {
     const ctx = await browser.newContext();
     contexts.push(ctx);
-    await ctx.addInitScript((s) => { (window as any).__e2e_local_seed = s; }, seed);
+    await ctx.addInitScript((s) => {
+      (window as any).__e2e_local_seed = s;
+    }, seed);
     const page = await ctx.newPage();
     page.on("pageerror", (e) => errors.push(`seed ${seed}: ${e.message}`));
     return page;
@@ -151,7 +159,9 @@ describe("browser: log a job and get it countersigned", () => {
     propertyId = href!.split("/")[2];
     const job = (await app.deployment.actor("job", app.admin).getJobsForProperty(propertyId)) as any;
     const jobs: any[] = "ok" in job ? job.ok : job;
-    expect(jobs.map((j) => [j.contractorName[0] ?? j.contractorName, j.verified])).toEqual([["Cool Air Services LLC", false]]);
+    expect(jobs.map((j) => [j.contractorName[0] ?? j.contractorName, j.verified])).toEqual([
+      ["Cool Air Services LLC", false],
+    ]);
 
     // Homeowner signs, then invites the contractor.
     await go(owner, `/properties/${propertyId}`);
@@ -205,7 +215,10 @@ describe("browser: log a job and get it countersigned", () => {
     await admin.getByRole("button", { name: /dev login/i }).click();
     await admin.waitForURL(/dashboard/);
     await go(admin, "/admin");
-    await admin.getByRole("button", { name: /contractors/i }).first().click({ timeout: 30_000 });
+    await admin
+      .getByRole("button", { name: /contractors/i })
+      .first()
+      .click({ timeout: 30_000 });
     const row = admin.getByRole("row").filter({ hasText: "Cool Air Services LLC" });
     await row.getByRole("button", { name: /verify/i }).click({ timeout: 30_000 });
     // Verified contractors leave the review queue.
@@ -226,16 +239,43 @@ describe("browser: log a job and get it countersigned", () => {
   it("a realtor gets reviewed, finds a home taking bids and places a sealed bid", async () => {
     // A homeowner (outside the browser) puts a home up for Bid to List.
     const seller = createIdentity("live-seller");
-    ok(await app.deployment.actor("payment", app.admin).adminActivateStripeSubscription(seller.getPrincipal(), { Pro: null }, 12n));
-    const home = ok<any>(await app.deployment.actor("property", seller).registerProperty({
-      address: "40 Heron Way", city: "Winter Park", state: "FL", zipCode: "32789",
-      propertyType: { SingleFamily: null }, yearBuilt: 1998n, squareFeet: 2100n, tier: { Pro: null },
-    }));
+    ok(
+      await app.deployment
+        .actor("payment", app.admin)
+        .adminActivateStripeSubscription(seller.getPrincipal(), { Pro: null }, 12n),
+    );
+    const home = ok<any>(
+      await app.deployment.actor("property", seller).registerProperty({
+        address: "40 Heron Way",
+        city: "Winter Park",
+        state: "FL",
+        zipCode: "32789",
+        propertyType: { SingleFamily: null },
+        yearBuilt: 1998n,
+        squareFeet: 2100n,
+        tier: { Pro: null },
+      }),
+    );
     const listDate = BigInt(await app.pic.getTime()) * 1_000_000n + 30n * 86_400n * 1_000_000_000n;
-    const request = ok<any>(await app.deployment.actor("listing", seller).createBidRequest(
-      home.id, "40 Heron Way", "Winter Park", "Orange", "32789", "seller@example.com",
-      [3n], [2n], [2100n], listDate, [450_000_00n], "Corner lot.", { Seven: null },
-    ));
+    const request = ok<any>(
+      await app.deployment
+        .actor("listing", seller)
+        .createBidRequest(
+          home.id,
+          "40 Heron Way",
+          "Winter Park",
+          "Orange",
+          "32789",
+          "seller@example.com",
+          [3n],
+          [2n],
+          [2100n],
+          listDate,
+          [450_000_00n],
+          "Corner lot.",
+          { Seven: null },
+        ),
+    );
 
     const realtor = await person(REALTOR_SEED);
     await signUp(realtor, "Realtor", "agent@example.com");
@@ -257,7 +297,10 @@ describe("browser: log a job and get it countersigned", () => {
     // The browse page shows the home masked: city and zip, never the street.
     await go(realtor, "/agents/verify");
     await go(realtor, "/agents/browse");
-    await realtor.getByText(/winter park/i).first().waitFor({ timeout: 30_000 });
+    await realtor
+      .getByText(/winter park/i)
+      .first()
+      .waitFor({ timeout: 30_000 });
     await expect(realtor.getByText("40 Heron Way").count()).resolves.toBe(0);
     await realtor.getByRole("button", { name: /bid/i }).first().click();
     await realtor.waitForURL(new RegExp(`/agents/listings/${request.id}/bid`), { timeout: 30_000 });
@@ -283,9 +326,20 @@ describe("browser: log a job and get it countersigned", () => {
   it("a new person signs in from a gift link, registers, comes back to it and redeems it", async () => {
     // What the Stripe webhook records for a paid gift.
     const token = "cs_test_LiveGift0001";
-    ok(await app.deployment.actor("payment", app.admin).stripeRecordGift(token, { Pro: null }, { Yearly: null }, {
-      recipientEmail: "giftee@example.com", recipientName: "Gale", senderName: "Sam", giftMessage: "Enjoy", deliveryDate: "",
-    }));
+    ok(
+      await app.deployment.actor("payment", app.admin).stripeRecordGift(
+        token,
+        { Pro: null },
+        { Yearly: null },
+        {
+          recipientEmail: "giftee@example.com",
+          recipientName: "Gale",
+          senderName: "Sam",
+          giftMessage: "Enjoy",
+          deliveryDate: "",
+        },
+      ),
+    );
 
     const giftee = await person(GIFTEE_SEED);
     await giftee.goto(`${app.baseUrl}/gift/redeem?token=${token}`);
@@ -297,18 +351,34 @@ describe("browser: log a job and get it countersigned", () => {
     await giftee.getByRole("button", { name: /redeem gift/i }).click({ timeout: 30_000 });
     await giftee.getByRole("heading", { name: /your gift is active/i }).waitFor({ timeout: 30_000 });
 
-    expect(await app.deployment.actor("payment", app.admin).getTierForPrincipal(principalOf(GIFTEE_SEED))).toEqual({ Pro: null });
+    expect(await app.deployment.actor("payment", app.admin).getTierForPrincipal(principalOf(GIFTEE_SEED))).toEqual({
+      Pro: null,
+    });
     expect(errors).toEqual([]);
   }, 180_000);
 
   it("a new person signs in from a manager invite, registers, comes back to it and accepts it", async () => {
     const owner = createIdentity("live-manager-owner");
-    ok(await app.deployment.actor("payment", app.admin).adminActivateStripeSubscription(owner.getPrincipal(), { Pro: null }, 12n));
-    const home = ok<any>(await app.deployment.actor("property", owner).registerProperty({
-      address: "7 Cypress Ct", city: "Orlando", state: "FL", zipCode: "32803",
-      propertyType: { SingleFamily: null }, yearBuilt: 2010n, squareFeet: 1600n, tier: { Pro: null },
-    }));
-    const invite = ok<any>(await app.deployment.actor("property", owner).inviteManager(home.id, { Manager: null }, "Morgan", []));
+    ok(
+      await app.deployment
+        .actor("payment", app.admin)
+        .adminActivateStripeSubscription(owner.getPrincipal(), { Pro: null }, 12n),
+    );
+    const home = ok<any>(
+      await app.deployment.actor("property", owner).registerProperty({
+        address: "7 Cypress Ct",
+        city: "Orlando",
+        state: "FL",
+        zipCode: "32803",
+        propertyType: { SingleFamily: null },
+        yearBuilt: 2010n,
+        squareFeet: 1600n,
+        tier: { Pro: null },
+      }),
+    );
+    const invite = ok<any>(
+      await app.deployment.actor("property", owner).inviteManager(home.id, { Manager: null }, "Morgan", []),
+    );
 
     const manager = await person(MANAGER_SEED);
     await manager.goto(`${app.baseUrl}/manage/claim/${invite.token}`);
@@ -323,7 +393,9 @@ describe("browser: log a job and get it countersigned", () => {
     await manager.getByRole("button", { name: /accept manager access/i }).click({ timeout: 30_000 });
     await manager.waitForURL(/\/dashboard/, { timeout: 30_000 });
 
-    expect(await app.deployment.actor("property", app.admin).getAccessRole(home.id, principalOf(MANAGER_SEED))).toEqual([{ Manager: null }]);
+    expect(await app.deployment.actor("property", app.admin).getAccessRole(home.id, principalOf(MANAGER_SEED))).toEqual(
+      [{ Manager: null }],
+    );
     expect(errors).toEqual([]);
   }, 180_000);
 });

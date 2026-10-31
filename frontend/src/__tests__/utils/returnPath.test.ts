@@ -7,7 +7,15 @@ describe("returnPath", () => {
   it("keeps same-site paths only", () => {
     expect(safeReturnPath("/manage/claim/abc")).toBe("/manage/claim/abc");
     expect(safeReturnPath("/gift/redeem?token=cs_test_1")).toBe("/gift/redeem?token=cs_test_1");
-    for (const bad of ["https://evil.example", "//evil.example", "/\\evil.example", "javascript:alert(1)", "", null, undefined]) {
+    for (const bad of [
+      "https://evil.example",
+      "//evil.example",
+      "/\\evil.example",
+      "javascript:alert(1)",
+      "",
+      null,
+      undefined,
+    ]) {
       expect(safeReturnPath(bad as any)).toBeNull();
     }
   });
