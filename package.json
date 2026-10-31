@@ -31,7 +31,8 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "knip": "knip --workspace frontend --production",
-    "check:motoko-warnings": "bash scripts/ci/check-motoko-warnings.sh"
+    "check:motoko-warnings": "bash scripts/ci/check-motoko-warnings.sh",
+    "gen:declaration-types": "node --experimental-strip-types --no-warnings scripts/gen-declaration-types.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",

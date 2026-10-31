@@ -7,11 +7,14 @@
 import { lazyActor } from "./lazyActor";
 import type { Job } from "./job";
 import { idlFactory } from "@homegentic/shared/declarations/maintenance";
+import type { _SERVICE as MaintenanceCanister } from "@homegentic/shared/types/maintenance";
+import { candidErrorMessage } from "./candid";
+import type * as MaintenanceTypes from "@homegentic/shared/types/maintenance";
 export { idlFactory };
 
 const MAINTENANCE_CANISTER_ID = (process.env as any).MAINTENANCE_CANISTER_ID || "";
 
-function fromEntry(raw: any): ScheduleEntry {
+function fromEntry(raw: MaintenanceTypes.ScheduleEntry): ScheduleEntry {
   return {
     id:                 raw.id,
     propertyId:         raw.propertyId,
@@ -390,7 +393,7 @@ export function predictMaintenance(
 function createMaintenanceService() {
   const scheduleStore = new Map<string, ScheduleEntry>();
 
-  const getActor = lazyActor(idlFactory, MAINTENANCE_CANISTER_ID);
+  const getActor = lazyActor<MaintenanceCanister>(idlFactory, MAINTENANCE_CANISTER_ID);
 
   return {
   predict(yearBuilt: number, jobs: Job[], systemInstallYears?: Partial<Record<string, number>>, state?: string, materialOverrides?: Partial<Record<string, string>>): MaintenanceReport {
@@ -415,9 +418,7 @@ function createMaintenanceService() {
       estimatedCostCents ? [BigInt(estimatedCostCents)] : []
     );
     if ("ok" in result) return fromEntry(result.ok);
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   async getScheduleByProperty(propertyId: string): Promise<ScheduleEntry[]> {

@@ -1,5 +1,8 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/listing";
+import type { _SERVICE as ListingCanister } from "@homegentic/shared/types/listing";
+import { variant } from "./candid";
+import type * as Listing from "@homegentic/shared/types/listing";
 export { idlFactory };
 
 const LISTING_CANISTER_ID = (process.env as any).LISTING_CANISTER_ID || "";
@@ -158,11 +161,11 @@ export interface SubmitProposalInput {
   coverLetter:           string;
 }
 
-function toWindowDaysVariant(w: WindowDays) {
-  return { [w]: null };
+function toWindowDaysVariant(w: WindowDays): Listing.WindowDays {
+  return variant(w);
 }
 
-function fromWindowDays(raw: any): WindowDays {
+function fromWindowDays(raw: Listing.WindowDays): WindowDays {
   return Object.keys(raw)[0] as WindowDays;
 }
 
@@ -170,7 +173,7 @@ function optToNullableNumber(opt: any[]): number | null {
   return opt.length > 0 ? Number(opt[0]) : null;
 }
 
-function fromRawRequest(raw: any): ListingBidRequest {
+function fromRawRequest(raw: Listing.ListingBidRequest): ListingBidRequest {
   return {
     id:               raw.id,
     propertyId:       raw.propertyId,
@@ -194,7 +197,7 @@ function fromRawRequest(raw: any): ListingBidRequest {
   };
 }
 
-function fromRawSummary(raw: any): BidRequestSummary {
+function fromRawSummary(raw: Listing.BidRequestSummary): BidRequestSummary {
   return {
     id:               raw.id,
     city:             raw.city,
@@ -215,7 +218,7 @@ function fromRawSummary(raw: any): BidRequestSummary {
   };
 }
 
-function fromRawDerived(raw: any): DerivedSignals {
+function fromRawDerived(raw: Listing.DerivedSignals): DerivedSignals {
   return {
     estNetToSellerCents: Number(raw.estNetToSellerCents),
     pctVsCompsBps:       Number(raw.pctVsCompsBps),
@@ -224,7 +227,7 @@ function fromRawDerived(raw: any): DerivedSignals {
   };
 }
 
-function fromRawAgentRecord(raw: any): AgentRecordSnapshot {
+function fromRawAgentRecord(raw: Listing.AgentRecordSnapshot): AgentRecordSnapshot {
   return {
     closedInZip:        Number(raw.closedInZip),
     avgDom:              Number(raw.avgDom),
@@ -234,7 +237,7 @@ function fromRawAgentRecord(raw: any): AgentRecordSnapshot {
   };
 }
 
-function fromRawProposal(raw: any): ListingProposal {
+function fromRawProposal(raw: Listing.ListingProposal): ListingProposal {
   return {
     id:                    raw.id,
     requestId:             raw.requestId,
@@ -259,7 +262,7 @@ function fromRawProposal(raw: any): ListingProposal {
   };
 }
 
-function fromRawMasked(raw: any): MaskedProposal {
+function fromRawMasked(raw: Listing.MaskedProposal): MaskedProposal {
   return {
     id:                    raw.id,
     requestId:             raw.requestId,
@@ -274,14 +277,14 @@ function fromRawMasked(raw: any): MaskedProposal {
     derived:               fromRawDerived(raw.derived),
     agentRecord:           fromRawAgentRecord(raw.agentRecord),
     isMine:                raw.isMine,
-    agentName:             raw.agentName.length > 0 ? raw.agentName[0] : null,
-    agentEmail:            raw.agentEmail.length > 0 ? raw.agentEmail[0] : null,
-    agentBrokerage:        raw.agentBrokerage.length > 0 ? raw.agentBrokerage[0] : null,
+    agentName:             raw.agentName[0] ?? null,
+    agentEmail:            raw.agentEmail[0] ?? null,
+    agentBrokerage:        raw.agentBrokerage[0] ?? null,
     createdAt:             Number(raw.createdAt / 1_000_000n),
   };
 }
 
-function fromRawMessage(raw: any): ThreadMessage {
+function fromRawMessage(raw: Listing.Message): ThreadMessage {
   return {
     id:           raw.id,
     proposalId:   raw.proposalId,
@@ -296,7 +299,7 @@ function fromRawMessage(raw: any): ThreadMessage {
 
 function createListingService() {
 
-  const getActor = lazyActor(idlFactory, LISTING_CANISTER_ID);
+  const getActor = lazyActor<ListingCanister>(idlFactory, LISTING_CANISTER_ID);
 
   return {
   reset() { getActor.reset(); },
@@ -363,7 +366,7 @@ function createListingService() {
   async getPhotoReviewState(photoId: string): Promise<{ flagged: boolean; reviewed: boolean } | null> {
     const actor = await getActor();
     const raw = await actor.getPhotoReviewState(photoId);
-    return raw.length > 0 ? raw[0] : null;
+    return raw[0] ?? null;
   },
 
   // ── Agent: proposal lifecycle ───────────────────────────────────────────────
@@ -431,7 +434,7 @@ function createListingService() {
 
   async postMessage(proposalId: string, rawBody: string, authorRole: MessageRole): Promise<ThreadMessage> {
     const actor = await getActor();
-    const result = await actor.postMessage(proposalId, rawBody, { [authorRole]: null });
+    const result = await actor.postMessage(proposalId, rawBody, variant(authorRole));
     if ("err" in result) throw new Error(JSON.stringify(result.err));
     return fromRawMessage(result.ok);
   },
@@ -548,6 +551,7 @@ function createListingService() {
       squareFeet:       BigInt(listing.squareFeet),
       bedrooms:         BigInt(listing.bedrooms),
       bathrooms:        BigInt(listing.bathrooms),
+      verifiedJobCount: BigInt(listing.verifiedJobCount),
       score:            listing.score != null ? [BigInt(listing.score)] : [],
       description:      listing.description != null ? [listing.description] : [],
       photoUrl:         listing.photoUrl != null ? [listing.photoUrl] : [],

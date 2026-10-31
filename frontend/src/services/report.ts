@@ -10,6 +10,9 @@ import type { Property } from "./property";
 import type { RecurringServiceSummary } from "./recurringService";
 import type { Room } from "./room";
 import { idlFactory } from "@homegentic/shared/declarations/report";
+import type { _SERVICE as ReportCanister } from "@homegentic/shared/types/report";
+import { candidErrorMessage, variant, variantKey } from "./candid";
+import type * as Report from "@homegentic/shared/types/report";
 export { idlFactory };
 
 const REPORT_CANISTER_ID = (process.env as any).REPORT_CANISTER_ID || "";
@@ -94,11 +97,11 @@ export const BILLS_SUMMARY_LABELS: Record<BillsSummaryCategory, string> = {
   HomeInsurance: "Home insurance",
 };
 
-function billsSummaryToCanister(s: BillsSummary) {
+function billsSummaryToCanister(s: BillsSummary): Report.BillsSummary {
   return {
     asOf:  s.asOf,
     lines: s.lines.map((l) => ({
-      category:        { [l.category]: null },
+      category:        variant(l.category),
       avgMonthlyCents: BigInt(Math.round(l.avgMonthlyCents)),
       basis:           l.statementMonths === null
         ? { Scheduled: null }
@@ -107,7 +110,7 @@ function billsSummaryToCanister(s: BillsSummary) {
   };
 }
 
-function fromBillsSummary(raw: any): BillsSummary {
+function fromBillsSummary(raw: Report.BillsSummary): BillsSummary {
   return {
     asOf:  raw.asOf,
     lines: (raw.lines as any[]).map((l) => ({
@@ -249,7 +252,7 @@ export function propertyToInput(p: Property): PropertyInput {
 
 // ─── Converters ───────────────────────────────────────────────────────────────
 
-function fromShareLink(raw: any): ShareLink {
+function fromShareLink(raw: Report.ShareLink): ShareLink {
   const expiresNs = raw.expiresAt[0];
   return {
     token:      raw.token,
@@ -264,7 +267,7 @@ function fromShareLink(raw: any): ShareLink {
   };
 }
 
-function fromSnapshot(raw: any): ReportSnapshot {
+function fromSnapshot(raw: Report.ReportSnapshot): ReportSnapshot {
   return {
     snapshotId:        raw.snapshotId,
     propertyId:        raw.propertyId,
@@ -311,11 +314,13 @@ function fromSnapshot(raw: any): ReportSnapshot {
     diyJobCount:       Number(raw.diyJobCount),
     permitCount:       Number(raw.permitCount),
     generatedAt:       Number(raw.generatedAt) / 1_000_000,
-    planTier:          raw.planTier || "Free",
+    // The report canister doesn't record the owner's tier, so every snapshot
+    // reads as Free (and shows the free-plan banner) until it does.
+    planTier:          "Free",
   };
 }
 
-function jobInputToCanister(j: JobInput) {
+function jobInputToCanister(j: JobInput): Report.JobInput {
   return {
     serviceType:    j.serviceType,
     description:    j.description,
@@ -330,7 +335,7 @@ function jobInputToCanister(j: JobInput) {
   };
 }
 
-function fromRiskProfile(raw: any): RiskProfile {
+function fromRiskProfile(raw: Report.RiskProfile): RiskProfile {
   return {
     schemaVersion:    raw.schemaVersion,
     token:            raw.token,
@@ -367,7 +372,7 @@ function createReportService() {
   const mockLinks     = new Map<string, ShareLink>();
   let mockAllowPublic = true;
 
-  const getActor = lazyActor(idlFactory, REPORT_CANISTER_ID);
+  const getActor = lazyActor<ReportCanister>(idlFactory, REPORT_CANISTER_ID);
 
   return {
   /**
@@ -401,7 +406,7 @@ function createReportService() {
         verificationLevel: property.verificationLevel,
       },
       jobs.map(jobInputToCanister),
-      recurringServices.map((r) => ({
+      recurringServices.map((r): Report.RecurringServiceInput => ({
         serviceType:   r.serviceType,
         providerName:  r.providerName,
         frequency:     r.frequency,
@@ -411,7 +416,7 @@ function createReportService() {
         totalVisits:   BigInt(r.totalVisits),
       })),
       expiryDays ? [BigInt(expiryDays)] : [],
-      { [visibility]: null },
+      variant(visibility),
       // Trailing opt params (new in 1.4.7 — old callers omit these)
       rooms.length > 0 ? [rooms.map((r) => ({
         name:         r.name,
@@ -425,10 +430,8 @@ function createReportService() {
       billsSummary && billsSummary.lines.length > 0 ? [billsSummaryToCanister(billsSummary)] : []
     );
     if ("ok" in result) return fromShareLink(result.ok);
-    const key = Object.keys(result.err)[0];
-    if (key === "UnverifiedProperty") throw new Error("Property must be verified (Basic or Premium) before generating a shareable report.");
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    if ("UnverifiedProperty" in result.err) throw new Error("Property must be verified (Basic or Premium) before generating a shareable report.");
+    throw new Error(candidErrorMessage(result.err));
   },
 
   async getReport(token: string): Promise<{ link: ShareLink; snapshot: ReportSnapshot }> {
@@ -438,13 +441,12 @@ function createReportService() {
     const a = await getActor();
     const result = await a.getReport(token);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
+      const key = variantKey(result.err);
       if (key === "Expired")  throw new Error("This report link has expired");
       if (key === "Revoked")  throw new Error("This report link has been revoked");
       if (key === "NotFound") throw new Error("Report not found");
       if (key === "NotAuthorized") throw new Error("Sign in to view this report");
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
     // ok value is a tuple: [ShareLink, ReportSnapshot]
     const [rawLink, rawSnapshot] = result.ok as [any, any];
@@ -532,20 +534,17 @@ function createReportService() {
       verificationLevel
     );
     if ("ok" in result) return fromRiskProfile(result.ok);
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   async getRiskProfile(token: string): Promise<RiskProfile> {
     const a = await getActor();
     const result = await a.getRiskProfile(token);
     if ("ok" in result) return fromRiskProfile(result.ok);
-    const key = Object.keys(result.err)[0];
+    const key = variantKey(result.err);
     if (key === "Expired")  throw new Error("This risk profile has expired");
     if (key === "NotFound") throw new Error("Risk profile not found");
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   riskProfileUrl(token: string): string {

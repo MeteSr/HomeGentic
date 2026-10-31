@@ -10,6 +10,9 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/bills";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
+import type { _SERVICE as BillsCanister } from "@homegentic/shared/types/bills";
+import { variant } from "./candid";
+import type * as Bills from "@homegentic/shared/types/bills";
 export { idlFactory };
 
 const BILLS_CANISTER_ID = (process.env as any).BILLS_CANISTER_ID || "";
@@ -114,7 +117,7 @@ export class TierLimitReachedError extends Error {
 // ─── Actor helper ─────────────────────────────────────────────────────────────
 
 
-const getBillsActor = lazyActor(idlFactory, BILLS_CANISTER_ID);
+const getBillsActor = lazyActor<BillsCanister>(idlFactory, BILLS_CANISTER_ID);
 
 function fromVariant<T>(v: any): T {
   if ("ok" in v) return v.ok as T;
@@ -123,7 +126,7 @@ function fromVariant<T>(v: any): T {
   throw new Error(JSON.stringify(err));
 }
 
-function toRecord(raw: any): BillRecord {
+function toRecord(raw: Bills.BillRecord): BillRecord {
   return {
     id:            raw.id,
     propertyId:    raw.propertyId,
@@ -141,7 +144,7 @@ function toRecord(raw: any): BillRecord {
   };
 }
 
-function toRecurring(raw: any): RecurringExpense {
+function toRecurring(raw: Bills.RecurringExpense): RecurringExpense {
   return {
     id:          raw.id,
     propertyId:  raw.propertyId,
@@ -157,12 +160,12 @@ function toRecurring(raw: any): RecurringExpense {
   };
 }
 
-function toFieldsArg(f: RecurringExpenseFields) {
+function toFieldsArg(f: RecurringExpenseFields): Bills.RecurringExpenseFields {
   return {
-    category:    { [f.category]: null },
+    category:    variant(f.category),
     provider:    f.provider,
     amountCents: BigInt(f.amountCents),
-    frequency:   { [f.frequency]: null },
+    frequency:   variant(f.frequency),
     startDate:   f.startDate,
     endDate:     f.endDate ? [f.endDate] : [],
   };
@@ -176,7 +179,7 @@ export const billService = {
     const actor = await getBillsActor();
     const raw = await actor.addBill({
       propertyId:  args.propertyId,
-      billType:    { [args.billType]: null },
+      billType:    variant(args.billType),
       provider:    args.provider,
       periodStart: args.periodStart,
       periodEnd:   args.periodEnd,

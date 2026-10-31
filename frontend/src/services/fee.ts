@@ -1,6 +1,8 @@
 import { lazyActor } from "./lazyActor";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 import { idlFactory } from "@homegentic/shared/declarations/fee";
+import type { _SERVICE as FeeCanister } from "@homegentic/shared/types/fee";
+import type * as FeeTypes from "@homegentic/shared/types/fee";
 export { idlFactory };
 
 const FEE_CANISTER_ID = (process.env as any).FEE_CANISTER_ID || "";
@@ -20,7 +22,7 @@ export interface FeeRecord {
   updatedAt:   number;
 }
 
-function fromRawFee(raw: any): FeeRecord {
+function fromRawFee(raw: FeeTypes.FeeRecord): FeeRecord {
   return {
     id:          raw.id,
     requestId:   raw.requestId,
@@ -73,7 +75,7 @@ export const REFERRAL_FALLBACK_DAYS = 60;
 
 const optMs = (o: any[]): number | null => (o.length ? Number(o[0]) / 1_000_000 : null);
 
-export function fromRawReferralFee(raw: any): ReferralFee {
+export function fromRawReferralFee(raw: FeeTypes.ReferralFee): ReferralFee {
   return {
     id: raw.id, quoteId: raw.quoteId, requestId: raw.requestId,
     contractor: raw.contractor.toText(), homeowner: raw.homeowner.toText(),
@@ -90,7 +92,7 @@ const e2e = () => (typeof window !== "undefined" ? (window as any) : {});
 
 function createFeeService() {
 
-  const getActor = lazyActor(idlFactory, FEE_CANISTER_ID);
+  const getActor = lazyActor<FeeCanister>(idlFactory, FEE_CANISTER_ID);
 
   return {
     reset() { getActor.reset(); },

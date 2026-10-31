@@ -17,7 +17,9 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@homegentic/shared/*": ["../packages/shared/src/*"]
+      "@homegentic/shared/*": ["../packages/shared/src/*"],
+      // packages/shared/src/types/ import these types; that folder has no node_modules of its own.
+      "@icp-sdk/core/*": ["./node_modules/@icp-sdk/core/lib/esm/*"]
     },
     "types": ["vite/client", "node", "vitest/globals"]
   },

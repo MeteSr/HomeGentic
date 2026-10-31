@@ -1,4 +1,4 @@
-import { Actor, type HttpAgent } from "@icp-sdk/core/agent";
+import { Actor, type ActorSubclass, type HttpAgent } from "@icp-sdk/core/agent";
 import type { IDL } from "@icp-sdk/core/candid";
 import { getAgent } from "./actor";
 
@@ -10,20 +10,26 @@ import { getAgent } from "./actor";
  * with the identity of whoever was signed in when it first ran (an anonymous
  * visitor, or the previous user in the same tab).
  *
- *   const getActor = lazyActor(idlFactory, JOB_CANISTER_ID);
+ * Pass the declaration's generated `_SERVICE` type so calls and results are
+ * type-checked (packages/shared/src/types/, from `npm run gen:declaration-types`):
+ *
+ *   import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
+ *   const getActor = lazyActor<JobCanister>(idlFactory, JOB_CANISTER_ID);
  *   const a = await getActor();
  *   getActor.reset();   // tests: drop the cached actor
+ *
+ * Without a type argument the actor has no methods, so an untyped call doesn't compile.
  */
-export function lazyActor(
+export function lazyActor<S extends Record<string, any> = Record<string, never>>(
   idlFactory: IDL.InterfaceFactory,
   canisterId: string | (() => string),
 ) {
-  let cached: { agent: HttpAgent; actor: any } | null = null;
-  const get = async (): Promise<any> => {
+  let cached: { agent: HttpAgent; actor: ActorSubclass<S> } | null = null;
+  const get = async (): Promise<ActorSubclass<S>> => {
     const agent = await getAgent();
     if (!cached || cached.agent !== agent) {
       const id = typeof canisterId === "function" ? canisterId() : canisterId;
-      cached = { agent, actor: Actor.createActor(idlFactory, { agent, canisterId: id }) };
+      cached = { agent, actor: Actor.createActor<S>(idlFactory, { agent, canisterId: id }) };
     }
     return cached.actor;
   };

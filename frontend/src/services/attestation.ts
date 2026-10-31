@@ -20,9 +20,11 @@
 
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/report";
+import type { _SERVICE as ReportCanister } from "@homegentic/shared/types/report";
+import type * as ReportTypes from "@homegentic/shared/types/report";
 
 const REPORT_CANISTER_ID = (process.env as any).REPORT_CANISTER_ID || "";
-const getActor = lazyActor(idlFactory, REPORT_CANISTER_ID);
+const getActor = lazyActor<ReportCanister>(idlFactory, REPORT_CANISTER_ID);
 
 export interface Attestation {
   message:   string;       // the exact JSON that was signed
@@ -61,7 +63,7 @@ export function fromHex(hex: string): Uint8Array {
   return out;
 }
 
-function fromRaw(raw: any): Attestation {
+function fromRaw(raw: ReportTypes.Attestation): Attestation {
   return {
     message:   raw.message,
     signature: Uint8Array.from(raw.signature),

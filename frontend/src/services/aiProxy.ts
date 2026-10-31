@@ -12,6 +12,7 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/ai_proxy";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
+import type { _SERVICE as AiProxyCanister } from "@homegentic/shared/types/ai_proxy";
 export { idlFactory };
 
 // M-6: the ATTOM / OpenPermit / Resend keys live only in the voice Worker
@@ -35,7 +36,7 @@ const AI_PROXY_CANISTER_ID = (process.env as any).AI_PROXY_CANISTER_ID || "";
 // ─── Actor ────────────────────────────────────────────────────────────────────
 
 
-const getActor = lazyActor(idlFactory, AI_PROXY_CANISTER_ID);
+const getActor = lazyActor<AiProxyCanister>(idlFactory, AI_PROXY_CANISTER_ID);
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 

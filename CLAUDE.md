@@ -181,7 +181,9 @@ Canister IDs come from `vite.config.ts` `define` block mapping `CANISTER_ID_*` e
 
 **IDL maintenance rule** — whenever you add or rename a method, field or variant in a Motoko `.mo` file, update `packages/shared/src/declarations/<canister>.ts`. It is the single source of truth for each canister's Candid interface, used by the frontend, mobile, dashboard, voice Worker and relays (the frontend, mobile and dashboard import it as `@homegentic/shared/...`; the agents import it by relative path). Edit it by hand. Each factory takes `IDL` as an argument, so the package has no dependencies. `scripts/ci/check-declarations.sh` (run by CI's motoko-compile-check) builds each canister's Candid with moc and fails when a declared method's mode, arguments or results no longer match.
 
-After updating declarations, regenerate snapshots: `cd frontend && npm run test:unit -- --update` and commit the `.snap` files.
+After updating declarations, run `npm run gen:declaration-types` (writes `packages/shared/src/types/<canister>.ts`; CI's lint job fails if they drift), then regenerate snapshots: `cd frontend && npm run test:unit -- --update` and commit the `.snap` files.
+
+**Typed actors.** Each generated file exports the declaration's named types and a `_SERVICE` interface with the methods it lists. Frontend services pass it to `lazyActor<_SERVICE>()`, so every call's arguments and results are type-checked; without a type argument the actor has no methods. The types describe what the declaration decodes (which may omit fields the canister has), not the whole canister. Build variants with `variant<T>("Tag")` and read errors with `candidErrorMessage(err)` from `services/candid.ts`. Import a canister's types as a namespace (`import type * as JobTypes from "@homegentic/shared/types/job"`) so names like `Error` and `Job` don't collide with the service's own.
 
 ### State Management
 

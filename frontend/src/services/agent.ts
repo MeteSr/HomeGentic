@@ -1,5 +1,7 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/agent";
+import type { _SERVICE as AgentCanister } from "@homegentic/shared/types/agent";
+import type * as AgentTypes from "@homegentic/shared/types/agent";
 export { idlFactory };
 
 const AGENT_CANISTER_ID = (process.env as any).AGENT_CANISTER_ID || "";
@@ -46,7 +48,7 @@ export interface AgentReview {
   createdAt:         number;
 }
 
-function fromRawProfile(raw: any): AgentProfile {
+function fromRawProfile(raw: AgentTypes.AgentProfile): AgentProfile {
   return {
     id:                   raw.id.toText(),
     name:                 raw.name,
@@ -68,7 +70,7 @@ function fromRawProfile(raw: any): AgentProfile {
   };
 }
 
-function fromRawReview(raw: any): AgentReview {
+function fromRawReview(raw: AgentTypes.AgentReview): AgentReview {
   return {
     id:                raw.id,
     agentId:           raw.agentId.toText(),
@@ -82,7 +84,7 @@ function fromRawReview(raw: any): AgentReview {
 
 function createAgentService() {
 
-  const getActor = lazyActor(idlFactory, AGENT_CANISTER_ID);
+  const getActor = lazyActor<AgentCanister>(idlFactory, AGENT_CANISTER_ID);
 
   return {
     reset() { getActor.reset(); },
@@ -97,14 +99,16 @@ function createAgentService() {
     async getMyProfile(): Promise<AgentProfile | null> {
       const actor = await getActor();
       const raw = await actor.getMyProfile();
-      return raw.length > 0 ? fromRawProfile(raw[0]) : null;
+      const p = raw[0];
+      return p ? fromRawProfile(p) : null;
     },
 
     async getProfile(agentId: string): Promise<AgentProfile | null> {
       const { Principal } = await import("@icp-sdk/core/principal");
       const actor = await getActor();
       const raw = await actor.getProfile(Principal.fromText(agentId));
-      return raw.length > 0 ? fromRawProfile(raw[0]) : null;
+      const p = raw[0];
+      return p ? fromRawProfile(p) : null;
     },
 
     async updateProfile(input: RegisterAgentInput): Promise<AgentProfile> {

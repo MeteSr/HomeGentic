@@ -10,6 +10,8 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/listing";
 import type { Property } from "./property";
+import type { _SERVICE as ListingCanister } from "@homegentic/shared/types/listing";
+import type * as ListingTypes from "@homegentic/shared/types/listing";
 
 const LISTING_CANISTER_ID = (process.env as any).LISTING_CANISTER_ID || "";
 
@@ -140,7 +142,7 @@ export async function listPublicFsbos(): Promise<FsboPublicListing[]> {
 
 // ─── Canister mapping ─────────────────────────────────────────────────────────
 
-const getActor = lazyActor(idlFactory, LISTING_CANISTER_ID);
+const getActor = lazyActor<ListingCanister>(idlFactory, LISTING_CANISTER_ID);
 
 /** No canister (or E2E mock mode): use the in-memory store below. */
 function isMockMode(): boolean {
@@ -163,7 +165,7 @@ export function listingErrorMessage(err: unknown): string {
   return String(err);
 }
 
-export function fromPublicListing(r: any): FsboPublicListing {
+export function fromPublicListing(r: ListingTypes.PublicFsboListing): FsboPublicListing {
   return {
     propertyId:        r.propertyId,
     listPriceCents:    Number(r.listPriceCents),

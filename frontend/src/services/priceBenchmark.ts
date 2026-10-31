@@ -12,9 +12,10 @@
 import { aiProxyService } from "./aiProxy";
 import { lazyActor } from "./lazyActor";
 import { idlFactory as quoteIdl } from "@homegentic/shared/declarations/quote";
+import type { _SERVICE as QuoteCanister } from "@homegentic/shared/types/quote";
 
 const QUOTE_CANISTER_ID = (process.env as any).QUOTE_CANISTER_ID || "";
-const getQuoteActor = lazyActor(quoteIdl, QUOTE_CANISTER_ID);
+const getQuoteActor = lazyActor<QuoteCanister>(quoteIdl, QUOTE_CANISTER_ID);
 
 export interface PriceBenchmarkResult {
   serviceType:  string;

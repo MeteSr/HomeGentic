@@ -17,6 +17,8 @@ import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/listing";
 import { listingErrorMessage } from "./fsbo";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
+import type { _SERVICE as ListingCanister } from "@homegentic/shared/types/listing";
+import type * as Listing from "@homegentic/shared/types/listing";
 
 const LISTING_CANISTER_ID = (process.env as any).LISTING_CANISTER_ID || "";
 const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
@@ -36,7 +38,7 @@ export interface ShowingRequest {
 
 export type ShowingRequestInput = Pick<ShowingRequest, "propertyId" | "name" | "contact" | "preferredTime">;
 
-const getActor = lazyActor(idlFactory, LISTING_CANISTER_ID);
+const getActor = lazyActor<ListingCanister>(idlFactory, LISTING_CANISTER_ID);
 
 function isMockMode(): boolean {
   return !LISTING_CANISTER_ID || (typeof window !== "undefined" && !!(window as any).__e2e_properties);
@@ -47,7 +49,7 @@ function unwrap<T>(result: { ok: T } | { err: unknown }): T {
   return result.ok;
 }
 
-export function fromShowing(r: any): ShowingRequest {
+export function fromShowing(r: Listing.ShowingRequest): ShowingRequest {
   return {
     id:            r.id,
     propertyId:    r.propertyId,
@@ -71,7 +73,7 @@ function createShowingRequestService() {
     return updated;
   }
 
-  async function respond(propertyId: string, id: string, response: object, patch: Partial<ShowingRequest>): Promise<ShowingRequest> {
+  async function respond(propertyId: string, id: string, response: Listing.ShowingResponse, patch: Partial<ShowingRequest>): Promise<ShowingRequest> {
     if (isMockMode()) return _update(id, patch);
     const actor = await getActor();
     return fromShowing(unwrap(await actor.respondToShowing(propertyId, id, response)));

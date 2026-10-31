@@ -31,9 +31,19 @@ import { idlFactory as propertyIdl }    from "@homegentic/shared/declarations/pr
 import { idlFactory as authIdl }        from "@homegentic/shared/declarations/auth";
 import { neighbourhoodIdlFactory as marketIdl } from "./market";
 import { forgetNotificationAccount } from "./notificationPrefs";
+import type { ActorMethod } from "@icp-sdk/core/agent";
 
 const env = process.env as any;
 const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
+
+/**
+ * The part of each canister's interface this flow calls. Every listed
+ * declaration has `deleteMyData`; only photo has `getMyOffChainPhotoIds`.
+ */
+type DeleteMyData = {
+  deleteMyData: ActorMethod<[], { ok: unknown } | { err: object }>;
+  getMyOffChainPhotoIds: ActorMethod<[], string[]>;
+};
 
 /** Deletion order: dependents first, property next to last, auth last. */
 const STEPS = [
@@ -51,7 +61,7 @@ const STEPS = [
   { label: "neighborhood score",   idl: marketIdl,      id: env.MARKET_CANISTER_ID },
   { label: "properties",           idl: propertyIdl,    id: env.PROPERTY_CANISTER_ID },
   { label: "profile",              idl: authIdl,        id: env.AUTH_CANISTER_ID },
-].map((s) => ({ ...s, actor: lazyActor(s.idl, s.id || "") }));
+].map((s) => ({ ...s, actor: lazyActor<DeleteMyData>(s.idl, s.id || "") }));
 
 export type DeletionStep = (typeof STEPS)[number]["label"] | "subscription" | "notification settings";
 

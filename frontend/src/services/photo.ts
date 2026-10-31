@@ -2,6 +2,9 @@ import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/photo";
 import { uploadPhotoPreferOffChain, offChainPhotosEnabled, type OffChainDeps } from "@homegentic/shared/photoUpload";
 import { getAgentSessionToken, fetchWithAgentSession } from "./agentSession";
+import type { _SERVICE as PhotoCanister } from "@homegentic/shared/types/photo";
+import { candidErrorMessage } from "./candid";
+import type * as PhotoTypes from "@homegentic/shared/types/photo";
 export { idlFactory };
 
 const PHOTO_CANISTER_ID = (process.env as any).PHOTO_CANISTER_ID || "";
@@ -40,7 +43,7 @@ export interface PhotoQuota {
  * `raw` is a PhotoMeta record; `bytes` are the image bytes fetched separately,
  * or `url` points at them when they're stored off-chain.
  */
-function fromPhoto(raw: any, bytes: Uint8Array | number[] | undefined, offChainUrl = ""): Photo {
+function fromPhoto(raw: PhotoTypes.Photo, bytes: Uint8Array | number[] | undefined, offChainUrl = ""): Photo {
   const phaseKey = Object.keys(raw.phase)[0];
   const url      = bytes && bytes.length > 0 ? URL.createObjectURL(new Blob([new Uint8Array(bytes)])) : offChainUrl;
   return {
@@ -212,7 +215,7 @@ async function withBytes(
 function createPhotoService() {
   const store: Photo[] = [];
 
-  const getActor = lazyActor(idlFactory, PHOTO_CANISTER_ID);
+  const getActor = lazyActor<PhotoCanister>(idlFactory, PHOTO_CANISTER_ID);
 
   return {
   async upload(
@@ -234,9 +237,7 @@ function createPhotoService() {
       offChain,
     );
     if ("ok" in result) return fromPhoto(result.ok, bytes);
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   async getByJob(jobId: string): Promise<Photo[]> {

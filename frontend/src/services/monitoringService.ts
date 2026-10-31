@@ -9,6 +9,7 @@
 
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/monitoring";
+import type { _SERVICE as MonitoringCanister } from "@homegentic/shared/types/monitoring";
 export { idlFactory };
 
 const MONITORING_CANISTER_ID = (import.meta as any).env?.VITE_MONITORING_CANISTER_ID ?? "";
@@ -81,7 +82,7 @@ export function canisterLabel(canisterId: string): string {
 
 function createMonitoringService() {
 
-  const getActor = lazyActor(idlFactory, MONITORING_CANISTER_ID);
+  const getActor = lazyActor<MonitoringCanister>(idlFactory, MONITORING_CANISTER_ID);
 
   return {
     async getAllCanisterMetrics(): Promise<CanisterMetrics[]> {

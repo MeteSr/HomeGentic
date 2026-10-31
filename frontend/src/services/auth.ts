@@ -1,5 +1,8 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/auth";
+import type { _SERVICE as AuthCanister } from "@homegentic/shared/types/auth";
+import { candidErrorMessage, variant } from "./candid";
+import type * as AuthTypes from "@homegentic/shared/types/auth";
 export { idlFactory };
 
 function getCanisterId() { return (process.env as any).AUTH_CANISTER_ID || ""; }
@@ -25,11 +28,11 @@ export interface RegisterArgs {
 }
 
 
-const getActor = lazyActor(idlFactory, getCanisterId);
+const getActor = lazyActor<AuthCanister>(idlFactory, getCanisterId);
 
 const VALID_ROLES = new Set<string>(["Homeowner", "Contractor", "Realtor", "Builder"]);
 
-function fromProfile(raw: any): UserProfile {
+function fromProfile(raw: AuthTypes.UserProfile): UserProfile {
   const roleKey = Object.keys(raw.role)[0];
   if (!VALID_ROLES.has(roleKey)) throw new Error(`Unknown user role from canister: "${roleKey}"`);
   return {
@@ -49,9 +52,7 @@ function fromProfile(raw: any): UserProfile {
 
 function unwrap(result: any): UserProfile {
   if ("ok" in result) return fromProfile(result.ok);
-  const key = Object.keys(result.err)[0];
-  const val = result.err[key];
-  throw new Error(typeof val === "string" ? val : key);
+  throw new Error(candidErrorMessage(result.err));
 }
 
 export const authService = {
@@ -62,7 +63,7 @@ export const authService = {
     }
     const a = await getActor();
     const result = await a.register({
-      role: { [args.role]: null },
+      role: variant(args.role),
       email: args.email,
       phone: args.phone,
     });
@@ -94,7 +95,7 @@ export const authService = {
 
   async hasRole(role: UserRole): Promise<boolean> {
     const a = await getActor();
-    return a.hasRole({ [role]: null });
+    return a.hasRole(variant(role));
   },
 
   /**
@@ -108,9 +109,7 @@ export const authService = {
     if ("ok" in result) {
       return { token: result.ok.token, expiresAtMs: Number(result.ok.expiresAt / 1_000_000n) };
     }
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   async revokeAgentSession(): Promise<void> {

@@ -3,6 +3,9 @@ import { idlFactory } from "@homegentic/shared/declarations/quote";
 import { serviceTypeVariant, serviceTypeFromVariant } from "@homegentic/shared/serviceTypes";
 import { ibeEncryptAmount, ibeDecryptBids, sealedBidIdentity, type RevealedBid as SealedRevealedBid } from "./sealedBid";
 import type { UsageCategory, UsageSummary } from "./quoteUsage";
+import type { _SERVICE as QuoteCanister } from "@homegentic/shared/types/quote";
+import { candidErrorMessage, variant, type VariantKey } from "./candid";
+import type * as QuoteTypes from "@homegentic/shared/types/quote";
 export { idlFactory };
 
 const QUOTE_CANISTER_ID = (process.env as any).QUOTE_CANISTER_ID || "";
@@ -43,11 +46,11 @@ export interface Quote {
 
 // ─── Converters ───────────────────────────────────────────────────────────────
 
-function usageToCanister(u: UsageSummary) {
+function usageToCanister(u: UsageSummary): QuoteTypes.UsageSummary {
   return {
     asOf:   u.asOf,
     series: u.series.map((s) => ({
-      category: { [s.category]: null },
+      category: variant(s.category),
       unit:     s.unit ? [s.unit] : [],
       months:   s.months.map((m) => ({
         month:       m.month,
@@ -58,7 +61,7 @@ function usageToCanister(u: UsageSummary) {
   };
 }
 
-function usageFromCanister(raw: any): UsageSummary {
+function usageFromCanister(raw: QuoteTypes.UsageSummary): UsageSummary {
   return {
     asOf:   raw.asOf,
     series: (raw.series as any[]).map((s) => ({
@@ -75,9 +78,7 @@ function usageFromCanister(raw: any): UsageSummary {
 
 function unwrapUnit(result: any): void {
   if ("err" in result) {
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   }
 }
 
@@ -98,7 +99,7 @@ function mapVariant<T>(map: Record<string, T>, raw: any, field: string): T {
   return val;
 }
 
-function fromRequest(raw: any): QuoteRequest {
+function fromRequest(raw: QuoteTypes.QuoteRequest): QuoteRequest {
   const closeAtArr          = raw.closeAt          as bigint[]  | undefined;
   const zipArr              = raw.zipCode           as string[]  | undefined;
   const minTrustScoreArr    = raw.minTrustScore     as bigint[]  | undefined;
@@ -129,7 +130,7 @@ function fromRequest(raw: any): QuoteRequest {
   };
 }
 
-function fromQuote(raw: any): Quote {
+function fromQuote(raw: QuoteTypes.Quote): Quote {
   return {
     id:         raw.id,
     requestId:  raw.requestId,
@@ -144,9 +145,7 @@ function fromQuote(raw: any): Quote {
 
 function unwrapRequest(result: any): QuoteRequest {
   if ("ok" in result) return fromRequest(result.ok);
-  const key = Object.keys(result.err)[0];
-  const val = result.err[key];
-  throw new Error(typeof val === "string" ? val : key);
+  throw new Error(candidErrorMessage(result.err));
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────
@@ -158,7 +157,7 @@ function createQuoteService() {
   const mockOpenRequests: QuoteRequest[] = [];
   const mockQuotesByRequest = new Map<string, Quote[]>();
 
-  const getActor = lazyActor(idlFactory, QUOTE_CANISTER_ID);
+  const getActor = lazyActor<QuoteCanister>(idlFactory, QUOTE_CANISTER_ID);
 
   return {
   async createRequest(
@@ -179,12 +178,12 @@ function createQuoteService() {
     }
     const a = await getActor();
     // Capitalize first letter to match the canister variant (Low, Medium, High, Emergency)
-    const urgencyKey = req.urgency.charAt(0).toUpperCase() + req.urgency.slice(1);
+    const urgencyKey = (req.urgency.charAt(0).toUpperCase() + req.urgency.slice(1)) as VariantKey<QuoteTypes.UrgencyLevel>;
     const result = await a.createQuoteRequest(
       req.propertyId,
       serviceTypeVariant(req.serviceType),
       req.description,
-      { [urgencyKey]: null },
+      variant(urgencyKey),
       req.zipCode        ? [req.zipCode]                             : [],
       req.minTrustScore    != null ? [BigInt(req.minTrustScore)]    : [],
       req.minJobsCompleted != null ? [BigInt(req.minJobsCompleted)] : [],
@@ -229,9 +228,7 @@ function createQuoteService() {
       BigInt(validUntilMs * 1_000_000) // ms → ns
     );
     if ("ok" in result) return fromQuote(result.ok);
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   async getRequest(id: string): Promise<QuoteRequest | undefined> {
@@ -309,9 +306,7 @@ function createQuoteService() {
     const a = await getActor();
     const result = await a.cancelQuoteRequest(requestId);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
   },
 
@@ -338,11 +333,10 @@ function createQuoteService() {
     const a = await getActor();
     const result = await a.getUsageSummary(requestId);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
-    return result.ok.length > 0 ? usageFromCanister(result.ok[0]) : null;
+    const usage = result.ok[0];
+    return usage ? usageFromCanister(usage) : null;
   },
 
   // ── vetKeys IBE sealed-bid methods ──────────────────────────────────────────
@@ -379,9 +373,7 @@ function createQuoteService() {
     const a = await getActor();
     const result = await a.submitSealedBid(requestId, Array.from(ciphertextBytes), BigInt(timelineDays));
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
     const b = result.ok;
     return {
@@ -411,9 +403,7 @@ function createQuoteService() {
     const a = await getActor();
     const result = await a.revealBidsEncrypted(requestId, Array.from(tpk));
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
 
     const pubKeyBytes      = await this.getIbePublicKey();
