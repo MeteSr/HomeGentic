@@ -510,17 +510,18 @@ export const propertyService = {
   },
 
   /**
-   * Search for properties by address substring.
+   * Find the property at a street address.
    * Used by the contractor job proposal flow to resolve a street address to a
    * property record (and its owner principal) before submitting a proposal.
    *
-   * Returns an empty array when no match is found.
-   * Returns multiple results when the address is ambiguous (e.g. multiple units).
+   * The canister matches on the street address (spelling of "Street"/"St" and
+   * the like is ignored) and narrows by a city or ZIP after it; it returns at
+   * most 5 matches, and only the property that holds each address.
    */
-  async searchByAddress(_address: string): Promise<Array<{ id: string; owner: string; address: string }>> {
-    // The property canister has no address search (it never did; the typed actor
-    // caught the call), so say so instead of failing with "not a function".
-    throw new Error("Looking up a property by street address isn't available yet.");
+  async searchByAddress(address: string): Promise<Array<{ id: string; owner: string; address: string }>> {
+    const a = await getActor();
+    const matches = await a.findPropertiesByAddress(address);
+    return matches.map((m) => ({ id: m.id, owner: m.owner.toText(), address: m.address }));
   },
 
   // ── Delegated management ────────────────────────────────────────────────────

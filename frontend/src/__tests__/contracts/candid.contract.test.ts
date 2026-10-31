@@ -274,6 +274,7 @@ describe("property IDL factory", () => {
       "claimTransfer",
       "deleteMyData",
       "dismissNotifications",
+      "findPropertiesByAddress",
       "getAccessRole",
       "getAccessRoles",
       "getApprovals",
@@ -324,6 +325,7 @@ describe("property IDL factory", () => {
       .map(([name]) => name)
       .sort();
     expect(queries).toEqual([
+      "findPropertiesByAddress",
       "getAccessRole",
       "getAccessRoles",
       "getApprovals",

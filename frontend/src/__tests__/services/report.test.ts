@@ -53,7 +53,6 @@ const mockReportActor = {
       diyJobCount:      BigInt(diyJobCount),
       permitCount:      BigInt(permitCount),
       generatedAt:      BigInt(Date.now()) * 1_000_000n,
-      planTier:         "Free",
     };
 
     const rawLink = {

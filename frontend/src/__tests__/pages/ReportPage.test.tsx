@@ -42,7 +42,7 @@ function makeSnapshot(overrides: Partial<ReportSnapshot> = {}): ReportSnapshot {
     propertyType: "SingleFamily", yearBuilt: 2000, squareFeet: 2000,
     verificationLevel: "Unverified", jobs: [], recurringServices: [], rooms: [],
     totalAmountCents: 0, verifiedJobCount: 0, diyJobCount: 0, permitCount: 0,
-    generatedAt: Date.now(), planTier: "Free",
+    generatedAt: Date.now(),
     ...overrides,
   };
 }

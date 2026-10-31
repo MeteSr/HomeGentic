@@ -94,7 +94,6 @@ test("PS.2 — /report/:token shows report content or not-found state", async ({
         yearBuilt:         2001,
         squareFeet:        2400,
         verificationLevel: "Basic",
-        planTier:          "Pro",
         jobs:              [],
         verifiedJobCount:  0,
         totalAmountCents:  0,

@@ -1125,6 +1125,94 @@ persistent actor Property {
     }
   };
 
+  public type AddressMatch = {
+    id      : Text;
+    owner   : Principal;
+    address : Text;   // "12 Elm St, Austin, TX 78701"
+  };
+
+  /// Properties whose street address matches `search`, for a contractor who
+  /// knows the job's address but not the property id (the voice agent's
+  /// propose_job tool). Only the property that holds each address (the one in
+  /// addressIdx: verified wins, else the newest claim) is a candidate, so a
+  /// stale or competing claim never receives the proposal. `search` must start
+  /// with the street address; a city or ZIP after it narrows the matches.
+  /// Spelling of common street words is ignored ("Street" = "St", "N." = "N").
+  /// Addresses are already public (claim pages show them), and an id already
+  /// maps to its owner through getPropertyOwner. Anonymous callers get [].
+  public query(msg) func findPropertiesByAddress(search : Text) : async [AddressMatch] {
+    if (msg.caller.isAnonymous() or search.size() > 300) return [];
+    let q = canonAddress(search);
+    if (q == "") return [];
+    let streetHits = List.empty<(Property, Text)>();   // property, text after the street
+    for (id in addressIdx.values()) {
+      switch (properties.get(id)) {
+        case (?p) {
+          let street = canonAddress(p.address);
+          if (p.isActive and street != "") {
+            if (q == street) { streetHits.add((p, "")) }
+            else switch (q.stripStart(#text (street # " "))) {
+              case (?rest) { streetHits.add((p, rest)) };
+              case null {};
+            };
+          };
+        };
+        case null {};
+      };
+    };
+    // Keep the hits whose city or ZIP appears after the street, unless the
+    // query names neither (then every street match stays a candidate).
+    let narrowed = streetHits.filter(func((p, rest) : (Property, Text)) : Bool {
+      if (rest == "") return true;
+      let padded = " " # rest # " ";
+      let city = canonAddress(p.city);
+      let zip  = canonAddress(p.zipCode);
+      (city != "" and padded.contains(#text (" " # city # " "))) or
+      (zip  != "" and padded.contains(#text (" " # zip  # " ")))
+    });
+    let hits = if (narrowed.isEmpty()) {
+      // The text after the street named a place no hit is in: no match,
+      // unless that text is just a unit ("apt 4"), which records don't hold.
+      streetHits.filter(func((_, rest) : (Property, Text)) : Bool { isUnitOnly(rest) })
+    } else narrowed;
+    let out = List.empty<AddressMatch>();
+    for ((p, _) in hits.values()) {
+      if (out.size() < 5) {
+        out.add({ id = p.id; owner = p.owner; address = p.address # ", " # p.city # ", " # p.state # " " # p.zipCode });
+      };
+    };
+    out.toArray()
+  };
+
+  /// Lowercase, punctuation to spaces, single spaces, and common street
+  /// words in their USPS short form, so "12 N. Elm Street" = "12 n elm st".
+  private func canonAddress(t : Text) : Text {
+    let spaced = t.toLower().map(func(c : Char) : Char { if (c.isAlphabetic() or c.isDigit()) c else ' ' });
+    let words = spaced.split(#predicate(Char.isWhitespace)).filter(func(w : Text) : Bool { w != "" }).map(shortStreetWord);
+    words.join(" ")
+  };
+
+  private func shortStreetWord(w : Text) : Text {
+    switch w {
+      case "street"    "st";   case "avenue"  "ave";  case "av"        "ave";
+      case "road"      "rd";   case "drive"   "dr";   case "lane"      "ln";
+      case "boulevard" "blvd"; case "court"   "ct";   case "place"     "pl";
+      case "circle"    "cir";  case "terrace" "ter";  case "parkway"   "pkwy";
+      case "highway"   "hwy";  case "trail"   "trl";  case "square"    "sq";
+      case "north"     "n";    case "south"   "s";    case "east"      "e";
+      case "west"      "w";    case "northeast" "ne"; case "northwest" "nw";
+      case "southeast" "se";   case "southwest" "sw"; case "apartment" "apt";
+      case "suite"     "ste";  case "unit"    "unit";
+      case _ w;
+    }
+  };
+
+  /// True when `rest` is only a unit designator such as "apt 4" or "unit 2b".
+  private func isUnitOnly(rest : Text) : Bool {
+    let words = rest.split(#char ' ').toArray();
+    words.size() == 2 and (words[0] == "apt" or words[0] == "ste" or words[0] == "unit")
+  };
+
   /// Returns all properties currently awaiting admin verification review.
   /// H-12: Admin-only — these records contain legal names, Stripe session IDs,
   /// and document hashes that must not be exposed to arbitrary callers.

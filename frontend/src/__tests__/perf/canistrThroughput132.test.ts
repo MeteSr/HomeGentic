@@ -71,7 +71,7 @@ const mockActor = {
       verifiedJobCount:  BigInt(rawJobs.filter((j: any) => j.isVerified).length),
       diyJobCount:       BigInt(rawJobs.filter((j: any) => j.isDiy).length),
       permitCount:       BigInt(rawJobs.filter((j: any) => (j.permitNumber?.length ?? 0) > 0).length),
-      generatedAt:       BigInt(Date.now()) * 1_000_000n, planTier: "Free",
+      generatedAt:       BigInt(Date.now()) * 1_000_000n,
     };
     _reports.set(token, { rawLink, rawSnapshot });
     return { ok: rawLink };
