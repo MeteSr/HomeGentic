@@ -295,6 +295,7 @@ export const idlFactory = ({ IDL }: any) => {
     setMarketCanisterId: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     setAgentCanisterId: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     setFeeCanisterId: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    setPhotoCanisterId: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
 
     addPanorama: IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     getPanoramas: IDL.Func([IDL.Text], [IDL.Vec(PanoramaEntry)], ["query"]),

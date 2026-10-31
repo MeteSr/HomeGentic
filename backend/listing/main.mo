@@ -294,6 +294,9 @@ persistent actor Listing {
   private var marketCanisterId : Text = "";
   private var agentCanisterId  : Text = "";
   private var feeCanisterId    : Text = "";
+  /// Photo canister: addListingPhoto/addPanorama check the photo really is a
+  /// listing photo of that property. Empty (local dev) skips the check.
+  private var photoCanisterId  : Text = "";
   /// Bid to List platform fee, in cents. $399.00 default — a tweakable parameter,
   /// not a literal (design handoff explicitly calls this out as configuration).
   private var platformFeeCents : Nat = 39900;
@@ -498,6 +501,19 @@ persistent actor Listing {
     if (Text.size(propCanisterId) == 0) return false;
     let propActor = Canisters.property(propCanisterId);
     await propActor.isAuthorized(propertyId, caller, true)
+  };
+
+  /// Whether `photoId` was uploaded to the photo canister as a listing photo
+  /// of `propertyId`. Photo ids are sequential, so without this anyone could
+  /// claim another seller's next ids for their own listing and lock the
+  /// seller out of adding them ("Photo belongs to another listing").
+  private func isListingPhotoOf(propertyId: Text, photoId: Text) : async Bool {
+    if (Text.size(photoCanisterId) == 0) return true;
+    let photoActor = actor(photoCanisterId) : actor {
+      getPublicListingPhotos : query (Text) -> async [{ id : Text }];
+    };
+    let photos = try { await photoActor.getPublicListingPhotos(propertyId) } catch (_) { return false };
+    Option.isSome(photos.find(func(p : { id : Text }) : Bool { p.id == photoId }))
   };
 
   // ─── Homeowner: Bid Request Lifecycle ────────────────────────────────────────
@@ -828,6 +844,17 @@ persistent actor Listing {
             if (req.homeowner != msg.caller) return #err(#NotAuthorized);
             if (req.status != #Open)         return #err(#InvalidInput("Request is no longer open"));
             if (p.status != #Pending)        return #err(#InvalidInput("This bid is no longer sealed/pending"));
+            // Invariant 05: a licence revoked after the bid went in can't win.
+            if (not (await agentStillVerified(p.agentId)))
+              return #err(#InvalidInput("This agent's licence is no longer verified"));
+            // Re-read after the await (TOCTOU): withdrawn or cancelled meanwhile.
+            switch (proposals.get(proposalId), requests.get(p.requestId)) {
+              case (?p2, ?r2) {
+                if (r2.status != #Open or p2.status != #Pending)
+                  return #err(#InvalidInput("This bid is no longer sealed/pending"));
+              };
+              case _ { return #err(#NotFound) };
+            };
 
             type FeeError = { #NotFound; #NotAuthorized; #AlreadyExists; #InvalidInput: Text };
             let feeActor = actor(feeCanisterId) : actor {
@@ -845,6 +872,14 @@ persistent actor Listing {
         }
       };
     }
+  };
+
+  /// Whether the agent canister still has `agentId` as verified. Fails closed
+  /// when the agent canister isn't wired (submitProposal needs it anyway).
+  private func agentStillVerified(agentId: Principal) : async Bool {
+    if (Text.size(agentCanisterId) == 0) return false;
+    let agentActor = actor(agentCanisterId) : actor { isVerifiedAgent : query (Principal) -> async Bool };
+    try { await agentActor.isVerifiedAgent(agentId) } catch (_) { false }
   };
 
   /// Called only from the settled Stripe webhook (via an admin-held identity,
@@ -1097,6 +1132,7 @@ persistent actor Listing {
     // M7: authorise against the property canister (owner or write-capable
     // manager) instead of a first-come owner lock. State is read after the await.
     if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (not (await isListingPhotoOf(propertyId, photoId))) return #err(#InvalidInput("Not a listing photo of this property"));
     // A photo belongs to one listing, so another property can't claim it and
     // clear its review gate.
     switch (photoPropertyOf(photoId)) {
@@ -1140,6 +1176,12 @@ persistent actor Listing {
       if (not Option.isSome(existing.find(func(e) { e == id })))
         return #err(#InvalidInput("Unknown photo ID in reorder list: " # id));
     };
+    // Same size and every id known still allows [a, a] for [a, b], which
+    // would drop b from the listing: every photo must appear in the new order.
+    for (id in existing.values()) {
+      if (not Option.isSome(photoIds.find(func(e) { e == id })))
+        return #err(#InvalidInput("Reorder list must contain every photo once"));
+    };
     listingPhotos.add(propertyId, photoIds);
     #ok(())
   };
@@ -1156,6 +1198,7 @@ persistent actor Listing {
 
     // M7: property-canister ownership instead of a first-come owner lock.
     if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (not (await isListingPhotoOf(propertyId, photoId))) return #err(#InvalidInput("Not a listing photo of this property"));
     switch (photoPropertyOf(photoId)) {
       case (?pid) { if (pid != propertyId) return #err(#InvalidInput("Photo belongs to another listing")) };
       case null {};
@@ -1847,6 +1890,9 @@ persistent actor Listing {
   };
   public shared(msg) func setFeeCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized); feeCanisterId := id; #ok(())
+  };
+  public shared(msg) func setPhotoCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized); photoCanisterId := id; #ok(())
   };
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized); maxUpdatesPerMin := n; #ok(())

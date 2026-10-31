@@ -129,7 +129,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `redeemInviteToken` | update | `(token: Text, contractorName: Text, phone: Text, email: Text, licenseNumber: ?Text)` | Contractor redeems token to link themselves |
 | `getCertificationData` | query | `(propertyId: Text)` | Aggregated score + verified job count |
 | `createSensorJob` | update | `(propertyId: Text, homeowner: Principal, title: Text, serviceType: ServiceType, description: Text)` | Trusted: auto-create job from IoT event |
-| `builderImportJob` | update | `(propertyId: Text, serviceType: ServiceType, contractorName: Text, amount: Nat, completedDate: Time.Time, description: Text, permitNumber: ?Text, warrantyMonths: ?Nat)` | Builder: import a job record |
+| `builderImportJob` | update | `(propertyId: Text, serviceType: ServiceType, contractorName: Text, amount: Nat, completedDate: Time.Time, description: Text, permitNumber: ?Text, warrantyMonths: ?Nat)` | Admin only: import a builder's pre-verified job record |
 | `createJobProposal` | update | `(propertyId: Text, title: Text, serviceType: ServiceType, description: Text, contractorName: ?Text, amount: Nat, completedDate: Time.Time, permitNumber: ?Text, warrantyMonths: ?Nat)` | Called by a contractor to propose a completed job for homeowner approval. |
 | `approveJobProposal` | update | `(jobId: Text)` | Homeowner approves a pending contractor proposal. |
 | `rejectJobProposal` | update | `(jobId: Text)` | Homeowner rejects a pending contractor proposal. |
@@ -453,7 +453,7 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | `removePanorama` | update | `(propertyId: Text, roomLabel: Text)` | Remove a room's panorama |
 | `getPanoramas` | query | `(propertyId: Text)` | All panoramas for a listing |
 
-**Admin / Lifecycle:** `setPropertyCanisterId(id: Text)` · `setJobCanisterId(id: Text)` · `setReportCanisterId(id: Text)` · `setMarketCanisterId(id: Text)` · `setAgentCanisterId(id: Text)` · `setFeeCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
+**Admin / Lifecycle:** `setPropertyCanisterId(id: Text)` · `setJobCanisterId(id: Text)` · `setReportCanisterId(id: Text)` · `setMarketCanisterId(id: Text)` · `setAgentCanisterId(id: Text)` · `setFeeCanisterId(id: Text)` · `setPhotoCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
 
 ---
 

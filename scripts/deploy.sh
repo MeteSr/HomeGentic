@@ -927,6 +927,10 @@ if [ -n "$LISTING_ID" ]    && [ -n "$FEE_ID" ]; then
   echo "  Wiring fee -> listing (bid-to-list fee record)..."
   bg_call listing    setFeeCanisterId        "(\"$FEE_ID\")"              -e "$ENV"
 fi
+if [ -n "$LISTING_ID" ]    && [ -n "$PHOTO_ID" ]; then
+  echo "  Wiring photo -> listing (listing photos must be the property's own)..."
+  bg_call listing    setPhotoCanisterId      "(\"$PHOTO_ID\")"            -e "$ENV"
+fi
 if [ -n "$AGENT_ID" ]      && [ -n "$LISTING_ID" ]; then
   echo "  Wiring listing -> agent (recordListingClose trust)..."
   bg_call agent      setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV"
