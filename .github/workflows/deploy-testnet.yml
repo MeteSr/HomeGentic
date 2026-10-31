@@ -147,6 +147,13 @@ jobs:
               }
           fi
 
+      - name: Post-deploy smoke test
+        # Every canister running, the deployed code answering, the frontend
+        # serving the app (scripts/smoke-deployed.sh).
+        run: bash scripts/smoke-deployed.sh
+        env:
+          ICP_ENV: testnet
+
   deploy-voice-worker:
     runs-on: ubuntu-latest
     environment: testnet
@@ -183,6 +190,11 @@ jobs:
         run: npx wrangler deploy --env testnet
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Post-deploy Worker health
+        # /health is 503 when a secret or canister ID the Worker needs is missing.
+        run: ONLY=worker bash scripts/smoke-deployed.sh
+        env:
+          VOICE_AGENT_URL: ${{ secrets.VITE_VOICE_AGENT_URL }}
 
   deploy-email-worker:
     runs-on: ubuntu-latest

@@ -238,6 +238,7 @@ getTierForPrincipal(1) -> (1) [query]
 grantHandoffYear(2) -> (1)
 grantSubscription(2) -> (1)
 initAdmins(2) -> (1)
+isAdminPrincipal(1) -> (1) [query]
 isStripeConfigured(0) -> (1) [query]
 listPendingGifts(0) -> (1) [query]
 listStripeRelays(0) -> (1) [query]

@@ -427,12 +427,12 @@ persistent actor Contractor {
     if (Text.size(jobCanisterId) > 0) {
       // L5: job.getJob returns Result<Job, Error>. Declare that shape here
       // (record subtyping drops the Job fields we don't need). The error
-      // payload is declared as an opt so a new job Error tag decodes to null
-      // instead of failing the whole reply.
+      // payload is never read, so it is declared Any: a new job Error tag
+      // can't fail the whole reply.
       let jobActor = actor(jobCanisterId) : actor {
-        getJob : (Text) -> async {
+        getJob : shared query (Text) -> async {
           #ok  : { homeowner : Principal; contractor : ?Principal };
-          #err : ?{ #NotFound; #NotAuthorized; #InvalidInput : Text; #AlreadyVerified; #TierLimitReached : Text };
+          #err : Any;
         };
       };
       let jobResult = try { await jobActor.getJob(jobId) } catch (_) {

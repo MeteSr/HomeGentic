@@ -53,3 +53,4 @@ Thumbs.db
 !.claude/worktrees/
 .claude/worktrees/*
 !.claude/worktrees/.gitignore
+agents/voice/coverage/

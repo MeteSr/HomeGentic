@@ -63,6 +63,9 @@ jobs:
           npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/candid" @icp-sdk/core@5
           CANDID_FROM="$RUNNER_TEMP/candid" bash scripts/ci/check-declarations.sh
 
+      - name: Cross-canister calls match the callees
+        run: CANDID_FROM="$RUNNER_TEMP/candid" bash scripts/ci/check-canister-calls.sh
+
       - name: Install ic-wasm
         run: |
           TMP=$(mktemp -d)
@@ -136,6 +139,11 @@ jobs:
 
       - name: Install test dependencies (downloads the PocketIC server)
         run: cd tests/upgrade && npm ci
+
+      - name: Install voice Worker and dashboard dependencies (their canister clients run against PocketIC)
+        run: |
+          (cd agents/voice && npm ci)
+          (cd dashboard && npm ci)
 
       - name: Run upgrade tests
         run: cd tests/upgrade && npm test
@@ -372,6 +380,49 @@ jobs:
 
       - name: Unit tests
         run: cd agents/notifications && npm test
+
+  test-dashboard:
+    # Admin metrics dashboard: typecheck and build (its canister reads run
+    # against real canisters in test-upgrade's dashboard-calls test).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: cd dashboard && npm ci
+
+      - name: Typecheck
+        run: cd dashboard && npm run type-check
+
+      - name: Build
+        run: cd dashboard && npm run build
+
+  test-email:
+    # Lead-form email relay (agents/email): Node's test runner, no test deps.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: agents/email/package-lock.json
+
+      - name: Install dependencies
+        run: cd agents/email && npm ci
+
+      - name: Typecheck
+        run: cd agents/email && npm run type-check
+
+      - name: Unit tests
+        run: cd agents/email && npm test
 
   test-mobile:
     runs-on: ubuntu-latest

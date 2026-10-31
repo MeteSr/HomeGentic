@@ -4,7 +4,7 @@
 import { describe, it, expect } from "@jest/globals";
 import {
   escapeHtml, isAllowedRedirectUrl, timingSafeEqualStr, sanitiseAgentMessages,
-  redactRecord, readJsonBody, HttpError, CHECKOUT_SESSION_RE,
+  redactRecord, readJsonBody, HttpError, CHECKOUT_SESSION_RE, PRINCIPAL_RE,
 } from "../src/security";
 
 describe("escapeHtml", () => {
@@ -84,5 +84,20 @@ describe("CHECKOUT_SESSION_RE", () => {
     expect(CHECKOUT_SESSION_RE.test("cs_live_a1B2")).toBe(true);
     expect(CHECKOUT_SESSION_RE.test("x/../../customers")).toBe(false);
     expect(CHECKOUT_SESSION_RE.test("cs_test_a?limit=100")).toBe(false);
+  });
+});
+
+describe("PRINCIPAL_RE", () => {
+  it("accepts real principals, including 63-character Internet Identity ones", () => {
+    for (const p of [
+      "2wet2-7j7ly-ft4st-zeegh-cdc54-fwgaz-5spod-vuzsr-esh4s-boed2-pae",   // self-authenticating
+      "rrkah-fqaaa-aaaaa-aaaaq-cai",                                     // canister
+      "aaaaa-aa",
+    ]) expect(PRINCIPAL_RE.test(p)).toBe(true);
+  });
+  it("rejects anything else", () => {
+    for (const p of ["", "-abc", "abc-", "a--b", "ABC", "abc def", "a".repeat(64), "x".repeat(60) + "-abc"]) {
+      expect(PRINCIPAL_RE.test(p)).toBe(false);
+    }
   });
 });

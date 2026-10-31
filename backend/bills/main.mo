@@ -297,7 +297,7 @@ persistent actor Bills {
   private func accessRole(propertyId: Text, caller: Principal) : async* ?AccessRole {
     if (propCanisterId == "") return null;
     let propActor = actor(propCanisterId) : actor {
-      getAccessRole : (Text, Principal) -> async ?AccessRole;
+      getAccessRole : shared query (Text, Principal) -> async ?AccessRole;
     };
     await propActor.getAccessRole(propertyId, caller)
   };

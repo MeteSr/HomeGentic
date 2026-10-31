@@ -906,12 +906,10 @@ persistent actor Job {
           switch (existing2.contractor) {
             case (?con) {
               let svcText = serviceTypeText(existing2.serviceType);
-              type ContrError = {
-                #NotFound; #AlreadyExists; #Unauthorized;
-                #Paused; #RateLimitExceeded; #InvalidInput : Text;
-              };
+              // The error is discarded, so its type is left open: a tag the
+              // contractor canister adds can't make the reply undecodable.
               let contrActor = actor(contrCanisterId) : actor {
-                recordJobVerified : (Principal, Text, Text, Principal) -> async { #ok : (); #err : ContrError };
+                recordJobVerified : (Principal, Text, Text, Principal) -> async { #ok : (); #err : Any };
               };
               // Await with try/catch so canister traps or network errors don't
               // propagate. #err results (e.g. #Unauthorized) are valid values

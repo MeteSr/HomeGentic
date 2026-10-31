@@ -96,6 +96,9 @@ if has_method bills setPropertyCanisterId; then
   dfx canister call bills     setPropertyCanisterId   "(\"$PROPERTY_ID\")"
 fi
 dfx canister call report      setSensorCanisterId     "(\"$SENSOR_ID\")"
+if has_method sensor addTrustedReader; then
+  dfx canister call sensor    addTrustedReader        "(principal \"$REPORT_ID\")"
+fi
 dfx canister call report      setRiskJobCanisterId    "(\"$JOB_ID\")"
 dfx canister call listing     setPropertyCanisterId   "(\"$PROPERTY_ID\")"
 dfx canister call listing     setJobCanisterId        "(\"$JOB_ID\")"

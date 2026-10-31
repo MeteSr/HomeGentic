@@ -15,6 +15,8 @@
  *   - revokeShareLink(token) makes the token invalid
  *   - BillsSummary (variant categories, Statements/Scheduled basis) round-trips
  *     through generateReport's 12th arg and getBillsSummary
+ *   - generateRiskProfile reads the home's devices from the wired sensor
+ *     canister (it used to fail outright once sensor was wired)
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
@@ -22,6 +24,7 @@ import { reportService } from "@/services/report";
 import type { ShareLink } from "@/services/report";
 import { propertyService } from "@/services/property";
 import { jobService } from "@/services/job";
+import { sensorService } from "@/services/sensor";
 import { ADMIN_SEED, asIdentity, seededIdentity } from "./helpers";
 
 const CANISTER_ID = (process.env as any).REPORT_CANISTER_ID || "";
@@ -234,5 +237,15 @@ describe.skipIf(!deployed)("getBillsSummary — BillsSummary round-trip", () => 
       PROP_ID, BASE_PROPERTY, [], [], [], null, "Public"
     );
     expect(await reportService.getBillsSummary(link.token)).toBeNull();
+  });
+});
+
+// ─── Insurance risk profile ──────────────────────────────────────────────────
+
+describe.skipIf(!deployed || !(process.env as any).SENSOR_CANISTER_ID)("generateRiskProfile — with sensor wired", () => {
+  it("lists the home's devices", async () => {
+    await sensorService.registerDevice(PROP_ID, `moen-${RUN_ID}`, "MoenFlo", "Kitchen leak sensor");
+    const profile = await reportService.generateRiskProfile(PROP_ID, "Basic", null);
+    expect(profile.sensorCoverage.map((d) => d.name)).toContain("Kitchen leak sensor");
   });
 });

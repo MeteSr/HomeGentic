@@ -160,6 +160,7 @@
   "sensor": {
     "stranger": [
       "deleteMyData",
+      "getDevicesForReader?",
       "getEventsForProperty?",
       "getPendingAlerts?",
       "setBootstrapNonce?"

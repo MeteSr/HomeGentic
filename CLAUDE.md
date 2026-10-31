@@ -86,6 +86,7 @@ bash scripts/init-test-data.sh   # Seed test users and properties
 ```bash
 cd frontend && npm run build    # Outputs to frontend/dist/ (served by assets canister)
 bash scripts/ci/check-declarations.sh   # Check packages/shared declarations against the canisters (needs moc)
+bash scripts/ci/check-canister-calls.sh # Check every canister-to-canister actor type against the callee's Candid (needs moc)
 ```
 
 ## Architecture

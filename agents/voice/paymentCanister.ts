@@ -3,6 +3,7 @@ import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
 import crypto from "node:crypto";
 import { idlFactory } from "../../packages/shared/src/declarations/payment";
+import { icHost } from "./icHost";
 
 // Read at call time, not module load: the Cloudflare Worker copies its env
 // bindings into process.env per request, after this module is imported, so a
@@ -14,7 +15,8 @@ function paymentCanisterId(): string {
   return id;
 }
 
-export const PRINCIPAL_RE = /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/;
+export { PRINCIPAL_RE } from "./src/security";
+import { PRINCIPAL_RE } from "./src/security";
 
 export const VALID_TIERS = new Set([
   "Free", "Pro",
@@ -42,31 +44,26 @@ export function identityFromPem(pem: string): Ed25519KeyIdentity {
   return Ed25519KeyIdentity.fromSecretKey(new Uint8Array(seedBuffer));
 }
 
-// ── Agent (lazy singleton) ────────────────────────────────────────────────────
-// Route to local dfx replica when DFX_NETWORK=local; otherwise IC mainnet.
-const IC_HOST = process.env.DFX_NETWORK === "local"
-  ? "http://localhost:4943"
-  : "https://ic0.app";
-
-let _agentPromise: Promise<HttpAgent> | undefined;
+// ── Agent (one per host) ──────────────────────────────────────────────────────
+// The host is read per call (icHost), not at module load: in the Worker,
+// DFX_NETWORK only reaches process.env once a request arrives.
+const agents = new Map<string, Promise<HttpAgent>>();
 
 export async function getAgent(): Promise<HttpAgent> {
-  if (_agentPromise) return _agentPromise;
   const pem = process.env.DFX_IDENTITY_PEM;
   if (!pem) {
     throw new Error(
       "DFX_IDENTITY_PEM is not set — cannot make authenticated canister calls",
     );
   }
-  _agentPromise = (async () => {
-    const agent = new HttpAgent({ host: IC_HOST, identity: identityFromPem(pem) });
+  const { host, local } = icHost();
+  let agent = agents.get(host);
+  if (!agent) {
     // Local replica uses a self-signed root key; mainnet has a hardcoded one.
-    if (process.env.DFX_NETWORK === "local") {
-      await agent.fetchRootKey();
-    }
-    return agent;
-  })();
-  return _agentPromise;
+    agent = HttpAgent.create({ host, identity: identityFromPem(pem), shouldFetchRootKey: local });
+    agents.set(host, agent);
+  }
+  return agent;
 }
 
 type PaymentActor = {

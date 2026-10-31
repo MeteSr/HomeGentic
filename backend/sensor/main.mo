@@ -123,6 +123,9 @@ persistent actor Sensor {
   /// first addAdmin() call. Consumed on first successful use.
   private var bootstrapNonce : ?Text = null;
   private var authorizedGateways : [Principal] = [];
+  /// Canisters that read a property's sensors on a user's behalf after
+  /// checking that user's access themselves (report, for the risk profile).
+  private var trustedReaders : [Principal] = [];
   private var deviceCounter   : Nat         = 0;
   private var eventCounter    : Nat         = 0;
   private var jobsCreatedCount : Nat        = 0;
@@ -351,6 +354,10 @@ persistent actor Sensor {
 
   private func isGateway(p: Principal) : Bool {
     Admin.contains(authorizedGateways, p)
+  };
+
+  private func isTrustedReader(p: Principal) : Bool {
+    Admin.contains(trustedReaders, p)
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
@@ -705,6 +712,18 @@ persistent actor Sensor {
     )
   };
 
+  /// getDevicesForProperty for trusted reader canisters, which call from
+  /// update methods and so can't use a composite query. They check the
+  /// user's access to the property before calling.
+  public shared(msg) func getDevicesForReader(propertyId: Text) : async [SensorDevice] {
+    if (not isTrustedReader(msg.caller) and not isAdmin(msg.caller)) return [];
+    Iter.toArray(
+      Index.records(devicesByProperty, propertyId, devices).filter(func(d: SensorDevice) : Bool {
+        d.isActive
+      })
+    )
+  };
+
   // ─── Event Recording ─────────────────────────────────────────────────────
 
   /// Maximum bytes accepted for rawPayload to prevent canister memory exhaustion.
@@ -965,7 +984,7 @@ persistent actor Sensor {
   // M-07: restrict getEventsForProperty to property owner, admin, or trusted canister
   public shared(msg) func getEventsForProperty(propertyId: Text, limit: Nat) : async [SensorEvent] {
     if (msg.caller.isAnonymous()) return [];
-    if (not isAdmin(msg.caller) and not isGateway(msg.caller)) {
+    if (not isAdmin(msg.caller) and not isGateway(msg.caller) and not isTrustedReader(msg.caller)) {
       // M9: current owner/manager of the property, checked live.
       if (not (await authorizedOn(propertyId, msg.caller, false))) return [];
     };
@@ -1022,6 +1041,21 @@ persistent actor Sensor {
   public shared(msg) func removeGateway(gw: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     authorizedGateways := Admin.remove(authorizedGateways, gw);
+    #ok(())
+  };
+
+  /// Register a canister that may read any property's devices and events
+  /// (getDevicesForReader, getEventsForProperty). Admin only.
+  public shared(msg) func addTrustedReader(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
+    trustedReaders := Admin.add(trustedReaders, p);
+    #ok(())
+  };
+
+  public shared(msg) func removeTrustedReader(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    trustedReaders := Admin.remove(trustedReaders, p);
     #ok(())
   };
 

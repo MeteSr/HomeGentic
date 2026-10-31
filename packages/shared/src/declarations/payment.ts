@@ -113,6 +113,8 @@ export const idlFactory = ({ IDL }: any) => {
       [SubscriptionStats],
       ["query"]
     ),
+    // The admin dashboard's role check.
+    isAdminPrincipal: IDL.Func([IDL.Principal], [IDL.Bool], ["query"]),
     // ── Stripe ──
     configureStripe: IDL.Func(
       [StripeConfig],

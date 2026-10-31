@@ -1424,12 +1424,14 @@ persistent actor Report {
     var recentAlerts   : [AlertSummary]  = [];
 
     if (Text.size(sensorCanisterId) > 0) {
+      // sensor answers these only for trusted readers (deploy.sh registers
+      // report); the caller's access was checked above.
       let sensorActor = actor(sensorCanisterId) : actor {
-        getDevicesForProperty : (Text)        -> async [{
+        getDevicesForReader : (Text)          -> async [{
           id: Text; name: Text; source: { #Nest; #Ecobee; #MoenFlo; #Manual;
             #RingAlarm; #HoneywellHome; #RheemEcoNet; #Sense;
             #EmporiaVue; #Rachio; #SmartThings; #HomeAssistant;
-            #EnphaseEnvoy; #TeslaPowerwall; #LGThinQ; #GESmartHQ; };
+            #EnphaseEnvoy; #TeslaPowerwall; #LGThinQ; #GESmartHQ; #SolarEdge; };
           isActive: Bool; registeredAt: Int; propertyId: Text; homeowner: Principal;
           externalDeviceId: Text;
         }];
@@ -1442,12 +1444,12 @@ persistent actor Report {
         }];
       };
 
-      let rawDevices = await sensorActor.getDevicesForProperty(propertyId);
+      let rawDevices = await sensorActor.getDevicesForReader(propertyId);
       sensorCoverage := rawDevices.map(func(d: {
         id: Text; name: Text; source: { #Nest; #Ecobee; #MoenFlo; #Manual;
           #RingAlarm; #HoneywellHome; #RheemEcoNet; #Sense;
           #EmporiaVue; #Rachio; #SmartThings; #HomeAssistant;
-          #EnphaseEnvoy; #TeslaPowerwall; #LGThinQ; #GESmartHQ; };
+          #EnphaseEnvoy; #TeslaPowerwall; #LGThinQ; #GESmartHQ; #SolarEdge; };
         isActive: Bool; registeredAt: Int; propertyId: Text; homeowner: Principal;
         externalDeviceId: Text;
       }) : SensorSummary {
@@ -1468,6 +1470,7 @@ persistent actor Report {
           case (#TeslaPowerwall)  { "TeslaPowerwall"  };
           case (#LGThinQ)         { "LGThinQ"         };
           case (#GESmartHQ)       { "GESmartHQ"       };
+          case (#SolarEdge)       { "SolarEdge"       };
         };
         { deviceId = d.id; name = d.name; source = sourceName;
           isActive = d.isActive; lastEventAt = null; eventCount = 0; }
