@@ -37,6 +37,7 @@ import Uuid      "../shared/Uuid";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
+import ThresholdCost "../shared/ThresholdCost";
 
 persistent actor Report {
 
@@ -552,10 +553,8 @@ persistent actor Report {
   /// Domain separator: keys derived on this path sign nothing but attestations.
   private transient let ATTEST_PATH : [Blob] = ["hg-attest-v1".encodeUtf8()];
 
-  /// sign_with_schnorr fee: key_1 ~26.15B cycles, test keys 10B. Unused cycles are refunded.
-  private func attestSignCycles(name : Text) : Nat {
-    if (name == "key_1") 26_153_846_153 else 10_000_000_000
-  };
+  /// sign_with_schnorr fee, as the IC prices it for this key. Unused cycles are refunded.
+  private func attestSignCycles(name : Text) : Nat { ThresholdCost.schnorrEd25519(name) };
 
   private func attestPublicKey(name : Text) : async* Blob {
     switch (attestPublicKeys.get(name)) {

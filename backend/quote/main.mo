@@ -26,6 +26,7 @@ import Index        "../shared/Index";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
+import ThresholdCost "../shared/ThresholdCost";
 
 persistent actor Quote {
 
@@ -268,18 +269,13 @@ persistent actor Quote {
   private transient let IBE_CONTEXT : Blob = Array.toBlob([
     0x68, 0x67, 0x2D, 0x62, 0x69, 0x64, 0x2D, 0x76, 0x31   // "hg-bid-v1"
   ]);
-  // "test_key_1" for local/testnet (~10B cycles per derive call).
-  // Switch to "key_1" before mainnet launch (~26B cycles per derive call).
   /// vetKD master key. "test_key_1" is the IC's test key; production deploys set
   /// "key_1" via setVetkdKeyName (scripts/deploy.sh does this for ic). Stored —
   /// not a constant — so it can be changed without reinstalling.
   private var vetkdKeyName : Text = "test_key_1";
-  /// H2/V-1: vetkd_derive_key fee. key_1 costs ~26.15B cycles; the old flat 10B
-  /// made every mainnet reveal fail. Unused cycles are refunded.
-  private transient let VETKD_KEY_CYCLES : Nat  = 26_153_846_153;
-  private func vetkdDeriveCycles() : Nat {
-    if (vetkdKeyName == "key_1") VETKD_KEY_CYCLES else 10_000_000_000
-  };
+  /// H2/V-1: vetkd_derive_key fee, as the IC prices it for this key (a flat
+  /// 10B made every key_1 reveal fail). Unused cycles are refunded.
+  private func vetkdDeriveCycles() : Nat { ThresholdCost.vetkdDerive(vetkdKeyName) };
   /// L1: per-request IBE identity. Contractors encrypt to the UTF-8 bytes of
   /// the requestId (not the homeowner principal), so one reveal key opens one
   /// request's bids only — and bidders never need the homeowner's principal.
@@ -1359,7 +1355,7 @@ persistent actor Quote {
   /// The frontend decrypts `encryptedKey` using the transport secret key → VetKey,
   /// then decrypts each bid's ciphertext with IbeCiphertext.deserialize().decrypt(vetKey).
   ///
-  /// Costs VETKD_KEY_CYCLES per call.
+  /// Costs one vetkd_derive_key fee per call (~26B cycles on key_1).
   public shared(msg) func revealBidsEncrypted(
     requestId:          Text,
     transportPublicKey: Blob
