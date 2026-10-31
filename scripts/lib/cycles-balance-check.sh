@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # HomeGentic — Post-deploy cycles balance check + auto top-up.
 #
 # Sourced (not executed standalone) from deploy.sh after all canisters are

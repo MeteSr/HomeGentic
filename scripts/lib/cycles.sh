@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # HomeGentic — shared cycle policy and helpers.
 #
 # Sourced by deploy.sh (via cycles-balance-check.sh), check-cycle-health.sh
