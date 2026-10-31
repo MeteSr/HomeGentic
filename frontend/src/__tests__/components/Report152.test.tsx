@@ -48,7 +48,6 @@ const baseSnapshot = {
   diyJobCount:       0,
   permitCount:       0,
   generatedAt:       NOW,
-  planTier:          "Free",
 };
 
 function makeLink(expiresAt: number | null): any {

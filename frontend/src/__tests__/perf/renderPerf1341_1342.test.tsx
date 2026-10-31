@@ -231,7 +231,6 @@ function make200JobSnapshot() {
     diyJobCount:       jobs.filter((j) => j.isDiy).length,
     permitCount:       0,
     generatedAt:       Date.now(),
-    planTier:          "Pro",
     schemaVersion:     2,
   };
 }

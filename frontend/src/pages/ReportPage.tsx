@@ -275,29 +275,11 @@ export default function ReportPage() {
           </div>
         )}
 
-        {/* Free plan banner (15.3.2 / 15.3.3) — shown only for Free-tier snapshots */}
-        {snapshot.planTier === "Free" && (
-          <div className="no-print" style={{ border: `1.5px solid ${V2_COLORS.cobalTint}`, background: V2_COLORS.lblue, padding: "0.875rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-            <div>
-              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.blue }}>Generated with HomeGentic Free</span>
-              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginTop: "0.2rem" }}>
-                Upgrade to remove this banner and unlock permanent sharing.
-              </p>
-            </div>
-            <a href="/pricing" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${V2_COLORS.ink}`, background: V2_COLORS.ink, color: V2_COLORS.paper, cursor: "pointer", textDecoration: "none", whiteSpace: "nowrap" }}>
-              Upgrade →
-            </a>
-          </div>
-        )}
-
-        {/* Pro+ trust badge (15.3.3) — shown for Pro and Premium reports */}
-        {(snapshot.planTier === "Pro" || snapshot.planTier === "ContractorPro") && (
-          <div className="no-print" style={{ border: `1.5px solid ${V2_COLORS.cobalTint}`, background: V2_COLORS.lblue, padding: "0.75rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
-            <CheckCircle size={14} color={V2_COLORS.blue} />
-            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.blue, fontWeight: 700 }}>Verified by HomeGentic</span>
-            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>— This report is powered by a HomeGentic Pro subscription.</span>
-          </div>
-        )}
+        {/* The report canister doesn't record the owner's plan, so every report
+            carries the same plain attribution instead of a Free/Pro banner. */}
+        <div className="no-print" style={{ border: `1.5px solid ${V2_COLORS.cobalTint}`, background: V2_COLORS.lblue, padding: "0.75rem 1.25rem", marginBottom: "1.5rem" }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.blue }}>Generated with HomeGentic</span>
+        </div>
 
         {/* Stats row */}
         <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem", flexWrap: "wrap" }}>

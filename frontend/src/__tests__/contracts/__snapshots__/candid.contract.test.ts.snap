@@ -2709,6 +2709,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
+  "findPropertiesByAddress": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {id:text; owner:principal; address:text}",
+    ],
+  },
   "getAccessRole": {
     "args": [
       "text",

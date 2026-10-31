@@ -150,7 +150,6 @@ export interface ReportSnapshot {
   diyJobCount:       number;
   permitCount:       number;
   generatedAt:       number;   // ms timestamp
-  planTier:          string;   // "Free" | "Pro" | "ContractorFree" | "ContractorPro"; "" treated as "Free"
 }
 
 export interface PublicReportMatch {
@@ -314,9 +313,6 @@ function fromSnapshot(raw: Report.ReportSnapshot): ReportSnapshot {
     diyJobCount:       Number(raw.diyJobCount),
     permitCount:       Number(raw.permitCount),
     generatedAt:       Number(raw.generatedAt) / 1_000_000,
-    // The report canister doesn't record the owner's tier, so every snapshot
-    // reads as Free (and shows the free-plan banner) until it does.
-    planTier:          "Free",
   };
 }
 

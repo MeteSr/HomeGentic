@@ -160,6 +160,12 @@ export const idlFactory = ({ IDL }: any) => {
     updatedAt:  IDL.Int,
   });
 
+  const AddressMatch = IDL.Record({
+    id:      IDL.Text,
+    owner:   IDL.Principal,
+    address: IDL.Text,
+  });
+
   return IDL.Service({
     getRoomsByProperty: IDL.Func([IDL.Text], [IDL.Vec(RoomRecord)], ["query"]),
     registerProperty: IDL.Func([RegisterArgs], [IDL.Variant({ ok: Property, err: Error })], []),
@@ -273,5 +279,7 @@ export const idlFactory = ({ IDL }: any) => {
     ),
     getPropertyYearBuilt: IDL.Func([IDL.Text], [IDL.Opt(IDL.Nat)], ["query"]),
     getPropertyAddress:   IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ["query"]),
+    // Contractor job proposals: street address → the property that holds it
+    findPropertiesByAddress: IDL.Func([IDL.Text], [IDL.Vec(AddressMatch)], ["query"]),
   });
 };

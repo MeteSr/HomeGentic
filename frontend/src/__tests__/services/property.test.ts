@@ -20,7 +20,7 @@ const mockActor = {
   getPropertyByManagerInviteToken: vi.fn(),
   getOwnershipHistory:       vi.fn(),
   getPropertyOwner:          vi.fn(),
-  searchByAddress:           vi.fn(),
+  findPropertiesByAddress:   vi.fn(),
   inviteManager:             vi.fn(),
   claimManagerRole:          vi.fn(),
   updateManagerRole:         vi.fn(),
@@ -786,5 +786,22 @@ describe("propertyService.getAccessRole", () => {
   it("returns null for an unknown property", async () => {
     mockActor.getAccessRole.mockResolvedValue([]);
     await expect(propertyService.getAccessRole("missing", ME)).resolves.toBeNull();
+  });
+});
+
+describe("propertyService.searchByAddress", () => {
+  it("asks the canister and returns each match with its owner as text", async () => {
+    mockActor.findPropertiesByAddress.mockResolvedValue([
+      { id: "p1", owner: { toText: () => "owner-1" }, address: "12 Elm St, Austin, TX 78701" },
+    ]);
+    await expect(propertyService.searchByAddress("12 Elm Street, Austin")).resolves.toEqual([
+      { id: "p1", owner: "owner-1", address: "12 Elm St, Austin, TX 78701" },
+    ]);
+    expect(mockActor.findPropertiesByAddress).toHaveBeenCalledWith("12 Elm Street, Austin");
+  });
+
+  it("returns [] when nothing matches", async () => {
+    mockActor.findPropertiesByAddress.mockResolvedValue([]);
+    await expect(propertyService.searchByAddress("1 Nowhere Rd")).resolves.toEqual([]);
   });
 });

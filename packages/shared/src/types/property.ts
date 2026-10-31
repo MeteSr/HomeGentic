@@ -45,6 +45,12 @@ export type SubscriptionTier = { Pro: null } | { Free: null } | { ContractorPro:
 
 export type VerificationLevel = { Premium: null } | { Basic: null } | { PendingReview: null } | { Unverified: null };
 
+export type AddressMatch = {
+  id: string;
+  owner: Principal;
+  address: string;
+};
+
 export type PendingApprovalRequest = {
   id: bigint;
   status: ApprovalStatus;
@@ -180,6 +186,7 @@ export interface _SERVICE {
   claimTransfer: ActorMethod<[string], { ok: Property } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   dismissNotifications: ActorMethod<[string], { ok: null } | { err: Error }>;
+  findPropertiesByAddress: ActorMethod<[string], AddressMatch[]>;
   getAccessRole: ActorMethod<
     [string, Principal],
     [] | [{ CoOwner: null } | { Viewer: null } | { NoAccess: null } | { Owner: null } | { Manager: null }]
