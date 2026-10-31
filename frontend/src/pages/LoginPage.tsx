@@ -214,7 +214,8 @@ export default function LoginPage() {
                 style={{
                   width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem",
                   padding: "0.9rem 1.25rem", border: "none", borderRadius: "100px",
-                  background: isLoading ? "#8890ff" : C.blue,
+                  // Muted while connecting, but still 4.5:1 against the white label (was #8890ff, 2.8:1).
+                  background: isLoading ? "#4D55E6" : C.blue,
                   fontSize: "0.9375rem", fontFamily: F.body, fontWeight: 600, color: C.white,
                   cursor: isLoading ? "not-allowed" : "pointer", marginBottom: "0.75rem",
                   transition: "background 0.15s",
