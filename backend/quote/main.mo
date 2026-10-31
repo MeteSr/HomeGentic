@@ -360,7 +360,7 @@ persistent actor Quote {
   /// Registered-contractor stats from the contractor canister (null = not a contractor).
   private func contractorStats(p: Principal) : async ?ContractorStats {
     let contrActor = actor(contrCanisterId) : actor {
-      getContractorStats : (Principal) -> async ?ContractorStats;
+      getContractorStats : shared query (Principal) -> async ?ContractorStats;
     };
     await contrActor.getContractorStats(p)
   };

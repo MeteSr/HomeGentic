@@ -896,6 +896,8 @@ fi
 if [ -n "$REPORT_ID" ]     && [ -n "$SENSOR_ID" ]; then
   echo "  Wiring sensor -> report..."
   bg_call report     setSensorCanisterId     "(\"$SENSOR_ID\")"            -e "$ENV"
+  # report reads devices and events for the insurance risk profile.
+  grant sensor addTrustedReader "$REPORT_ID" "Letting report read a home's sensors for its risk profile"
 fi
 if [ -n "$REPORT_ID" ]     && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> report..."

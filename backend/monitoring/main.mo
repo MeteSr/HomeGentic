@@ -279,9 +279,7 @@ persistent actor Monitoring {
     getSubscriptionStats : shared query () -> async {
       total           : Nat;
       free            : Nat;
-      basic           : Nat;
       pro             : Nat;
-      premium         : Nat;
       contractorFree  : Nat;
       contractorPro   : Nat;
       activePaid      : Nat;
@@ -1097,9 +1095,9 @@ persistent actor Monitoring {
 
         totalSubscriptions  = sm.total;
         freeUsers           = sm.free;
-        basicUsers          = sm.basic;
+        basicUsers          = 0;   // Basic and Premium tiers were retired; payment no longer counts them
         proUsers            = sm.pro;
-        premiumUsers        = sm.premium;
+        premiumUsers        = 0;
         contractorFreeUsers = sm.contractorFree;
         contractorProUsers  = sm.contractorPro;
         activePaidUsers     = sm.activePaid;
