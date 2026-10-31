@@ -135,6 +135,39 @@ describe("AuthContext — login()", () => {
     expect(sessionStorage.getItem("pendingVerification")).toBeNull();
   });
 
+  it("returns a Contractor to the page they signed in from, too", async () => {
+    sessionStorage.setItem("pendingVerification", "/manage/claim/tok-1");
+    mockGetProfile.mockResolvedValue({ ...HOMEOWNER_PROFILE, role: "Contractor" });
+    renderHarness();
+
+    fireEvent.click(screen.getByText("login"));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/manage/claim/tok-1"));
+    expect(mockNavigate).not.toHaveBeenCalledWith("/contractor-dashboard");
+  });
+
+  it("ignores a stashed path that isn't on this site", async () => {
+    sessionStorage.setItem("pendingVerification", "//evil.example/phish");
+    mockGetProfile.mockResolvedValue(HOMEOWNER_PROFILE);
+    renderHarness();
+
+    fireEvent.click(screen.getByText("login"));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
+    expect(mockNavigate).not.toHaveBeenCalledWith("//evil.example/phish");
+  });
+
+  it("keeps the stashed path for after registration when there's no profile yet", async () => {
+    sessionStorage.setItem("pendingVerification", "/gift/redeem?token=cs_test_1");
+    mockGetProfile.mockRejectedValue(new Error("not found"));
+    renderHarness();
+
+    fireEvent.click(screen.getByText("login"));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/register"));
+    expect(sessionStorage.getItem("pendingVerification")).toBe("/gift/redeem?token=cs_test_1");
+  });
+
   it("resumes a stashed pendingCheckout intent (tier/billing) and clears it", async () => {
     sessionStorage.setItem("pendingCheckout", JSON.stringify({ tier: "Pro", billing: "Yearly" }));
     mockGetProfile.mockResolvedValue(HOMEOWNER_PROFILE);
@@ -207,6 +240,17 @@ describe("AuthContext — devLogin()", () => {
     fireEvent.click(screen.getByText("devLogin"));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
+  });
+
+  it("sends a new user to /register when they signed in from a gift or invite link", async () => {
+    sessionStorage.setItem("pendingVerification", "/manage/claim/tok-2");
+    mockGetProfile.mockRejectedValue(new Error("not found"));
+    renderHarness();
+
+    fireEvent.click(screen.getByText("devLogin"));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/register"));
+    expect(sessionStorage.getItem("pendingVerification")).toBe("/manage/claim/tok-2");
   });
 
   it("resumes a stashed pendingCheckout intent same as login()", async () => {

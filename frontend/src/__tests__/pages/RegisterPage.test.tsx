@@ -114,6 +114,18 @@ describe("RegisterPage — step 3: confirm", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
   });
 
+  it("returns to the gift or invite page the new user signed in from", async () => {
+    mockRegister.mockResolvedValue({ role: "Homeowner", email: "buyer@example.com" });
+    sessionStorage.setItem("pendingVerification", "/manage/claim/tok-1");
+    renderPage();
+    goToStep3();
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByText("Create Account"));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/manage/claim/tok-1"));
+    expect(sessionStorage.getItem("pendingVerification")).toBeNull();
+  });
+
   it("redirects to checkout when a pending checkout intent exists and the role isn't Contractor", async () => {
     mockRegister.mockResolvedValue({ role: "Homeowner", email: "buyer@example.com" });
     sessionStorage.setItem("pendingCheckout", JSON.stringify({ tier: "Pro", billing: "Yearly" }));

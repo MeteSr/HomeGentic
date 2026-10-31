@@ -7,6 +7,7 @@
  * (AuthContext reads `pendingVerification`).
  */
 import React, { useState } from "react";
+import { setReturnPath } from "@/utils/returnPath";
 import { Link, useSearchParams } from "react-router-dom";
 import { Gift, CheckCircle } from "lucide-react";
 import { PageHead } from "@/components/PageHead";
@@ -34,7 +35,7 @@ export default function RedeemGiftPage() {
   };
 
   const signIn = () => {
-    sessionStorage.setItem("pendingVerification", window.location.pathname + window.location.search);
+    setReturnPath(window.location.pathname + window.location.search);
     (import.meta.env.DEV ? devLogin : login)();
   };
 

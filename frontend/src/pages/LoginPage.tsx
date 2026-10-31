@@ -1,4 +1,5 @@
-import { useId } from "react";
+import { useEffect, useId } from "react";
+import { setReturnPath } from "@/utils/returnPath";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
@@ -109,6 +110,10 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const role = searchParams.get("role") ?? "";
   const ctx = ROLE_CONTEXT[role];
+  // ?redirect=/manage/claim/… (an invite link's "Sign in to accept"): come
+  // back there after signing in.
+  const redirect = searchParams.get("redirect");
+  useEffect(() => { setReturnPath(redirect); }, [redirect]);
   const { isMobile } = useBreakpoint();
 
   return (

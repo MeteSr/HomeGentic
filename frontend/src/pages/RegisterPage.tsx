@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { takeReturnPath } from "@/utils/returnPath";
 import { useNavigate, Link } from "react-router-dom";
 import { Home, HardHat, Building2, CheckCircle, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/Button";
@@ -51,8 +52,11 @@ export default function RegisterPage() {
       const profile = await authService.register({ role, email, phone });
       setProfile(profile);
       toast.success("Welcome to HomeGentic!");
+      const back = takeReturnPath();   // the gift / invite / payment page they signed in from
       const pending = sessionStorage.getItem("pendingCheckout");
-      if (pending && profile.role !== "Contractor") {
+      if (back) {
+        navigate(back);
+      } else if (pending && profile.role !== "Contractor") {
         sessionStorage.removeItem("pendingCheckout");
         const { tier, billing } = JSON.parse(pending);
         navigate(`/checkout?tier=${tier}&billing=${billing}`);

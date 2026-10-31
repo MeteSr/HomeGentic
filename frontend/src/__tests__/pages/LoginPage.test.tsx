@@ -116,3 +116,17 @@ describe("LoginPage — secondary navigation", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/demo");
   });
 });
+
+describe("LoginPage — ?redirect=", () => {
+  it("remembers a same-site redirect so sign-in comes back to it", () => {
+    sessionStorage.clear();
+    renderAt("/login?redirect=%2Fmanage%2Fclaim%2Ftok-1");
+    expect(sessionStorage.getItem("pendingVerification")).toBe("/manage/claim/tok-1");
+  });
+
+  it("drops an off-site redirect", () => {
+    sessionStorage.clear();
+    renderAt("/login?redirect=%2F%2Fevil.example");
+    expect(sessionStorage.getItem("pendingVerification")).toBeNull();
+  });
+});

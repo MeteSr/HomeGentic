@@ -114,17 +114,17 @@ export default function AgentVerifyPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {!profile ? (
               <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: 12, border: `1.5px solid ${UI.border}`, borderRadius: V2_RADIUS.card, padding: 18 }}>
-                <div><div style={labelStyle}>Full name</div><input required style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-                <div><div style={labelStyle}>Brokerage</div><input required style={inputStyle} value={form.brokerage} onChange={(e) => setForm({ ...form, brokerage: e.target.value })} /></div>
+                <label style={{ display: "block" }}><div style={labelStyle}>Full name</div><input required style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+                <label style={{ display: "block" }}><div style={labelStyle}>Brokerage</div><input required style={inputStyle} value={form.brokerage} onChange={(e) => setForm({ ...form, brokerage: e.target.value })} /></label>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div><div style={labelStyle}>License number</div><input required style={inputStyle} value={form.licenseNumber} onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })} /></div>
-                  <div><div style={labelStyle}>License state</div><input required style={inputStyle} value={form.licenseState} onChange={(e) => setForm({ ...form, licenseState: e.target.value })} /></div>
+                  <label style={{ display: "block" }}><div style={labelStyle}>License number</div><input required style={inputStyle} value={form.licenseNumber} onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })} /></label>
+                  <label style={{ display: "block" }}><div style={labelStyle}>License state</div><input required style={inputStyle} value={form.licenseState} onChange={(e) => setForm({ ...form, licenseState: e.target.value })} /></label>
                 </div>
-                <div><div style={labelStyle}>County</div><input required style={inputStyle} value={form.county} onChange={(e) => setForm({ ...form, county: e.target.value })} /></div>
-                <div><div style={labelStyle}>Cities served (comma separated)</div><input style={inputStyle} value={form.serviceCities} onChange={(e) => setForm({ ...form, serviceCities: e.target.value })} /></div>
+                <label style={{ display: "block" }}><div style={labelStyle}>County</div><input required style={inputStyle} value={form.county} onChange={(e) => setForm({ ...form, county: e.target.value })} /></label>
+                <label style={{ display: "block" }}><div style={labelStyle}>Cities served (comma separated)</div><input style={inputStyle} value={form.serviceCities} onChange={(e) => setForm({ ...form, serviceCities: e.target.value })} /></label>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div><div style={labelStyle}>Phone</div><input style={inputStyle} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-                  <div><div style={labelStyle}>Email</div><input required type="email" style={inputStyle} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+                  <label style={{ display: "block" }}><div style={labelStyle}>Phone</div><input style={inputStyle} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
+                  <label style={{ display: "block" }}><div style={labelStyle}>Email</div><input required type="email" style={inputStyle} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
                 </div>
                 <Button type="submit" variant="primary" loading={saving} style={{ marginTop: 6 }}>Save details</Button>
               </form>

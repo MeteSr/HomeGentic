@@ -102,14 +102,17 @@ describe("PaymentSuccessPage — PaymentElement flow (subscription_id)", () => {
 
   it("stamps pendingVerification and shows the awaiting-login state when not authenticated", async () => {
     mockIsAuthenticated.value = false;
+    // The component reads the real window.location (not MemoryRouter's
+    // virtual path) to build the return URL, so put the browser there too.
+    // (setup.ts stubs window.location with origin and href only.)
+    const realLocation = window.location;
+    (window as any).location = { ...realLocation, pathname: "/payment-success", search: "?subscription_id=sub_123&tier=Pro&billing=Yearly" };
     renderAt("/payment-success?subscription_id=sub_123&tier=Pro&billing=Yearly");
 
     await waitFor(() => expect(screen.getByText(/payment confirmed/i)).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /set up my account/i })).toBeInTheDocument();
-    // The component reads the real window.location (not MemoryRouter's virtual
-    // path) to build the return URL, so only presence — not exact content — is
-    // testable here; it must still stamp something for AuthContext to return to.
-    expect(sessionStorage.getItem("pendingVerification")).not.toBeNull();
+    expect(sessionStorage.getItem("pendingVerification")).toBe("/payment-success?subscription_id=sub_123&tier=Pro&billing=Yearly");
+    (window as any).location = realLocation;
   });
 
   it("verifies the subscription server-side and renders the welcome state when authenticated", async () => {
