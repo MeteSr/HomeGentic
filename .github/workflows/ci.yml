@@ -403,7 +403,7 @@ jobs:
       - name: Build
         run: cd dashboard && npm run build
 
-
+  test-email:
     # Lead-form email relay (agents/email): Node's test runner, no test deps.
     runs-on: ubuntu-latest
     steps:
