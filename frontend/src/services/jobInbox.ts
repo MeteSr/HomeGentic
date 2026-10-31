@@ -1,5 +1,8 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/job";
+import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
+import { candidErrorMessage } from "./candid";
+import type * as JobTypes from "@homegentic/shared/types/job";
 
 /**
  * The homeowner's forwarding address for invoices (job canister inbox).
@@ -35,12 +38,10 @@ function e2e(): { domain?: string; token?: string; drafts?: EmailDraft[] } | nul
 
 function unwrap<T>(r: any): T {
   if ("ok" in r) return r.ok as T;
-  const key = Object.keys(r.err)[0];
-  const val = r.err[key];
-  throw new Error(typeof val === "string" ? val : key);
+  throw new Error(candidErrorMessage(r.err));
 }
 
-function fromDraft(d: any): EmailDraft {
+function fromDraft(d: JobTypes.EmailDraft): EmailDraft {
   return {
     id:             d.id,
     receivedAt:     Number(d.receivedAt) / 1_000_000,
@@ -57,7 +58,7 @@ function fromDraft(d: any): EmailDraft {
 }
 
 function createJobInboxService() {
-  const getActor = lazyActor(idlFactory, JOB_CANISTER_ID);
+  const getActor = lazyActor<JobCanister>(idlFactory, JOB_CANISTER_ID);
   const address = (domain: string, token: string) => `h-${token}@${domain}`;
 
   return {

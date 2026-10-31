@@ -431,6 +431,9 @@ jobs:
       - name: No unused frontend files (knip)
         run: npx knip --workspace frontend --production
 
+      - name: Generated canister types match the declarations
+        run: node --experimental-strip-types --no-warnings scripts/gen-declaration-types.mjs --check
+
       - name: Prettier on files this PR adds
         if: github.event_name == 'pull_request'
         env:

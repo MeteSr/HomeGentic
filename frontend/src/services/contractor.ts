@@ -2,6 +2,9 @@ import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/contractor";
 import { serviceTypeVariant, serviceTypeFromVariant, serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
+import type { _SERVICE as ContractorCanister } from "@homegentic/shared/types/contractor";
+import { candidErrorMessage } from "./candid";
+import type * as ContractorTypes from "@homegentic/shared/types/contractor";
 export { idlFactory };
 
 const CONTRACTOR_CANISTER_ID = (process.env as any).CONTRACTOR_CANISTER_ID || "";
@@ -75,7 +78,7 @@ export interface LicenseCheck {
   checkedAt:     number;   // ms
 }
 
-function fromLicenseCheck(raw: any): LicenseCheck {
+function fromLicenseCheck(raw: ContractorTypes.LicenseCheck): LicenseCheck {
   return {
     licenseNumber: raw.licenseNumber, found: raw.found, licenseeName: raw.licenseeName, dbaName: raw.dbaName,
     licenseType: raw.licenseType, status: raw.status, active: raw.active, expiresOn: raw.expiresOn,
@@ -101,7 +104,7 @@ export interface PortfolioItem {
 
 export interface PortfolioInput { credentialId: number; title: string; description: string }
 
-function fromPortfolioItem(raw: any): PortfolioItem {
+function fromPortfolioItem(raw: ContractorTypes.PortfolioItem): PortfolioItem {
   return {
     credentialId: Number(raw.credentialId), title: raw.title, description: raw.description,
     serviceType: serviceTypeLabel(raw.serviceType),
@@ -134,7 +137,7 @@ export interface UpdateContractorArgs {
 
 // ─── Converters ───────────────────────────────────────────────────────────────
 
-function fromProfile(raw: any): ContractorProfile {
+function fromProfile(raw: ContractorTypes.ContractorProfile): ContractorProfile {
   return {
     id:            raw.id.toText(),
     name:          raw.name,
@@ -158,7 +161,7 @@ function fromProfile(raw: any): ContractorProfile {
   };
 }
 
-function fromPrivacy(raw: any): ProfilePrivacy {
+function fromPrivacy(raw: ContractorTypes.ProfilePrivacy): ProfilePrivacy {
   return { listed: raw.listed, showTrustScore: raw.showTrustScore, showJobsCompleted: raw.showJobsCompleted };
 }
 
@@ -174,16 +177,14 @@ function isMockMode(): boolean {
 
 function unwrap(result: any): ContractorProfile {
   if ("ok" in result) return fromProfile(result.ok);
-  const key = Object.keys(result.err)[0];
-  const val = result.err[key];
-  throw new Error(typeof val === "string" ? val : key);
+  throw new Error(candidErrorMessage(result.err));
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createContractorService() {
 
-  const getActor = lazyActor(idlFactory, CONTRACTOR_CANISTER_ID);
+  const getActor = lazyActor<ContractorCanister>(idlFactory, CONTRACTOR_CANISTER_ID);
 
   return {
   async search(specialty?: string): Promise<ContractorProfile[]> {
@@ -296,10 +297,8 @@ function createContractorService() {
     const a = await getActor();
     const result = await a.setProfilePrivacy(p);
     if ("ok" in result) return fromPrivacy(result.ok);
-    const key = Object.keys(result.err)[0];
-    if (key === "NotFound") throw new Error("Create your contractor profile first");
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    if ("NotFound" in result.err) throw new Error("Create your contractor profile first");
+    throw new Error(candidErrorMessage(result.err));
   },
 
   /** Privacy settings for each contractor, keyed by principal text. */
@@ -320,9 +319,7 @@ function createContractorService() {
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const result = await a.submitReview(P.fromText(contractorPrincipalText), BigInt(rating), comment, jobId);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
   },
 
@@ -385,9 +382,7 @@ function createContractorService() {
     const a = await getActor();
     const res = await a.setPortfolio(entries.map((e) => ({ ...e, credentialId: BigInt(e.credentialId) })));
     if ("ok" in res) return (res.ok as any[]).map(fromPortfolioItem);
-    const key = Object.keys(res.err)[0];
-    const val = res.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(res.err));
   },
 
   /** The last DBPR lookup of this contractor's current licence number, or null. */

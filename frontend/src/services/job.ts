@@ -1,6 +1,9 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/job";
 import { serviceTypeVariant, serviceTypeFromVariant } from "@homegentic/shared/serviceTypes";
+import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
+import { candidErrorMessage } from "./candid";
+import type * as JobTypes from "@homegentic/shared/types/job";
 export { idlFactory };
 
 const JOB_CANISTER_ID = (process.env as any).JOB_CANISTER_ID || "";
@@ -73,7 +76,7 @@ const STATUS_MAP: Record<string, JobStatus> = {
   RejectedByHomeowner:      "rejected_by_homeowner",
 };
 
-function fromJob(raw: any): Job {
+function fromJob(raw: JobTypes.Job): Job {
   const statusKey      = Object.keys(raw.status)[0];
   // completedDate is Time.Time (nanoseconds as bigint)
   const date = new Date(Number(raw.completedDate) / 1_000_000).toISOString().split("T")[0];
@@ -108,16 +111,14 @@ export function isEditableRecord(job: Pick<Job, "verified" | "homeownerSigned" |
 
 function unwrapJob(result: any): Job {
   if ("ok" in result) return fromJob(result.ok);
-  const key = Object.keys(result.err)[0];
-  const val = result.err[key];
-  throw new Error(typeof val === "string" ? val : key);
+  throw new Error(candidErrorMessage(result.err));
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createJobService() {
 
-  const getActor = lazyActor(idlFactory, JOB_CANISTER_ID);
+  const getActor = lazyActor<JobCanister>(idlFactory, JOB_CANISTER_ID);
 
   /** R2: flag jobs whose contractor signature came from an unverified
    *  contractor profile (job.getUnattestedJobIds). Best effort: on failure
@@ -251,7 +252,7 @@ function createJobService() {
   },
 
   async updateJobStatus(jobId: string, status: JobStatus): Promise<Job> {
-    const STATUS_CANISTER_MAP: Record<JobStatus, object> = {
+    const STATUS_CANISTER_MAP: Record<JobStatus, JobTypes.JobStatus> = {
       pending:                    { Pending: null },
       in_progress:                { InProgress: null },
       completed:                  { Completed: null },
@@ -359,9 +360,7 @@ function createJobService() {
     const a = await getActor();
     const result: any = await a.getReferralJobs();
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
     return (result.ok as any[]).map(fromJob);
   },

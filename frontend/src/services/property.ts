@@ -1,6 +1,9 @@
 import { lazyActor } from "./lazyActor";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 import { idlFactory } from "@homegentic/shared/declarations/property";
+import type { _SERVICE as PropertyCanister } from "@homegentic/shared/types/property";
+import { candidErrorMessage, variant } from "./candid";
+import type * as PropertyTypes from "@homegentic/shared/types/property";
 export { idlFactory };
 
 const PROPERTY_CANISTER_ID = (process.env as any).PROPERTY_CANISTER_ID || "";
@@ -141,9 +144,9 @@ export interface RegisterPropertyArgs {
 }
 
 
-const getActor = lazyActor(idlFactory, PROPERTY_CANISTER_ID);
+const getActor = lazyActor<PropertyCanister>(idlFactory, PROPERTY_CANISTER_ID);
 
-function fromProperty(raw: any): Property {
+function fromProperty(raw: PropertyTypes.Property): Property {
   return {
     id: raw.id,
     owner: raw.owner.toText(),
@@ -181,7 +184,7 @@ function computeStep(raw: VerifyClaimData): VerifyStep {
   return "claim";
 }
 
-function fromPendingTransfer(r: any): PendingTransfer {
+function fromPendingTransfer(r: PropertyTypes.PendingTransfer): PendingTransfer {
   return {
     propertyId : r.propertyId,
     from       : r.from.toText(),
@@ -191,7 +194,7 @@ function fromPendingTransfer(r: any): PendingTransfer {
   };
 }
 
-function fromPropertyManager(r: any): PropertyManager {
+function fromPropertyManager(r: PropertyTypes.PropertyManager): PropertyManager {
   return {
     principal   : r.principal.toText(),
     role        : Object.keys(r.role)[0] as ManagerRole,
@@ -201,7 +204,7 @@ function fromPropertyManager(r: any): PropertyManager {
   };
 }
 
-function fromManagerInvite(r: any): ManagerInvite {
+function fromManagerInvite(r: PropertyTypes.ManagerInvite): ManagerInvite {
   return {
     propertyId  : r.propertyId,
     token       : r.token,
@@ -214,7 +217,7 @@ function fromManagerInvite(r: any): ManagerInvite {
   };
 }
 
-function fromApproval(r: any): PendingApprovalRequest {
+function fromApproval(r: PropertyTypes.PendingApprovalRequest): PendingApprovalRequest {
   return {
     id            : Number(r.id),
     propertyId    : r.propertyId,
@@ -227,7 +230,7 @@ function fromApproval(r: any): PendingApprovalRequest {
   };
 }
 
-function fromOwnerNotification(r: any): OwnerNotification {
+function fromOwnerNotification(r: PropertyTypes.OwnerNotification): OwnerNotification {
   return {
     id               : Number(r.id),
     managerPrincipal : r.managerPrincipal.toText(),
@@ -273,10 +276,10 @@ export const propertyService = {
       city: args.city,
       state: args.state,
       zipCode: args.zipCode,
-      propertyType: { [args.propertyType]: null },
+      propertyType: variant(args.propertyType),
       yearBuilt: BigInt(args.yearBuilt),
       squareFeet: BigInt(args.squareFeet),
-      tier: { [args.tier]: null },
+      tier: variant(args.tier),
     });
     return unwrap(result);
   },
@@ -395,7 +398,7 @@ export const propertyService = {
 
   async verifyProperty(id: string, level: VerificationLevel, method?: string): Promise<Property> {
     const a = await getActor();
-    const result = await a.verifyProperty(id, { [level]: null }, method ? [method] : []);
+    const result = await a.verifyProperty(id, variant(level), method ? [method] : []);
     return unwrap(result);
   },
 
@@ -413,9 +416,7 @@ export const propertyService = {
     if ("ok" in result) {
       return fromPendingTransfer(result.ok);
     }
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   /** Step 2: authenticated buyer presents the token to claim ownership. */
@@ -516,14 +517,10 @@ export const propertyService = {
    * Returns an empty array when no match is found.
    * Returns multiple results when the address is ambiguous (e.g. multiple units).
    */
-  async searchByAddress(address: string): Promise<Array<{ id: string; owner: string; address: string }>> {
-    const a = await getActor();
-    const results: any[] = await a.searchByAddress(address);
-    return results.map((r: any) => ({
-      id:      String(r.id),
-      owner:   r.owner.toText(),
-      address: `${r.address}, ${r.city} ${r.state} ${r.zipCode}`,
-    }));
+  async searchByAddress(_address: string): Promise<Array<{ id: string; owner: string; address: string }>> {
+    // The property canister has no address search (it never did; the typed actor
+    // caught the call), so say so instead of failing with "not a function".
+    throw new Error("Looking up a property by street address isn't available yet.");
   },
 
   // ── Delegated management ────────────────────────────────────────────────────
@@ -531,11 +528,9 @@ export const propertyService = {
   /** Owner invites someone by role + display name; returns a bearer-token invite. */
   async inviteManager(propertyId: string, role: ManagerRole, displayName: string, spendLimitCents?: number): Promise<ManagerInvite> {
     const a = await getActor();
-    const result = await a.inviteManager(propertyId, { [role]: null }, displayName, spendLimitCents !== undefined ? [BigInt(spendLimitCents)] : []);
+    const result = await a.inviteManager(propertyId, variant(role), displayName, spendLimitCents !== undefined ? [BigInt(spendLimitCents)] : []);
     if ("ok" in result) return fromManagerInvite(result.ok);
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   /** Invited person clicks the link and claims their manager role. */
@@ -548,9 +543,7 @@ export const propertyService = {
         role       : Object.keys(result.ok.role)[0] as ManagerRole,
       };
     }
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   /** Owner cancels a pending (not yet claimed) invite. */
@@ -558,9 +551,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.cancelManagerInvite(propertyId, token);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
   },
 
@@ -569,20 +560,16 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.getPendingInvitesForProperty(propertyId);
     if ("ok" in result) return (result.ok as any[]).map(fromManagerInvite);
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   /** Owner changes a manager's role and/or spend limit. */
   async updateManagerRole(propertyId: string, managerPrincipal: string, role: ManagerRole, spendLimitCents?: number): Promise<void> {
     const a = await getActor();
     const { Principal: P } = await import("@icp-sdk/core/principal");
-    const result = await a.updateManagerRole(propertyId, P.fromText(managerPrincipal), { [role]: null }, spendLimitCents !== undefined ? [BigInt(spendLimitCents)] : []);
+    const result = await a.updateManagerRole(propertyId, P.fromText(managerPrincipal), variant(role), spendLimitCents !== undefined ? [BigInt(spendLimitCents)] : []);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
   },
 
@@ -592,9 +579,7 @@ export const propertyService = {
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const result = await a.removeManager(propertyId, P.fromText(managerPrincipal));
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
   },
 
@@ -603,9 +588,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.resignAsManager(propertyId);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
   },
 
@@ -632,9 +615,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.getPropertyManagers(propertyId);
     if ("ok" in result) return (result.ok as any[]).map(fromPropertyManager);
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   /** Look up a manager invite by token (used by the claim page before login). */
@@ -658,9 +639,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.recordManagerActivity(propertyId, description);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
   },
 
@@ -669,9 +648,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.getOwnerNotifications(propertyId);
     if ("ok" in result) return (result.ok as any[]).map(fromOwnerNotification);
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   /** Mark all unseen notifications for a property as seen. */
@@ -679,9 +656,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.dismissNotifications(propertyId);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
   },
 
@@ -690,9 +665,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.requestApproval(propertyId, description, BigInt(amountCents));
     if ("ok" in result) return Number(result.ok);
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   /** Owner approves or declines a pending approval request. */
@@ -700,9 +673,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.respondToApproval(propertyId, BigInt(approvalId), approve);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = result.err[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw new Error(candidErrorMessage(result.err));
     }
   },
 
@@ -711,9 +682,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.getApprovals(propertyId);
     if ("ok" in result) return (result.ok as any[]).map(fromApproval);
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   /** Cross-canister auth check: is this principal allowed to act on this property?

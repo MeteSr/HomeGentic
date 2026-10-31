@@ -1,11 +1,12 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/icp_ledger";
+import type { _SERVICE as IcpLedgerCanister } from "@homegentic/shared/types/icp_ledger";
 export { idlFactory };
 
 const ICP_LEDGER_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
 
 
-const getActor = lazyActor(idlFactory, ICP_LEDGER_ID);
+const getActor = lazyActor<IcpLedgerCanister>(idlFactory, ICP_LEDGER_ID);
 
 export const icpLedgerService = {
   /**
@@ -28,12 +29,10 @@ export const icpLedgerService = {
       created_at_time:    [],
     });
     if ("Err" in result) {
-      const key = Object.keys(result.Err)[0];
-      const detail = result.Err[key];
-      if (key === "InsufficientFunds") {
-        throw new Error(`Insufficient ICP balance (have ${detail.balance} e8s)`);
+      if ("InsufficientFunds" in result.Err) {
+        throw new Error(`Insufficient ICP balance (have ${result.Err.InsufficientFunds.balance} e8s)`);
       }
-      throw new Error(`Approve failed: ${key}`);
+      throw new Error(`Approve failed: ${Object.keys(result.Err)[0]}`);
     }
   },
 

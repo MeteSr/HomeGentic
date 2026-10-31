@@ -21,11 +21,13 @@ const VOICE_AGENT_URL     = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "h
 import type { PlanTier, BillingCycle, GiftMeta, Plan } from "./planConstants";
 export type { PlanTier, BillingCycle, GiftMeta } from "./planConstants";
 import { PLANS } from "./planConstants";
+import type { _SERVICE as PaymentCanister } from "@homegentic/shared/types/payment";
+import { variant } from "./candid";
 
 // ─── Actor ────────────────────────────────────────────────────────────────────
 
 
-const getActor = lazyActor(idlFactory, PAYMENT_CANISTER_ID);
+const getActor = lazyActor<PaymentCanister>(idlFactory, PAYMENT_CANISTER_ID);
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -46,7 +48,7 @@ export const paymentService = {
     if (tier !== "Free") {
       // Step 1: get ICP price quote with 5% buffer
       onStep?.("quoting");
-      const quoteResult = await a.getPriceQuote({ [tier]: null });
+      const quoteResult = await a.getPriceQuote(variant(tier));
       if ("err" in quoteResult) {
         throw new Error(Object.keys(quoteResult.err)[0]);
       }
@@ -61,7 +63,7 @@ export const paymentService = {
       onStep?.("confirming");
     }
 
-    const result = await a.subscribe({ [tier]: null });
+    const result = await a.subscribe(variant(tier));
     if ("err" in result) {
       const key = Object.keys(result.err)[0];
       const detail = (result.err as any)[key];
@@ -166,7 +168,7 @@ export const paymentService = {
   async grantSubscription(userPrincipal: string, tier: PlanTier): Promise<void> {
     const a = await getActor();
     const { Principal: P } = await import("@icp-sdk/core/principal");
-    const result = await a.grantSubscription(P.fromText(userPrincipal), { [tier]: null });
+    const result = await a.grantSubscription(P.fromText(userPrincipal), variant(tier));
     if ("err" in result) {
       const key    = Object.keys(result.err)[0];
       const detail = (result.err as any)[key];
@@ -197,7 +199,7 @@ export const paymentService = {
 
   async getPricing(tier: PlanTier): Promise<{ priceUSD: number; periodDays: number; propertyLimit: number; photosPerJob: number; quoteRequestsPerMonth: number } | null> {
     const a = await getActor();
-    const result = await a.getPricing({ [tier]: null });
+    const result = await a.getPricing(variant(tier));
     return {
       priceUSD:              Number(result.priceUSD),
       periodDays:            Number(result.periodDays),

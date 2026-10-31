@@ -1,5 +1,8 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/sensor";
+import type { _SERVICE as SensorCanister } from "@homegentic/shared/types/sensor";
+import { candidErrorMessage, variant } from "./candid";
+import type * as SensorTypes from "@homegentic/shared/types/sensor";
 export { idlFactory };
 
 const SENSOR_CANISTER_ID = (process.env as any).SENSOR_CANISTER_ID || "";
@@ -45,7 +48,7 @@ export interface SensorEvent {
 
 // ─── Converters ───────────────────────────────────────────────────────────────
 
-function fromDevice(raw: any): SensorDevice {
+function fromDevice(raw: SensorTypes.SensorDevice): SensorDevice {
   return {
     id:               raw.id,
     propertyId:       raw.propertyId,
@@ -58,7 +61,7 @@ function fromDevice(raw: any): SensorDevice {
   };
 }
 
-function fromEvent(raw: any): SensorEvent {
+function fromEvent(raw: SensorTypes.SensorEvent): SensorEvent {
   return {
     id:         raw.id,
     deviceId:   raw.deviceId,
@@ -79,7 +82,7 @@ function createSensorService() {
   const mockEvents: SensorEvent[] = [];
   let criticalHandler: ((e: SensorEvent) => void) | null = null;
 
-  const getActor = lazyActor(idlFactory, SENSOR_CANISTER_ID);
+  const getActor = lazyActor<SensorCanister>(idlFactory, SENSOR_CANISTER_ID);
 
   return {
   async registerDevice(
@@ -89,11 +92,9 @@ function createSensorService() {
     name:             string
   ): Promise<SensorDevice> {
     const a = await getActor();
-    const result = await a.registerDevice(propertyId, externalDeviceId, { [source]: null }, name);
+    const result = await a.registerDevice(propertyId, externalDeviceId, variant(source), name);
     if ("ok" in result) return fromDevice(result.ok);
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   async deactivateDevice(deviceId: string): Promise<void> {
@@ -162,7 +163,7 @@ function createSensorService() {
     const a = await getActor();
     const result = await a.recordEvent(
       deviceId,
-      { [eventType]: null },
+      variant(eventType),
       value,
       unit,
       rawPayload
@@ -175,9 +176,7 @@ function createSensorService() {
       if (resolved.severity === "Critical" && criticalHandler) criticalHandler(resolved);
       return resolved;
     }
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw new Error(candidErrorMessage(result.err));
   },
 
   /** Ingest multiple readings in one call. */

@@ -56,11 +56,14 @@ export function serviceTypeLabel(keyOrLabel: string): string {
 }
 
 /** Candid variant value for a label, e.g. "Kitchen Remodel" → { KitchenRemodel: null }. */
-export function serviceTypeVariant(labelOrKey: string): Record<string, null> {
+export function serviceTypeVariant(labelOrKey: string): ServiceTypeVariant {
   const key = serviceTypeKey(labelOrKey);
   if (!key) throw new Error(`Unknown service type: ${labelOrKey}`);
-  return { [key]: null };
+  return { [key]: null } as ServiceTypeVariant;
 }
+
+/** The Candid ServiceType variant: `{ HVAC: null } | { Roofing: null } | …`. */
+export type ServiceTypeVariant = { [K in ServiceTypeKey]: { [P in K]: null } }[ServiceTypeKey];
 
 /** Display label for a decoded Candid variant, e.g. { KitchenRemodel: null } → "Kitchen Remodel". */
 export function serviceTypeFromVariant(variant: Record<string, unknown>): string {

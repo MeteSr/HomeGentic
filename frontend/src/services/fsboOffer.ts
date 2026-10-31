@@ -10,6 +10,8 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/listing";
 import { listingErrorMessage } from "./fsbo";
+import type { _SERVICE as ListingCanister } from "@homegentic/shared/types/listing";
+import type * as ListingTypes from "@homegentic/shared/types/listing";
 
 const LISTING_CANISTER_ID = (process.env as any).LISTING_CANISTER_ID || "";
 
@@ -71,7 +73,7 @@ export function computeContingencyRisk(contingencies: string[]): number {
 
 // ─── Canister mapping ─────────────────────────────────────────────────────────
 
-const getActor = lazyActor(idlFactory, LISTING_CANISTER_ID);
+const getActor = lazyActor<ListingCanister>(idlFactory, LISTING_CANISTER_ID);
 
 function isMockMode(): boolean {
   return !LISTING_CANISTER_ID || (typeof window !== "undefined" && !!(window as any).__e2e_properties);
@@ -82,7 +84,7 @@ function unwrap<T>(result: { ok: T } | { err: unknown }): T {
   return result.ok;
 }
 
-export function fromOffer(r: any): FsboOffer {
+export function fromOffer(r: ListingTypes.FsboOffer): FsboOffer {
   return {
     id:                  r.id,
     propertyId:          r.propertyId,

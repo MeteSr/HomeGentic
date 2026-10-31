@@ -84,11 +84,12 @@ describe("fromRawReferralFee — conversion", () => {
     const ns = (ms: number) => BigInt(ms) * BigInt(1_000_000);
     const f = fromRawReferralFee({
       id: "RF_1", quoteId: "QUOTE_1", requestId: "REQ_1",
-      contractor: { toText: () => "contractor-p" }, homeowner: { toText: () => "owner-p" },
+      contractor: { toText: () => "contractor-p" } as never, homeowner: { toText: () => "owner-p" } as never,
       propertyId: "p1", serviceType: "HVAC", bidCents: BigInt(184_000), feeCents: BigInt(5_520),
       status: { PaymentFailed: null }, reason: "verified_job",
       acceptedAt: [ns(1_700_000_000_000)], jobId: ["JOB_1"], dueAt: [], paymentRef: "in_1",
       payUrl: "https://invoice.stripe.com/i/1", failedAt: [ns(1_700_000_500_000)], createdAt: ns(1_699_000_000_000),
+      updatedAt: ns(1_700_000_500_000),
     });
     expect(f).toEqual({
       id: "RF_1", quoteId: "QUOTE_1", requestId: "REQ_1", contractor: "contractor-p", homeowner: "owner-p",

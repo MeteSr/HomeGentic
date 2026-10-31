@@ -1,5 +1,8 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/recurring";
+import type { _SERVICE as RecurringCanister } from "@homegentic/shared/types/recurring";
+import { candidErrorMessage, variant } from "./candid";
+import type * as RecurringTypes from "@homegentic/shared/types/recurring";
 export { idlFactory };
 
 const RECURRING_CANISTER_ID = (process.env as any).RECURRING_CANISTER_ID || "";
@@ -87,7 +90,7 @@ export const FREQUENCY_LABELS: Record<Frequency, string> = {
 
 // ─── Converters ───────────────────────────────────────────────────────────────
 
-function fromService(raw: any): RecurringService {
+function fromService(raw: RecurringTypes.RecurringService): RecurringService {
   return {
     id:                 raw.id,
     propertyId:         raw.propertyId,
@@ -106,7 +109,7 @@ function fromService(raw: any): RecurringService {
   };
 }
 
-function fromVisitLog(raw: any): VisitLog {
+function fromVisitLog(raw: RecurringTypes.VisitLog): VisitLog {
   return {
     id:         raw.id,
     serviceId:  raw.serviceId,
@@ -119,16 +122,12 @@ function fromVisitLog(raw: any): VisitLog {
 
 function unwrapService(result: any): RecurringService {
   if ("ok" in result) return fromService(result.ok);
-  const key = Object.keys(result.err)[0];
-  const val = result.err[key];
-  throw new Error(typeof val === "string" ? val : key);
+  throw new Error(candidErrorMessage(result.err));
 }
 
 function unwrapVisit(result: any): VisitLog {
   if ("ok" in result) return fromVisitLog(result.ok);
-  const key = Object.keys(result.err)[0];
-  const val = result.err[key];
-  throw new Error(typeof val === "string" ? val : key);
+  throw new Error(candidErrorMessage(result.err));
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────
@@ -141,7 +140,7 @@ function createRecurringService() {
       : [];
   const mockVisits: VisitLog[] = [];
 
-  const getActor = lazyActor(idlFactory, RECURRING_CANISTER_ID);
+  const getActor = lazyActor<RecurringCanister>(idlFactory, RECURRING_CANISTER_ID);
 
   return {
   async getById(serviceId: string): Promise<RecurringService | null> {
@@ -193,11 +192,11 @@ function createRecurringService() {
     const a = await getActor();
     const result = await a.createRecurringService(
       input.propertyId,
-      { [input.serviceType]: null },
+      variant(input.serviceType),
       input.providerName,
       input.providerLicense ? [input.providerLicense] : [],
       input.providerPhone   ? [input.providerPhone]   : [],
-      { [input.frequency]: null },
+      variant(input.frequency),
       input.startDate,
       input.contractEndDate ? [input.contractEndDate] : [],
       input.notes           ? [input.notes]           : [],
@@ -207,7 +206,7 @@ function createRecurringService() {
 
   async updateStatus(serviceId: string, status: ServiceStatus): Promise<RecurringService> {
     const a = await getActor();
-    const result = await a.updateStatus(serviceId, { [status]: null });
+    const result = await a.updateStatus(serviceId, variant(status));
     return unwrapService(result);
   },
 
