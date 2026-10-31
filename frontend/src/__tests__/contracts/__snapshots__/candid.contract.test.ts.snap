@@ -2295,6 +2295,17 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
+  "isAdminPrincipal": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "bool",
+    ],
+  },
   "isStripeConfigured": {
     "args": [],
     "mode": [

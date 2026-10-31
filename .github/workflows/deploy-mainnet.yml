@@ -137,6 +137,14 @@ jobs:
               }
           fi
 
+      - name: Post-deploy smoke test
+        # Every canister running, the deployed code answering, the frontend
+        # serving the app (scripts/smoke-deployed.sh). Before the tag, so a
+        # deploy that fails it is never a rollback target.
+        run: bash scripts/smoke-deployed.sh
+        env:
+          ICP_ENV: ic
+
       - name: Tag the release
         # Rollback means redeploying a known commit (docs/UPGRADE_RUNBOOK.md),
         # so every successful mainnet deploy gets a tag on the commit it ran.
@@ -178,6 +186,11 @@ jobs:
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Post-deploy Worker health
+        # /health is 503 when a secret or canister ID the Worker needs is missing.
+        run: ONLY=worker bash scripts/smoke-deployed.sh
+        env:
+          VOICE_AGENT_URL: ${{ secrets.VITE_VOICE_AGENT_URL }}
 
   deploy-email-worker:
     runs-on: ubuntu-latest

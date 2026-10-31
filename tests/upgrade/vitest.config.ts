@@ -1,6 +1,9 @@
 import { defineConfig } from "vitest/config";
+import { resolve } from "path";
 
 export default defineConfig({
+  // dashboard/src imports the shared declarations by their package name.
+  resolve: { alias: { "@homegentic/shared": resolve(__dirname, "../../packages/shared/src") } },
   test: {
     environment: "node",
     globals: true,
