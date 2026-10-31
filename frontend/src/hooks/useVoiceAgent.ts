@@ -419,6 +419,33 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── TTS ───────────────────────────────────────────────────────────────────────
+
+  const speak = useCallback((text: string) => {
+    setState("speaking");
+    window.speechSynthesis.cancel();
+
+    const utterance  = new SpeechSynthesisUtterance(text);
+    utterance.rate   = 0.95;
+    utterance.pitch  = 1.0;
+
+    const voices    = window.speechSynthesis.getVoices();
+    const preferred = voices.find(
+      (v) =>
+        v.lang.startsWith("en") &&
+        (v.name.includes("Natural") ||
+          v.name.includes("Neural") ||
+          v.name.includes("Samantha") ||
+          v.name.includes("Google"))
+    );
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onend   = () => setState("idle");
+    utterance.onerror = () => setState("idle");
+
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
   // ── Chat endpoint (cheap, unmetered) ─────────────────────────────────────────
 
   const sendChat = useCallback(async (userMessage: string) => {
@@ -460,11 +487,11 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
           if (!line.startsWith("data: ")) continue;
           const payload = line.slice(6);
           if (payload === "[DONE]") break outer;
-          try {
-            const { text, error: streamErr } = JSON.parse(payload);
-            if (streamErr) throw new Error(streamErr);
-            if (text) { fullText += text; setResponse(fullText); }
-          } catch { /* skip malformed chunks */ }
+          let event: { text?: string; error?: string };
+          try { event = JSON.parse(payload); } catch { continue; /* skip malformed chunks */ }
+          // Outside the parse try, so a stream error reaches the outer catch instead of being skipped.
+          if (event.error) throw new Error(event.error);
+          if (event.text) { fullText += event.text; setResponse(fullText); }
         }
       }
 
@@ -607,33 +634,6 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       setState("error");
     }
   }, [addAction, sendChat]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── TTS ───────────────────────────────────────────────────────────────────────
-
-  const speak = (text: string) => {
-    setState("speaking");
-    window.speechSynthesis.cancel();
-
-    const utterance  = new SpeechSynthesisUtterance(text);
-    utterance.rate   = 0.95;
-    utterance.pitch  = 1.0;
-
-    const voices    = window.speechSynthesis.getVoices();
-    const preferred = voices.find(
-      (v) =>
-        v.lang.startsWith("en") &&
-        (v.name.includes("Natural") ||
-          v.name.includes("Neural") ||
-          v.name.includes("Samantha") ||
-          v.name.includes("Google"))
-    );
-    if (preferred) utterance.voice = preferred;
-
-    utterance.onend   = () => setState("idle");
-    utterance.onerror = () => setState("idle");
-
-    window.speechSynthesis.speak(utterance);
-  };
 
   // ── Speech recognition ────────────────────────────────────────────────────────
 

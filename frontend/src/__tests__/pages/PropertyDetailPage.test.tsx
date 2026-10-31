@@ -53,7 +53,6 @@ vi.mock("@/pages/PropertyDetail/DocumentsTab", () => ({ DocumentsTab: () => <div
 vi.mock("@/pages/PropertyDetail/SettingsTab", () => ({ SettingsTab: () => <div data-testid="tab-settings" /> }));
 vi.mock("@/pages/PropertyDetail/RoomsTab", () => ({ RoomsTab: () => <div data-testid="tab-rooms" /> }));
 vi.mock("@/pages/PropertyDetail/BillsTab", () => ({ BillsTab: () => <div data-testid="tab-bills" /> }));
-vi.mock("@/components/PropertyAddressBar", () => ({ PropertyAddressBar: () => <div data-testid="address-bar" /> }));
 
 function makeProperty(overrides: Partial<Property> = {}): Property {
   return {

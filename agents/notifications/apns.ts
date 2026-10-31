@@ -52,7 +52,7 @@ export async function sendApns(deviceToken: string, payload: PushPayload): Promi
   const apsBody = JSON.stringify({
     aps:   { alert: { title: payload.title, body: payload.body }, sound: "default", badge: 1 },
     route: payload.route ?? null,
-    ...(payload.data ?? {}),
+    ...payload.data,
   });
 
   return new Promise((resolve, reject) => {

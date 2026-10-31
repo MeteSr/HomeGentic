@@ -1,0 +1,28 @@
+# Motoko warnings that check-motoko-warnings.sh lets through.
+# Format: <canister> <code> <identifier>   (identifier "*" = every instance of that code)
+#
+# M0270 (postupgrade is deprecated): expected. The canisters keep postupgrade
+# instead of a migration chain (CLAUDE.md, "Known divergence").
+* M0270 *
+
+# Stable variables nothing reads or writes any more. Removing one is a stable
+# break (M0169: it can only be dropped by an explicit migration function), so
+# they stay until the project adopts migrations.
+ai_proxy M0194 emailDayWindowStart
+ai_proxy M0194 emailMonthWindowStart
+ai_proxy M0194 attomLookupCount
+ai_proxy M0194 outcallDayWindowStart
+ai_proxy M0194 attomCallsToday
+ai_proxy M0194 permitCallsToday
+ai_proxy M0244 emailSentDaily
+ai_proxy M0244 emailSentMonthly
+ai_proxy M0244 emailSentTotal
+ai_proxy M0244 permitsFetched
+job M0194 jobCounter
+report M0194 certCounter
+payment M0194 referralsCanisterId
+
+# fee never calls requireActive, so pause() and the update rate limit don't
+# apply to it yet. Wiring it in changes behaviour for the listing canister and
+# the referral relay; tracked separately.
+fee M0194 requireActive

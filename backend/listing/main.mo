@@ -1327,7 +1327,7 @@ persistent actor Listing {
       case null { return #err(#NotFound) };
       case (?existing) {
         if (existing.homeowner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-        ignore fsboListings.remove(propertyId);
+        fsboListings.remove(propertyId);
         clearFsboState(propertyId);
         #ok(())
       };
@@ -1492,7 +1492,7 @@ persistent actor Listing {
   /// offers come down, and the listing photo lists are freed for the new owner.
   public shared(msg) func propertyTransferred(propertyId: Text) : async Result.Result<(), Error> {
     if (Text.size(propCanisterId) == 0 or msg.caller.toText() != propCanisterId) return #err(#NotAuthorized);
-    ignore fsboListings.remove(propertyId);
+    fsboListings.remove(propertyId);
     clearFsboState(propertyId);
     listingPhotos.remove(propertyId);
     listingPhotoOwners.remove(propertyId);

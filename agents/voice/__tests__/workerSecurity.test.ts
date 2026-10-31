@@ -100,6 +100,7 @@ function req(path: string, body: unknown, headers: Record<string, string> = {}, 
   return new Request(`https://worker.test${path}`, {
     method,
     headers: { "Content-Type": "application/json", "x-api-key": "pubkey", ...headers },
+    // oxlint-disable-next-line unicorn/no-invalid-fetch-options -- body is undefined for GET
     body: method === "GET" ? undefined : typeof body === "string" ? body : JSON.stringify(body),
   });
 }

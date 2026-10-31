@@ -16,7 +16,7 @@
  * CANISTER.8–10: pure Node crypto + @icp-sdk/core/identity, no IC connection needed.
  */
 
-import { describe, it, expect, afterEach } from "@jest/globals";
+import { describe, it, expect } from "@jest/globals";
 import crypto from "node:crypto";
 import { activateInCanister, consumeAgentCredit, grantAgentCredits, VALID_TIERS, identityFromPem } from "../paymentCanister";
 

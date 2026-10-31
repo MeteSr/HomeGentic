@@ -293,7 +293,7 @@ persistent actor Photo {
 
   /// Delegate property-ownership check to the property canister.
   /// Traps if propCanisterId is unset — auth must never silently degrade.
-  private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
+  private func checkPropertyAuth(propertyId: Text, _owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
     if (Text.size(propCanisterId) == 0) {
       Runtime.trap("photo: propCanisterId not configured — call setPropertyCanisterId first");
     };
@@ -585,14 +585,14 @@ persistent actor Photo {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
     photoRelays := Admin.add(photoRelays, p);
-    try { ignore await auditLog("PhotoRelayAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    try { await auditLog("PhotoRelayAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
     #ok(())
   };
 
   public shared(msg) func removePhotoRelay(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     photoRelays := Admin.remove(photoRelays, p);
-    try { ignore await auditLog("PhotoRelayRemoved", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    try { await auditLog("PhotoRelayRemoved", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -788,7 +788,7 @@ persistent actor Photo {
           approvals   = existing.approvals.concat([msg.caller]);
         };
         putPhoto(updated);
-        try { ignore await auditLog("PhotoApproved", ?existing.owner, "photoId=" # photoId # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+        try { await auditLog("PhotoApproved", ?existing.owner, "photoId=" # photoId # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
         #ok(meta(updated))
       };
     }
@@ -883,7 +883,7 @@ persistent actor Photo {
       case (#admin)     {};
     };
     adminListEntries := Admin.add(adminListEntries, newAdmin);
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    try { await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -896,7 +896,7 @@ persistent actor Photo {
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    try { await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };
@@ -909,7 +909,7 @@ persistent actor Photo {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
     pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
-    try { ignore await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    try { await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -917,7 +917,7 @@ persistent actor Photo {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := false;
     pauseExpiryNs := null;
-    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    try { await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
     #ok(())
   };
 

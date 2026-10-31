@@ -1148,7 +1148,7 @@ persistent actor Report {
           hideDescriptions = link.hideDescriptions;
         };
         Index.put(links, linksIndexes, token, revoked);
-        try { ignore await auditLog("ShareLinkRevoked", ?link.createdBy, "token=" # token # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+        try { await auditLog("ShareLinkRevoked", ?link.createdBy, "token=" # token # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
         #ok(())
       };
     }
@@ -1227,7 +1227,7 @@ persistent actor Report {
     };
     adminListEntries := Admin.add(adminListEntries, newAdmin);
     adminInitialized := true;
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+    try { await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -1240,7 +1240,7 @@ persistent actor Report {
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+    try { await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };
@@ -1254,7 +1254,7 @@ persistent actor Report {
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
-    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+    try { await auditLog("TrustedCanisterAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -1274,7 +1274,7 @@ persistent actor Report {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
     pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
-    try { ignore await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+    try { await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -1282,7 +1282,7 @@ persistent actor Report {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := false;
     pauseExpiryNs := null;
-    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
+    try { await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 

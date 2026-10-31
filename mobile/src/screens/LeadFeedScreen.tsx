@@ -9,7 +9,7 @@ import { getMyBidRequestIds } from "../services/bidService";
 import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import { closesLabel } from "./v3/JobsScreen";
 import { Card, EmptyRow, Kicker, Loading, PageHeader, Pill, TabScroll } from "../components/ui";
-import { family, shadow, type, v3 } from "../theme";
+import { shadow, type, v3 } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 

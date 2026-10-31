@@ -137,10 +137,6 @@ vi.mock("@/services/pulseService", () => ({
   getWeeklyPulse: vi.fn(() => null),
 }));
 
-vi.mock("@/services/reEngagementService", () => ({
-  getReEngagementPrompts: vi.fn(() => []),
-}));
-
 vi.mock("@/services/notifications", () => ({
   isNewSince:        vi.fn(() => false),
   hasQuoteActivity:  vi.fn(() => false),
@@ -183,14 +179,6 @@ vi.mock("@/store/propertyStore", () => {
     })),
   };
 });
-
-vi.mock("@/components/NeighborhoodBenchmark", () => ({
-  NeighborhoodBenchmark: () => null,
-}));
-
-vi.mock("@/components/ScoreActivityFeed", () => ({
-  ScoreActivityFeed: () => null,
-}));
 
 vi.mock("@/components/UpgradeModal", () => ({
   default: () => null,

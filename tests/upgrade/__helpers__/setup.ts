@@ -118,7 +118,7 @@ const live = new Set<PocketIc>();
  * instance per test.
  */
 export async function tearDownLeftovers(): Promise<void> {
-  for (const pic of [...live]) await pic.tearDown().catch(() => {});
+  for (const pic of Array.from(live)) await pic.tearDown().catch(() => {});
 }
 
 export const CONTROLLER = createIdentity("upgrade-test-controller");
@@ -239,9 +239,6 @@ export const quoteIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
   const UrgencyLevel = I.Variant({ Low: I.Null, Medium: I.Null, High: I.Null, Emergency: I.Null });
   const RequestStatus = I.Variant({
     Open: I.Null, Quoted: I.Null, Accepted: I.Null, Closed: I.Null, Cancelled: I.Null,
-  });
-  const SubscriptionTier = I.Variant({
-    Free: I.Null, Pro: I.Null, ContractorFree: I.Null, ContractorPro: I.Null,
   });
   const QuoteRequest = I.Record({
     id: I.Text, propertyId: I.Text, homeowner: I.Principal, serviceType: ServiceType,

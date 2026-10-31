@@ -52,6 +52,6 @@ export function voiceAgentHeaders(): Record<string, string> {
 export function voiceAgentFetch(url: string, init: RequestInit = {}): Promise<Response> {
   return fetchWithAgentSession(url, {
     ...init,
-    headers: { ...voiceAgentHeaders(), ...((init.headers as Record<string, string> | undefined) ?? {}) },
+    headers: { ...voiceAgentHeaders(), ...(init.headers as Record<string, string> | undefined) },
   });
 }

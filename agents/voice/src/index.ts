@@ -171,7 +171,7 @@ function isAllowedOrigin(origin: string | null, env: Env): boolean {
   if (env.FRONTEND_ORIGIN && origin === env.FRONTEND_ORIGIN) return true;
   if (env.BIDTOLIST_FRONTEND_ORIGIN && origin === env.BIDTOLIST_FRONTEND_ORIGIN) return true;
   // Dev: allow any localhost port when FRONTEND_ORIGIN is not set
-  if (!env.FRONTEND_ORIGIN && /^http:\/\/localhost:/.test(origin)) return true;
+  if (!env.FRONTEND_ORIGIN && origin.startsWith("http://localhost:")) return true;
   return false;
 }
 

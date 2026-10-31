@@ -133,7 +133,7 @@ describeIfConfigured("ELEM — Stripe Subscription + PaymentIntent session", () 
       })
     );
 
-    for (const { key, clientSecret, subscriptionId } of results) {
+    for (const { clientSecret, subscriptionId } of results) {
       expect(clientSecret).toMatch(/^pi_/);
       expect(subscriptionId).toMatch(/^sub_/);
     }

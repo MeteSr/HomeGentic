@@ -38,14 +38,15 @@ const state: {
   profiles: Record<string, any>;
   fees: any[];
   cityAgents: any[];
-} = { request: null, proposals: [], profiles: {}, fees: [], cityAgents: [] };
+  nearDeadline: any[];
+} = { request: null, proposals: [], profiles: {}, fees: [], cityAgents: [], nearDeadline: [] };
 
 jest.mock("@icp-sdk/core/agent", () => {
   const actual = jest.requireActual("@icp-sdk/core/agent") as Record<string, unknown>;
   const listing = {
     getBidRequest: jest.fn(async (id: string) => (state.request && state.request.id === id ? { ok: state.request } : { err: { NotFound: null } })),
     getProposalsForRequest: jest.fn(async (id: string) => state.proposals.filter((p) => p.requestId === id)),
-    getListingsNearDeadline: jest.fn(async () => []),
+    getListingsNearDeadline: jest.fn(async () => state.nearDeadline),
     tickCascade: jest.fn(async () => undefined),
   };
   const agent = {
@@ -73,7 +74,7 @@ jest.mock("@icp-sdk/core/agent", () => {
 
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import { Principal } from "@icp-sdk/core/principal";
-import { handleBidtolist } from "../src/bidtolist";
+import { handleBidtolist, scheduledBidtolist } from "../src/bidtolist";
 import { RateLimiterDO, type CounterNamespace, type CounterStorage } from "../src/rateLimiterDO";
 
 const A1 = Principal.fromUint8Array(new Uint8Array([1, 1, 1])).toText();
@@ -139,6 +140,7 @@ beforeEach(() => {
   };
   state.fees = [];
   state.cityAgents = [];
+  state.nearDeadline = [];
 });
 
 const recipients = () => mockResendSend.mock.calls.map((c: any[]) => c[0].to);
@@ -295,5 +297,29 @@ describe("BTLW.7 — per-IP rate limit", () => {
     }
     expect((await call("/email/agent-verified", { agentPrincipal: A1 }, "9.9.9.9")).status).toBe(429);
     expect((await call("/email/agent-verified", { agentPrincipal: A1 }, "8.8.8.8")).status).toBe(200);
+  });
+});
+
+describe("BTLW.8 — deadline reminders (cron)", () => {
+  beforeEach(() => {
+    state.nearDeadline = [{ id: "REQ_1", city: "Austin", bidDeadline: state.request.bidDeadline, proposalCount: 1n }];
+    state.cityAgents = [
+      { id: Principal.fromText(A1), name: "A1", email: "a1@agents.test", isVerified: true },
+      { id: Principal.fromText(A2), name: "A2", email: "a2@agents.test", isVerified: true },
+    ];
+  });
+
+  it("skips agents who already submitted a proposal", async () => {
+    state.proposals = [proposal("P1", A1, "Pending")];
+    await scheduledBidtolist(env);
+    expect(recipients()).toEqual(["a2@agents.test"]);
+  });
+
+  it("sends nothing for a listing whose proposals can't be read", async () => {
+    const { Actor } = jest.requireMock("@icp-sdk/core/agent") as any;
+    const listing = Actor.createActor(null, { canisterId: "listing-id" });
+    listing.getProposalsForRequest.mockRejectedValueOnce(new Error("canister unreachable"));
+    await scheduledBidtolist(env);
+    expect(recipients()).toEqual([]);
   });
 });

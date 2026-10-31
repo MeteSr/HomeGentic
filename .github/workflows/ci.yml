@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, test/tier-propagation-and-sensor-job]
+    branches: [main]
   pull_request:
     branches: [main]
   # Deploy Mainnet runs this whole workflow as its pre-deploy test gate
@@ -65,6 +65,9 @@ jobs:
 
       - name: Cross-canister calls match the callees
         run: CANDID_FROM="$RUNNER_TEMP/candid" bash scripts/ci/check-canister-calls.sh
+
+      - name: No new Motoko compiler warnings
+        run: bash scripts/ci/check-motoko-warnings.sh
 
       - name: Install ic-wasm
         run: |
@@ -333,7 +336,7 @@ jobs:
 
       - name: Post coverage comment on PR
         if: github.event_name == 'pull_request'
-        uses: davelosert/vitest-coverage-report-action@v2
+        uses: davelosert/vitest-coverage-report-action@8f86cfb56ed6d5613ea8cdc5259f207fbfd51ece # v2
         with:
           json-summary-path: frontend/coverage/coverage-summary.json
           vite-config-path:  frontend/vite.config.ts
@@ -383,6 +386,65 @@ jobs:
 
       - name: Unit tests
         run: cd agents/notifications && npm test
+
+  test-iot-gateway:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: agents/iot-gateway/package-lock.json
+
+      - name: Install dependencies
+        run: cd agents/iot-gateway && npm ci
+
+      - name: Typecheck
+        run: cd agents/iot-gateway && npx tsc --noEmit -p .
+
+      - name: Unit tests
+        run: cd agents/iot-gateway && npm test
+
+  lint:
+    # oxlint (ESLint-compatible rules; runs without the TypeScript JS API,
+    # which TypeScript 7 no longer ships), knip (unused files), Prettier on
+    # files a PR adds, and shellcheck on scripts/.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: oxlint
+        run: npx oxlint --format github
+
+      - name: No unused frontend files (knip)
+        run: npx knip --workspace frontend --production
+
+      - name: Prettier on files this PR adds
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mapfile -t added < <(git diff --name-only --diff-filter=A "$BASE_SHA"...HEAD \
+            | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|json)$' || true)
+          if [ ${#added[@]} -eq 0 ]; then echo "No new files to check"; exit 0; fi
+          npx prettier --check --ignore-unknown "${added[@]}"
+
+      - name: shellcheck
+        # Errors only for now; the existing scripts have warnings to clear first.
+        run: |
+          git ls-files '*.sh' | xargs shellcheck --severity=error
 
   test-dashboard:
     # Admin metrics dashboard: typecheck and build (its canister reads run
@@ -462,6 +524,11 @@ jobs:
 
       - name: Install dependencies
         run: cd agents/voice && npm ci
+
+      - name: Typecheck
+        # Jest runs through babel-jest and wrangler bundles with esbuild;
+        # neither checks types, so this is the only step that does.
+        run: cd agents/voice && npx tsc --noEmit -p .
 
       - name: Unit tests with coverage
         run: cd agents/voice && npm run test:coverage
