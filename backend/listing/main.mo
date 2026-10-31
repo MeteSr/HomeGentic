@@ -10,6 +10,7 @@
 import Array     "mo:core/Array";
 import Map       "mo:core/Map";
 import Int       "mo:core/Int";
+import Debug     "mo:core/Debug";
 import Iter      "mo:core/Iter";
 import List      "mo:core/List";
 import Nat       "mo:core/Nat";
@@ -307,11 +308,19 @@ persistent actor Listing {
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let requestsByHomeowner = Index.empty();
   private transient let openBidRequests = Index.empty();
+  private transient let requestsByProperty = Index.empty();
   private transient let requestsIndexes : [Index.Keyed<ListingBidRequest>] = Index.indexed(requests, [
     (requestsByHomeowner, func(r : ListingBidRequest) : ?Text { ?r.homeowner.toText() }),
+    (requestsByProperty, func(r : ListingBidRequest) : ?Text { ?r.propertyId }),
     (openBidRequests, func(r : ListingBidRequest) : ?Text { if (r.status == #Open) ?"open" else null }),
   ]);
   private let proposals      = Map.empty<Text, ListingProposal>();
+  /// When each request was awarded (its fee settled): requestId -> time. A
+  /// side map so ListingBidRequest's stored type is unchanged.
+  private let awardedAt      = Map.empty<Text, Int>();
+  /// Awarded requests whose sale has been counted on the agent's record
+  /// (agent.recordListingClose), so a home is counted once per award.
+  private let closesRecorded = Map.empty<Text, ()>();
 
   // Secondary indexes over `proposals` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
@@ -937,6 +946,7 @@ persistent actor Listing {
               };
             };
             Index.put(requests, requestsIndexes, requestId, { req with status = #Awarded; feePaid = true });
+            awardedAt.add(requestId, Time.now());
             #ok(())
           };
         }
@@ -1488,7 +1498,47 @@ persistent actor Listing {
     listingPhotoOwners.remove(propertyId);
     listingPanoramas.remove(propertyId);
     listingPanoramaOwners.remove(propertyId);
+    await* recordSaleCloses(propertyId);
     #ok(())
+  };
+
+  private transient let YEAR_NS : Int = 365 * DAY_NS;
+
+  /// The home changed hands: count the sale on the record of the agent who
+  /// won its Bid to List auction (agent.recordListingClose), with days on
+  /// market from the award to now. Only awards from the last year count, and
+  /// each award once. Best effort: a failed call leaves it uncounted so a
+  /// later transfer can't double count it, and is logged.
+  private func recordSaleCloses(propertyId: Text) : async* () {
+    if (Text.size(agentCanisterId) == 0) return;
+    let now = Time.now();
+    let agentActor = actor(agentCanisterId) : actor {
+      recordListingClose : (Principal, Nat) -> async { #ok; #err : Any };
+    };
+    let awarded = Index.records(requestsByProperty, propertyId, requests).filter(
+      func(r : ListingBidRequest) : Bool { r.status == #Awarded and r.feePaid and closesRecorded.get(r.id) == null }
+    ).toArray();
+    for (r in awarded.values()) {
+      let since = switch (awardedAt.get(r.id)) { case (?t) t; case null r.targetListDate };
+      let winner = proposalsFor(r.id).find(func(p : ListingProposal) : Bool { p.status == #Accepted });
+      switch (winner) {
+        case (?w) {
+          if (since <= now and now - since <= YEAR_NS) {
+            // Marked before the await, so a second transfer in the same
+            // round can't count it again.
+            closesRecorded.add(r.id, ());
+            let days = Int.abs(now - since) / Int.abs(DAY_NS);
+            try {
+              switch (await agentActor.recordListingClose(w.agentId, days)) {
+                case (#ok) {};
+                case (#err _) { Debug.print("[listing] recordListingClose refused for " # r.id) };
+              };
+            } catch (_) { Debug.print("[listing] recordListingClose failed for " # r.id) };
+          };
+        };
+        case null {};
+      };
+    };
   };
 
   // ─── FSBO showings ───────────────────────────────────────────────────────────

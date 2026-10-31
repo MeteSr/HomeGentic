@@ -46,6 +46,7 @@ describe("listing photos and Bid to List on real canisters", () => {
   const agentA  = createIdentity("lb-agent-a");
   const agentB  = createIdentity("lb-agent-b");
   const agentC  = createIdentity("lb-agent-c");
+  const buyer   = createIdentity("lb-buyer");
 
   const as = (name: Name, who: Identity) => {
     const a = pic.createActor<any>((() => svcs[name]) as any, ids[name]);
@@ -79,6 +80,7 @@ describe("listing photos and Bid to List on real canisters", () => {
     ok(await as("photo", admin).setPropertyCanisterId(ids.property));
     ok(await as("fee", admin).setListingCanisterId(ids.listing.toText()));
     ok(await as("agent", admin).setListingCanisterId(ids.listing.toText()));
+    ok(await as("property", admin).setListingCanisterId(ids.listing));
 
     alicesHome = await home(alice, "5 Bay Street");
     mallorysHome = await home(mallory, "7 Bay Street");
@@ -231,6 +233,26 @@ describe("listing photos and Bid to List on real canisters", () => {
       expect(errKey(await as("agent", mallory).setCardOnFile(true))).toBe("NotFound");
       ok(await as("agent", agentA).setCardOnFile(true));
       expect((await as("agent", agentA).getMyProfile())[0].cardOnFile).toBe(true);
+    });
+
+    it("counts the sale on the winning agent's record when the home changes hands, once", async () => {
+      const before = (await as("agent", agentA).getMyProfile())[0];
+      expect([before.listingsLast12Months, before.avgDaysOnMarket]).toEqual([2n, 15n]);
+      await pic.advanceTime(21 * DAY_MS);
+      await pic.tick();
+      const sell = async (from: Identity, to: Identity) => {
+        const { token } = ok<any>(await as("property", from).initiateTransfer(alicesHome));
+        ok(await as("property", to).claimTransfer(token));
+      };
+      await sell(alice, buyer);
+      const after = (await as("agent", agentA).getMyProfile())[0];
+      // Days on market run from the award (fee settled) to the transfer.
+      expect([after.listingsLast12Months, after.avgDaysOnMarket]).toEqual([3n, 17n]);   // (15*2 + 21) / 3
+      // The losing bidder's record is untouched.
+      expect((await as("agent", agentB).getMyProfile())[0].listingsLast12Months).toBe(0n);
+      // Selling the same home on, without a new auction, doesn't count it again.
+      await sell(buyer, alice);
+      expect((await as("agent", agentA).getMyProfile())[0].listingsLast12Months).toBe(3n);
     });
   });
 });

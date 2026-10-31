@@ -474,7 +474,7 @@ Realtor profiles and performance tracking.
 | `addReview` | update | `(args: AddReviewArgs)` | Submit a review for an agent |
 | `getReviews` | query | `(agentId: Principal)` | All reviews for an agent |
 | `verifyAgent` | update | `(agentId: Principal)` | Admin: mark agent as verified |
-| `recordListingClose` | update | `(agentId: Principal, daysOnMarket: Nat)` | Admin/trusted: record a completed transaction |
+| `recordListingClose` | update | `(agentId: Principal, daysOnMarket: Nat)` | Admin or the listing canister: count a closed sale. Listing calls it when `property.claimTransfer` hands over a home whose Bid to List auction was awarded in the last year (once per award; days on market from the award to the transfer) |
 | `metrics` | query | `()` | Agent canister metrics |
 | `getAgentsForCity` | query | `(city: Text, limit: Nat)` | Cities are matched lowercase; caller passes an already-lowercased city. |
 | `getProfilesByCounty` | query | `(county: Text)` | Agent profiles serving a county |
