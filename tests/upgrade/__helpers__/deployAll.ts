@@ -61,8 +61,11 @@ export interface Deployment {
   actor: (name: CanisterName, who: Identity) => any;
 }
 
-/** Installs every canister with `admin` as its admin and wires them as CI does. */
-export async function deployAll(pic: PocketIc, admin: Identity): Promise<Deployment> {
+/**
+ * Installs every canister with `admin` as its admin and wires them as CI does.
+ * `wasm` picks each canister's build (default: this branch's).
+ */
+export async function deployAll(pic: PocketIc, admin: Identity, wasm: (name: CanisterName) => string = wasmPath): Promise<Deployment> {
   const ids = {} as Record<CanisterName, Principal>;
   const svcs = {} as Record<CanisterName, IDL.ServiceClass>;
   const actor = (name: CanisterName, who: Identity) => {
@@ -75,10 +78,10 @@ export async function deployAll(pic: PocketIc, admin: Identity): Promise<Deploym
   };
 
   for (const name of ALL_CANISTERS) {
-    const { idlFactory, initArgs } = serviceFromWasm(wasmPath(name));
+    const { idlFactory, initArgs } = serviceFromWasm(wasm(name));
     svcs[name] = idlFactory({ IDL });
     const arg = new Uint8Array(IDL.encode(initArgs, initArgs.map(() => admin.getPrincipal())));
-    ids[name] = (await pic.setupCanister({ idlFactory: (() => svcs[name]) as any, wasm: wasmPath(name), arg })).canisterId;
+    ids[name] = (await pic.setupCanister({ idlFactory: (() => svcs[name]) as any, wasm: wasm(name), arg })).canisterId;
     const methods = new Map(svcs[name]._fields);
     if (methods.has("setBootstrapNonce")) await actor(name, CONTROLLER).setBootstrapNonce("n");
     if (methods.has("initAdmins")) okOrThrow(`${name}.initAdmins`, await actor(name, admin).initAdmins([admin.getPrincipal()], "n"));
