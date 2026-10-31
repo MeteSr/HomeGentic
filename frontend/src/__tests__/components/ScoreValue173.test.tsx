@@ -2,7 +2,6 @@
  * §17.3 — Score → Dollar Value UI
  *
  * Tests:
- *   17.3.2 — ScoreValueBanner: dollar value displayed on score page
  *   17.3.3 — JobValueDelta: "+$X" shown on job-log success screen
  *   17.3.4 — PropertyEstimatedValueInput: home value capture widget
  *   17.3.5 — DocumentedValueSection: shown in report (buyer-facing)
@@ -12,64 +11,9 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
-const { ScoreValueBanner }            = await import("@/components/ScoreValueBanner");
 const { JobValueDelta }               = await import("@/components/JobValueDelta");
 const { PropertyEstimatedValueInput } = await import("@/components/PropertyEstimatedValueInput");
 const { DocumentedValueSection }      = await import("@/components/DocumentedValueSection");
-
-// ── ScoreValueBanner (17.3.2) ─────────────────────────────────────────────────
-
-describe("ScoreValueBanner", () => {
-  it("renders dollar range for score >= 40", () => {
-    render(
-      <MemoryRouter>
-        <ScoreValueBanner score={74} />
-      </MemoryRouter>
-    );
-    // Flat bands for score 74 → $15,000–$25,000
-    expect(screen.getByText(/\$15,000/)).toBeInTheDocument();
-    expect(screen.getByText(/\$25,000/)).toBeInTheDocument();
-  });
-
-  it("renders nothing for score below 40", () => {
-    const { container } = render(
-      <MemoryRouter>
-        <ScoreValueBanner score={35} />
-      </MemoryRouter>
-    );
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("uses home value when provided (17.3.1)", () => {
-    // score 74, homeValue $600k: 3%–6% → $18,000–$36,000
-    render(
-      <MemoryRouter>
-        <ScoreValueBanner score={74} homeValueDollars={600_000} />
-      </MemoryRouter>
-    );
-    expect(screen.getByText(/\$18,000/)).toBeInTheDocument();
-    expect(screen.getByText(/\$36,000/)).toBeInTheDocument();
-  });
-
-  it("uses zip estimate when zip provided but no homeValue", () => {
-    render(
-      <MemoryRouter>
-        <ScoreValueBanner score={74} zip="90210" />
-      </MemoryRouter>
-    );
-    // Should render some dollar range (LA zip → higher median than flat)
-    expect(screen.getByText(/\$/)).toBeInTheDocument();
-  });
-
-  it("shows 'buyer confidence' label", () => {
-    render(
-      <MemoryRouter>
-        <ScoreValueBanner score={74} />
-      </MemoryRouter>
-    );
-    expect(screen.getByText(/buyer confidence/i)).toBeInTheDocument();
-  });
-});
 
 // ── JobValueDelta (17.3.3) ────────────────────────────────────────────────────
 

@@ -1038,7 +1038,7 @@ persistent actor Property {
         };
         putProperty(updated);
         if (isVerified(level)) { addressIdx.add(key, id) };
-        try { ignore await auditLog("PropertyVerified", ?existing.owner, "propertyId=" # id # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+        try { await auditLog("PropertyVerified", ?existing.owner, "propertyId=" # id # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
         #ok(updated)
       };
     }
@@ -1237,14 +1237,14 @@ persistent actor Property {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
     identityRelayEntries := Admin.add(identityRelayEntries, p);
-    try { ignore await auditLog("IdentityRelayAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { await auditLog("IdentityRelayAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };
 
   public shared(msg) func removeIdentityRelay(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     identityRelayEntries := Admin.remove(identityRelayEntries, p);
-    try { ignore await auditLog("IdentityRelayRemoved", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { await auditLog("IdentityRelayRemoved", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -2120,7 +2120,7 @@ persistent actor Property {
     };
     admins := Admin.add(admins, newAdmin);
     adminInitialized := true;
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -2133,7 +2133,7 @@ persistent actor Property {
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };
@@ -2147,7 +2147,7 @@ persistent actor Property {
   public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     trustedCanisterEntries := Admin.add(trustedCanisterEntries, p);
-    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { await auditLog("TrustedCanisterAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -2188,7 +2188,7 @@ persistent actor Property {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
     pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
-    try { ignore await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -2196,7 +2196,7 @@ persistent actor Property {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := false;
     pauseExpiryNs := null;
-    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    try { await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
     #ok(())
   };
 

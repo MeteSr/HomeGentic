@@ -168,7 +168,7 @@ function mockPrivacy(): Record<string, ProfilePrivacy> {
   return (w.__e2e_contractor_privacy ??= {});
 }
 
-function useMock(): boolean {
+function isMockMode(): boolean {
   return (typeof window !== "undefined" && !!(window as any).__e2e_contractors) || !CONTRACTOR_CANISTER_ID;
 }
 
@@ -286,13 +286,13 @@ function createContractorService() {
   },
 
   async getMyProfilePrivacy(): Promise<ProfilePrivacy> {
-    if (useMock()) return mockPrivacy().me ?? DEFAULT_PROFILE_PRIVACY;
+    if (isMockMode()) return mockPrivacy().me ?? DEFAULT_PROFILE_PRIVACY;
     const a = await getActor();
     return fromPrivacy(await a.getMyProfilePrivacy());
   },
 
   async setProfilePrivacy(p: ProfilePrivacy): Promise<ProfilePrivacy> {
-    if (useMock()) return (mockPrivacy().me = { ...p });
+    if (isMockMode()) return (mockPrivacy().me = { ...p });
     const a = await getActor();
     const result = await a.setProfilePrivacy(p);
     if ("ok" in result) return fromPrivacy(result.ok);
@@ -305,7 +305,7 @@ function createContractorService() {
   /** Privacy settings for each contractor, keyed by principal text. */
   async getProfilePrivacies(principalTexts: string[]): Promise<Record<string, ProfilePrivacy>> {
     if (principalTexts.length === 0) return {};
-    if (useMock()) {
+    if (isMockMode()) {
       const m = mockPrivacy();
       return Object.fromEntries(principalTexts.map((id) => [id, m[id] ?? DEFAULT_PROFILE_PRIVACY]));
     }

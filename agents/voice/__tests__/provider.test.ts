@@ -13,7 +13,6 @@
 import {
   resolveModel,
   PROVIDER_JSON_ERROR,
-  type AIProvider,
   type ToolDefinition,
   type ToolCall,
   type TextChunk,

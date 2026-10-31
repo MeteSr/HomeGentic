@@ -917,7 +917,7 @@ persistent actor Monitoring {
       };
     };
     switch (oldestKey) {
-      case (?oldestFingerprint) { ignore frontendErrors.remove(oldestFingerprint) };
+      case (?oldestFingerprint) { frontendErrors.remove(oldestFingerprint) };
       case null  {};
     };
   };

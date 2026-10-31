@@ -6,6 +6,13 @@ on:
 permissions:
   contents: read   # canister-ID commits push with CI_PUSH_TOKEN, not GITHUB_TOKEN
 
+# One mainnet deploy at a time: two merges close together would otherwise upgrade
+# the same canisters and both push canister IDs to main. Queue, don't cancel,
+# so a deploy is never killed halfway through an upgrade.
+concurrency:
+  group: deploy-mainnet
+  cancel-in-progress: false
+
 jobs:
   test:
     name: Pre-deploy test gate

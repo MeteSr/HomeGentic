@@ -75,7 +75,7 @@ export async function sendFcm(deviceToken: string, payload: PushPayload): Promis
     message: {
       token:        deviceToken,
       notification: { title: payload.title, body: payload.body },
-      data:         { route: payload.route ?? "", ...(payload.data ?? {}) },
+      data:         { route: payload.route ?? "", ...payload.data },
       android:      { notification: { sound: "default" } },
     },
   };

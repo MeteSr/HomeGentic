@@ -3,7 +3,7 @@ name: Deploy Testnet
 on:
   workflow_run:
     workflows: [CI]
-    branches: [main, develop]
+    branches: [main]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -16,18 +16,25 @@ on:
 permissions:
   contents: read   # canister-ID commits push with CI_PUSH_TOKEN, not GITHUB_TOKEN
 
+# One testnet deploy at a time: two merges close together would otherwise upgrade
+# the same canisters and both push canister IDs to main. Queue, don't cancel,
+# so a deploy is never killed halfway through an upgrade.
+concurrency:
+  group: deploy-testnet
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: testnet
-    # Manual dispatch only from main/develop (the job holds the testnet
+    # Manual dispatch only from main (the job holds the testnet
     # deploy PEM and runs the ref's own scripts/deploy.sh). workflow_run only
     # for a successful CI *push* run in this repo: the branches filter above
     # matches head_branch, so without the event/repo check a fork PR from a
     # branch named main would trigger a deploy.
     if: >-
       (github.event_name == 'workflow_dispatch' &&
-       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
+       github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' &&
@@ -160,14 +167,14 @@ jobs:
     # After the canisters, so the Worker never calls a method that isn't
     # deployed yet (same order as deploy-mainnet.yml).
     needs: deploy
-    # Manual dispatch only from main/develop (the job holds the testnet
+    # Manual dispatch only from main (the job holds the testnet
     # deploy PEM and runs the ref's own scripts/deploy.sh). workflow_run only
     # for a successful CI *push* run in this repo: the branches filter above
     # matches head_branch, so without the event/repo check a fork PR from a
     # branch named main would trigger a deploy.
     if: >-
       (github.event_name == 'workflow_dispatch' &&
-       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
+       github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' &&

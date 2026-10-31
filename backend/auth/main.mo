@@ -184,7 +184,7 @@ persistent actor class Auth(initDeployer : Principal) {
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     admins := Admin.add(admins, newAdmin);
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
+    try { await auditLog("AdminAdded", ?newAdmin, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -192,7 +192,7 @@ persistent actor class Auth(initDeployer : Principal) {
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     admins := Admin.remove(admins, target);
-    try { ignore await auditLog("AdminRemoved", ?target, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
+    try { await auditLog("AdminRemoved", ?target, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -201,7 +201,7 @@ persistent actor class Auth(initDeployer : Principal) {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
     pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
-    try { ignore await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
+    try { await auditLog("CanisterPaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -210,13 +210,13 @@ persistent actor class Auth(initDeployer : Principal) {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := false;
     pauseExpiryNs := null;
-    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
+    try { await auditLog("CanisterUnpaused", null, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     #ok(())
   };
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
+    try { await auditLog("AuditCanisterSet", ?id, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[auth] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };

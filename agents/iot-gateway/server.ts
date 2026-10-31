@@ -37,7 +37,7 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { logger } from "../../packages/shared/src/logger";
-import { handleNestEvent, handleEcobeeEvent, handleMoenFloEvent, handleHoneywellHomeEvent, handleSmartThingsEvent, handleLGThinQEvent } from "./handlers";
+import { handleNestEvent, handleEcobeeEvent, handleMoenFloEvent, handleSmartThingsEvent, handleLGThinQEvent } from "./handlers";
 import { recordSensorEvent, getGatewayPrincipal, registerVerifiedDevice, isDryRun } from "./icp";
 import { requestPrincipal } from "./session";
 import {
@@ -59,7 +59,6 @@ import type {
   NestWebhookEvent,
   EcobeeWebhookEvent,
   MoenFloWebhookEvent,
-  HoneywellDevice,
   SmartThingsWebhookBody,
   LGThinQPCCEvent,
 } from "./types";

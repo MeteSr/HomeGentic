@@ -38,7 +38,7 @@ export type ShowingRequestInput = Pick<ShowingRequest, "propertyId" | "name" | "
 
 const getActor = lazyActor(idlFactory, LISTING_CANISTER_ID);
 
-function useMock(): boolean {
+function isMockMode(): boolean {
   return !LISTING_CANISTER_ID || (typeof window !== "undefined" && !!(window as any).__e2e_properties);
 }
 
@@ -72,7 +72,7 @@ function createShowingRequestService() {
   }
 
   async function respond(propertyId: string, id: string, response: object, patch: Partial<ShowingRequest>): Promise<ShowingRequest> {
-    if (useMock()) return _update(id, patch);
+    if (isMockMode()) return _update(id, patch);
     const actor = await getActor();
     return fromShowing(unwrap(await actor.respondToShowing(propertyId, id, response)));
   }
@@ -80,7 +80,7 @@ function createShowingRequestService() {
   return {
     /** A buyer's request from the public listing page. */
     async create(input: ShowingRequestInput): Promise<ShowingRequest> {
-      if (useMock()) {
+      if (isMockMode()) {
         const req: ShowingRequest = {
           ...input,
           id:        `sr-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -106,7 +106,7 @@ function createShowingRequestService() {
 
     /** The seller's requests for their listing, newest first. */
     async getByProperty(propertyId: string): Promise<ShowingRequest[]> {
-      if (useMock()) return _store.filter((r) => r.propertyId === propertyId).reverse();
+      if (isMockMode()) return _store.filter((r) => r.propertyId === propertyId).reverse();
       const actor = await getActor();
       return (unwrap(await actor.getShowingRequests(propertyId)) as any[]).map(fromShowing);
     },

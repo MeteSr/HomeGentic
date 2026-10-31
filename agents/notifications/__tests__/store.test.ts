@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { registerToken, getTokensForPrincipal, removeToken } from "../store";
+import type * as Store from "../store";
 
 const P1 = "principal-1";
 const P2 = "principal-2";
@@ -14,8 +14,7 @@ beforeEach(() => {
 });
 
 // Re-import a fresh store for each test group
-function freshStore() {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+function freshStore(): typeof Store {
   return require("../store");
 }
 

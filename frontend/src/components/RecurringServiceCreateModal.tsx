@@ -74,8 +74,13 @@ export default function RecurringServiceCreateModal({
     }
   }, [properties]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // handleClose is declared below the early return; Escape only fires after render.
-  const dialog = useDialog(open, () => handleClose(), { label: "Add Recurring Service" });
+  const handleClose = () => {
+    setSubmitted(false);
+    setForm(BLANK_FORM(defaultPropertyId ?? (properties.length > 0 ? String(properties[0].id) : "")));
+    onClose();
+  };
+
+  const dialog = useDialog(open, handleClose, { label: "Add Recurring Service" });
 
   if (!open) return null;
 
@@ -106,12 +111,6 @@ export default function RecurringServiceCreateModal({
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleClose = () => {
-    setSubmitted(false);
-    setForm(BLANK_FORM(defaultPropertyId ?? (properties.length > 0 ? String(properties[0].id) : "")));
-    onClose();
   };
 
   const handleAddAnother = () => {

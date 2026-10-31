@@ -15,7 +15,6 @@ import {
   signButtonLabel,
   signConfirmationText,
   canSign,
-  type SignableJob,
 } from "../services/signJobService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
 

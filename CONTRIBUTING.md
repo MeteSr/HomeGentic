@@ -16,18 +16,20 @@ Thank you for your interest in contributing to HomeGentic!
 1. Create a branch off `main`
 2. Make your change, keeping `tests/e2e/` in step with any UI-visible change (see `CLAUDE.md`)
 3. Run the checks for what you touched:
+   - Everything: `npm run lint` (and `npm run knip` if you removed or moved frontend code)
    - Frontend: `cd frontend && npx tsc --noEmit -p . && npm run test:unit`
-   - Canisters: `make check-motoko`, then `make test` against a local replica
+   - Canisters: `make check-motoko` and `npm run check:motoko-warnings`, then `make test` against a local replica
 4. Open a pull request using the template. CI runs unit, e2e, visual, backend, integration and stable-compatibility checks, plus a secrets scan
 5. If your change intentionally alters the UI, `test-visual` fails and `test-visual-heal` commits regenerated baselines to your branch — review them
 
 ## Code Conventions
 
 - Motoko canisters: use `persistent actor` — all vars are implicitly stable, no preupgrade/postupgrade hooks needed; use `transient` only for state that should reset on upgrade (e.g. rate-limit maps)
-- Stable types must stay upgrade-compatible: add new record fields as `?T`. The `stable-compat-check` CI job fails a PR that would break an in-place upgrade (see `docs/UPGRADE_RUNBOOK.md`)
+- Stable types must stay upgrade-compatible: don't add fields (even optional ones) to a stored record type; put new data in a new stable var, e.g. a side `Map` keyed by the record's id. The `stable-compat-check` CI job fails a PR that would break an in-place upgrade (see `docs/UPGRADE_RUNBOOK.md`)
 - Frontend: React functional components with TypeScript strict mode
 - Shell scripts: `set -euo pipefail` at the top, descriptive echo statements
-- Commit messages: use conventional commits format (`feat:`, `fix:`, `docs:`, etc.)
+- Commit messages: a short imperative summary of what changed and why ("Skip agents who already bid in deadline reminders")
+- New files are checked with Prettier (`.prettierrc.json`); don't reformat existing files in an unrelated PR
 
 ## Canister Guidelines
 
