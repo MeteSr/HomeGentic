@@ -20,7 +20,7 @@ const F = {
   mono:    "'JetBrains Mono', monospace",
 };
 
-const EFFECTIVE_DATE = "October 19, 2026";
+const EFFECTIVE_DATE = "October 31, 2026";
 
 interface Section {
   id: string;
@@ -43,6 +43,7 @@ const RECIPIENTS: Recipient[] = [
   { who: "ATTOM and RentCast", gets: "Property addresses", why: "Property records, valuations and rent estimates" },
   { who: "OpenPermit and city/county permit portals", gets: "Property addresses", why: "Building-permit lookups" },
   { who: "OpenStreetMap (Nominatim)", gets: "Addresses you type", why: "Turning an address into map coordinates" },
+  { who: "Google (Places API)", gets: "The street address you type when adding a home (sent from our servers, not your browser)", why: "Address suggestions" },
   { who: "Google Fonts", gets: "Your IP address and browser details when a page loads", why: "Web fonts" },
   { who: "Smart-home vendors you connect (e.g. Nest, Ecobee, Moen, Honeywell, Rheem, Sense, Emporia, Rachio, SmartThings, Home Assistant)", gets: "The sign-in authorisation you grant; we receive device readings and alerts back", why: "Device monitoring you turn on" },
   { who: "Contractors and real-estate agents on HomeGentic", gets: "Your property address and job or listing details when you request quotes, invite a contractor or list a home", why: "Quotes, job confirmation and Bid to List" },

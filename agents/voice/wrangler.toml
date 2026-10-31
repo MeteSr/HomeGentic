@@ -91,6 +91,9 @@ crons = ["0 * * * *"]   # every hour — scheduledBidtolist (deadline reminders)
 #                                 the route is disabled (404) when unset
 #   DBPR_LICENSE_FILE_URL         overrides DBPR's construction licensee file URL
 #   RENTCAST_API_KEY              Add Property prefill (/api/rentcast/properties)
+#   GOOGLE_PLACES_API_KEY         Add Property address suggestions (/api/address/suggest, /api/address/place);
+#                                 a server key with only Places API (New) enabled. Unset, the field is plain text.
+#                                 Var ADDRESS_DAILY_BUDGET caps calls/day across all users (default 5000)
 #   CANISTER_ID_MONITORING
 #   BIDTOLIST_FRONTEND_ORIGIN     e.g. https://bidtolist.com
 #   BIDTOLIST_RESEND_API_KEY
