@@ -137,6 +137,9 @@ jobs:
       - name: Install test dependencies (downloads the PocketIC server)
         run: cd tests/upgrade && npm ci
 
+      - name: Install voice Worker dependencies (worker-clients test runs its canister clients)
+        run: cd agents/voice && npm ci
+
       - name: Run upgrade tests
         run: cd tests/upgrade && npm test
 

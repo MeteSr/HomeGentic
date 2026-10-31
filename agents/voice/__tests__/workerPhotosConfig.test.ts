@@ -13,7 +13,7 @@ jest.mock("../paymentCanister", () => ({
   recordGift:                jest.fn(),
   AlreadyConsumedError:      class AlreadyConsumedError extends Error {},
   PAID_TIERS:                new Set(["Pro", "ContractorPro"]),
-  PRINCIPAL_RE:              /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/,
+  PRINCIPAL_RE:              /^(?=.{1,63}$)[a-z0-9]+(?:-[a-z0-9]+)*$/,
   fetchSubscriptionTier:     jest.fn(),
   getAgent:                  jest.fn(),
 }));

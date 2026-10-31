@@ -20,6 +20,7 @@
     },
     "collectCoverageFrom": [
       "*.ts",
+      "src/**/*.ts",
       "!*.test.ts",
       "!types.ts",
       "!jest.config.ts"
@@ -33,10 +34,10 @@
     ],
     "coverageThreshold": {
       "global": {
-        "lines": 42,
-        "functions": 44,
-        "branches": 38,
-        "statements": 40
+        "lines": 67,
+        "functions": 70,
+        "branches": 58,
+        "statements": 65
       }
     },
     "transformIgnorePatterns": [

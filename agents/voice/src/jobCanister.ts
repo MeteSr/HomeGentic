@@ -8,6 +8,7 @@
  */
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
 import { idlFactory } from "../../../packages/shared/src/declarations/job";
+import { icHost } from "../icHost";
 
 export interface InvitePreview {
   jobId:           string;
@@ -21,8 +22,8 @@ export interface InvitePreview {
 }
 
 const agents = new Map<string, Promise<HttpAgent>>();
-function agentFor(local: boolean): Promise<HttpAgent> {
-  const host = local ? "http://localhost:4943" : "https://ic0.app";
+function agentFor(): Promise<HttpAgent> {
+  const { host, local } = icHost();
   let agent = agents.get(host);
   if (!agent) {
     agent = HttpAgent.create({ host, shouldFetchRootKey: local });
@@ -36,7 +37,7 @@ export async function getInvitePreview(token: string): Promise<InvitePreview | n
   const canisterId = process.env.CANISTER_ID_JOB;
   if (!canisterId) throw new Error("CANISTER_ID_JOB is not set — cannot look up invite tokens");
   const actor = Actor.createActor(idlFactory, {
-    agent: await agentFor(process.env.DFX_NETWORK === "local"),
+    agent: await agentFor(),
     canisterId,
   }) as any;
   const res = await actor.getJobByInviteToken(token);

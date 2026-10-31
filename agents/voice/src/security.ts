@@ -85,7 +85,9 @@ export function isAllowedRedirectUrl(url: unknown, allowedOrigins: Array<string 
 
 // ── Principal / Stripe id formats ─────────────────────────────────────────────
 
-export const PRINCIPAL_RE        = /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/;
+// A principal's text form: dash-separated groups, at most 63 characters. A
+// self-authenticating principal (every Internet Identity user) is exactly 63.
+export const PRINCIPAL_RE        = /^(?=.{1,63}$)[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const CHECKOUT_SESSION_RE = /^cs_(test|live)_[A-Za-z0-9]{1,250}$/;
 export const SUBSCRIPTION_ID_RE  = /^sub_[A-Za-z0-9]{1,250}$/;
 export const PAYMENT_INTENT_RE   = /^pi_[A-Za-z0-9]{1,250}$/;

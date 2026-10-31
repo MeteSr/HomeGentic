@@ -6,24 +6,24 @@
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
 import { identityFromPem } from "./paymentCanister";
 import { idlFactory } from "../../packages/shared/src/declarations/monitoring";
+import { icHost } from "./icHost";
 
-const MONITORING_CANISTER_ID =
-  process.env.CANISTER_ID_MONITORING ?? "";
-
-const IC_HOST = process.env.DFX_NETWORK === "local"
-  ? "http://localhost:4943"
-  : "https://ic0.app";
-
-let _actor: any = null;
+// Env is read per call: the Worker copies its bindings into process.env per
+// request, after this module is imported, so a module-level read of
+// CANISTER_ID_MONITORING always saw it unset and every call returned nothing.
+const agents = new Map<string, Promise<HttpAgent>>();
 
 async function getActor(): Promise<any> {
-  if (_actor) return _actor;
   const pem = process.env.DFX_IDENTITY_PEM;
-  if (!pem || !MONITORING_CANISTER_ID) return null;
-  const agent = new HttpAgent({ host: IC_HOST, identity: identityFromPem(pem) });
-  if (process.env.DFX_NETWORK === "local") await agent.fetchRootKey();
-  _actor = Actor.createActor(idlFactory, { agent, canisterId: MONITORING_CANISTER_ID });
-  return _actor;
+  const canisterId = process.env.CANISTER_ID_MONITORING;
+  if (!pem || !canisterId) return null;
+  const { host, local } = icHost();
+  let agent = agents.get(host);
+  if (!agent) {
+    agent = HttpAgent.create({ host, identity: identityFromPem(pem), shouldFetchRootKey: local });
+    agents.set(host, agent);
+  }
+  return Actor.createActor(idlFactory, { agent: await agent, canisterId });
 }
 
 export interface ErrorSummaryInput {

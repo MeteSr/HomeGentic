@@ -102,6 +102,7 @@ export interface Env {
   // ICP
   DFX_IDENTITY_PEM?:     string;
   DFX_NETWORK?:          string;
+  IC_HOST?:              string;   // overrides the IC host (tests point it at PocketIC)
   CANISTER_ID_PAYMENT?:  string;
   CANISTER_ID_AUTH?:     string;   // resolves x-agent-session tokens
   CANISTER_ID_MONITORING?: string;
@@ -374,6 +375,7 @@ export default {
     if (!env.INBOX_DOMAIN) return;
     (process.env as any).DFX_IDENTITY_PEM = env.DFX_IDENTITY_PEM ?? "";
     (process.env as any).DFX_NETWORK      = env.DFX_NETWORK ?? "ic";
+    (process.env as any).IC_HOST          = env.IC_HOST ?? "";
     (process.env as any).CANISTER_ID_JOB  = env.CANISTER_ID_JOB ?? "";
     const provider = new AnthropicProvider(env.ANTHROPIC_API_KEY, resolveModel(env.AI_MODEL), env.ANTHROPIC_BASE_URL);
     try {
@@ -407,6 +409,7 @@ export default {
     (process.env as any).STRIPE_WEBHOOK_SECRET   = env.STRIPE_WEBHOOK_SECRET;
     (process.env as any).DFX_IDENTITY_PEM        = env.DFX_IDENTITY_PEM ?? "";
     (process.env as any).DFX_NETWORK             = env.DFX_NETWORK ?? "ic";
+    (process.env as any).IC_HOST                 = env.IC_HOST ?? "";
     (process.env as any).CANISTER_ID_PAYMENT     = env.CANISTER_ID_PAYMENT ?? "";
     (process.env as any).CANISTER_ID_AUTH        = env.CANISTER_ID_AUTH ?? "";
     (process.env as any).CANISTER_ID_MONITORING  = env.CANISTER_ID_MONITORING ?? "";
@@ -1768,6 +1771,7 @@ async function scheduledReferralFees(env: Env): Promise<void> {
   if (!env.CANISTER_ID_FEE || !env.STRIPE_SECRET_KEY || !env.DFX_IDENTITY_PEM) return;
   (process.env as any).DFX_IDENTITY_PEM       = env.DFX_IDENTITY_PEM;
   (process.env as any).DFX_NETWORK            = env.DFX_NETWORK ?? "ic";
+  (process.env as any).IC_HOST                = env.IC_HOST ?? "";
   (process.env as any).CANISTER_ID_FEE        = env.CANISTER_ID_FEE;
   (process.env as any).CANISTER_ID_CONTRACTOR = env.CANISTER_ID_CONTRACTOR ?? "";
   try {

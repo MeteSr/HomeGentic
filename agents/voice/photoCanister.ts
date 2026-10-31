@@ -10,6 +10,7 @@ import { HttpAgent, Actor } from "@icp-sdk/core/agent";
 import { Principal } from "@icp-sdk/core/principal";
 import { idlFactory } from "../../packages/shared/src/declarations/photo";
 import { identityFromPem } from "./paymentCanister";
+import { icHost } from "./icHost";
 
 export interface PhotoAccess {
   owner:    string;
@@ -26,19 +27,18 @@ type RawAccess = {
 };
 type PhotoActor = { photoAccess(photoId: string, reader: Principal): Promise<[] | [RawAccess]> };
 
-let agentPromise: Promise<HttpAgent> | undefined;
+const agents = new Map<string, Promise<HttpAgent>>();
 
 function getAgent(): Promise<HttpAgent> {
-  if (agentPromise) return agentPromise;
   const pem = process.env.DFX_IDENTITY_PEM;
   if (!pem) throw new Error("DFX_IDENTITY_PEM is not set — cannot call photoAccess");
-  const local = process.env.DFX_NETWORK === "local";
-  agentPromise = HttpAgent.create({
-    host: local ? "http://localhost:4943" : "https://ic0.app",
-    identity: identityFromPem(pem),
-    shouldFetchRootKey: local,
-  });
-  return agentPromise;
+  const { host, local } = icHost();
+  let agent = agents.get(host);
+  if (!agent) {
+    agent = HttpAgent.create({ host, identity: identityFromPem(pem), shouldFetchRootKey: local });
+    agents.set(host, agent);
+  }
+  return agent;
 }
 
 /** What `reader` may do with a photo, or null when it doesn't exist. Throws if the canister can't be reached. */

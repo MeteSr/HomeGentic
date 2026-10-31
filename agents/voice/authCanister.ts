@@ -9,13 +9,14 @@
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
 import type { Principal } from "@icp-sdk/core/principal";
 import { idlFactory } from "../../packages/shared/src/declarations/auth";
+import { icHost } from "./icHost";
 
 type AuthActor = { resolveAgentSession(token: string): Promise<[] | [Principal]> };
 
 const agents = new Map<string, Promise<HttpAgent>>();
 
-function agentFor(local: boolean): Promise<HttpAgent> {
-  const host = local ? "http://localhost:4943" : "https://ic0.app";
+function agentFor(): Promise<HttpAgent> {
+  const { host, local } = icHost();
   let agent = agents.get(host);
   if (!agent) {
     agent = HttpAgent.create({ host, shouldFetchRootKey: local });
@@ -29,7 +30,7 @@ export async function resolveAgentSessionOwner(token: string): Promise<string | 
   const canisterId = process.env.CANISTER_ID_AUTH;
   if (!canisterId) throw new Error("CANISTER_ID_AUTH is not set — cannot resolve agent sessions");
   const actor = Actor.createActor(idlFactory, {
-    agent: await agentFor(process.env.DFX_NETWORK === "local"),
+    agent: await agentFor(),
     canisterId,
   }) as unknown as AuthActor;
   const owner = await actor.resolveAgentSession(token);
