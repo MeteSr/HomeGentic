@@ -24,7 +24,11 @@ vi.mock("@/services/job", () => ({
 }));
 
 import { jobService } from "@/services/job";
+import { useAuthStore } from "@/store/authStore";
 import ContractorVerifyPage from "@/pages/ContractorVerifyPage";
+
+// Signed in: the sign-in step before signing is covered in pages/ContractorVerifyPage.test.tsx.
+beforeEach(() => useAuthStore.setState({ isAuthenticated: true, principal: "contractor-principal" }));
 
 const MOCK_PREVIEW = {
   jobId:           "job-1",

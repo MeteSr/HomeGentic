@@ -34,7 +34,12 @@ export default defineConfig(({ mode, command }) => {
   const stripDevCsp = {
     name: "strip-dev-csp",
     transformIndexHtml(html: string, ctx: { server?: unknown }): string {
-      if (ctx.server) return html; // dev server running — keep localhost entries
+      if (ctx.server) {
+        // dev server running — keep localhost entries, plus the live browser
+        // tests' PocketIC gateway (LOCAL_IC_HOST) when one is set.
+        const extra = env.LOCAL_IC_HOST ? new URL(env.LOCAL_IC_HOST).origin : "";
+        return extra ? html.replace(/http:\/\/localhost:4943/g, `http://localhost:4943 ${extra}`) : html;
+      }
       if ((env.DFX_NETWORK || "local") !== "ic") return html; // local/testnet — keep localhost
       return html
         .replace(/\s*http:\/\/localhost:\d+/g, "")
@@ -84,6 +89,7 @@ export default defineConfig(({ mode, command }) => {
     define: {
       // dfx outputs CANISTER_ID_<NAME>; map to the names services expect
       "process.env.DFX_NETWORK": JSON.stringify(env.DFX_NETWORK || "local"),
+      "process.env.LOCAL_IC_HOST": JSON.stringify(env.LOCAL_IC_HOST || ""),
       "process.env.AUTH_CANISTER_ID": JSON.stringify(env.CANISTER_ID_AUTH || env.AUTH_CANISTER_ID || ""),
       "process.env.PROPERTY_CANISTER_ID": JSON.stringify(env.CANISTER_ID_PROPERTY || env.PROPERTY_CANISTER_ID || ""),
       "process.env.JOB_CANISTER_ID": JSON.stringify(env.CANISTER_ID_JOB || env.JOB_CANISTER_ID || ""),
