@@ -109,11 +109,11 @@ export default function AgentBidFormPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <div>
                 <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.68rem", color: UI.muted, textTransform: "uppercase", marginBottom: 6 }}>Commission %</div>
-                <input value={commission} onChange={(e) => setCommission(e.target.value)} style={numInput} inputMode="decimal" />
+                <input aria-label="Commission %" value={commission} onChange={(e) => setCommission(e.target.value)} style={numInput} inputMode="decimal" />
               </div>
               <div>
                 <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.68rem", color: UI.muted, textTransform: "uppercase", marginBottom: 6 }}>Suggested list ($)</div>
-                <input value={suggestedList} onChange={(e) => setSuggestedList(e.target.value)} style={numInput} inputMode="decimal" placeholder="405000" />
+                <input aria-label="Suggested list ($)" value={suggestedList} onChange={(e) => setSuggestedList(e.target.value)} style={numInput} inputMode="decimal" placeholder="405000" />
                 {comps && suggestedCents > 0 && (
                   <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", marginTop: 6, color: overFlag ? UI.orange : UI.green }}>
                     {overFlag ? `+${pctVsComps.toFixed(1)}% OVER COMPS` : "AT COMPS"}
@@ -148,11 +148,11 @@ export default function AgentBidFormPage() {
               )}
             </div>
 
-            <textarea value={cmaSummary} onChange={(e) => setCmaSummary(e.target.value)} placeholder="CMA summary" rows={3}
+            <textarea aria-label="CMA summary" value={cmaSummary} onChange={(e) => setCmaSummary(e.target.value)} placeholder="CMA summary" rows={3}
               style={{ border: `1.5px solid ${UI.border}`, borderRadius: V2_RADIUS.input, padding: 12, fontFamily: V2_FONTS.body, fontSize: "0.875rem" }} />
-            <textarea value={marketingPlan} onChange={(e) => setMarketingPlan(e.target.value)} placeholder="Marketing plan" rows={3}
+            <textarea aria-label="Marketing plan" value={marketingPlan} onChange={(e) => setMarketingPlan(e.target.value)} placeholder="Marketing plan" rows={3}
               style={{ border: `1.5px solid ${UI.border}`, borderRadius: V2_RADIUS.input, padding: 12, fontFamily: V2_FONTS.body, fontSize: "0.875rem" }} />
-            <textarea value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} placeholder="Cover letter (optional)" rows={2}
+            <textarea aria-label="Cover letter (optional)" value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} placeholder="Cover letter (optional)" rows={2}
               style={{ border: `1.5px solid ${UI.border}`, borderRadius: V2_RADIUS.input, padding: 12, fontFamily: V2_FONTS.body, fontSize: "0.875rem" }} />
 
             <div>

@@ -6,6 +6,9 @@ const DFX_NETWORK = (process.env as any).DFX_NETWORK || "local";
 // IS_LOCAL is true only when running against a local replica (dfx start).
 // testnet / ic / any other named IC network all use the production II URL.
 const IS_LOCAL = DFX_NETWORK === "local";
+// The local replica's address. LOCAL_IC_HOST overrides it for the live
+// browser tests, whose PocketIC gateway listens on a random port.
+const LOCAL_HOST = (process.env as any).LOCAL_IC_HOST || "http://localhost:4943";
 // ii: true in icp.yaml deploys II automatically on icp network start.
 // Skill-documented local URL — port matches our icp.yaml gateway port.
 // @icp-sdk/auth default is https://id.ai/authorize — /authorize is where the
@@ -46,7 +49,7 @@ export async function getAgent(): Promise<HttpAgent> {
     // explicitly with a timeout, matching the pattern in loginWithLocalIdentity().
     _agent = await HttpAgent.create({
       identity,
-      host: IS_LOCAL ? "http://localhost:4943" : "https://ic0.app",
+      host: IS_LOCAL ? LOCAL_HOST : "https://ic0.app",
     });
     if (IS_LOCAL) {
       await Promise.race([
@@ -88,11 +91,14 @@ export async function loginWithLocalIdentity(): Promise<string> {
   if (!IS_LOCAL) {
     throw new Error("loginWithLocalIdentity() must not be called in production");
   }
-  // Fixed seed → same principal every time, survives hot-reload
+  // Fixed seed → same principal every time, survives hot-reload. The live
+  // browser tests sign in a second person (e.g. the contractor) by setting
+  // window.__e2e_local_seed before the page loads.
   const seed = new Uint8Array(32);
-  seed[0] = 42;
+  const override = typeof window !== "undefined" ? (window as any).__e2e_local_seed : undefined;
+  seed[0] = typeof override === "number" ? override : 42;
   const identity = Ed25519KeyIdentity.generate(seed);
-  _agent = await HttpAgent.create({ identity, host: "http://localhost:4943" });
+  _agent = await HttpAgent.create({ identity, host: LOCAL_HOST });
   // Fetch the local replica's root key so canister calls can be verified.
   // When no replica is running (e.g. mock-mode E2E without deploy), this fails
   // gracefully — all service calls will fall back to their mock implementations.

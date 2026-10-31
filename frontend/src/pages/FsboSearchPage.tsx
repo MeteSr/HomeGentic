@@ -372,6 +372,7 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
 
           <Link
             to={`/for-sale/${listing.propertyId}`}
+            aria-label={`View ${listing.address}`}
             style={{
               display:        "inline-flex",
               alignItems:     "center",

@@ -67,6 +67,8 @@ POCKET_IC_BIN=~/.local/bin/pocket-ic npm test
 | `concurrency.canister.test.ts` | property, payment, job, quote, listing, market | Calls submitted in the same round (`sameRound`): tier limits, one home per address (incl. bulk import), one accepted quote, one invite redemption, FSBO score hide during a show |
 | `property-access.canister.test.ts` | property, job, bills, recurring, payment | Ownership transfer (seller and delegates lose access everywhere, buyer keeps history), managers and their roles, approval requests |
 | `payment.canister.test.ts` | payment | Stripe relay rules: relay-only, one grant per Stripe reference (also same-round), gifts never shorten a running plan, agent credits never below zero |
+| `wired-indexes.upgrade.test.ts` | all 20, wired | Seeded through the real cross-canister flows (homes, jobs, proposal, quote, bills, recurring visits, maintenance plan, sensor events, an awarded Bid to List bid with its fee and review), all upgraded together from the base build: every index-backed read answers the same, new writes land in the rebuilt indexes, and the monitoring stale-metrics timer still fires |
+| `browser-flow.live.test.ts` | all 20, wired, in Chromium | The web app (Vite dev server) against PocketIC's HTTP gateway, nothing mocked: sign-up, add a home, log and sign a job, invite the contractor, who signs from the link; an admin verifies them on /admin; a realtor is reviewed, browses and bids; gift and manager-invite links for a new person. Needs the root `npm install` and Playwright's Chromium (`npx playwright install chromium`) |
 
 ---
 

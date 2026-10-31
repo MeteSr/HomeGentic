@@ -12,6 +12,7 @@ import { authService } from "@/services/auth";
 import { paymentService } from "@/services/payment";
 import { propertyService } from "@/services/property";
 import { clearAgentSession } from "@/services/agentSession";
+import { takeReturnPath, hasReturnPath } from "@/utils/returnPath";
 import { disablePush } from "@/services/pushNotifications";
 
 // Per-user data the app caches in localStorage (AI action history, score
@@ -117,17 +118,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
       authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err));
+      // Back to the page they signed in from (a payment success, gift or
+      // manager invite), whatever their role.
+      const back = takeReturnPath();
+      if (back) {
+        navigate(back);
+        return;
+      }
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {
-        // pendingVerification: user paid before logging in — return them to the
-        // success page so verification runs with their real principal.
-        const pendingVerification = sessionStorage.getItem("pendingVerification");
-        if (pendingVerification) {
-          sessionStorage.removeItem("pendingVerification");
-          navigate(pendingVerification);
-          return;
-        }
         const pending = sessionStorage.getItem("pendingCheckout");
         if (pending) {
           sessionStorage.removeItem("pendingCheckout");
@@ -146,6 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
+      // No profile yet: register first; RegisterPage then returns them to
+      // any page they signed in from.
       navigate("/register");
     }
   };
@@ -159,17 +161,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
       authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err));
+      // Back to the page they signed in from (a payment success, gift or
+      // manager invite), whatever their role.
+      const back = takeReturnPath();
+      if (back) {
+        navigate(back);
+        return;
+      }
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {
-        // pendingVerification: user paid before logging in — return them to the
-        // success page so verification runs with their real principal.
-        const pendingVerification = sessionStorage.getItem("pendingVerification");
-        if (pendingVerification) {
-          sessionStorage.removeItem("pendingVerification");
-          navigate(pendingVerification);
-          return;
-        }
         const pending = sessionStorage.getItem("pendingCheckout");
         if (pending) {
           sessionStorage.removeItem("pendingCheckout");
@@ -188,8 +189,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
-      // No profile yet (new user) — send to dashboard; modal auto-opens for first-time setup
-      navigate("/dashboard");
+      // No profile yet (new user). Signing in from a gift or invite link:
+      // register first, and RegisterPage returns them to it. Otherwise the
+      // dashboard, where the setup modal opens.
+      navigate(hasReturnPath() ? "/register" : "/dashboard");
     }
   };
 

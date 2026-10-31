@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState } from "react";
+import { setReturnPath } from "@/utils/returnPath";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { PageHead } from "@/components/PageHead";
 import { CheckCircle, Gift } from "lucide-react";
@@ -66,7 +67,7 @@ export default function PaymentSuccessPage() {
       if (!isAuthenticated) {
         // Payment succeeded but user hasn't set up their account yet.
         // Save this URL so AuthContext can redirect back here after login.
-        sessionStorage.setItem("pendingVerification", window.location.pathname + window.location.search);
+        setReturnPath(window.location.pathname + window.location.search);
         setState("awaiting-login");
         return;
       }

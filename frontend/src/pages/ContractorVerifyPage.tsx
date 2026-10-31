@@ -1,13 +1,18 @@
 /**
  * ContractorVerifyPage — /verify/:token
  *
- * Public page (no auth required). A contractor arrives here by scanning the
- * homeowner's QR code or clicking the invite link.
+ * Public page. A contractor arrives here by scanning the homeowner's QR code
+ * or clicking the invite link. The preview needs no sign-in; signing does,
+ * because the job canister rejects anonymous callers and ties the guest
+ * contractor profile it creates to the signer's principal. A contractor who
+ * isn't signed in signs in from the Confirm & Sign click (Internet Identity,
+ * or the local key in dev) without leaving the page.
  *
  * Flow:
  *   1. Fetch job preview from the invite token (public canister query).
  *   2. Show job details so the contractor recognises the work.
- *   3. "Confirm & Sign" redeems the token and sets contractorSigned = true.
+ *   3. "Confirm & Sign" (signing in first if needed) redeems the token and
+ *      sets contractorSigned = true.
  *   4. Success state nudges toward free account creation.
  */
 
@@ -16,6 +21,8 @@ import { useParams, Link } from "react-router-dom";
 import { CheckCircle, AlertTriangle, Loader2, ExternalLink } from "lucide-react";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { jobService, type InvitePreview } from "@/services/job";
+import { login as iiLogin, getPrincipal, loginWithLocalIdentity } from "@/services/actor";
+import { useAuthStore } from "@/store/authStore";
 
 const UI = {
   ink:   V2_COLORS.ink,
@@ -68,10 +75,28 @@ export default function ContractorVerifyPage() {
       .catch((e: Error) => { setError(e.message); setStage("error"); });
   }, [token]);
 
+  const signedIn = useAuthStore((s) => s.isAuthenticated);
+  const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
+
   const canSign = form.contractorName.trim().length > 0 && form.phone.trim().length > 0 && form.email.trim().length > 0;
 
   async function handleSign() {
     if (!token || !canSign) return;
+    if (!signedIn) {
+      // Called straight from the click: the II popup needs its user activation.
+      try {
+        if (import.meta.env.DEV) {
+          setAuthenticated(await loginWithLocalIdentity());
+        } else {
+          await iiLogin();
+          setAuthenticated(await getPrincipal());
+        }
+      } catch {
+        setError("Sign-in didn't finish. Sign in to add your signature.");
+        return;
+      }
+    }
+    setError(null);
     setStage("signing");
     try {
       await jobService.redeemInviteToken(token, {
@@ -278,8 +303,16 @@ export default function ContractorVerifyPage() {
                 >
                   {stage === "signing"
                     ? <><Loader2 size={14} data-motion="essential" style={{ animation: "spin 1s linear infinite" }} /> Signing…</>
-                    : "Confirm & Sign →"}
+                    : signedIn ? "Confirm & Sign →" : "Sign in & Confirm →"}
                 </button>
+                {!signedIn && (
+                  <p style={{ textAlign: "center", fontSize: "0.75rem", color: UI.muted, marginTop: "0.75rem", lineHeight: 1.5 }}>
+                    You&apos;ll sign in with Internet Identity first (Google, Apple or a passkey), so the signature is tied to you.
+                  </p>
+                )}
+                {error && stage === "preview" && (
+                  <p role="alert" style={{ textAlign: "center", fontSize: "0.75rem", color: "#C94C2E", marginTop: "0.75rem" }}>{error}</p>
+                )}
                 <p style={{ textAlign: "center", fontSize: "0.7rem", color: UI.muted, marginTop: "0.75rem" }}>
                   {timeLeft(preview.expiresAt)} · single use
                 </p>

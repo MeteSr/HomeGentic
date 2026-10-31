@@ -6,6 +6,8 @@
  *   - an already-signed job hides Confirm & Sign and shows the
  *     "already signed" notice instead
  *   - Confirm & Sign is disabled until name/phone/email are filled (#518)
+ *   - a contractor who isn't signed in signs in from the same click (the
+ *     local key in dev), then redeems; a failed sign-in redeems nothing
  *   - Confirm & Sign redeems the token with the captured identity fields,
  *     disables itself while signing, and moves to the success state; a
  *     redeem failure surfaces its error message (falling back to a
@@ -17,10 +19,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import ContractorVerifyPage from "@/pages/ContractorVerifyPage";
 import type { InvitePreview } from "@/services/job";
+import { useAuthStore } from "@/store/authStore";
 
-const { mockGetByToken, mockRedeem } = vi.hoisted(() => ({
+const { mockGetByToken, mockRedeem, mockLocalLogin, mockIiLogin } = vi.hoisted(() => ({
   mockGetByToken: vi.fn(),
   mockRedeem: vi.fn(),
+  mockLocalLogin: vi.fn(),
+  mockIiLogin: vi.fn(),
+}));
+vi.mock("@/services/actor", () => ({
+  loginWithLocalIdentity: mockLocalLogin,
+  login: mockIiLogin,
+  getPrincipal: vi.fn(async () => "ii-principal"),
 }));
 vi.mock("@/services/job", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/job")>();
@@ -50,7 +60,10 @@ async function fillIdentityForm() {
   fireEvent.change(screen.getByLabelText("Email"), { target: { value: "jane@example.com" } });
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  useAuthStore.setState({ isAuthenticated: true, principal: "contractor-principal" });
+});
 
 describe("ContractorVerifyPage — loading and fetch", () => {
   it("fetches the preview using the URL token", async () => {
@@ -167,5 +180,36 @@ describe("ContractorVerifyPage — confirm and sign", () => {
     await fillIdentityForm();
     fireEvent.click(screen.getByText("Confirm & Sign →"));
     expect(await screen.findByText("Something went wrong.")).toBeInTheDocument();
+  });
+});
+
+describe("ContractorVerifyPage — not signed in", () => {
+  beforeEach(() => useAuthStore.setState({ isAuthenticated: false, principal: null }));
+
+  it("signs in from the sign button, then redeems as the signed-in contractor", async () => {
+    mockGetByToken.mockResolvedValue(makePreview());
+    mockLocalLogin.mockResolvedValue("dev-contractor");
+    mockRedeem.mockResolvedValue({});
+    renderAt("/verify/tok-1");
+    await fillIdentityForm();
+    expect(screen.getByText(/sign in with Internet Identity first/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /sign in & confirm/i }));
+    expect(await screen.findByText("Signature recorded")).toBeInTheDocument();
+    expect(mockLocalLogin).toHaveBeenCalledTimes(1);
+    expect(mockIiLogin).not.toHaveBeenCalled();   // dev build: the local key
+    expect(useAuthStore.getState().principal).toBe("dev-contractor");
+    expect(mockLocalLogin.mock.invocationCallOrder[0]).toBeLessThan(mockRedeem.mock.invocationCallOrder[0]);
+  });
+
+  it("redeems nothing when sign-in doesn't finish, and says so", async () => {
+    mockGetByToken.mockResolvedValue(makePreview());
+    mockLocalLogin.mockRejectedValue(new Error("popup closed"));
+    renderAt("/verify/tok-1");
+    await fillIdentityForm();
+    fireEvent.click(screen.getByRole("button", { name: /sign in & confirm/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/sign-in didn't finish/i);
+    expect(mockRedeem).not.toHaveBeenCalled();
+    // Still on the form, so they can try again.
+    expect(screen.getByRole("button", { name: /sign in & confirm/i })).toBeEnabled();
   });
 });
