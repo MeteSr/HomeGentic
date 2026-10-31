@@ -225,6 +225,12 @@ persistent actor Contractor {
   private let licenseChecks = Map.empty<Principal, LicenseCheck>();
   /// Principals (the voice Worker) allowed to record licence checks.
   private var licenseRelayEntries : [Principal] = [];
+  /// Principals (the notification relay) allowed to read contractors' email
+  /// addresses, to send lead alerts.
+  private var notifierEntries : [Principal] = [];
+  /// Quote canister — set via setQuoteCanisterId(). getContractorEmail asks it
+  /// whether the caller took a bid from the contractor.
+  private var quoteCanisterId : Text = "";
   /// ContractorPro portfolios: featured co-signed jobs per contractor.
   private let portfolios = Map.empty<Principal, [PortfolioEntry]>();
   /// Payment canister — set via setPaymentCanisterId(). setPortfolio() reads
@@ -272,6 +278,21 @@ persistent actor Contractor {
   private func directoryFilter(caller: Principal) : ContractorProfile -> Bool {
     let all = isAdmin(caller) or isTrustedCanister(caller);
     func(c: ContractorProfile) : Bool { all or c.id == caller or privacyOf(c.id).listed }
+  };
+
+  /// Email addresses aren't public: a profile read by anyone else has its
+  /// email and alert email blanked. The contractor themself, admins, trusted
+  /// canisters and the voice Worker and notification relay (which email
+  /// contractors) see them.
+  private func seesEmail(caller: Principal, c: Principal) : Bool {
+    caller == c or isAdmin(caller) or isTrustedCanister(caller)
+      or Admin.contains(licenseRelayEntries, caller) or Admin.contains(notifierEntries, caller)
+  };
+
+  private func viewFor(caller: Principal) : ContractorProfile -> ContractorProfile {
+    func(c: ContractorProfile) : ContractorProfile {
+      if (seesEmail(caller, c.id)) c else ({ c with email = ""; notifyEmail = null })
+    }
   };
 
   private func isJobCanister(p: Principal) : Bool {
@@ -548,11 +569,35 @@ persistent actor Contractor {
     }
   };
 
-  public query func getContractor(c: Principal) : async Result.Result<ContractorProfile, Error> {
+  public query(msg) func getContractor(c: Principal) : async Result.Result<ContractorProfile, Error> {
     switch (contractors.get(c)) {
       case null { #err(#NotFound) };
-      case (?p) { #ok(p) };
+      case (?p) { #ok(viewFor(msg.caller)(p)) };
     }
+  };
+
+  /// A contractor's email, for a homeowner who has worked with them: they
+  /// logged a job with the contractor, or took bids from them on a request
+  /// that has since been accepted, closed or cancelled. Anyone who sees
+  /// emails in profile reads (see seesEmail) gets it too. A composite query,
+  /// so the job and quote canisters are asked live.
+  public composite query(msg) func getContractorEmail(c: Principal) : async Result.Result<Text, Error> {
+    let p = switch (contractors.get(c)) { case null return #err(#NotFound); case (?p) p };
+    if (seesEmail(msg.caller, c)) return #ok(p.email);
+    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
+    if (Text.size(jobCanisterId) > 0) {
+      let job = actor(jobCanisterId) : actor {
+        hasJobWithContractor : shared query (Principal, Principal) -> async Bool;
+      };
+      if (await job.hasJobWithContractor(msg.caller, c)) return #ok(p.email);
+    };
+    if (Text.size(quoteCanisterId) > 0) {
+      let quote = actor(quoteCanisterId) : actor {
+        hasBidFrom : shared query (Principal, Principal) -> async Bool;
+      };
+      if (await quote.hasBidFrom(msg.caller, c)) return #ok(p.email);
+    };
+    #err(#NotAuthorized)
   };
 
   public query(msg) func getMyProfile() : async Result.Result<ContractorProfile, Error> {
@@ -563,11 +608,11 @@ persistent actor Contractor {
   };
 
   public query(msg) func getAll() : async [ContractorProfile] {
-    contractors.values().filter(directoryFilter(msg.caller)).take(500).toArray()
+    contractors.values().filter(directoryFilter(msg.caller)).take(500).map(viewFor(msg.caller)).toArray()
   };
 
   public query(msg) func getPage(from : Nat, limit : Nat) : async [ContractorProfile] {
-    contractors.values().filter(directoryFilter(msg.caller)).drop(from).take(Nat.min(limit, 100)).toArray()
+    contractors.values().filter(directoryFilter(msg.caller)).drop(from).take(Nat.min(limit, 100)).map(viewFor(msg.caller)).toArray()
   };
 
   /// Every contractor's lead-matching fields, for the notification relay.
@@ -908,6 +953,21 @@ persistent actor Contractor {
     #ok(())
   };
 
+  /// Allow a principal (the notification relay's identity) to read
+  /// contractors' email addresses.
+  public shared(msg) func addNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
+    notifierEntries := Admin.add(notifierEntries, p);
+    #ok(())
+  };
+
+  public shared(msg) func removeNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    notifierEntries := Admin.remove(notifierEntries, p);
+    #ok(())
+  };
+
   /// Account deletion: removes everything this canister holds for the caller —
   /// their contractor profile, reviews about them, reviews they wrote and
   /// their job credentials. Returns how many records were removed.
@@ -963,6 +1023,12 @@ persistent actor Contractor {
   public shared(msg) func setJobCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     jobCanisterId := id;
+    #ok(())
+  };
+
+  public shared(msg) func setQuoteCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    quoteCanisterId := id;
     #ok(())
   };
 
@@ -1121,7 +1187,7 @@ persistent actor Contractor {
     let listed = directoryFilter(msg.caller);
     contractors.values().filter(func(c: ContractorProfile) : Bool {
       listed(c) and Option.isSome(c.serviceZips.find(func(z) { z == zipCode }))
-    }).take(500).toArray()
+    }).take(500).map(viewFor(msg.caller)).toArray()
   };
 
   /// Return the contractors who serve a given trade category, at most 500 (as getAll).
@@ -1129,7 +1195,7 @@ persistent actor Contractor {
     let listed = directoryFilter(msg.caller);
     contractors.values().filter(func(c: ContractorProfile) : Bool {
       listed(c) and Option.isSome(c.specialties.find(func(t) { t == s }))
-    }).take(500).toArray()
+    }).take(500).map(viewFor(msg.caller)).toArray()
   };
 
   public query func getMetrics() : async Metrics {

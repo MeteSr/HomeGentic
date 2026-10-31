@@ -180,12 +180,14 @@ export async function resolveAgentSession(token: string): Promise<string | null>
 /**
  * Where to email `principal`: a contractor's alert-email override
  * (notifyEmail) when they set one, else the email they registered with. Null
- * when there's no address. Needs the relay allowlisted on auth (addNotifier).
+ * when there's no address. Needs the relay allowlisted on auth and contractor (addNotifier).
  */
 export async function getNotificationEmail(principal: string): Promise<string | null> {
   const p = Principal.fromText(principal);
+  // Contractor emails are hidden from anonymous reads; the relay is on
+  // contractor's notifier list (addNotifier).
   const contractor = Actor.createActor(contractorIdl, {
-    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_CONTRACTOR"),
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_CONTRACTOR"),
   }) as any;
   const profile = await contractor.getContractor(p);
   if ("ok" in profile && profile.ok.notifyEmail[0]) return profile.ok.notifyEmail[0] as string;

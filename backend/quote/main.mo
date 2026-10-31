@@ -1760,6 +1760,24 @@ persistent actor Quote {
     #ok(())
   };
 
+  /// Whether `contractor` bid on one of `homeowner`'s requests that is no
+  /// longer taking bids (accepted, closed or cancelled), for the contractor
+  /// canister's getContractorEmail. Contact details stay hidden while a
+  /// request is open, as the app shows them. Contractor canister only.
+  public query(msg) func hasBidFrom(homeowner: Principal, contractor: Principal) : async Bool {
+    if (contrCanisterId == "" or msg.caller.toText() != contrCanisterId) return false;
+    let key = contractor.toText();
+    for (r in Index.records(requestsByHomeowner, homeowner.toText(), requests)) {
+      if (r.status != #Open and r.status != #Quoted) {
+        let quoted = Option.isSome(Index.records(quotesByRequest, r.id, quotes).find(
+          func(q : Quote) : Bool { q.contractor == contractor }
+        ));
+        if (quoted or Option.isSome(sealedBidsByContractor.get(key # ":" # r.id))) return true;
+      };
+    };
+    false
+  };
+
   public query func getMetrics() : async Metrics {
     var open     = 0;
     var accepted = 0;

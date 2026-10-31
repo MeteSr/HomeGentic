@@ -1977,6 +1977,20 @@ persistent actor Job {
     #ok(result)
   };
 
+  /// Whether `homeowner` has a job with `contractor` (logged by either side;
+  /// a proposal counts once the homeowner approves it), for the
+  /// contractor canister's getContractorEmail. Trusted canisters only, so it
+  /// can't be used to probe who hired whom.
+  public query(msg) func hasJobWithContractor(homeowner: Principal, contractor: Principal) : async Bool {
+    if (not isTrustedCanister(msg.caller) and not isAdmin(msg.caller)) return false;
+    Option.isSome(Index.records(jobsByHomeowner, homeowner.toText(), jobs).find(
+      // A proposal the homeowner hasn't approved (or turned down) doesn't count.
+      func(j : Job) : Bool {
+        j.contractor == ?contractor and j.status != #PendingHomeownerApproval and j.status != #RejectedByHomeowner
+      }
+    ))
+  };
+
   public query func getMetrics() : async Metrics {
     var pending   = 0;
     var completed = 0;

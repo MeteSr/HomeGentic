@@ -89,6 +89,9 @@ dfx canister call quote       setPropertyCanisterId   "(principal \"$PROPERTY_ID
 dfx canister call maintenance setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
 dfx canister call quote       setContractorCanisterId "(principal \"$CONTRACTOR_ID\")"
 dfx canister call contractor  setJobCanisterId        "(\"$JOB_ID\")"
+if has_method contractor setQuoteCanisterId; then
+  dfx canister call contractor setQuoteCanisterId    "(\"$QUOTE_ID\")"
+fi
 dfx canister call sensor      setJobCanisterId        "(\"$JOB_ID\")"
 dfx canister call sensor      setPropertyCanisterId   "(\"$PROPERTY_ID\")"
 dfx canister call report      setPropertyCanisterId   "(\"$PROPERTY_ID\")"

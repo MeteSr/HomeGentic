@@ -298,6 +298,7 @@ icp canister call property addNotifier '(principal "<relay principal>")' -e <env
 icp canister call job      addNotifier '(principal "<relay principal>")' -e <env>
 icp canister call quote    addNotifier '(principal "<relay principal>")' -e <env>
 icp canister call listing  addNotifier '(principal "<relay principal>")' -e <env>
+icp canister call contractor addNotifier '(principal "<relay principal>")' -e <env>
 ```
 
 Until it is allowlisted on job and quote, the relay logs `NotAuthorized` each poll and sends
@@ -594,7 +595,7 @@ idempotent; a failure is printed without stopping the deploy, so read the log.
 
 | Variable | Grant |
 |---|---|
-| `NOTIFIER_PRINCIPAL` | `addNotifier` on `auth`, `property`, `job`, `quote` and `listing` for the notification relay (its principal is logged at startup) |
+| `NOTIFIER_PRINCIPAL` | `addNotifier` on `auth`, `property`, `job`, `quote`, `listing` and `contractor` for the notification relay (its principal is logged at startup) |
 | `VOICE_WORKER_PRINCIPAL` | `payment.addStripeRelay`, `monitoring.addReporter`, `agent.addContactReader`, `photo.addPhotoRelay`, `job.addInboxRelay`, `contractor.addLicenseRelay`, `fee.addReferralRelay` and `property.addIdentityRelay` for the voice Worker (the principal of its `DFX_IDENTITY_PEM`, which must be **Ed25519**: `openssl genpkey -algorithm ed25519`) |
 | `IOT_GATEWAY_PRINCIPAL` | `sensor.addGateway` for the IoT gateway. Without it, sensor accepts self-asserted device IDs |
 

@@ -63,11 +63,13 @@ updateRecurringExpense(2) -> (1)"
 
 exports[`Candid contract snapshots — method arity > contractor 1`] = `
 "addLicenseRelay(1) -> (1)
+addNotifier(1) -> (1)
 createOrLinkGuestProfile(7) -> (1)
 deleteMyData(0) -> (1)
 getAll(0) -> (1) [query]
 getBySpecialty(1) -> (1) [query]
 getContractor(1) -> (1) [query]
+getContractorEmail(1) -> (1) [composite_query]
 getCredentials(1) -> (1) [query]
 getLeadAlertTargets(0) -> (1) [query]
 getLicenseCheck(1) -> (1) [query]
@@ -81,10 +83,12 @@ recordJobVerified(4) -> (1)
 register(1) -> (1)
 relayRecordLicenseCheck(2) -> (1)
 removeLicenseRelay(1) -> (1)
+removeNotifier(1) -> (1)
 setJobCanisterId(1) -> (1)
 setPaymentCanisterId(1) -> (1)
 setPortfolio(1) -> (1)
 setProfilePrivacy(1) -> (1)
+setQuoteCanisterId(1) -> (1)
 submitReview(4) -> (1)
 updateNotificationPrefs(1) -> (1)
 updateProfile(1) -> (1)

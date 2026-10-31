@@ -160,7 +160,8 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 |---|---|---|---|
 | `register` | update | `(args: RegisterArgs)` | Register as a contractor; initializes `serviceZips=[]` |
 | `getMyProfile` | query | `()` | Caller's contractor profile |
-| `getContractor` | query | `(c: Principal)` | Get contractor by principal |
+| `getContractor` | query | `(c: Principal)` | Get contractor by principal. `email` and `notifyEmail` are blank unless the caller is the contractor, an admin, a trusted canister, the voice Worker (licence relay) or the notification relay (notifier); the same applies to `getAll`, `getPage`, `getByZip` and `getBySpecialty` |
+| `getContractorEmail` | composite query | `(c: Principal)` | The contractor's email for a homeowner who has worked with them: a job with them (an approved proposal counts) or a bid from them on a request that's accepted, closed or cancelled. Asks `job.hasJobWithContractor` and `quote.hasBidFrom`, which answer only the contractor canister |
 | `getAll` | query | `()` | List contractors in the directory (unlisted profiles are left out except for themselves, admins and trusted canisters; same for `getPage`, `getBySpecialty`, `getByZip`) |
 | `getBySpecialty` | query | `(s: ServiceType)` | Filter listed contractors by specialty |
 | `getByZip` | query | `(zipCode: Text)` | Listed contractors who explicitly list that zip code in `serviceZips` (at most 500, as `getAll`; same for `getBySpecialty`) |
@@ -181,6 +182,8 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `relayRecordLicenseCheck` | update | `(contractor: Principal, input: LicenseCheckInput)` | Licence relay (the voice Worker) or admin: record what Florida DBPR's licensee file says about the contractor's licence number. Refused when `input.licenseNumber` isn't the profile's current number (compared uppercased, without spaces or dashes) |
 | `getLicenseCheck` | query | `(contractor: Principal)` | Public: the last DBPR lookup (`LicenseCheck`: number, found, licensee and DBA name, licence type, status, active, expiry, nameMatches, DBPR file date, checkedAt), or null when never checked or the number has changed since |
 | `addLicenseRelay` / `removeLicenseRelay` | update | `(p: Principal)` | Admin: allow or revoke a principal recording licence checks |
+| `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke the notification relay reading contractors' emails |
+| `setQuoteCanisterId` | update | `(id: Text)` | Admin: wire the quote canister for `getContractorEmail` |
 | `setPortfolio` | update | `(entries: [PortfolioInput])` | ContractorPro only (tier read live from `payment`; refused when payment isn't wired): replace the caller's featured jobs. `PortfolioInput = { credentialId: Nat, title: Text (1–80), description: Text (≤600) }`; each credential must be the caller's own, at most 12, no repeats. Returns `[PortfolioItem]` |
 | `getPortfolio` | query | `(contractor: Principal)` | Public: featured jobs in order, each with the credential's `serviceType` and `verifiedAt`. The public page shows them only while `payment.getTierForPrincipal` says ContractorPro |
 
