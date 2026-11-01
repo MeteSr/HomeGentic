@@ -1,79 +1,37 @@
 /**
- * Address autocomplete backed by Google Places API.
+ * Street-address field with suggestions from Google Places, fetched through
+ * the voice Worker (services/addressSuggest.ts) so no Google key or script is
+ * in the page. Typing 3+ characters shows up to 5 US addresses; picking one
+ * calls onPlaceSelect with { address, city, state, zipCode }.
  *
- * When VITE_GOOGLE_MAPS_API_KEY is set:
- *  - Loads the Google Maps script once (no library package needed).
- *  - Restricts suggestions to US addresses.
- *  - On selection, calls onPlaceSelect with parsed { address, city, state, zipCode }.
- *
- * When the key is absent the field behaves as a normal text input.
+ * It's an ARIA combobox: arrow keys move through the list, Enter picks,
+ * Escape closes. When suggestions are unavailable (not configured, rate
+ * limited, offline) it is a plain text input.
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
+import {
+  suggestAddresses,
+  placeAddress,
+  newAddressSessionToken,
+  type AddressSuggestion,
+  type AddressParts,
+} from "@/services/addressSuggest";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
-const API_KEY = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
-
-export interface AddressComponents {
-  address: string;
-  city:    string;
-  state:   string;
-  zipCode: string;
-}
+export type AddressComponents = AddressParts;
 
 interface Props {
-  value:          string;
-  onChange:       (value: string) => void;
-  onPlaceSelect:  (components: AddressComponents) => void;
-  placeholder?:   string;
-  className?:     string;
-  style?:         React.CSSProperties;
-  id?:            string;
+  value: string;
+  onChange: (value: string) => void;
+  onPlaceSelect: (components: AddressComponents) => void;
+  placeholder?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  id?: string;
 }
 
-// ─── Script loader (called once per page) ────────────────────────────────────
-
-let scriptPromise: Promise<void> | null = null;
-
-function loadGoogleMaps(apiKey: string): Promise<void> {
-  if (scriptPromise) return scriptPromise;
-  if ((window as any).google?.maps?.places) {
-    scriptPromise = Promise.resolve();
-    return scriptPromise;
-  }
-  scriptPromise = new Promise((resolve, reject) => {
-    const callbackName = "__homegentic_gm_cb";
-    (window as any)[callbackName] = () => resolve();
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=${callbackName}`;
-    script.async = true;
-    script.defer = true;
-    script.onerror = () => reject(new Error("Failed to load Google Maps"));
-    document.head.appendChild(script);
-  });
-  return scriptPromise;
-}
-
-// ─── Address component parser ─────────────────────────────────────────────────
-
-function parsePlace(place: any): AddressComponents {
-  const get = (type: string, short = false) => {
-    const component = (place.address_components as any[]).find((c: any) =>
-      c.types.includes(type)
-    );
-    return component ? (short ? component.short_name : component.long_name) : "";
-  };
-
-  const streetNumber = get("street_number");
-  const route        = get("route");
-  const address      = [streetNumber, route].filter(Boolean).join(" ");
-  const city         = get("locality") || get("sublocality") || get("neighborhood");
-  const state        = get("administrative_area_level_1", true); // e.g. "TX"
-  const zipCode      = get("postal_code");
-
-  return { address, city, state, zipCode };
-}
-
-// ─── Component ───────────────────────────────────────────────────────────────
+const DEBOUNCE_MS = 300;
 
 export function AddressAutocomplete({
   value,
@@ -84,58 +42,139 @@ export function AddressAutocomplete({
   style,
   id,
 }: Props) {
-  const inputRef      = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<any>(null);
-  const [ready, setReady] = useState(false);
+  const listId = useId();
+  const [items, setItems] = useState<AddressSuggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const token = useRef<string>("");
+  const typed = useRef(false); // only ask after the user types, not when the parent sets the value
+  const seq = useRef(0);
 
   useEffect(() => {
-    if (!API_KEY || !inputRef.current) return;
+    if (!typed.current) return;
+    const query = value;
+    const mine = ++seq.current;
+    const t = setTimeout(async () => {
+      if (!token.current) token.current = newAddressSessionToken();
+      const found = await suggestAddresses(query, token.current);
+      if (mine !== seq.current) return; // a newer keystroke won
+      setItems(found);
+      setActive(-1);
+      setOpen(found.length > 0);
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [value]);
 
-    loadGoogleMaps(API_KEY)
-      .then(() => {
-        if (!inputRef.current) return;
-        const google = (window as any).google;
-        const ac = new google.maps.places.Autocomplete(inputRef.current, {
-          types:                   ["address"],
-          componentRestrictions:   { country: "us" },
-          fields:                  ["address_components", "formatted_address"],
-        });
-        autocompleteRef.current = ac;
-        ac.addListener("place_changed", () => {
-          const place = ac.getPlace();
-          if (!place.address_components) return;
-          const parsed = parsePlace(place);
-          // Update the raw input value to just the street portion
-          onChange(parsed.address || place.formatted_address);
-          onPlaceSelect(parsed);
-        });
-        setReady(true);
-      })
-      .catch(() => {
-        // Script failed — field works as plain input
-      });
+  async function pick(s: AddressSuggestion) {
+    typed.current = false;
+    seq.current++;
+    setOpen(false);
+    setItems([]);
+    onChange(s.main);
+    const parts = await placeAddress(s.placeId, token.current || newAddressSessionToken());
+    token.current = ""; // the pick ends this billing session
+    if (parts) {
+      if (parts.address) onChange(parts.address);
+      onPlaceSelect(parts);
+    }
+  }
 
-    return () => {
-      // Clean up the Places widget to avoid memory leaks on unmount
-      if (autocompleteRef.current) {
-        const google = (window as any).google;
-        google?.maps?.event?.clearInstanceListeners(autocompleteRef.current);
-        autocompleteRef.current = null;
-      }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!open || items.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((i) => (i + 1) % items.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((i) => (i <= 0 ? items.length - 1 : i - 1));
+    } else if (e.key === "Enter" && active >= 0) {
+      e.preventDefault();
+      void pick(items[active]);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  }
+
+  const optionId = (i: number) => `${listId}-opt-${i}`;
 
   return (
-    <input
-      ref={inputRef}
-      id={id}
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className={className}
-      style={style}
-      autoComplete={API_KEY && ready ? "off" : "street-address"}
-    />
+    <div style={{ position: "relative" }}>
+      <input
+        id={id}
+        type="text"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
+        value={value}
+        onChange={(e) => {
+          typed.current = true;
+          onChange(e.target.value);
+        }}
+        onKeyDown={onKeyDown}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={placeholder}
+        className={className}
+        style={style}
+        autoComplete={open ? "off" : "street-address"}
+      />
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            zIndex: 20,
+            background: V2_COLORS.paper,
+            border: `1px solid ${V2_COLORS.divider}`,
+            borderRadius: 10,
+            boxShadow: "0 8px 24px rgba(11,13,26,0.12)",
+            overflow: "hidden",
+          }}
+        >
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label="Address suggestions"
+            style={{ listStyle: "none", margin: 0, padding: 4 }}
+          >
+            {items.map((s, i) => (
+              <li
+                key={s.placeId}
+                id={optionId(i)}
+                role="option"
+                aria-selected={i === active}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => void pick(s)}
+                onMouseEnter={() => setActive(i)}
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  background: i === active ? V2_COLORS.lblue : "transparent",
+                  font: `400 13.5px/1.35 ${V2_FONTS.body}`,
+                  color: V2_COLORS.ink,
+                }}
+              >
+                <span style={{ fontWeight: 600 }}>{s.main}</span>
+                {s.secondary && <span style={{ color: V2_COLORS.muted }}> · {s.secondary}</span>}
+              </li>
+            ))}
+          </ul>
+          <div
+            style={{
+              padding: "4px 10px 6px",
+              textAlign: "right",
+              font: `400 10.5px/1 ${V2_FONTS.body}`,
+              color: V2_COLORS.muted,
+            }}
+          >
+            powered by Google
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

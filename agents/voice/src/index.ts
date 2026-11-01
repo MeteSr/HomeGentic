@@ -49,6 +49,7 @@ import { canisterLedger, startCardSetup, saveCardFromSession, markInvoicePaid, m
 import { handleInbound, addDraftInCanister, checkTokenInCanister, MAX_RAW_BYTES } from "./inbox";
 import { checkLicense } from "./dbpr";
 import { findRecalls } from "./recalls";
+import { suggestAddresses, placeAddress } from "./addressSuggest";
 import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead, sendGiftEmail } from "./offchainOutcalls";
 import { getInvitePreview } from "./jobCanister";
 import { handlePhotos } from "./photos";
@@ -129,6 +130,8 @@ export interface Env {
   RESEND_FROM?:          string;   // e.g. "HomeGentic <noreply@homegentic.app>"
   LOCAL_BROKER_EMAIL?:   string;   // fixed inbox for /api/email/broker-lead
   ATTOM_DAILY_BUDGET?:   string;   // global ATTOM lookups/day (default 300)
+  GOOGLE_PLACES_API_KEY?: string;  // Places API (New), Add Property address suggestions
+  ADDRESS_DAILY_BUDGET?: string;   // global address suggest+place calls/day (default 5000)
   PERMIT_DAILY_BUDGET?:  string;   // global permit imports/day (default 1000)
   // Property lookups
   RENTCAST_API_KEY?: string;
@@ -596,7 +599,7 @@ async function route(
   // Stripe needs a verified caller. The x-api-key is public, so it doesn't
   // count; the canister-issued x-agent-session token does.
   let sessionPrincipal: string | null = null;
-  if (method === "POST" && (AUX_AI_ROUTES.has(path) || STRIPE_SESSION_ROUTES.has(path) || OFFCHAIN_OUTCALL_ROUTES.has(path))) {
+  if (method === "POST" && (AUX_AI_ROUTES.has(path) || STRIPE_SESSION_ROUTES.has(path) || OFFCHAIN_OUTCALL_ROUTES.has(path) || ADDRESS_ROUTES.has(path))) {
     sessionPrincipal = await callerPrincipal(request, env);
     if (!sessionPrincipal || sessionPrincipal === "anon") {
       return json({ error: "session_required" }, 401, cors);
@@ -1290,6 +1293,17 @@ Rules:
     return json(r.body as object, r.status, cors);
   }
 
+  // ── Address suggestions (Google Places, src/addressSuggest.ts) ──────────────
+  // Session required (above); per-user, per-minute (with backoff) and global
+  // daily limits are enforced in the module.
+  if (ADDRESS_ROUTES.has(path) && method === "POST") {
+    const body = await readJsonBody(request, MAX_JSON_BYTES);
+    const p    = sessionPrincipal!;
+    const r = path === "/api/address/suggest" ? await suggestAddresses(body, p, env) : await placeAddress(body, p, env);
+    const headers = r.retryAfter ? { ...cors, "Retry-After": String(r.retryAfter) } : cors;
+    return json(r.body as object, r.status, headers);
+  }
+
   // ── POST /api/stripe/create-checkout ─────────────────────────────────────
   // Stripe-hosted checkout (dev / non-IC frontends). The principal is the
   // session's, never the body's (F-3), and redirect URLs must be on the
@@ -1811,6 +1825,9 @@ const OFFCHAIN_OUTCALL_ROUTES = new Set([
   "/api/recalls",   // CPSC recall check (src/recalls.ts); free API, cached per brand
   "/api/license/check",   // Florida DBPR licence lookup (src/dbpr.ts); public file, throttled per caller
 ]);
+
+/** Paid Google Places calls behind the Add Property address field. */
+const ADDRESS_ROUTES = new Set(["/api/address/suggest", "/api/address/place"]);
 
 /** Stripe routes that act for a user: the user is the session principal. */
 const STRIPE_SESSION_ROUTES = new Set([

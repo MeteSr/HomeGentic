@@ -140,6 +140,7 @@ deadline reminders.
 | `ATTOM_API_KEY` | Property-record lookups |
 | `OPENPERMIT_API_KEY` | Permit imports |
 | `LOCAL_BROKER_EMAIL` | Recipient of broker-lead emails |
+| `GOOGLE_PLACES_API_KEY` | Optional — Add Property address suggestions (`/api/address/suggest`, `/api/address/place`). Create a key in Google Cloud with only **Places API (New)** enabled and restrict it to that API. Each user gets 40 calls/minute (then a 1, 2, 4 … 60-minute lockout), 300 suggestion and 50 address calls/day; var `ADDRESS_DAILY_BUDGET` caps all users together (default 5000/day). Unset, the field is plain text |
 | `CANISTER_ID_MONITORING` | Optional — monitoring canister, for frontend-error and cycle-alert routes |
 | `BIDTOLIST_*` | Optional — Bid to List Stripe/Resend keys and canister IDs (see the comment block in `wrangler.toml`) |
 

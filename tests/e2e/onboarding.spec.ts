@@ -65,6 +65,20 @@ test.describe("OnboardingWizard — modal auto-opens on /dashboard", () => {
     await expect(page.getByLabel(/street address/i)).toBeVisible();
   });
 
+  test("picking an address suggestion fills city, state and ZIP", async ({ page }) => {
+    await page.evaluate(() => {
+      (window as any).__e2e_address_suggestions = [
+        { placeId: "p1", main: "12 Elm St", secondary: "Orlando, FL, USA" },
+      ];
+      (window as any).__e2e_address_place = { address: "12 Elm St", city: "Orlando", state: "FL", zipCode: "32801" };
+    });
+    await page.getByLabel(/street address/i).fill("12 elm");
+    await page.getByRole("option", { name: /12 Elm St/ }).click();
+    await expect(page.getByLabel(/street address/i)).toHaveValue("12 Elm St");
+    await expect(page.getByLabel(/city/i)).toHaveValue("Orlando");
+    await expect(page.getByLabel(/zip code/i)).toHaveValue("32801");
+  });
+
   test("step 1 shows City field", async ({ page }) => {
     await expect(page.getByLabel(/city/i)).toBeVisible();
   });
