@@ -14,7 +14,7 @@
  */
 
 import { TIER_LIMITS, TIER_PERIOD, CHAT_LIMITS, agentPeriodKey, nextResetUtc, type SubscriptionTier } from "../agentLimiter";
-import { doHit, doPeek, doRelease, type CounterNamespace } from "./rateLimiterDO";
+import { doHit, doPeek, doPeekFull, doAdd, doExtend, doRelease, type CounterNamespace } from "./rateLimiterDO";
 
 export interface KVEnv {
   RATE_LIMIT: KVNamespace;
@@ -48,6 +48,38 @@ export async function peekCounter(env: Partial<KVEnv>, key: string): Promise<num
   if (env.RATE_LIMITER) return doPeek(env.RATE_LIMITER as CounterNamespace, key);
   const raw = env.RATE_LIMIT ? await env.RATE_LIMIT.get(key) : null;
   return raw ? Number(raw) : 0;
+}
+
+/** Current count for `key` and when its window ends (ms; 0 = no live window). */
+export async function peekWindow(env: Partial<KVEnv>, key: string): Promise<{ count: number; expiresAt: number }> {
+  if (env.RATE_LIMITER) return doPeekFull(env.RATE_LIMITER as CounterNamespace, key);
+  const raw = env.RATE_LIMIT ? await env.RATE_LIMIT.get(key) : null;
+  if (!raw) return { count: 0, expiresAt: 0 };
+  const [count, expiresAt] = raw.split(":").map(Number);
+  return { count: count || 0, expiresAt: expiresAt || 0 };
+}
+
+/** Add `amount` to `key`'s window (no limit). Returns the new total. */
+export async function addToCounter(env: Partial<KVEnv>, key: string, amount: number, ttlSeconds: number): Promise<number> {
+  if (env.RATE_LIMITER) return doAdd(env.RATE_LIMITER as CounterNamespace, key, amount, ttlSeconds);
+  if (!env.RATE_LIMIT) return 0;
+  const raw   = await env.RATE_LIMIT.get(key);
+  const count = (raw ? Number(raw) : 0) + Math.max(0, Math.floor(amount));
+  await env.RATE_LIMIT.put(key, String(count), { expirationTtl: Math.max(60, ttlSeconds) });
+  return count;
+}
+
+/** Keep `key` live for at least `ttlSeconds` more (a block that never shortens). */
+export async function extendWindow(env: Partial<KVEnv>, key: string, ttlSeconds: number): Promise<{ count: number; expiresAt: number }> {
+  if (env.RATE_LIMITER) return doExtend(env.RATE_LIMITER as CounterNamespace, key, ttlSeconds);
+  const expiresAt = Date.now() + ttlSeconds * 1000;
+  if (env.RATE_LIMIT) {
+    const prev = await peekWindow(env, key);
+    const until = Math.max(prev.expiresAt, expiresAt);
+    await env.RATE_LIMIT.put(key, `1:${until}`, { expirationTtl: Math.max(60, Math.ceil((until - Date.now()) / 1000)) });
+    return { count: 1, expiresAt: until };
+  }
+  return { count: 1, expiresAt };
 }
 
 /** True exactly once per `key` within `ttlSeconds` (dedupe / idempotency). */
@@ -184,8 +216,9 @@ export async function checkAuxAiRateLimit(
   principal: string,
   tier: string,
   env: KVEnv,
+  limitOverride?: number,
 ): Promise<AgentLimitResult> {
-  const limit    = AUX_AI_DAILY_LIMITS[tier] ?? AUX_AI_DAILY_LIMITS.Free;
+  const limit    = limitOverride ?? AUX_AI_DAILY_LIMITS[tier] ?? AUX_AI_DAILY_LIMITS.Free;
   const resetsAt = nextResetUtc("day");
   const key      = `aux:${principal}:${new Date().toISOString().slice(0, 10)}`;
   const r        = await hitCounter(env, key, limit, 2 * 86_400);

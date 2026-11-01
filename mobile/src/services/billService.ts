@@ -7,7 +7,8 @@
  */
 
 import { getAgentSessionToken } from "./agentSession";
-import { SESSION_HEADER } from "@homegentic/shared/agentSession";
+import { aiRefusalMessage } from "@homegentic/shared/aiChecks";
+import { aiFetch } from "./aiFetch";
 import { idlFactory } from "@homegentic/shared/declarations/bills";
 import { actorFor, nsToMs, tag } from "./canister";
 
@@ -76,14 +77,14 @@ export async function extractBill(
   base64Data: string,
 ): Promise<BillExtraction> {
   // The Worker only runs AI routes for a signed-in user's session.
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
   const token = await getAgentSessionToken().catch(() => null);
-  if (token) headers[SESSION_HEADER] = token;
-  const res = await fetch(`${VOICE_AGENT_URL}/api/extract-bill`, {
+  const res = await aiFetch(`${VOICE_AGENT_URL}/api/extract-bill`, {
     method:  "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ fileName, mimeType, base64Data }),
-  });
+  }, token);
+  const refusal = await aiRefusalMessage(res);
+  if (refusal) throw new Error(refusal);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Bill extraction failed");

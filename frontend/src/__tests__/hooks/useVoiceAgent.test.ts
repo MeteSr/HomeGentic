@@ -31,7 +31,7 @@ vi.mock("@/services/contractor",       () => ({ contractorService: { getContract
 vi.mock("@/services/contractorJobProposal", () => ({ proposeJob: vi.fn() }));
 vi.mock("@/store/authStore",           () => ({ useAuthStore: Object.assign(() => ({ principal: null, profile: null }), { getState: () => ({ principal: null, profile: null }) }) }));
 const mockFetchWithAgentSession = vi.fn();
-vi.mock("@/services/agentSession",      () => ({ fetchWithAgentSession: (...a: unknown[]) => mockFetchWithAgentSession(...a) }));
+vi.mock("@/services/agentSession",      () => ({ fetchWithAgentSession: (...a: unknown[]) => mockFetchWithAgentSession(...a), aiRefusalMessage: async () => null }));
 
 import { useVoiceAgent, setToolConfirmationHandler, toolNeedsConfirmation } from "@/hooks/useVoiceAgent";
 import { executeTool } from "@/services/agentTools";

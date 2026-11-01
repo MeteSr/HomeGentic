@@ -77,7 +77,8 @@ import { activateInCanister, activateSubscriptionUntil, grantAgentCreditsOnce, A
 const MockAlreadyConsumed = AlreadyConsumedError as any;
 
 function fakeKV() {
-  const store = new Map<string, string>();
+  // user-aaa has passed the human check (aiGuard.ts); __tests__/aiGuard.test.ts covers the gate.
+  const store = new Map<string, string>([["human:user-aaa", "1"]]);
   return {
     get: async (k: string) => store.get(k) ?? null,
     put: async (k: string, v: string) => { store.set(k, v); },

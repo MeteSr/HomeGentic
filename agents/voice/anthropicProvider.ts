@@ -17,9 +17,21 @@ import {
   type CompleteWithToolsResult,
 } from "./provider";
 
+/** Tokens one model call used, as Anthropic reports them. */
+export interface TokenUsage { inputTokens: number; outputTokens: number }
+
 export class AnthropicProvider implements AIProvider {
   private client: Anthropic;
   private model:  string;
+  /** Called after every model call with its token usage (spend budgets). */
+  onUsage: ((usage: TokenUsage) => void) | null = null;
+
+  private report(usage: { input_tokens?: number | null; output_tokens?: number | null } | undefined): void {
+    if (!this.onUsage || !usage) return;
+    try {
+      this.onUsage({ inputTokens: usage.input_tokens ?? 0, outputTokens: usage.output_tokens ?? 0 });
+    } catch { /* a budget hook must never break the reply */ }
+  }
 
   /** `baseURL` points the client at a stand-in API (the k6 load test's mock); unset in production. */
   constructor(apiKey: string, model: string, baseURL?: string) {
@@ -63,13 +75,18 @@ export class AnthropicProvider implements AIProvider {
       messages:  params.messages as Anthropic.Messages.MessageParam[],
     });
 
-    for await (const event of stream) {
-      if (
-        event.type === "content_block_delta" &&
-        event.delta.type === "text_delta"
-      ) {
-        yield { text: event.delta.text };
+    let inputTokens = 0;
+    let outputTokens = 0;
+    try {
+      for await (const event of stream) {
+        if (event.type === "message_start") inputTokens = event.message.usage?.input_tokens ?? 0;
+        if (event.type === "message_delta") outputTokens = event.usage?.output_tokens ?? outputTokens;
+        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          yield { text: event.delta.text };
+        }
       }
+    } finally {
+      this.report({ input_tokens: inputTokens, output_tokens: outputTokens });
     }
   }
 
@@ -80,6 +97,7 @@ export class AnthropicProvider implements AIProvider {
       ...(params.system ? { system: params.system } : {}),
       messages:   params.messages as Anthropic.Messages.MessageParam[],
     });
+    this.report(response.usage);
     return AnthropicProvider.extractText(response.content);
   }
 
@@ -91,6 +109,7 @@ export class AnthropicProvider implements AIProvider {
       tools:      AnthropicProvider.toAnthropicTools(params.tools),
       messages:   params.messages as Anthropic.Messages.MessageParam[],
     });
+    this.report(response.usage);
 
     const toolCalls = AnthropicProvider.extractToolCalls(response.content);
     if (toolCalls.length > 0) {

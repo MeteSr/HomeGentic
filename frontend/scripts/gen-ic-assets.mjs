@@ -101,17 +101,20 @@ if (env.VITE_IOT_GATEWAY_URL?.trim()) {
 const STRIPE_CONNECT = "https://api.stripe.com https://m.stripe.network https://m.stripe.com https://errors.stripe.com";
 const STRIPE_FRAME   = "https://js.stripe.com https://hooks.stripe.com https://*.stripe.com https://m.stripe.network";
 const STRIPE_IMG     = "https://*.stripe.com";
+// Cloudflare Turnstile (the one-time human check before free AI calls) loads
+// its script and an iframe from challenges.cloudflare.com.
+const TURNSTILE      = "https://challenges.cloudflare.com";
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'wasm-unsafe-eval' https://js.stripe.com https://m.stripe.network",
+  `script-src 'self' 'wasm-unsafe-eval' https://js.stripe.com https://m.stripe.network ${TURNSTILE}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   // icp-api.io is an alternative boundary-node endpoint used by some @dfinity/* versions
   `connect-src 'self' https://ic0.app https://*.ic0.app https://icp-api.io ${STRIPE_CONNECT} ${voiceOrigin}${notificationsOrigin ? ` ${notificationsOrigin}` : ""}${iotGatewayOrigin ? ` ${iotGatewayOrigin}` : ""}`,
   // The voice Worker serves off-chain photos (listing photos load straight from it).
   `img-src 'self' data: blob: ${STRIPE_IMG} ${voiceOrigin}`,
-  `frame-src ${STRIPE_FRAME}`,
+  `frame-src ${STRIPE_FRAME} ${TURNSTILE}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

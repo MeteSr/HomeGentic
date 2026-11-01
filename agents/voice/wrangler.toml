@@ -14,6 +14,15 @@ HOMEGENTIC_ICP_HOST = "https://ic0.app"
 # Email Routing catch-all to this Worker (docs/DEPLOYMENT.md). Empty → inbound
 # mail is ignored.
 INBOX_DOMAIN = ""
+# AI abuse protection (src/aiGuard.ts). The Turnstile site key is public; its
+# secret goes in TURNSTILE_SECRET_KEY (wrangler secret put). Without the secret,
+# free accounts can't use AI in production (fails closed).
+TURNSTILE_SITE_KEY = ""
+# Weighted tokens (input + 5 × output) per UTC day for ALL free accounts
+# together; ~10M ≈ $30/day at Sonnet prices. Paid accounts aren't counted.
+FREE_AI_DAILY_TOKEN_BUDGET = "10000000"
+# Document/AI calls per day for a free account in its first week (else 25).
+NEW_ACCOUNT_AUX_DAILY_LIMIT = "3"
 
 # Persisted Workers Logs (otherwise logs exist only in a live `wrangler tail`).
 [observability]
@@ -123,6 +132,9 @@ DFX_NETWORK = "ic"   # testnet canisters live on the IC network (icp.yaml)
 BIDTOLIST_RESEND_FROM = "noreply@bidtolist.com"
 BIDTOLIST_ICP_HOST = "https://ic0.app"
 HOMEGENTIC_ICP_HOST = "https://ic0.app"
+TURNSTILE_SITE_KEY = ""
+FREE_AI_DAILY_TOKEN_BUDGET = "2000000"
+NEW_ACCOUNT_AUX_DAILY_LIMIT = "3"
 
 [[env.testnet.kv_namespaces]]
 binding = "RATE_LIMIT"

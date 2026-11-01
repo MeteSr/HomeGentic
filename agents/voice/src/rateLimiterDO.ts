@@ -13,8 +13,11 @@
  *
  * Protocol (POST, JSON body):
  *   { op: "hit",     limit, ttlMs } → { allowed, count }   count += 1 unless count >= limit
- *   { op: "peek" }                  → { count }
+ *   { op: "peek" }                  → { count, expiresAt }  expiresAt = 0 when there is no live window
  *   { op: "release" }               → { ok: true }         forget the key (used to undo a dedupe claim)
+ *   { op: "add", amount, ttlMs }    → { count }            count += amount, no limit (token budgets)
+ *   { op: "extend", ttlMs }         → { count, expiresAt }  count ≥ 1 and the window ends no sooner
+ *                                                           than now + ttlMs (backoff blocks)
  * A dedupe ("send at most once") is `hit` with limit 1.
  */
 
@@ -34,7 +37,9 @@ interface Stored { count: number; expiresAt: number }
 export type CounterOp =
   | { op: "hit"; limit: number; ttlMs: number }
   | { op: "peek" }
-  | { op: "release" };
+  | { op: "release" }
+  | { op: "add"; amount: number; ttlMs: number }
+  | { op: "extend"; ttlMs: number };
 
 const MAX_TTL_MS = 400 * 86_400_000;
 
@@ -71,8 +76,38 @@ export class RateLimiterDO {
     });
   }
 
-  peek(now = Date.now()): Promise<{ count: number }> {
-    return this.run(async () => ({ count: (await this.current(now))?.count ?? 0 }));
+  peek(now = Date.now()): Promise<{ count: number; expiresAt: number }> {
+    return this.run(async () => {
+      const cur = await this.current(now);
+      return { count: cur?.count ?? 0, expiresAt: cur?.expiresAt ?? 0 };
+    });
+  }
+
+  /** Add `amount` (≥ 0) to the window's count, opening a window if none is live. */
+  add(amount: number, ttlMs: number, now = Date.now()): Promise<{ count: number }> {
+    return this.run(async () => {
+      const n   = Math.max(0, Math.floor(amount));
+      const ttl = Math.min(Math.max(1_000, Math.floor(ttlMs)), MAX_TTL_MS);
+      const cur = await this.current(now);
+      const expiresAt = cur?.expiresAt ?? now + ttl;
+      const count = (cur?.count ?? 0) + n;
+      await this.state.storage.put<Stored>("c", { count, expiresAt });
+      if (!cur) await this.state.storage.setAlarm(expiresAt);
+      return { count };
+    });
+  }
+
+  /** Make the window live until at least now + ttlMs (never shortens it). */
+  extend(ttlMs: number, now = Date.now()): Promise<{ count: number; expiresAt: number }> {
+    return this.run(async () => {
+      const ttl = Math.min(Math.max(1_000, Math.floor(ttlMs)), MAX_TTL_MS);
+      const cur = await this.current(now);
+      const expiresAt = Math.max(cur?.expiresAt ?? 0, now + ttl);
+      const count = Math.max(1, cur?.count ?? 0);
+      await this.state.storage.put<Stored>("c", { count, expiresAt });
+      await this.state.storage.setAlarm(expiresAt);
+      return { count, expiresAt };
+    });
   }
 
   release(): Promise<{ ok: true }> {
@@ -84,6 +119,8 @@ export class RateLimiterDO {
       case "hit":     return this.hit(Number(op.limit), Number(op.ttlMs));
       case "peek":    return this.peek();
       case "release": return this.release();
+      case "add":     return this.add(Number(op.amount), Number(op.ttlMs));
+      case "extend":  return this.extend(Number(op.ttlMs));
       default:        throw new Error("unknown op");
     }
   }
@@ -135,6 +172,18 @@ export function doHit(ns: CounterNamespace, key: string, limit: number, ttlSecon
 
 export async function doPeek(ns: CounterNamespace, key: string): Promise<number> {
   return (await call<{ count: number }>(ns, key, { op: "peek" })).count;
+}
+
+export async function doPeekFull(ns: CounterNamespace, key: string): Promise<{ count: number; expiresAt: number }> {
+  return call<{ count: number; expiresAt: number }>(ns, key, { op: "peek" });
+}
+
+export async function doAdd(ns: CounterNamespace, key: string, amount: number, ttlSeconds: number): Promise<number> {
+  return (await call<{ count: number }>(ns, key, { op: "add", amount, ttlMs: ttlSeconds * 1000 })).count;
+}
+
+export async function doExtend(ns: CounterNamespace, key: string, ttlSeconds: number): Promise<{ count: number; expiresAt: number }> {
+  return call<{ count: number; expiresAt: number }>(ns, key, { op: "extend", ttlMs: ttlSeconds * 1000 });
 }
 
 export async function doRelease(ns: CounterNamespace, key: string): Promise<void> {
