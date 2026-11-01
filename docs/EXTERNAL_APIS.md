@@ -277,7 +277,8 @@ node -e "const wp=require('web-push'); const k=wp.generateVAPIDKeys(); console.l
 - `agents/notifications/server.ts` — `POST /api/sms/start`, `POST /api/sms/confirm`, `DELETE /api/sms`
 
 **Notes:** US alerts from a 10-digit number need an approved A2P 10DLC brand and campaign on the
-messaging service. Each user can request 5 codes an hour. Alerts end "Reply STOP to opt out";
+messaging service. Each user can request 5 codes an hour; only US and Canadian numbers get codes or
+alerts, and the relay sends at most 50 codes an hour and 300 a day overall (SMS pumping, CD-4). Alerts end "Reply STOP to opt out";
 Twilio handles STOP/HELP on the messaging service.
 
 ---

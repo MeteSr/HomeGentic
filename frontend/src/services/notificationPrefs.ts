@@ -55,6 +55,7 @@ const ERRORS: Record<string, string> = {
   sms_unavailable:  "Text alerts aren't available right now",
   too_many_codes:   "Too many codes requested — try again in an hour",
   send_failed:      "Couldn't send a code to that number",
+  unsupported_country: "Text alerts are only available for US and Canadian numbers",
   wrong_code:       "That code isn't right, or it has expired",
   check_failed:     "Couldn't check the code — try again",
 };

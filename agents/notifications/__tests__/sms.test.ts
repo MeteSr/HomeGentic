@@ -3,7 +3,7 @@
  */
 // SMS through Twilio: Verify codes and alert texts.
 import {
-  E164, allowCodeRequest, allowCodeToPhone, checkVerification, renderSms, resetCodeLimits, sendSms, smsConfigured, startVerification,
+  E164, allowCodeRequest, allowCodeToPhone, checkVerification, renderSms, resetCodeLimits, sendSms, smsConfigured, smsCountryAllowed, startVerification,
 } from "../sms";
 
 const saved = { ...process.env };
@@ -105,5 +105,57 @@ describe("allowCodeToPhone", () => {
     // a new hour, but the daily cap (6) still applies
     for (let h = 1; h <= 3; h++) allowCodeToPhone("+15125550142", t0 + h * 3_600_001);
     expect(allowCodeToPhone("+15125550142", t0 + 4 * 3_600_001)).toBe(false);
+  });
+});
+
+describe("smsCountryAllowed (CD-4: SMS pumping)", () => {
+  afterEach(() => { delete process.env.SMS_ALLOWED_COUNTRY_CODES; });
+
+  it("allows US and Canadian numbers", () => {
+    expect(smsCountryAllowed("+15125550142")).toBe(true);   // Texas
+    expect(smsCountryAllowed("+14165550142")).toBe(true);   // Toronto
+    expect(smsCountryAllowed("+17875550142")).toBe(true);   // Puerto Rico (US)
+  });
+
+  it("refuses Caribbean +1 area codes and 900 premium numbers", () => {
+    expect(smsCountryAllowed("+18765550142")).toBe(false);  // Jamaica
+    expect(smsCountryAllowed("+18095550142")).toBe(false);  // Dominican Republic
+    expect(smsCountryAllowed("+12845550142")).toBe(false);  // BVI
+    expect(smsCountryAllowed("+19005550142")).toBe(false);  // premium rate
+  });
+
+  it("refuses other countries unless configured", () => {
+    expect(smsCountryAllowed("+447700900123")).toBe(false);
+    expect(smsCountryAllowed("+37255501420")).toBe(false);
+    process.env.SMS_ALLOWED_COUNTRY_CODES = "44, +61";
+    expect(smsCountryAllowed("+447700900123")).toBe(true);
+    expect(smsCountryAllowed("+61412345678")).toBe(true);
+    expect(smsCountryAllowed("+37255501420")).toBe(false);
+  });
+
+  it("refuses malformed and short +1 numbers", () => {
+    expect(smsCountryAllowed("15125550142")).toBe(false);
+    expect(smsCountryAllowed("+1512555014")).toBe(false);
+  });
+});
+
+describe("relay-wide code caps", () => {
+  afterEach(() => { delete process.env.SMS_GLOBAL_HOURLY_LIMIT; delete process.env.SMS_GLOBAL_DAILY_LIMIT; resetCodeLimits(); });
+
+  it("stops at 50 an hour by default", () => {
+    resetCodeLimits();
+    const t0 = 5_000_000_000;
+    for (let i = 0; i < 50; i++) expect(allowCodeToPhone(`+1512555${String(1000 + i)}`, t0 + i)).toBe(true);
+    expect(allowCodeToPhone("+15125559999", t0 + 60)).toBe(false);
+    expect(allowCodeToPhone("+15125559999", t0 + 3_600_001)).toBe(true);
+  });
+
+  it("also stops at the daily cap", () => {
+    resetCodeLimits();
+    process.env.SMS_GLOBAL_HOURLY_LIMIT = "1000";
+    process.env.SMS_GLOBAL_DAILY_LIMIT = "3";
+    const t0 = 9_000_000_000;
+    for (let i = 0; i < 3; i++) expect(allowCodeToPhone(`+1512555${String(2000 + i)}`, t0 + i * 3_600_001)).toBe(true);
+    expect(allowCodeToPhone("+15125559998", t0 + 4 * 3_600_001)).toBe(false);
   });
 });
