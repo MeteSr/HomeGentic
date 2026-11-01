@@ -31,6 +31,7 @@ import Admin "../shared/Admin";
 import Score "../shared/Score";
 import Canisters "../shared/Canisters";
 import ThresholdCost "../shared/ThresholdCost";
+import Inspect "../shared/Inspect";
 
 persistent actor MarketIntelligence {
 
@@ -290,7 +291,7 @@ persistent actor MarketIntelligence {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
 

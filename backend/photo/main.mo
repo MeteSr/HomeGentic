@@ -22,6 +22,7 @@ import Index     "../shared/Index";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
+import Inspect "../shared/Inspect";
 
 persistent actor Photo {
 
@@ -254,15 +255,50 @@ persistent actor Photo {
 
   // ─── Ingress Inspection ───────────────────────────────────────────────────────
 
-  /// Reject uploadPhoto calls that arrive with an empty payload — a real photo
-  /// upload always carries binary data, so 0 bytes means a malformed or probe call.
-  /// Saves execution cycles by short-circuiting before the function body runs.
-  system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    // Reject anonymous principals and bare empty-payload calls before execution.
-    // Valid Candid always carries at least a header — 0 bytes means a malformed
-    // or probe call that would waste cycles. Photo uploads with real data will
-    // always exceed this threshold by orders of magnitude.
-    not caller.isAnonymous() and arg.size() > 0
+  /// Refuse anonymous, empty and oversized ingress before it is charged
+  /// (shared/Inspect.mo, cycle-drain CD-5). Only `uploadPhoto` may send up to
+  /// MAX_UPLOAD_ARG_BYTES; everything else is capped at MAX_ARG_BYTES. Every
+  /// public method is listed: the compiler rejects an inspect that misses one,
+  /// so a new method has to be added here. Each method keeps its own checks.
+  system func inspect({
+    caller : Principal;
+    arg : Blob;
+    msg : {
+      #addAdmin : Any;
+      #addPhotoRelay : Any;
+      #beginUpload : Any;
+      #deleteMyData : Any;
+      #deletePhoto : Any;
+      #getListingPhotoDataBatch : Any;
+      #getMetrics : Any;
+      #getMyOffChainPhotoIds : Any;
+      #getPhoto : Any;
+      #getPhotoData : Any;
+      #getPhotoDataBatch : Any;
+      #getPhotosByJob : Any;
+      #getPhotosByPhase : Any;
+      #getPhotosByProperty : Any;
+      #getPhotosByRoom : Any;
+      #getPublicListingPhotos : Any;
+      #pause : Any;
+      #photoAccess : Any;
+      #removeAdmin : Any;
+      #removePhotoRelay : Any;
+      #setAuditCanisterId : Any;
+      #setBootstrapNonce : Any;
+      #setPaymentCanisterId : Any;
+      #setPropertyCanisterId : Any;
+      #setUpdateRateLimit : Any;
+      #unpause : Any;
+      #uploadPhoto : Any;
+      #verifyPhoto : Any;
+    };
+  }) : Bool {
+    let max = switch msg {
+      case (#uploadPhoto _) Inspect.MAX_UPLOAD_ARG_BYTES;
+      case _ Inspect.MAX_ARG_BYTES;
+    };
+    Inspect.accept(caller, arg, max)
   };
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────

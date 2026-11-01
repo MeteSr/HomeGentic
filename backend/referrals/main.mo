@@ -23,6 +23,7 @@ import Time      "mo:core/Time";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
+import Inspect "../shared/Inspect";
 
 persistent actor Referrals {
 
@@ -84,8 +85,8 @@ persistent actor Referrals {
   };
 
   /// Cycle-saving ingress filter only (the real checks are in each method).
-  system func inspect({ caller : Principal }) : Bool {
-    not caller.isAnonymous()
+  system func inspect({ caller : Principal; arg : Blob }) : Bool {
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
   // ─── Helpers ──────────────────────────────────────────────────────────────────

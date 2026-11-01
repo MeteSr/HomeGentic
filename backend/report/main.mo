@@ -38,6 +38,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import ThresholdCost "../shared/ThresholdCost";
+import Inspect "../shared/Inspect";
 
 persistent actor Report {
 
@@ -277,11 +278,57 @@ persistent actor Report {
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   // ── Ingress inspection ────────────────────────────────────────────────────
-  /// Reject anonymous callers and zero-byte payloads before execution.
-  /// Empty payload cannot be valid Candid for any method that takes a struct
-  /// argument — these are probe / garbage calls that waste cycles.
-  system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+  /// Refuse anonymous, empty and oversized ingress before it is charged
+  /// (shared/Inspect.mo, cycle-drain CD-5). Only `generateReport` may send up to
+  /// MAX_UPLOAD_ARG_BYTES; everything else is capped at MAX_ARG_BYTES. Every
+  /// public method is listed: the compiler rejects an inspect that misses one,
+  /// so a new method has to be added here. Each method keeps its own checks.
+  system func inspect({
+    caller : Principal;
+    arg : Blob;
+    msg : {
+      #addAdmin : Any;
+      #addTrustedCanister : Any;
+      #deleteMyData : Any;
+      #findPublicReport : Any;
+      #generateReport : Any;
+      #generateRiskProfile : Any;
+      #getAllowPublicReports : Any;
+      #getAttestationKey : Any;
+      #getBillsSummary : Any;
+      #getCertAttestation : Any;
+      #getMetrics : Any;
+      #getReport : Any;
+      #getReportAttestation : Any;
+      #getReportScore : Any;
+      #getRiskProfile : Any;
+      #getTrustedCanisters : Any;
+      #hasActivePublicShareLink : Any;
+      #issueCert : Any;
+      #listShareLinks : Any;
+      #pause : Any;
+      #refreshAttestationKey : Any;
+      #removeAdmin : Any;
+      #removeTrustedCanister : Any;
+      #revokeShareLink : Any;
+      #setAllowPublicReports : Any;
+      #setAttestationKeyName : Any;
+      #setAuditCanisterId : Any;
+      #setBootstrapNonce : Any;
+      #setMarketCanisterId : Any;
+      #setPropertyCanisterId : Any;
+      #setRiskJobCanisterId : Any;
+      #setSensorCanisterId : Any;
+      #setUpdateRateLimit : Any;
+      #unpause : Any;
+      #verifyCert : Any;
+    };
+  }) : Bool {
+    let max = switch msg {
+      case (#generateReport _) Inspect.MAX_UPLOAD_ARG_BYTES;
+      case _ Inspect.MAX_ARG_BYTES;
+    };
+    Inspect.accept(caller, arg, max)
   };
 
 

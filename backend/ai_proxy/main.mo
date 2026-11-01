@@ -33,6 +33,7 @@ import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
+import Inspect "../shared/Inspect";
 
 persistent actor AiProxy {
 
@@ -125,7 +126,7 @@ persistent actor AiProxy {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
   // ── Rate limiting helpers ──────────────────────────────────────────────────
 

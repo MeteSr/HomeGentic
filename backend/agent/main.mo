@@ -18,6 +18,7 @@ import Time      "mo:core/Time";
 import Index     "../shared/Index";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
+import Inspect "../shared/Inspect";
 
 persistent actor Agent {
 
@@ -132,7 +133,7 @@ persistent actor Agent {
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
   private func isAdmin(caller: Principal) : Bool {

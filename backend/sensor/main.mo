@@ -30,6 +30,7 @@ import Index    "../shared/Index";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
+import Inspect "../shared/Inspect";
 
 persistent actor Sensor {
 
@@ -164,14 +165,10 @@ persistent actor Sensor {
 
   // ─── Ingress Inspection ───────────────────────────────────────────────────────
 
-  /// Reject recordEvent and registerDevice calls from principals that are neither
-  /// a registered gateway nor an admin. Checked at the boundary before execution —
-  /// saves cycles and prevents arbitrary principals from probing the sensor pipeline.
+  /// Refuse anonymous, empty and oversized ingress before it is charged
+  /// (shared/Inspect.mo, cycle-drain CD-5). Each method keeps its own checks.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    // Reject anonymous principals and empty-payload calls before execution.
-    // isGateway / isAdmin checks remain in each function body for per-method
-    // enforcement; this guard saves cycles on clearly invalid ingress messages.
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
   // ─── Private Helpers ─────────────────────────────────────────────────────

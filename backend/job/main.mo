@@ -30,6 +30,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Score "../shared/Score";
 import Canisters "../shared/Canisters";
+import Inspect "../shared/Inspect";
 
 persistent actor Job {
 
@@ -226,7 +227,7 @@ persistent actor Job {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
 

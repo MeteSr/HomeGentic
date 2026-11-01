@@ -7,6 +7,7 @@ import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Admin "../shared/Admin";
+import Inspect "../shared/Inspect";
 
 /// Append-only privileged-action audit log.
 ///
@@ -110,7 +111,7 @@ persistent actor Audit {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
   // ── Bootstrap ──────────────────────────────────────────────────────────────

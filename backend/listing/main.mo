@@ -26,6 +26,7 @@ import Uuid      "../shared/Uuid";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
+import Inspect "../shared/Inspect";
 
 persistent actor Listing {
 
@@ -405,7 +406,7 @@ persistent actor Listing {
   private var maxUpdatesPerMin : Nat = 30;
 
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
