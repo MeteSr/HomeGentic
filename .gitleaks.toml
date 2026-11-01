@@ -8,4 +8,7 @@ description = "False-positive suppressions"
 commits = [
   # Test mock VAPID private key — not a real credential
   "f4d2f99cd01b99c5569eded3db0454a9e06dbb8f",
+  # Placeholder Google Places session tokens ("tok-12345678") in
+  # agents/voice/__tests__/addressSuggest.test.ts; the next commit builds them at runtime
+  "effca219f2c7887fa52a7bfc6a289a1226b541e5",
 ]
