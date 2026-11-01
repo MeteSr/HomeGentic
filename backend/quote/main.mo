@@ -28,6 +28,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import ThresholdCost "../shared/ThresholdCost";
+import Inspect "../shared/Inspect";
 
 persistent actor Quote {
 
@@ -204,6 +205,8 @@ persistent actor Quote {
   private let sealedBids             = Map.empty<Text, SealedBid>();
   private let sealedBidsByRequest    = Map.empty<Text, [Text]>();
   private let sealedBidsByContractor = Map.empty<Text, Text>();
+  /// CD-6: a contractor's sealed bid ids, so deleteMyData doesn't scan every bid.
+  private transient let sealedBidsByBidder = Index.build(sealedBids, func(b : SealedBid) : ?Text { ?b.contractor.toText() });
   private let revealedBids           = Map.empty<Text, [RevealedBid]>();
   /// requestId → usage the homeowner chose to share with contractors.
   private let usageSummaries         = Map.empty<Text, UsageSummary>();
@@ -330,7 +333,7 @@ persistent actor Quote {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
 
@@ -1217,6 +1220,7 @@ persistent actor Quote {
           submittedAt = Time.now();
         };
         sealedBids.add(id, bid);
+        Index.add(sealedBidsByBidder, bid.contractor.toText(), id);
         notify("quote_received", ?req.homeowner, requestId, ServiceTypes.toText(req.serviceType));
 
         // Index by request
@@ -1577,6 +1581,7 @@ persistent actor Quote {
       case null {};
       case (?b) {
         sealedBids.remove(bidId);
+        Index.remove(sealedBidsByBidder, b.contractor.toText(), bidId);
         sealedBidsByContractor.remove(b.contractor.toText() # ":" # b.requestId);
         switch (sealedBidsByRequest.get(b.requestId)) {
           case null {};
@@ -1661,7 +1666,7 @@ persistent actor Quote {
         };
       };
     };
-    let mySealedBidIds = sealedBids.values()
+    let mySealedBidIds = Index.records(sealedBidsByBidder, caller.toText(), sealedBids)
       .filter(func(b) {
         b.contractor == caller and stillOpen(b.requestId)
           and Option.isNull(revealedBids.get(b.requestId))

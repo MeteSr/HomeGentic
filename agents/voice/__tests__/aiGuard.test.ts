@@ -333,6 +333,14 @@ describe("AIG.8 — Worker", () => {
     expect(mockComplete).not.toHaveBeenCalled();
   });
 
+  it("the paid-API routes (ATTOM, permits, invite emails) need the human check too (CD-9, CD-11)", async () => {
+    for (const path of ["/api/property/details", "/api/permits/import", "/api/email/contractor-invite"]) {
+      const res = await worker.fetch(post(path, {}, "hgs_free", `10.0.1.${++ipSeq}`), env(), ctx);
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({ error: "human_verification_required", siteKey: "ts-site" });
+    }
+  });
+
   it("Pro callers skip the human check", async () => {
     const res = await worker.fetch(post("/api/rebate-finder", rebate, "hgs_pro", `10.0.0.${++ipSeq}`), env(), ctx);
     expect(res.status).toBe(200);

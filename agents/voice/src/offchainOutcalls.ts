@@ -30,6 +30,7 @@ export interface OutcallEnv {
   LOCAL_BROKER_EMAIL?:  string;
   ATTOM_DAILY_BUDGET?:  string;
   PERMIT_DAILY_BUDGET?: string;
+  INVITE_EMAIL_DAILY_BUDGET?: string;
 }
 
 export interface OutcallResult { status: number; body: unknown }
@@ -41,6 +42,24 @@ export const INVITE_EMAILS_PER_TOKEN  = 3;
 export const BROKER_LEADS_PER_USER_DAY = 3;
 const DEFAULT_ATTOM_BUDGET  = 300;
 const DEFAULT_PERMIT_BUDGET = 1_000;
+/** CD-9: invite emails across all users per day (sender reputation). */
+const DEFAULT_INVITE_EMAIL_BUDGET = 500;
+/**
+ * CD-11 (cycle-drain audit 2026-10-31): free accounts together may use at most
+ * this share of a global daily budget, so throwaway accounts can't use up the
+ * day for paying users. Paid accounts draw on the whole budget.
+ */
+export const FREE_BUDGET_SHARE = 0.7;
+const freeShare = (n: number) => Math.max(1, Math.floor(n * FREE_BUDGET_SHARE));
+const isPaidTier = (tier: string) => tier === "Pro" || tier === "ContractorPro";
+
+/** The global slots for a budget: a free-share slot first for free tiers. */
+function globalSlots(key: string, limit: number, tier: string): Array<[string, number, number]> {
+  const slots: Array<[string, number, number]> = [];
+  if (!isPaidTier(tier)) slots.push([`${key}:free:${day()}`, freeShare(limit), 2 * 86_400]);
+  slots.push([`${key}:${day()}`, limit, 2 * 86_400]);
+  return slots;
+}
 const ATTOM_CACHE_TTL_S     = 7 * 86_400;
 const MAX_FIELD             = 200;
 const MAX_UPSTREAM_BYTES    = 256 * 1024;
@@ -110,6 +129,7 @@ export async function lookupPropertyDetails(
   principal: string,
   env: OutcallEnv,
   fetchImpl: typeof fetch = fetch,
+  tier = "Free",
 ): Promise<OutcallResult> {
   if (!env.ATTOM_API_KEY) return { status: 503, body: { error: "Property lookup not configured" } };
   const a = readAddress(input);
@@ -121,7 +141,7 @@ export async function lookupPropertyDetails(
 
   const ok = await consumeAll(env, [
     [`attom:user:${principal}:${day()}`, ATTOM_PER_USER_DAY, 2 * 86_400],
-    [`attom:global:${day()}`, budget(env.ATTOM_DAILY_BUDGET, DEFAULT_ATTOM_BUDGET), 2 * 86_400],
+    ...globalSlots("attom:global", budget(env.ATTOM_DAILY_BUDGET, DEFAULT_ATTOM_BUDGET), tier),
   ]);
   if (!ok) return { status: 429, body: { error: "daily_lookup_limit_reached" } };
 
@@ -195,6 +215,7 @@ export async function importPermits(
   principal: string,
   env: OutcallEnv,
   fetchImpl: typeof fetch = fetch,
+  tier = "Free",
 ): Promise<OutcallResult> {
   const a = readAddress(input);
   if (typeof a === "string") return { status: 400, body: { error: a } };
@@ -211,7 +232,7 @@ export async function importPermits(
 
   const ok = await consumeAll(env, [
     [`permits:user:${principal}:${day()}`, PERMITS_PER_USER_DAY, 2 * 86_400],
-    [`permits:global:${day()}`, budget(env.PERMIT_DAILY_BUDGET, DEFAULT_PERMIT_BUDGET), 2 * 86_400],
+    ...globalSlots("permits:global", budget(env.PERMIT_DAILY_BUDGET, DEFAULT_PERMIT_BUDGET), tier),
   ]);
   if (!ok) return { status: 429, body: { error: "daily_permit_limit_reached" } };
 
@@ -300,6 +321,7 @@ export async function sendContractorInvite(
   env: OutcallEnv,
   getPreview: (token: string) => Promise<InvitePreview | null>,
   fetchImpl: typeof fetch = fetch,
+  tier = "Free",
 ): Promise<OutcallResult> {
   if (!env.RESEND_API_KEY) return { status: 503, body: { error: "Email not configured" } };
   const { token, to } = (input ?? {}) as Record<string, unknown>;
@@ -319,6 +341,7 @@ export async function sendContractorInvite(
   const ok = await consumeAll(env, [
     [`email:invite:user:${principal}:${day()}`, INVITE_EMAILS_PER_USER_DAY, 2 * 86_400],
     [`email:invite:token:${token}`, INVITE_EMAILS_PER_TOKEN, 3 * 86_400],
+    ...globalSlots("email:invite:global", budget(env.INVITE_EMAIL_DAILY_BUDGET, DEFAULT_INVITE_EMAIL_BUDGET), tier),
   ]);
   if (!ok) return { status: 429, body: { error: "email_limit_reached" } };
 

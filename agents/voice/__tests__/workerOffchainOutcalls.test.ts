@@ -114,6 +114,19 @@ describe("OFF.2 — ATTOM property details", () => {
     expect((await lookupPropertyDetails({ ...ADDR, address: "99 Oak" }, "u2", e, f)).status).toBe(200);
   });
 
+  it("keeps part of the global budget for paid accounts (CD-11)", async () => {
+    const e = env({ ATTOM_DAILY_BUDGET: "10" });   // free accounts share 7
+    const f = okJson({});
+    for (let i = 0; i < 7; i++) {
+      expect((await lookupPropertyDetails({ ...ADDR, address: `${i} Free St` }, `free-${i}`, e, f)).status).toBe(200);
+    }
+    expect((await lookupPropertyDetails({ ...ADDR, address: "8 Free St" }, "free-8", e, f)).status).toBe(429);
+    for (let i = 0; i < 3; i++) {
+      expect((await lookupPropertyDetails({ ...ADDR, address: `${i} Pro St` }, `pro-${i}`, e, f, "Pro")).status).toBe(200);
+    }
+    expect((await lookupPropertyDetails({ ...ADDR, address: "4 Pro St" }, "pro-4", e, f, "Pro")).status).toBe(429);
+  });
+
   it("enforces the global daily budget and needs the key", async () => {
     const e = env({ ATTOM_DAILY_BUDGET: "1" });
     const f = okJson({});
@@ -185,6 +198,16 @@ describe("OFF.4 — contractor invite email", () => {
     jobId: "J1", title: "t", serviceType: "HVAC", amount: 150000n, propertyAddress: "9 Real Rd <b>",
     contractorName: "Pat", expiresAt: BigInt(Date.now() + 3_600_000) * 1_000_000n, alreadySigned: false,
   };
+
+  it("caps invite emails across all users per day (CD-9)", async () => {
+    const e = env({ INVITE_EMAIL_DAILY_BUDGET: "2" });   // free accounts share 1
+    const f = okJson({ id: "e1" });
+    const tok = (n: number) => `INV_${String(n).padStart(16, "0")}`;
+    expect((await sendContractorInvite({ token: tok(1), to: "a@b.co" }, "u1", e, async () => preview, f)).status).toBe(200);
+    expect((await sendContractorInvite({ token: tok(2), to: "a@b.co" }, "u2", e, async () => preview, f)).status).toBe(429);
+    expect((await sendContractorInvite({ token: tok(3), to: "a@b.co" }, "u3", e, async () => preview, f, "Pro")).status).toBe(200);
+    expect((await sendContractorInvite({ token: tok(4), to: "a@b.co" }, "u4", e, async () => preview, f, "Pro")).status).toBe(429);
+  });
 
   it("builds the email from the invite preview and the configured origin", async () => {
     const f = okJson({ id: "e1" });

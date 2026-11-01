@@ -39,6 +39,7 @@ import Time      "mo:core/Time";
 import Index     "../shared/Index";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
+import Inspect "../shared/Inspect";
 
 persistent actor Bills {
 
@@ -174,8 +175,11 @@ persistent actor Bills {
     (billsByHomeowner, func(b : BillRecord) : ?Text { ?b.homeowner.toText() }),
   ]);
   private transient let expensesByProperty = Index.empty();
+  /// CD-6: deleteMyData looks up the caller's expenses instead of scanning.
+  private transient let expensesByHomeowner = Index.empty();
   private transient let expenseIndexes : [Index.Keyed<RecurringExpense>] = Index.indexed(recurringExpenses, [
     (expensesByProperty, func(e : RecurringExpense) : ?Text { ?e.propertyId }),
+    (expensesByHomeowner, func(e : RecurringExpense) : ?Text { ?e.homeowner.toText() }),
   ]);
   private transient let MAX_RECURRING_PER_PROPERTY : Nat = 50;
   /// Most properties one getBillsForProperties call reads (property answers up to 100).
@@ -191,7 +195,7 @@ persistent actor Bills {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
@@ -651,10 +655,7 @@ persistent actor Bills {
     let billIds = Index.ids(billsByHomeowner, msg.caller.toText()).toArray();
     for (id in billIds.values()) { Index.delete(bills, billIndexes, id) };
 
-    let expenseIds = recurringExpenses.entries()
-      .filter(func((_, e)) = Principal.equal(e.homeowner, msg.caller))
-      .map(func((id, _)) = id)
-      .toArray();
+    let expenseIds = Index.ids(expensesByHomeowner, msg.caller.toText()).toArray();
     for (id in expenseIds.values()) { Index.delete(recurringExpenses, expenseIndexes, id) };
 
     #ok(billIds.size() + expenseIds.size())

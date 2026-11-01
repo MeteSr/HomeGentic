@@ -24,6 +24,7 @@ import Index     "../shared/Index";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
+import Inspect "../shared/Inspect";
 
 persistent actor Recurring {
 
@@ -121,8 +122,11 @@ persistent actor Recurring {
   // Secondary indexes over `services` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let servicesByProperty = Index.empty();
+  /// CD-6: deleteMyData looks up the caller's services instead of scanning.
+  private transient let servicesByHomeowner = Index.empty();
   private transient let servicesIndexes : [Index.Keyed<RecurringService>] = Index.indexed(services, [
     (servicesByProperty, func(r : RecurringService) : ?Text { ?r.propertyId }),
+    (servicesByHomeowner, func(r : RecurringService) : ?Text { ?r.homeowner.toText() }),
   ]);
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
@@ -137,7 +141,7 @@ persistent actor Recurring {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
 
@@ -473,10 +477,7 @@ persistent actor Recurring {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
 
-    let serviceIds = services.entries()
-      .filter(func((_, s)) = Principal.equal(s.homeowner, msg.caller))
-      .map(func((id, _)) = id)
-      .toArray();
+    let serviceIds = Index.ids(servicesByHomeowner, msg.caller.toText()).toArray();
     var removed = 0;
     for (sid in serviceIds.values()) {
       let visitIds = Index.ids(visitsByService, sid).toArray();

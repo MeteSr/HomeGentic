@@ -21,6 +21,7 @@ import Time "mo:core/Time";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
+import Inspect "../shared/Inspect";
 
 persistent actor class Auth(initDeployer : Principal) {
 
@@ -128,15 +129,10 @@ persistent actor class Auth(initDeployer : Principal) {
 
   // ─── Ingress Inspection ───────────────────────────────────────────────────────
 
-  /// Reject ingress calls to argument-bearing update methods when the raw Candid
-  /// payload is empty (0 bytes). An empty buffer cannot be valid Candid for any
-  /// method that takes a struct argument — these are probe / garbage calls that
-  /// would waste cycles. Rejected here before execution, no charge to the canister.
+  /// Refuse anonymous, empty and oversized ingress before it is charged
+  /// (shared/Inspect.mo, cycle-drain CD-5). Each method keeps its own checks.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    // Reject anonymous principals and empty-payload calls from all update paths.
-    // Empty payload cannot be valid Candid for any method that takes a struct
-    // argument — these are probe / garbage calls that waste cycles.
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
@@ -436,14 +432,17 @@ persistent actor class Auth(initDeployer : Principal) {
     let caller = msg.caller;
     var removed = 0;
 
-    if (users.get(caller) != null) {
+    let hadProfile = users.get(caller) != null;
+    if (hadProfile) {
       users.remove(caller);
       removed += 1;
     };
 
     // The owner index holds at most one token, but sweep the token map too in
-    // case an older token for this owner was ever left behind.
-    let tokens = agentSessions.entries()
+    // case an older token for this owner was ever left behind. Sessions are
+    // only issued to registered profiles, so a caller with neither a profile
+    // nor a session skips the sweep (CD-6: anyone can call this).
+    let tokens = if (not hadProfile and agentSessionByOwner.get(caller) == null) [] else agentSessions.entries()
       .filter(func((_, s) : (Text, AgentSession)) : Bool { Principal.equal(s.owner, caller) })
       .map(func((t, _) : (Text, AgentSession)) : Text { t })
       .toArray();

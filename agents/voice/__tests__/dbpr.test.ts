@@ -10,6 +10,7 @@ import { describe, it, expect, jest } from "@jest/globals";
 import {
   parseCsvLine, isoDate, isActive, namesMatch, normLicense, looksLikeFlLicense,
   findInDbprFile, checkLicense, DBPR_CONSTRUCTION_URL, LOOKUP_CACHE_TTL_S, THROTTLE_TTL_S,
+  DEFAULT_DBPR_DAILY_DOWNLOADS,
 } from "../src/dbpr";
 
 const row = (lic: string, name: string, dba: string, primary = "Current", secondary = "Active", expires = "08/31/2026") =>
@@ -118,7 +119,7 @@ describe("DBPR.3 checkLicense", () => {
     const r = await checkLicense("p1", env as any, d, f);
     expect(r.status).toBe(200);
     expect(recorded[0]).toMatchObject({ licenseNumber: "CGC1234567", active: true, nameMatches: true });
-    expect(puts).toEqual([
+    expect(puts.filter((p) => !p.key.startsWith("dbpr:downloads:"))).toEqual([
       { key: "dbpr:lic:CGC1234567", ttl: LOOKUP_CACHE_TTL_S },
       { key: "dbpr:rl:p1", ttl: THROTTLE_TTL_S },
     ]);
@@ -141,6 +142,20 @@ describe("DBPR.3 checkLicense", () => {
     expect((await checkLicense("p1", env as any, deps("ABC").d, dbpr(FILE))).status).toBe(400);
     const none = { getProfile: async () => null, record: async () => {} };
     expect((await checkLicense("p1", env as any, none, dbpr(FILE))).status).toBe(404);
+  });
+
+  it("caps file downloads across all users per day, but still answers from the cache", async () => {
+    const { env } = kv();
+    const e = { ...env, DBPR_DAILY_DOWNLOADS: "2" } as any;
+    const f = dbpr(FILE);
+    expect((await checkLicense("p1", e, deps("CGC1500001", "Smith Builders").d, f)).status).toBe(200);
+    expect((await checkLicense("p2", e, deps("CBC1260002", "Jane Doe").d, f)).status).toBe(200);
+    const r = await checkLicense("p3", e, deps("CGC1234567").d, f);
+    expect(r.status).toBe(429);
+    expect(f).toHaveBeenCalledTimes(2);
+    // A number already looked up today needs no download.
+    expect((await checkLicense("p4", e, deps("CGC1500001", "Smith Builders").d, f)).status).toBe(200);
+    expect(DEFAULT_DBPR_DAILY_DOWNLOADS).toBeGreaterThan(0);
   });
 
   it("is 502 and records nothing when DBPR can't be read", async () => {

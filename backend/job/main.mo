@@ -30,6 +30,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Score "../shared/Score";
 import Canisters "../shared/Canisters";
+import Inspect "../shared/Inspect";
 
 persistent actor Job {
 
@@ -226,7 +227,7 @@ persistent actor Job {
   /// Empty payload cannot be valid Candid for any method that takes a struct
   /// argument — these are probe / garbage calls that waste cycles.
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
 
@@ -1946,11 +1947,15 @@ persistent actor Job {
       idSet.add(id, ());
     };
 
-    let tokens = inviteTokens.entries()
-      .filter(func((_, t)) = idSet.containsKey(t.jobId))
-      .map(func((k, _)) = k)
-      .toArray();
-    for (k in tokens.values()) { inviteTokens.remove(k) };
+    // CD-6: invite tokens only exist for jobs, so a caller with no jobs
+    // skips the scan (notifyLog is capped at Notify.MAX_EVENTS).
+    if (ids.size() > 0) {
+      let tokens = inviteTokens.entries()
+        .filter(func((_, t)) = idSet.containsKey(t.jobId))
+        .map(func((k, _)) = k)
+        .toArray();
+      for (k in tokens.values()) { inviteTokens.remove(k) };
+    };
 
     let events = notifyLog.entries()
       .filter(func((_, e)) = idSet.containsKey(e.refId) or e.recipient == ?msg.caller)

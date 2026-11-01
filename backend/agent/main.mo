@@ -13,11 +13,13 @@ import Nat       "mo:core/Nat";
 import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
+import Set       "mo:core/Set";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Index     "../shared/Index";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
+import Inspect "../shared/Inspect";
 
 persistent actor Agent {
 
@@ -107,8 +109,11 @@ persistent actor Agent {
   // Secondary indexes over `reviews` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let reviewsByAgent = Index.empty();
+  /// CD-6: lets deleteMyData find the caller's reviews without a scan.
+  private transient let reviewsByReviewer = Index.empty();
   private transient let reviewsIndexes : [Index.Keyed<AgentReview>] = Index.indexed(reviews, [
     (reviewsByAgent, func(r : AgentReview) : ?Text { ?r.agentId.toText() }),
+    (reviewsByReviewer, func(r : AgentReview) : ?Text { ?r.reviewerPrincipal.toText() }),
   ]);
   /// Composite dedup key "reviewerPrincipal|transactionId" → true, one review per won bid.
   private let reviewDedup = Map.empty<Text, Bool>();
@@ -132,7 +137,7 @@ persistent actor Agent {
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    not caller.isAnonymous() and arg.size() > 0
+    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
   };
 
   private func isAdmin(caller: Principal) : Bool {
@@ -451,11 +456,11 @@ persistent actor Agent {
     let caller = msg.caller;
     var removed = 0;
 
-    let reviewIds = reviews.values()
-      .filter(func(r) { r.agentId == caller or r.reviewerPrincipal == caller })
-      .map(func(r) { r.id })
-      .toArray();
-    for (id in reviewIds.values()) {
+    // CD-6: by index, not a scan of every review (anyone can call this).
+    let reviewIds = Set.empty<Text>();
+    for (id in Index.ids(reviewsByAgent, caller.toText())) { reviewIds.add(id) };
+    for (id in Index.ids(reviewsByReviewer, caller.toText())) { reviewIds.add(id) };
+    for (id in reviewIds.toArray().values()) {
       Index.delete(reviews, reviewsIndexes, id);
       removed += 1;
     };
