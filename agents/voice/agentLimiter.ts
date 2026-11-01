@@ -55,12 +55,17 @@ export const TIER_LIMITS: Record<SubscriptionTier, number> = {
   ContractorPro:  10,
 };
 
-/** Daily chat-call limits per tier (-1 = unlimited). */
+/**
+ * Daily chat-call limits per tier (-1 = unlimited). Paid tiers were unlimited
+ * until the cycle-drain audit (CD-8, 2026-10-31): one Pro account could run
+ * up an unbounded Claude bill. Mete chose 200 a day on 2026-11-01, far above
+ * what a person types into the ask bar.
+ */
 export const CHAT_LIMITS: Record<SubscriptionTier, number> = {
   Free:            3,
-  Pro:            -1,
+  Pro:           200,
   ContractorFree:  3,
-  ContractorPro:  -1,
+  ContractorPro: 200,
 };
 
 // ── in-memory counters ────────────────────────────────────────────────────────
@@ -168,8 +173,8 @@ export function checkAndRecord(
 
 /**
  * Check whether a principal may make a chat call and, if so, record it.
- * Free / ContractorFree tiers are limited to 3 chats/day; paid tiers are
- * unlimited. Chat always resets daily regardless of tier — only the agent
+ * Free / ContractorFree tiers are limited to 3 chats/day and paid tiers to
+ * 200 (CHAT_LIMITS). Chat always resets daily regardless of tier — only the agent
  * call quota has a per-tier reset period (see TIER_PERIOD).
  */
 export function checkAndRecordChat(

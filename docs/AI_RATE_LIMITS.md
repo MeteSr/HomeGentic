@@ -23,9 +23,9 @@ a per-tier period — daily for every tier except Free, which resets weekly
 | Tier | Agent calls | Chat calls/day | Notes |
 |---|---|---|---|
 | **Free** | 10/week | 3 | Homeowner's real (unpaid) tier — weekly reset, not daily |
-| **Pro** ($59/yr) | 10/day | Unlimited | The only purchasable homeowner plan |
+| **Pro** ($59/yr) | 10/day | 200 | The only purchasable homeowner plan |
 | **ContractorFree** | 0 | 3 | No agentic access |
-| **ContractorPro** ($40/mo) | 10/day | Unlimited | |
+| **ContractorPro** ($40/mo) | 10/day | 200 | |
 
 Realtors have no subscription tier (they pay a per-award Bid to List fee), so they fall under whichever tier their principal resolves to — Free unless they've subscribed.
 

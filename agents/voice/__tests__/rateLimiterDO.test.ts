@@ -136,7 +136,7 @@ describe("RLDO.4 — limiters on the DO path", () => {
     const results = await Promise.all(Array.from({ length: 10 }, () => checkChatRateLimit("p1", "Free", env)));
     expect(results.filter((r) => r.allowed)).toHaveLength(3);
     expect(results.find((r) => !r.allowed)).toMatchObject({ count: 3, limit: 3 });
-    expect((await checkChatRateLimit("p1", "Pro", env)).allowed).toBe(true);   // unlimited
+    expect((await checkChatRateLimit("p1", "Pro", env)).allowed).toBe(true);   // own 200/day count
   });
 
   it("agent limit counts and getAgentUsage reads the same counter", async () => {

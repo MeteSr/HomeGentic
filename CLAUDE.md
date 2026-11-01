@@ -167,9 +167,9 @@ Because accounts are free to create, every Claude call also passes `agents/voice
 | Tier | Agent calls | Chat calls/day |
 |---|---|---|
 | Free | 10/week | 3 |
-| Pro | 10/day | Unlimited |
+| Pro | 10/day | 200 |
 | ContractorFree | 0 | 3 |
-| ContractorPro | 10/day | Unlimited |
+| ContractorPro | 10/day | 200 |
 
 ### Frontend Service Layer
 

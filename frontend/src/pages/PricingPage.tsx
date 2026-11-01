@@ -125,7 +125,7 @@ export default function PricingPage() {
               }}>
                 <Sparkles size={12} color={C.yellow} style={{ flexShrink: 0 }} />
                 <span style={{ fontFamily: F.body, fontSize: "0.65rem", letterSpacing: "0.04em", color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>
-                  10 AI agent calls/day · unlimited chat
+                  10 AI agent calls/day · 200 chats/day
                 </span>
               </div>
 

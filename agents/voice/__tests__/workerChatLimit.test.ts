@@ -3,7 +3,7 @@
  * server's per-tier daily chat limit).
  *
  * CHAT.1  Free is capped at CHAT_LIMITS.Free per UTC day, then blocked
- * CHAT.2  unlimited tiers (-1) are always allowed and never touch KV
+ * CHAT.2  paid tiers get 200 a day (CD-8), then are blocked
  * CHAT.3  counters are per principal
  * CHAT.4  unknown tiers get Free's limit
  */
@@ -34,11 +34,13 @@ describe("checkChatRateLimit", () => {
     expect(new Date(blocked.resetsAt).getTime()).toBeGreaterThan(Date.now());
   });
 
-  it("CHAT.2 unlimited tiers are always allowed without KV writes", async () => {
-    const { env, writes } = fakeKV();
-    expect(CHAT_LIMITS.Pro).toBe(-1);
-    for (let i = 0; i < 20; i++) expect((await checkChatRateLimit("p1", "Pro", env)).allowed).toBe(true);
-    expect(writes()).toBe(0);
+  it("CHAT.2 paid tiers get 200 chats a day, then are blocked", async () => {
+    const { env } = fakeKV();
+    expect(CHAT_LIMITS.Pro).toBe(200);
+    expect(CHAT_LIMITS.ContractorPro).toBe(200);
+    for (let i = 0; i < 200; i++) expect((await checkChatRateLimit("p1", "Pro", env)).allowed).toBe(true);
+    expect(await checkChatRateLimit("p1", "Pro", env)).toMatchObject({ allowed: false, limit: 200 });
+    expect((await checkChatRateLimit("p2", "ContractorPro", env)).allowed).toBe(true);
   });
 
   it("CHAT.3 counts each principal separately", async () => {
