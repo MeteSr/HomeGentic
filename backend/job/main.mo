@@ -1947,11 +1947,15 @@ persistent actor Job {
       idSet.add(id, ());
     };
 
-    let tokens = inviteTokens.entries()
-      .filter(func((_, t)) = idSet.containsKey(t.jobId))
-      .map(func((k, _)) = k)
-      .toArray();
-    for (k in tokens.values()) { inviteTokens.remove(k) };
+    // CD-6: invite tokens only exist for jobs, so a caller with no jobs
+    // skips the scan (notifyLog is capped at Notify.MAX_EVENTS).
+    if (ids.size() > 0) {
+      let tokens = inviteTokens.entries()
+        .filter(func((_, t)) = idSet.containsKey(t.jobId))
+        .map(func((k, _)) = k)
+        .toArray();
+      for (k in tokens.values()) { inviteTokens.remove(k) };
+    };
 
     let events = notifyLog.entries()
       .filter(func((_, e)) = idSet.containsKey(e.refId) or e.recipient == ?msg.caller)

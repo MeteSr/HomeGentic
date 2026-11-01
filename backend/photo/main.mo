@@ -154,6 +154,10 @@ persistent actor Photo {
   private let offChainIds = Map.empty<Text, ()>();
   /// Principals (the voice Worker) allowed to call photoAccess.
   private var photoRelays : [Principal] = [];
+  /// CD-7 (cycle-drain audit 2026-10-31): on-chain uploads (bytes in this
+  /// canister's heap) stay on while off-chain storage is being rolled out;
+  /// an admin turns them off with setOnChainUploadsEnabled once R2 is live.
+  private var onChainUploadsEnabled : Bool = true;
 
   // Secondary indexes (photo ids by jobId / propertyId), rebuilt on every upgrade.
   private transient let photosByJob      = Index.build(photoStore, func(p) { ?p.jobId });
@@ -272,6 +276,7 @@ persistent actor Photo {
       #getListingPhotoDataBatch : Any;
       #getMetrics : Any;
       #getMyOffChainPhotoIds : Any;
+      #getOnChainUploadsEnabled : Any;
       #getPhoto : Any;
       #getPhotoData : Any;
       #getPhotoDataBatch : Any;
@@ -286,6 +291,7 @@ persistent actor Photo {
       #removePhotoRelay : Any;
       #setAuditCanisterId : Any;
       #setBootstrapNonce : Any;
+      #setOnChainUploadsEnabled : Any;
       #setPaymentCanisterId : Any;
       #setPropertyCanisterId : Any;
       #setUpdateRateLimit : Any;
@@ -354,6 +360,19 @@ persistent actor Photo {
 
   /// M-5: hard per-photo limits, independent of tier.
   private transient let MAX_PHOTO_BYTES       : Nat = 1_500_000;
+  /// CD-7: on-chain photo bytes accepted per UTC day across every account
+  /// (each free account could otherwise add ~37 MB). Transient: resets on
+  /// upgrade, like the other daily counters.
+  private transient let MAX_ONCHAIN_BYTES_PER_DAY : Nat = 500_000_000;
+  private transient var onChainDay        : Int = 0;
+  private transient var onChainBytesToday : Nat = 0;
+  private func takeOnChainBytes(size : Nat) : Bool {
+    let day = Time.now() / 86_400_000_000_000;
+    if (day != onChainDay) { onChainDay := day; onChainBytesToday := 0 };
+    if (onChainBytesToday + size > MAX_ONCHAIN_BYTES_PER_DAY) return false;
+    onChainBytesToday += size;
+    true
+  };
   private transient let MAX_DESCRIPTION_CHARS : Nat = 1_000;
   private transient let MAX_ID_CHARS          : Nat = 200;
 
@@ -557,10 +576,15 @@ persistent actor Photo {
     data: Blob
   ) : async Result.Result<PhotoMeta, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not onChainUploadsEnabled and not isAdmin(msg.caller))
+      return #err(#InvalidInput("On-chain photo uploads are off. Please update the app to upload photos."));
     switch (await* admitUpload(msg.caller, jobId, propertyId, description, hash, data.size())) {
       case (?e) return #err(e);
       case null {};
     };
+    // CD-7: checked after admitUpload's awaits, right before the bytes are kept.
+    if (not isAdmin(msg.caller) and not takeOnChainBytes(data.size()))
+      return #err(#InvalidInput("Photo storage is busy today. Please try again tomorrow."));
     #ok(meta(addPhoto(msg.caller, jobId, propertyId, phase, description, hash, data, data.size())))
   };
 
@@ -868,6 +892,9 @@ persistent actor Photo {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
 
+    // CD-6: usageByOwner counts every photo an owner has, so a caller with
+    // none is answered without scanning every photo record.
+    if (usageOf(msg.caller).0 == 0) return #ok(0);
     let mine = photoStore.values().filter(func(p) = p.owner == msg.caller).toArray();
     for (p in mine.values()) {
       deletePhotoRecord(p);
@@ -879,6 +906,17 @@ persistent actor Photo {
 
   // ─── Admin Functions ──────────────────────────────────────────────────────────
 
+
+  /// CD-7: turn on-chain uploads (uploadPhoto) on or off. Off once off-chain
+  /// storage is live, so new photo bytes stop filling this canister's heap.
+  /// Admins can still upload on-chain. Admin only.
+  public shared(msg) func setOnChainUploadsEnabled(enabled : Bool) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    onChainUploadsEnabled := enabled;
+    #ok(())
+  };
+
+  public query func getOnChainUploadsEnabled() : async Bool { onChainUploadsEnabled };
 
   /// Wire the photo canister to the payment canister for live tier enforcement.
   /// Must be called once after both canisters are deployed.

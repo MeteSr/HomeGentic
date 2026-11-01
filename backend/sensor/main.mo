@@ -940,6 +940,14 @@ persistent actor Sensor {
 
     var removed = 0;
 
+    // CD-6: anyone can call this, and the log can hold millions of events,
+    // so it is scanned only for a caller who has devices. That loses nothing:
+    // an event's homeowner is its device's homeowner, devices are never
+    // removed except here (deactivation keeps the record), and a device's
+    // homeowner never changes. (The legacy `events` store is emptied by
+    // postupgrade.)
+    if (mine.size() == 0) return #ok(0);
+
     // Events (current log + legacy store).
     let seqs = Iter.toArray(eventLog.entries().filter(func((_, e)) = isMine(e)).map(func((s, _)) = s));
     for (seq in seqs.values()) {

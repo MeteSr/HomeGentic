@@ -211,7 +211,15 @@ persistent actor Contractor {
   private let reviews        = Map.empty<Text, Review>();
   /// Review ids by contractor principal (transient, rebuilt on every upgrade).
   private transient let reviewsByContractor = Index.build(reviews, func(r) { ?r.contractor.toText() });
+  /// CD-6: let deleteMyData find the caller's reviews and credentials
+  /// without scanning every record (anyone can call it).
+  private transient let reviewsByReviewer = Index.build(reviews, func(r) { ?r.reviewer.toText() });
   private let credentials    = Map.empty<Nat, JobCredential>();
+  private transient let credentialsByContractor : Index.Index = do {
+    let ix = Index.empty();
+    for ((id, c) in credentials.entries()) { Index.add(ix, c.contractorId.toText(), id.toText()) };
+    ix
+  };
   /// Privacy settings, only for contractors who changed them from the
   /// default (everything shown). A side map so ContractorProfile's stored
   /// type is unchanged.
@@ -500,6 +508,7 @@ persistent actor Contractor {
     };
     reviews.add(id, review);
     Index.add(reviewsByContractor, review.contractor.toText(), id);
+    Index.add(reviewsByReviewer, review.reviewer.toText(), id);
     reviewKeys.add(compositeKey, id);
     #ok(review)
   };
@@ -710,6 +719,7 @@ persistent actor Contractor {
       homeownerPrincipal;
     };
     credentials.add(credentialCounter, cred);
+    Index.add(credentialsByContractor, contractorPrincipal.toText(), credentialCounter.toText());
 
     switch (contractors.get(contractorPrincipal)) {
       case null { #ok(()) };  // contractor not registered — credential minted but no profile to update
@@ -985,15 +995,14 @@ persistent actor Contractor {
     let caller = msg.caller;
     var removed = 0;
 
-    // Reviews about the caller and reviews written by the caller.
-    let reviewIds = reviews.values()
-      .filter(func(r) { r.contractor == caller or r.reviewer == caller })
-      .map(func(r) { r.id })
-      .toArray();
+    // Reviews about the caller and reviews written by the caller, by index
+    // (CD-6: no scan of every review).
+    let reviewIds = Iter.toArray(Index.ids(reviewsByContractor, caller.toText()).concat(Index.ids(reviewsByReviewer, caller.toText())));
     for (id in reviewIds.values()) {
       switch (reviews.get(id)) {
         case (?r) {
           Index.remove(reviewsByContractor, r.contractor.toText(), id);
+          Index.remove(reviewsByReviewer, r.reviewer.toText(), id);
           reviews.remove(id);
           removed += 1;
         };
@@ -1002,11 +1011,16 @@ persistent actor Contractor {
     };
 
     // Job credentials minted for the caller as contractor.
-    let credIds = credentials.values()
-      .filter(func(c) { c.contractorId == caller })
-      .map(func(c) { c.id })
-      .toArray();
-    for (id in credIds.values()) { credentials.remove(id); removed += 1 };
+    let credIds = Iter.toArray(Index.ids(credentialsByContractor, caller.toText()));
+    for (idText in credIds.values()) {
+      switch (Nat.fromText(idText)) {
+        case (?id) {
+          if (credentials.get(id) != null) { credentials.remove(id); removed += 1 };
+          Index.remove(credentialsByContractor, caller.toText(), idText);
+        };
+        case null {};
+      };
+    };
 
     // Profile and its privacy settings.
     if (contractors.get(caller) != null) { contractors.remove(caller); removed += 1 };

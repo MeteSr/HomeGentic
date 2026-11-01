@@ -143,8 +143,11 @@ persistent actor Maintenance {
   // Secondary indexes over `schedule` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let scheduleByProperty = Index.empty();
+  /// CD-6: deleteMyData looks up the caller's entries instead of scanning.
+  private transient let scheduleByCreator = Index.empty();
   private transient let scheduleIndexes : [Index.Keyed<ScheduleEntry>] = Index.indexed(schedule, [
     (scheduleByProperty, func(r : ScheduleEntry) : ?Text { ?r.propertyId }),
+    (scheduleByCreator, func(r : ScheduleEntry) : ?Text { ?r.createdBy.toText() }),
   ]);
 
   // ─── Private Helpers ──────────────────────────────────────────────────────────
@@ -397,10 +400,7 @@ persistent actor Maintenance {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
 
-    let ids = schedule.entries()
-      .filter(func((_, e)) = e.createdBy == msg.caller)
-      .map(func((id, _)) = id)
-      .toArray();
+    let ids = Index.ids(scheduleByCreator, msg.caller.toText()).toArray();
     for (id in ids.values()) { Index.delete(schedule, scheduleIndexes, id) };
     #ok(ids.size())
   };

@@ -233,9 +233,15 @@ persistent actor Report {
   // Secondary indexes over `links` (transient, rebuilt on every upgrade).
   // Writes go through Index.put / Index.delete so they stay in step.
   private transient let linksByProperty = Index.empty();
+  /// CD-6: deleteMyData finds the caller's snapshots and links by index.
+  private transient let linksByCreator  = Index.empty();
+  private transient let linksBySnapshot = Index.empty();
   private transient let linksIndexes : [Index.Keyed<ShareLink>] = Index.indexed(links, [
     (linksByProperty, func(r : ShareLink) : ?Text { ?r.propertyId }),
+    (linksByCreator,  func(r : ShareLink) : ?Text { ?r.createdBy.toText() }),
+    (linksBySnapshot, func(r : ShareLink) : ?Text { ?r.snapshotId }),
   ]);
+  private transient let snapshotsByCreator = Index.build(snapshots, func(r : ReportSnapshot) : ?Text { ?r.generatedBy.toText() });
   private let certs     = Map.empty<Text, CertRecord>();
   /// Keyed by snapshotId. Kept out of ReportSnapshot, which lives in a Map
   /// (invariant), so adding a field there would need an explicit migration.
@@ -954,6 +960,7 @@ persistent actor Report {
       schemaVersion      = ?SNAPSHOT_SCHEMA_VERSION;
     };
     snapshots.add(snapshotId, snapshot);
+    Index.add(snapshotsByCreator, snapshot.generatedBy.toText(), snapshotId);
     switch (billsSummary) {
       case (?b) { if (b.lines.size() > 0) billsSummaries.add(snapshotId, b) };
       case null {};
@@ -1216,15 +1223,14 @@ persistent actor Report {
     if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
     let caller = msg.caller;
 
-    let snapIds = Iter.toArray(snapshots.entries()
-      .filter(func((_, s)) = s.generatedBy == caller)
-      .map(func((id, _)) = id));
-    let snapSet = Map.empty<Text, ()>();
-    for (id in snapIds.values()) { snapSet.add(id, ()) };
-
-    let linkTokens = Iter.toArray(links.entries()
-      .filter(func((_, l)) = l.createdBy == caller or snapSet.containsKey(l.snapshotId))
-      .map(func((t, _)) = t));
+    // CD-6: by index, not a scan of every snapshot and link.
+    let snapIds = Index.ids(snapshotsByCreator, caller.toText()).toArray();
+    let tokenSet = Map.empty<Text, ()>();
+    for (t in Index.ids(linksByCreator, caller.toText())) { tokenSet.add(t, ()) };
+    for (id in snapIds.values()) {
+      for (t in Index.ids(linksBySnapshot, id)) { tokenSet.add(t, ()) };
+    };
+    let linkTokens = Iter.toArray(tokenSet.keys());
 
     var removed = 0;
     for (t in linkTokens.values()) {
@@ -1233,6 +1239,7 @@ persistent actor Report {
     };
     for (id in snapIds.values()) {
       snapshots.remove(id);
+      Index.remove(snapshotsByCreator, caller.toText(), id);
       billsSummaries.remove(id);
       reportScores.remove(id);
       attestations.remove("report:" # id);

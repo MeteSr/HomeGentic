@@ -17,12 +17,12 @@ import Blob     "mo:core/Blob";
 import List     "mo:core/List";
 import Map      "mo:core/Map";
 import Int      "mo:core/Int";
-import Iter     "mo:core/Iter";
 import Nat      "mo:core/Nat";
 import Option   "mo:core/Option";
 import Order    "mo:core/Order";
 import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
+import Set      "mo:core/Set";
 import Text     "mo:core/Text";
 import Time     "mo:core/Time";
 import Cycles   "mo:core/Cycles";
@@ -227,8 +227,44 @@ persistent actor MarketIntelligence {
   // All let/var declarations in a persistent actor are automatically stable —
   // no upgrade hooks needed per stable-memory skill guidance.
   private let scoreStore = Map.empty<Principal, StoredScore>();
-  // zip → [principals] index for O(1) zip lookup during aggregation.
+  /// Legacy zip → [principals] index. postupgrade moves it into zipMembers and
+  /// empties it; kept declared because dropping a stable variable is a
+  /// stable-memory break (CLAUDE.md).
   private let zipIndex   = Map.empty<Text, [Principal]>();
+  /// CD-10 (cycle-drain audit 2026-10-31): zip → principals scored there, as
+  /// a set. The array copied itself on every join and was scanned on every
+  /// move and deletion. A principal is only ever in its current score's zip.
+  private let zipMembers = Map.empty<Text, Set.Set<Principal>>();
+
+  private func joinZip(zip : Text, p : Principal) {
+    switch (zipMembers.get(zip)) {
+      case (?set) { set.add(Principal.compare, p) };
+      case null {
+        let set = Set.empty<Principal>();
+        set.add(Principal.compare, p);
+        zipMembers.add(zip, set);
+      };
+    };
+  };
+
+  private func leaveZip(zip : Text, p : Principal) {
+    switch (zipMembers.get(zip)) {
+      case (?set) {
+        set.remove(Principal.compare, p);
+        if (set.isEmpty()) zipMembers.remove(zip);
+      };
+      case null {};
+    };
+  };
+
+  /// One-time, idempotent: move the legacy array index into zipMembers. Once
+  /// zipIndex is empty this does nothing.
+  system func postupgrade() {
+    for ((zip, ps) in zipIndex.entries()) {
+      for (p in ps.values()) { joinZip(zip, p) };
+    };
+    zipIndex.clear();
+  };
 
   // ─── Embedded ROI / Lifespan Tables ──────────────────────────────────────────
   //
@@ -660,10 +696,7 @@ persistent actor MarketIntelligence {
     // the same caller may have moved them to a different zip meanwhile.
     switch (scoreStore.get(caller)) {
       case (?old) {
-        if (old.zipCode != zipCode) {
-          let trimmed = zipIndex.get(old.zipCode).get([]).filter(func(p) { p != caller });
-          if (trimmed.size() == 0) zipIndex.remove(old.zipCode) else zipIndex.add(old.zipCode, trimmed);
-        };
+        if (old.zipCode != zipCode) leaveZip(old.zipCode, caller);
       };
       case null {};
     };
@@ -671,10 +704,7 @@ persistent actor MarketIntelligence {
     let stored : StoredScore = { score; zipCode; updatedAt = Time.now() };
     scoreStore.add(caller, stored);
 
-    let current = zipIndex.get(zipCode).get([]);
-    if (not Admin.contains(current, caller)) {
-      zipIndex.add(zipCode, current.concat([caller]));
-    };
+    joinZip(zipCode, caller);
 
     #ok(stored)
   };
@@ -682,8 +712,10 @@ persistent actor MarketIntelligence {
   /// Public zip-level aggregate statistics.
   /// Never exposes individual scores or principals — only mean, median, and sample size.
   public query func getZipStats(zipCode: Text) : async Result.Result<ZipStats, Error> {
-    let principals = zipIndex.get(zipCode).get([]);
-    if (principals.size() == 0) return #err(#NotFound);
+    let principals = switch (zipMembers.get(zipCode)) {
+      case (?set) set;
+      case null { return #err(#NotFound) };
+    };
 
     let scoresBuf = List.empty<Nat>();
     for (p in principals.values()) {
@@ -783,26 +815,21 @@ persistent actor MarketIntelligence {
   /// Returns how many records were removed.
   ///
   /// Deletes the caller's stored neighbourhood score and drops the caller from
-  /// every zip index entry. The per-day vetKD derive counter (deriveLimits) is
+  /// that score's zip (CD-6: no scan over every zip). The per-day vetKD derive counter (deriveLimits) is
   /// kept until it expires so deletion can't be used to reset the cycle cap.
   public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
     let caller = msg.caller;
 
-    var removed = 0;
     switch (scoreStore.get(caller)) {
-      case (?_) { scoreStore.remove(caller); removed += 1 };
-      case null {};
-    };
-    let zips = Iter.toArray(zipIndex.entries()
-      .filter(func((_, ps)) = Admin.contains(ps, caller))
-      .map(func((z, _)) = z));
-    for (z in zips.values()) {
-      let trimmed = zipIndex.get(z).get([]).filter(func(p) { p != caller });
-      if (trimmed.size() == 0) zipIndex.remove(z) else zipIndex.add(z, trimmed);
-    };
-    #ok(removed)
+      case (?s) {
+        scoreStore.remove(caller);
+        leaveZip(s.zipCode, caller);
+        #ok(1)
+      };
+      case null { #ok(0) };
+    }
   };
 
   // ─── Admin Functions ──────────────────────────────────────────────────────────
