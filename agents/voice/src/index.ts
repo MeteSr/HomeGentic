@@ -58,7 +58,7 @@ import { r2PhotoStore } from "./photoStore";
 import { fetchPhotoAccess } from "../photoCanister";
 import { markIdentityCleared } from "./propertyCanister";
 import {
-  gateAiCall, verifyHuman, strike, blockedSeconds, slowDownBody, isFreeTier, recordFreeUsage,
+  gateAiCall, gatePaidCall, verifyHuman, strike, blockedSeconds, slowDownBody, isFreeTier, recordFreeUsage,
   newAccountAuxLimit, allowedHumanCheckRedirect, humanCheckPage, humanCheckPageHeaders,
 } from "./aiGuard";
 export { RateLimiterDO } from "./rateLimiterDO";
@@ -616,10 +616,13 @@ async function route(
       }
     }
     if (ADDRESS_ROUTES.has(path)) {
-      // Paid Google calls: same backoff block, human check and free-tier
-      // budget as the AI routes; per-route quotas live in addressSuggest.ts.
-      const gate = await aiGate(sessionPrincipal, await resolveTier(sessionPrincipal, env), env, ctx, provider, cors);
-      if ("deny" in gate) return gate.deny;
+      // Paid Google calls: the AI routes' backoff block and human check, but
+      // not the free-tier Claude budget; quotas live in addressSuggest.ts.
+      const gate = await gatePaidCall(env, sessionPrincipal, await resolveTier(sessionPrincipal, env));
+      if (!gate.ok) {
+        const headers = gate.retryAfterSeconds ? { ...cors, "Retry-After": String(gate.retryAfterSeconds) } : cors;
+        return json(gate.body, gate.status, headers);
+      }
     }
   }
 

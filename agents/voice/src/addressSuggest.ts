@@ -13,8 +13,8 @@
  * The sessionToken groups one person's typing and the final pick into one
  * Google billing session.
  *
- * index.ts also runs the AI routes' gate first (aiGate: backoff block,
- * Turnstile human check, free-tier daily budget).
+ * index.ts first runs gatePaidCall (aiGuard.ts): the AI routes' backoff block
+ * and Turnstile human check, but not their free-tier Claude budget.
  */
 
 import { hitCounter, peekCounter, type KVEnv } from "./rateLimiter";

@@ -2,7 +2,7 @@
  * src/addressSuggest.ts — Add Property address suggestions via Google Places.
  *
  * ADDR.1  routes need a session (401 without one)
- * ADDR.1b the AI routes' gate (human check) runs first
+ * ADDR.1b the human check runs first, but the free-tier Claude budget doesn't apply
  * ADDR.2  suggest: key in a header only, US addresses, short input skipped
  * ADDR.3  per-minute limit with exponential lockout, daily and global limits
  * ADDR.4  place: components parsed into address / city / state / ZIP
@@ -114,6 +114,14 @@ describe("ADDR.1b — shared AI gate", () => {
     expect(await res.json()).toMatchObject({ error: "human_verification_required" });
     expect(f).not.toHaveBeenCalledWith(expect.stringContaining("places.googleapis.com"), expect.anything());
     f.mockRestore();
+  });
+
+  it("still lets addresses through after the free-tier Claude budget is spent", async () => {
+    const { gatePaidCall, gateAiCall, recordFreeUsage } = await import("../src/aiGuard");
+    const e = env({ NODE_ENV: "development", FREE_AI_DAILY_TOKEN_BUDGET: "10" });
+    await recordFreeUsage(e, { inputTokens: 100, outputTokens: 0 });
+    expect(await gateAiCall(e, "user-aaa", "Free")).toMatchObject({ ok: false, status: 429 });
+    expect(await gatePaidCall(e, "user-aaa", "Free")).toEqual({ ok: true, newAccount: false });
   });
 });
 
