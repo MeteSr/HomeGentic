@@ -542,6 +542,15 @@ persistent actor Report {
     }
   };
 
+  /// Whether consumePropertySlot would refuse, without using a slot. Lets a
+  /// method refuse before its inter-canister calls (CD-13).
+  private func propertySlotFull(m : Map.Map<Text, (Nat, Int)>, propertyId : Text, max : Nat) : Bool {
+    switch (m.get(propertyId)) {
+      case (?(count, start)) { Time.now() - start < DAY_NS and count >= max };
+      case null { false };
+    }
+  };
+
   /// M-5: (total links, links created in the last 24h) for a property.
   private func linkCounts(propertyId : Text) : (Nat, Nat) {
     let now = Time.now();
@@ -1697,6 +1706,10 @@ persistent actor Report {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(propertyId) == 0 or Text.size(propertyId) > 100) return #err(#InvalidInput("invalid propertyId"));
     if (Text.size(payload) > MAX_CERT_PAYLOAD_CHARS) return #err(#InvalidInput("payload too large"));
+    // CD-13: refuse a property already at today's limit before the three
+    // inter-canister calls and raw_rand below. Checked again after them.
+    if (not isAdmin(msg.caller) and propertySlotFull(certWindowByProperty, propertyId, MAX_CERTS_PER_PROPERTY_DAY))
+      return #err(#InvalidInput("Certificate limit reached for this property; try again tomorrow"));
 
     let prop = switch (await fetchProperty(propertyId)) {
       case null { return #err(if (isAdmin(msg.caller)) #NotFound else #NotAuthorized) };

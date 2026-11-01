@@ -99,6 +99,7 @@ crons = ["0 * * * *"]   # every hour — scheduledBidtolist (deadline reminders)
 #   ADMIN_API_KEY                 real secret for GET /admin/cycle-status (header x-admin-key);
 #                                 the route is disabled (404) when unset
 #   DBPR_LICENSE_FILE_URL         overrides DBPR's construction licensee file URL
+#   DBPR_DAILY_DOWNLOADS          DBPR file downloads (cache misses) per day across all users (default 200)
 #   RENTCAST_API_KEY              Add Property prefill (/api/rentcast/properties)
 #   GOOGLE_PLACES_API_KEY         Add Property address suggestions (/api/address/suggest, /api/address/place);
 #                                 a server key with only Places API (New) enabled. Unset, the field is plain text.

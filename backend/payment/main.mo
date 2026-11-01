@@ -16,6 +16,8 @@ import Time      "mo:core/Time";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
+import ThresholdCost "../shared/ThresholdCost";
+import Cycles    "mo:core/Cycles";
 import Inspect "../shared/Inspect";
 
 persistent actor Payment {
@@ -152,6 +154,48 @@ persistent actor Payment {
   transient let xrc : actor {
     get_exchange_rate : shared (XrcRequest) -> async { #Ok: XrcRate; #Err: XrcError };
   } = actor "uf6dk-hyaaa-aaaaq-qaaaq-cai";
+
+  // ─── ICP/USD rate (cycle-drain audit CD-14, 2026-10-31) ─────────────────────
+  //
+  // The XRC charges 1B cycles per request and rejects a call that attaches
+  // less (it refunds what a cached answer didn't cost). getPriceQuote is open
+  // to any principal, so the rate is cached for five minutes and fresh
+  // fetches are capped per day canister-wide; a quote and the subscribe that
+  // follows it normally share one fetch.
+
+  private transient let XRC_CYCLES : Nat = 1_000_000_000;
+  private transient let RATE_TTL_NS : Int = 5 * 60 * 1_000_000_000;
+  private transient let MAX_XRC_CALLS_PER_DAY : Nat = 500;
+  private transient let xrcBudget = ThresholdCost.newBudget();
+  /// (fetchedAt, rate, decimals)
+  private transient var cachedRate : ?(Int, Nat64, Nat32) = null;
+
+  private func icpUsdRate() : async* Result.Result<(Nat64, Nat32), Text> {
+    let now = Time.now();
+    switch (cachedRate) {
+      case (?(at, rate, decimals)) { if (now - at < RATE_TTL_NS) return #ok((rate, decimals)) };
+      case null {};
+    };
+    if (not ThresholdCost.affordable(Cycles.balance(), XRC_CYCLES))
+      return #err("Payments are briefly unavailable. Please try again later.");
+    if (not ThresholdCost.take(xrcBudget, now, MAX_XRC_CALLS_PER_DAY))
+      return #err("Payments are briefly unavailable. Please try again later.");
+    let rateResult = try {
+      await (with cycles = XRC_CYCLES) xrc.get_exchange_rate({
+        base_asset  = { symbol = "ICP"; class_ = #Cryptocurrency };
+        quote_asset = { symbol = "USD"; class_ = #FiatCurrency  };
+        timestamp   = null;
+      })
+    } catch (_) { return #err("Could not fetch ICP/USD exchange rate") };
+    switch (rateResult) {
+      case (#Err(_)) { #err("Could not fetch ICP/USD exchange rate") };
+      case (#Ok(r)) {
+        if (r.rate == 0) return #err("Invalid exchange rate: zero");
+        cachedRate := ?(Time.now(), r.rate, r.metadata.decimals);
+        #ok((r.rate, r.metadata.decimals))
+      };
+    }
+  };
 
   // ─── ICP Ledger (ICRC-2) ─────────────────────────────────────────────────────
 
@@ -638,16 +682,10 @@ persistent actor Payment {
     switch (_requireActive(msg.caller)) { case (#err(e)) return #err(e); case (#ok(())) {} };
     let usdPrice = priceUsd(tier);
     if (usdPrice == 0) return #ok(0);
-    let rateResult = await xrc.get_exchange_rate({
-      base_asset  = { symbol = "ICP"; class_ = #Cryptocurrency };
-      quote_asset = { symbol = "USD"; class_ = #FiatCurrency  };
-      timestamp   = null;
-    });
-    switch (rateResult) {
-      case (#Err(_)) { #err(#PaymentFailed("Could not fetch ICP/USD exchange rate")) };
-      case (#Ok(r)) {
-        if (r.rate == 0) return #err(#PaymentFailed("Invalid exchange rate: zero"));
-        let exact      = computeE8s(usdPrice, r.rate, r.metadata.decimals);
+    switch (await* icpUsdRate()) {
+      case (#err(m)) { #err(#PaymentFailed(m)) };
+      case (#ok((rate, decimals))) {
+        let exact      = computeE8s(usdPrice, rate, decimals);
         // 5% buffer covers rate fluctuation between approve and subscribe
         let withBuffer = exact * 105 / 100;
         #ok(withBuffer)
@@ -658,7 +696,7 @@ persistent actor Payment {
   // ─── Subscribe ───────────────────────────────────────────────────────────────
 
   /// Subscribe to a tier.
-  /// For paid tiers: fetches fresh ICP/USD rate and pulls payment via icrc2_transfer_from.
+  /// For paid tiers: reads the ICP/USD rate (cached up to 5 minutes) and pulls payment via icrc2_transfer_from.
   /// The frontend must call icrc2_approve on the ICP ledger first (use getPriceQuote for amount).
   /// For Free: records the subscription immediately with no payment.
   public shared(msg) func subscribe(tier: Tier) : async Result.Result<Subscription, Error> {
@@ -676,24 +714,13 @@ persistent actor Payment {
 
     let usdPrice = priceUsd(tier);
     if (usdPrice > 0) {
-      // Fetch fresh rate at subscription time (separate from quote to get current price)
-      let rateResult = await xrc.get_exchange_rate({
-        base_asset  = { symbol = "ICP"; class_ = #Cryptocurrency };
-        quote_asset = { symbol = "USD"; class_ = #FiatCurrency  };
-        timestamp   = null;
-      });
-      let priceE8s = switch (rateResult) {
-        case (#Err(_)) {
+      // Rate at subscription time (cached up to 5 minutes; the quote carries a 5% buffer)
+      let priceE8s = switch (await* icpUsdRate()) {
+        case (#err(m)) {
           activeSubscribers.remove(callerKey);
-          return #err(#PaymentFailed("Could not fetch ICP/USD exchange rate"));
+          return #err(#PaymentFailed(m));
         };
-        case (#Ok(r)) {
-          if (r.rate == 0) {
-            activeSubscribers.remove(callerKey);
-            return #err(#PaymentFailed("Invalid exchange rate"));
-          };
-          computeE8s(usdPrice, r.rate, r.metadata.decimals)
-        };
+        case (#ok((rate, decimals))) { computeE8s(usdPrice, rate, decimals) };
       };
 
       let transferResult = await icpLedger.icrc2_transfer_from({

@@ -28,6 +28,7 @@ import { Actor } from "@icp-sdk/core/agent";
 import { Principal } from "@icp-sdk/core/principal";
 import { idlFactory } from "../../../packages/shared/src/declarations/contractor";
 import { getAgent } from "../paymentCanister";
+import { hitCounter } from "./rateLimiter";
 
 export const DBPR_CONSTRUCTION_URL =
   "https://www2.myfloridalicense.com/sto/file_download/extracts/CONSTRUCTIONLICENSE_1.csv";
@@ -181,7 +182,19 @@ export function canisterDeps(): ContractorDeps {
   };
 }
 
-interface DbprEnv { RATE_LIMIT: KVNamespace; DBPR_LICENSE_FILE_URL?: string }
+interface DbprEnv {
+  RATE_LIMIT: KVNamespace;
+  RATE_LIMITER?: DurableObjectNamespace;
+  DBPR_LICENSE_FILE_URL?: string;
+  DBPR_DAILY_DOWNLOADS?: string;
+}
+
+/**
+ * CD-12 (cycle-drain audit 2026-10-31): each cache miss downloads and scans
+ * DBPR's whole licensee file, and contractor accounts are free, so misses
+ * across all users are capped per day (DBPR_DAILY_DOWNLOADS overrides).
+ */
+export const DEFAULT_DBPR_DAILY_DOWNLOADS = 200;
 
 export async function checkLicense(
   principal: string,
@@ -204,6 +217,12 @@ export async function checkLicense(
   const cached = await env.RATE_LIMIT.get(cacheKey);
   if (cached) found = JSON.parse(cached);
   else {
+    const n = parseInt(env.DBPR_DAILY_DOWNLOADS ?? "", 10);
+    const limit = Number.isFinite(n) && n >= 0 ? n : DEFAULT_DBPR_DAILY_DOWNLOADS;
+    const day = new Date().toISOString().slice(0, 10);
+    if (!(await hitCounter(env, `dbpr:downloads:${day}`, limit, 2 * 86_400)).allowed) {
+      return { status: 429, body: { error: "Licence checks are busy today. Try again tomorrow." } };
+    }
     try {
       found = await findInDbprFile(lic, env.DBPR_LICENSE_FILE_URL || DBPR_CONSTRUCTION_URL, fetchImpl);
     } catch {

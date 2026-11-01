@@ -65,7 +65,9 @@ imports, contractor-invite and broker emails) get the human check and backoff
 but not the Claude budget (CD-9, CD-11). Their global daily budgets
 (`ATTOM_DAILY_BUDGET` 300, `PERMIT_DAILY_BUDGET` 1,000,
 `INVITE_EMAIL_DAILY_BUDGET` 500) let free accounts together use at most 70%,
-so paying users always have the rest.
+so paying users always have the rest. Florida licence checks download DBPR's
+whole licensee file on a cache miss, so misses across all users are capped at
+`DBPR_DAILY_DOWNLOADS` (default 200) a day (CD-12).
 
 Clients use `@homegentic/shared/aiChecks`: they retry a short `slow_down`
 (≤ 10 s) at most twice, doubling the wait with jitter, and show the other

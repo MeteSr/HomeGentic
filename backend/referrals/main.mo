@@ -85,8 +85,34 @@ persistent actor Referrals {
   };
 
   /// Cycle-saving ingress filter only (the real checks are in each method).
-  system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
+  /// Referral credits were retired on 2026-10-26 and nothing in the apps calls
+  /// this canister any more, so ingress is limited to admins and controllers
+  /// (cycle-drain audit CD-15): a stranger's update call is refused before it
+  /// costs us anything. addAdmin stays open so the first admin can still be
+  /// bootstrapped with the controller's nonce. Calls from other canisters
+  /// don't pass through inspect.
+  system func inspect({
+    caller : Principal;
+    arg : Blob;
+    msg : {
+      #addAdmin : Any;
+      #getCreditBalance : Any;
+      #getMyCode : Any;
+      #getMyReferrals : Any;
+      #markConverted : Any;
+      #metrics : Any;
+      #pause : Any;
+      #setBootstrapNonce : Any;
+      #setPaymentCanisterId : Any;
+      #unpause : Any;
+      #useReferralCode : Any;
+    };
+  }) : Bool {
+    if (not Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)) return false;
+    switch (msg) {
+      case (#addAdmin _) true;
+      case _ { isAdmin(caller) or caller.isController() };
+    }
   };
 
   // ─── Helpers ──────────────────────────────────────────────────────────────────
