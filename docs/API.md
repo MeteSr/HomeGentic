@@ -216,7 +216,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 
 | Method | Type | Signature | Description |
 |---|---|---|---|
-| `createSealedBidRequest` | update | `(propertyId: Text, serviceType: ServiceType, description: Text, urgency: UrgencyLevel, closeAtNs: Time.Time, zipCode: ?Text, minTrustScore: ?Nat, minJobsCompleted: ?Nat, minReviews: ?Nat, maxBids: ?Nat)` | Create a sealed-bid request |
+| `createSealedBidRequest` | update | `(propertyId: Text, serviceType: ServiceType, description: Text, urgency: UrgencyLevel, closeAtNs: Time.Time, zipCode: ?Text, minTrustScore: ?Nat, minJobsCompleted: ?Nat, minReviews: ?Nat, maxBids: ?Nat)` | Create a sealed-bid request; `closeAtNs` must be at least an hour away |
 | `submitSealedBid` | update | `(requestId: Text, ciphertext: [Nat8], timelineDays: Nat)` | Contractor submits encrypted bid |
 | `getMyBid` | query | `(requestId: Text)` | Caller's sealed bid |
 | `revealBids` | update | `(requestId: Text)` | Reveal all bids after close |
@@ -239,7 +239,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | Method | Type | Signature | Description |
 |---|---|---|---|
 | `getIbePublicKey` | update | `()` | Returns the canister's BLS12-381 IBE public key for the sealed-bid context. |
-| `revealBidsEncrypted` | update | `(requestId: Text, transportPublicKey: Blob)` | Derive the homeowner's IBE private key (encrypted to their transport public key) and return it together with all sealed bids for a request. |
+| `revealBidsEncrypted` | update | `(requestId: Text, transportPublicKey: Blob)` | Derive the homeowner's IBE private key (encrypted to their transport public key) and return it together with all sealed bids for a request. 5 per request a day, 500 a day canister-wide, refused when cycles are low. |
 
 **Admin / Lifecycle:** `setVetkdKeyName(name: Text)` · `getVetkdKeyName()` · `setPaymentCanisterId(id: Principal)` · `setContractorCanisterId(id: Principal)` · `setPropertyCanisterId(id: Principal)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
 
@@ -348,8 +348,8 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | Method | Type | Signature | Description |
 |---|---|---|---|
 | `computePropertyScore` | update | `(propertyId: Text)` | Compute the composite HomeGentic score (0-100) for a property by fetching its job history and yearBuilt cross-canister, then applying the same maintenance/moder |
-| `submitScore` | update | `(jobs: [JobSummary], yearBuilt: Nat, zipCode: Text)` | Homeowner submits their property's job summary; canister computes and stores the composite score. |
-| `getMyScoreEncrypted` | update | `(transportPublicKey: Blob)` | Returns the caller's stored score encrypted to their transport public key via vetKeys key derivation. |
+| `submitScore` | update | `(propertyId: Text)` | Scores one of the caller's homes from the property and job canisters' own records (year built, zip, jobs). Needs edit access to the home and at least one job. |
+| `getMyScoreEncrypted` | update | `(transportPublicKey: Blob)` | Returns the caller's stored score encrypted to their transport public key via vetKeys key derivation. 3 per caller a day, 200 a day canister-wide, refused when cycles are low. |
 | `getNeighborhoodPublicKey` | update | `()` | Returns the canister's vetKeys public key for the neighbourhood score context. |
 | `getZipStats` | query | `(zipCode: Text)` | Public zip-level aggregate statistics. |
 

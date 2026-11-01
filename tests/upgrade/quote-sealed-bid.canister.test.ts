@@ -31,6 +31,8 @@ const errText = (r: R<unknown>) => ("err" in r ? JSON.stringify(r.err) : "ok");
 const CANISTERS = ["quote", "payment", "property", "contractor"] as const;
 type Name = typeof CANISTERS[number];
 const HOUR_MS = 60 * 60 * 1000;
+/** Sealed windows must be at least an hour (CD-3); tests open two-hour ones. */
+const WINDOW_MS = 2 * HOUR_MS;
 
 describe("quote: sealed bids with real vetKD", () => {
   let pic: PocketIc;
@@ -55,7 +57,7 @@ describe("quote: sealed bids with real vetKD", () => {
   const nowNs = async () => BigInt(await pic.getTime()) * 1_000_000n;
 
   async function openRequest(description: string): Promise<string> {
-    const closeAt = (await nowNs()) + BigInt(HOUR_MS) * 1_000_000n;
+    const closeAt = (await nowNs()) + BigInt(WINDOW_MS) * 1_000_000n;
     return ok<any>(await as("quote", owner).createSealedBidRequest(
       propertyId, { Roofing: null }, description, { High: null }, closeAt, [], [], [], [], [],
     )).id;
@@ -136,7 +138,7 @@ describe("quote: sealed bids with real vetKD", () => {
 
     expect(errText(await reveal(owner, req) as any)).toMatch(/not yet closed/);
 
-    await pic.advanceTime(HOUR_MS + 1000);
+    await pic.advanceTime(WINDOW_MS + 1000);
     await pic.tick();
 
     expect(errText(await bid(c3, req, 1_00) as any)).toMatch(/already have a sealed bid|closed/);
@@ -154,7 +156,7 @@ describe("quote: sealed bids with real vetKD", () => {
 
   it("refuses new bids once the window has closed", async () => {
     const req = await openRequest("Roof C");
-    await pic.advanceTime(HOUR_MS + 1000);
+    await pic.advanceTime(WINDOW_MS + 1000);
     await pic.tick();
     expect(errText(await bid(c1, req, 5_000_00))).toMatch(/closed/);
   });
@@ -164,7 +166,7 @@ describe("quote: sealed bids with real vetKD", () => {
     const reqB = await openRequest("Roof E");
     ok(await bid(c1, reqA, 7_000_00));
     ok(await bid(c1, reqB, 8_000_00));
-    await pic.advanceTime(HOUR_MS + 1000);
+    await pic.advanceTime(WINDOW_MS + 1000);
     await pic.tick();
 
     // The key for A, checked against B's identity, fails verification.
@@ -180,5 +182,34 @@ describe("quote: sealed bids with real vetKD", () => {
     await expect(ibeDecryptBids(new Uint8Array(resA.encryptedKey), pubKey, sealedBidIdentity(reqA), tsk, rawB)).rejects.toThrow();
 
     expect(ok<any[]>(await reveal(owner, reqB) as any).map((b) => b.amountCents)).toEqual([8_000_00]);
+  });
+
+  // CD-3 (cycle-drain audit 2026-10-31): each reveal is a paid vetKD derive.
+  it("refuses a sealed window shorter than an hour", async () => {
+    const soon = (await nowNs()) + BigInt(30 * 60 * 1000) * 1_000_000n;
+    const res = await as("quote", owner).createSealedBidRequest(
+      propertyId, { Roofing: null }, "Too short", { High: null }, soon, [], [], [], [], [],
+    );
+    expect(errText(res)).toMatch(/at least an hour/);
+  });
+
+  it("caps reveals per request per day, without letting a stranger use them up", async () => {
+    const req = await openRequest("Roof F");
+    ok(await bid(c1, req, 6_000_00));
+    await pic.advanceTime(WINDOW_MS + 1000);
+    await pic.tick();
+
+    for (let i = 0; i < 3; i++) expect(errKey(await reveal(stranger, req) as any)).toBe("NotAuthorized");
+    for (let i = 0; i < 5; i++) ok(await reveal(owner, req) as any);
+    expect(errText(await reveal(owner, req) as any)).toMatch(/5 times today/);
+
+    // A different request has its own allowance, and the next day resets it.
+    const other = await openRequest("Roof G");
+    await pic.advanceTime(WINDOW_MS + 1000);
+    await pic.tick();
+    ok(await reveal(owner, other) as any);
+    await pic.advanceTime(24 * HOUR_MS);
+    await pic.tick();
+    ok(await reveal(owner, req) as any);
   });
 });

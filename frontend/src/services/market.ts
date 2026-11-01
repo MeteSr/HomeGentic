@@ -18,13 +18,6 @@ const MARKET_CANISTER_ID = (process.env as any).MARKET_CANISTER_ID || "";
 // ─── Neighbourhood Score IDL ──────────────────────────────────────────────────
 
 export const neighbourhoodIdlFactory = ({ IDL }: any) => {
-  const JobSummary = IDL.Record({
-    serviceType:   IDL.Text,
-    completedYear: IDL.Nat,
-    amountCents:   IDL.Nat,
-    isDiy:         IDL.Bool,
-    isVerified:    IDL.Bool,
-  });
   const StoredScore = IDL.Record({
     score:     IDL.Nat,
     zipCode:   IDL.Text,
@@ -52,7 +45,7 @@ export const neighbourhoodIdlFactory = ({ IDL }: any) => {
   const Result_ZipStats      = IDL.Variant({ ok: ZipStats,      err: Error });
   const Result_ScoreEnvelope = IDL.Variant({ ok: ScoreEnvelope, err: Error });
   return IDL.Service({
-    submitScore:              IDL.Func([IDL.Vec(JobSummary), IDL.Nat, IDL.Text], [Result_StoredScore],   []),
+    submitScore:              IDL.Func([IDL.Text],                               [Result_StoredScore],   []),
     getZipStats:              IDL.Func([IDL.Text],                               [Result_ZipStats],      ["query"]),
     getNeighborhoodPublicKey: IDL.Func([],                                       [IDL.Vec(IDL.Nat8)],   []),
     getMyScoreEncrypted:      IDL.Func([IDL.Vec(IDL.Nat8)],                      [Result_ScoreEnvelope],[]),
@@ -100,14 +93,14 @@ export interface ScoreEnvelope {
 
 // ─── Neighbourhood Score Canister Calls ──────────────────────────────────────
 
-/** Submit job data; canister computes and stores the composite score. */
-export async function submitScore(
-  jobs:      JobSummary[],
-  yearBuilt: number,
-  zipCode:   string,
-): Promise<StoredScore> {
+/**
+ * Score one of the caller's homes. The canister reads the home's jobs, year
+ * built and zip from the property and job canisters itself, so the caller
+ * needs edit access to the home and the home needs at least one job.
+ */
+export async function submitScore(propertyId: string): Promise<StoredScore> {
   const actor = await getNeighbourhoodActor();
-  const result = await actor.submitScore(jobs, BigInt(yearBuilt), zipCode);
+  const result = await actor.submitScore(propertyId);
   if ("err" in result) throw new Error(JSON.stringify(result.err));
   return {
     score:     Number(result.ok.score),
