@@ -25,6 +25,7 @@ import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
 import Text     "mo:core/Text";
 import Time     "mo:core/Time";
+import Cycles   "mo:core/Cycles";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Score "../shared/Score";
@@ -190,7 +191,12 @@ persistent actor MarketIntelligence {
   private func vetkdDeriveCycles() : Nat { ThresholdCost.vetkdDerive(vetkdKeyName) };
   /// M12: per-principal cap on vetKD derives (each one burns cycles).
   private let deriveLimits = Map.empty<Principal, (Nat, Int)>();
-  transient let MAX_DERIVES_PER_DAY : Nat = 10;
+  /// CD-2 (cycle-drain audit 2026-10-31): 3 a day is plenty to read your own
+  /// score; the canister-wide budget below is what bounds spend, since
+  /// principals are free.
+  transient let MAX_DERIVES_PER_DAY : Nat = 3;
+  transient let MAX_DERIVES_PER_DAY_TOTAL : Nat = 200;
+  transient let deriveBudget = ThresholdCost.newBudget();
   transient let ONE_DAY_NS : Int = 86_400_000_000_000;
   /// M12: zip aggregates are suppressed below this many submitters, so a
   /// lone submitter's exact score isn't published.
@@ -593,45 +599,77 @@ persistent actor MarketIntelligence {
 
   // ─── Neighbourhood Score (4.3.4) ─────────────────────────────────────────────
 
-  /// Homeowner submits their property's job summary; canister computes and stores
-  /// the composite score. Individual scores are never exposed via public query —
-  /// only zip-level aggregates are public. Use getMyScoreEncrypted to read back
-  /// your own score, authenticated via vetKeys.
-  public shared(msg) func submitScore(
-    jobs:      [JobSummary],
-    yearBuilt: Nat,
-    zipCode:   Text,
-  ) : async Result.Result<StoredScore, Error> {
-    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Text.size(zipCode) == 0 or Text.size(zipCode) > 20)
-      return #err(#InvalidInput("zipCode must be 1-20 characters"));
-    if (jobs.size() > MAX_SCORE_JOBS) return #err(#InvalidInput("too many jobs"));
+  /// The last space-separated part of a property's address, which is its zip
+  /// (property.getPropertyAddress ends "… ST 12345", and property only
+  /// accepts 5-digit or ZIP+4 zips).
+  private func zipOfAddress(address : Text) : ?Text {
+    var last : ?Text = null;
+    for (part in address.split(#char ' ')) { if (part != "") last := ?part };
+    last
+  };
 
+  /// Homeowner asks the canister to score one of their properties. The score
+  /// is computed here from the property and job canisters' own records, so a
+  /// caller can't post made-up jobs or a made-up zip (CD-2, CD-10: throwaway
+  /// principals used to be able to store a score, then burn a vetKD derive a
+  /// day each, and skew zip averages). The caller needs write access to the
+  /// property, and the property needs at least one job. Individual scores are
+  /// never exposed via public query — only zip-level aggregates are public.
+  /// Use getMyScoreEncrypted to read back your own score.
+  public shared(msg) func submitScore(propertyId : Text) : async Result.Result<StoredScore, Error> {
     let caller = msg.caller;
+    switch (requireActive(caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (Text.size(propertyId) == 0 or Text.size(propertyId) > 200)
+      return #err(#InvalidInput("propertyId must be 1-200 characters"));
+    if (propCanisterId == "" or jobCanisterId == "")
+      return #err(#InvalidInput("Scores are not available yet"));
 
-    // If homeowner previously had a different zip, remove from old zip index.
+    if (not (await Canisters.property(propCanisterId).isAuthorized(propertyId, caller, true)))
+      return #err(#NotAuthorized);
+
+    let propActor = actor(propCanisterId) : actor {
+      getPropertyYearBuilt : query (Text) -> async ?Nat;
+      getPropertyAddress   : query (Text) -> async ?Text;
+    };
+    let jobActor = actor(jobCanisterId) : actor {
+      getJobSnapshotsForProperty : query (Text) -> async [JobSummary];
+    };
+    let yearBuilt = switch (await propActor.getPropertyYearBuilt(propertyId)) {
+      case null { return #err(#NotFound) };
+      case (?y) { y };
+    };
+    let zipCode = switch (await propActor.getPropertyAddress(propertyId)) {
+      case null { return #err(#NotFound) };
+      case (?a) {
+        switch (zipOfAddress(a)) { case (?z) z; case null { return #err(#NotFound) } }
+      };
+    };
+    if (Text.size(zipCode) > 20) return #err(#InvalidInput("zipCode exceeds 20 characters"));
+    let jobs = await jobActor.getJobSnapshotsForProperty(propertyId);
+    if (jobs.size() == 0) return #err(#InvalidInput("Add a job to this home before scoring it"));
+    let scored = if (jobs.size() > MAX_SCORE_JOBS) Array.sliceToArray(jobs, 0, MAX_SCORE_JOBS) else jobs;
+
+    let score = compositeScore(
+      maintenanceScore(scored),
+      modernizationScore(scored, yearBuilt),
+      verificationDepth(scored),
+    );
+
+    // State is read again here, after the awaits: another submitScore from
+    // the same caller may have moved them to a different zip meanwhile.
     switch (scoreStore.get(caller)) {
       case (?old) {
         if (old.zipCode != zipCode) {
-          let oldList = zipIndex.get(old.zipCode).get([]);
-          let trimmed = oldList.filter(func(p) { p != caller });
-          zipIndex.add(old.zipCode, trimmed);
+          let trimmed = zipIndex.get(old.zipCode).get([]).filter(func(p) { p != caller });
+          if (trimmed.size() == 0) zipIndex.remove(old.zipCode) else zipIndex.add(old.zipCode, trimmed);
         };
       };
       case null {};
     };
 
-    let score = compositeScore(
-      maintenanceScore(jobs),
-      modernizationScore(jobs, yearBuilt),
-      verificationDepth(jobs),
-    );
-
     let stored : StoredScore = { score; zipCode; updatedAt = Time.now() };
     scoreStore.add(caller, stored);
 
-    // Add caller to zip index if not already present.
     let current = zipIndex.get(zipCode).get([]);
     if (not Admin.contains(current, caller)) {
       zipIndex.add(zipCode, current.concat([caller]));
@@ -701,17 +739,26 @@ persistent actor MarketIntelligence {
       case (?s)    { s };
     };
 
+    // CD-2: never attach more cycles than the canister can spare.
+    if (not ThresholdCost.affordable(Cycles.balance(), vetkdDeriveCycles()))
+      return #err(#InvalidInput("Encrypted scores are unavailable right now. Please try again later."));
+
     if (not isAdmin(caller)) {
       let now = Time.now();
-      switch (deriveLimits.get(caller)) {
+      let next : (Nat, Int) = switch (deriveLimits.get(caller)) {
         case (?(count, start)) {
           if (now - start < ONE_DAY_NS) {
             if (count >= MAX_DERIVES_PER_DAY) return #err(#InvalidInput("Daily encrypted-score limit reached"));
-            deriveLimits.add(caller, (count + 1, start));
-          } else { deriveLimits.add(caller, (1, now)) };
+            (count + 1, start)
+          } else { (1, now) };
         };
-        case null { deriveLimits.add(caller, (1, now)) };
+        case null { (1, now) };
       };
+      // CD-2: canister-wide daily budget, checked before the caller's slot is
+      // used so a refusal here doesn't cost them one.
+      if (not ThresholdCost.take(deriveBudget, now, MAX_DERIVES_PER_DAY_TOTAL))
+        return #err(#InvalidInput("Encrypted scores are busy today. Please try again tomorrow."));
+      deriveLimits.add(caller, next);
     };
 
     let response = await (with cycles = vetkdDeriveCycles()) managementCanister.vetkd_derive_key({

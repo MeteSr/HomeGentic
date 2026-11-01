@@ -757,8 +757,8 @@ Filters templates by property age, whether the system was recently serviced, and
 Individual scores are stored encrypted and never returned in plaintext:
 
 ```
-submitScore(jobs, yearBuilt, zipCode)     → stores composite score, adds principal to zipIndex
-getMyScoreEncrypted(transportPublicKey)   → vetKeys encryption (~10B cycles); returns ScoreEnvelope
+submitScore(propertyId)                   → reads the home's jobs, year built and zip from property/job, stores composite score, adds principal to zipIndex
+getMyScoreEncrypted(transportPublicKey)   → vetKeys encryption (~26B cycles on key_1; 3/caller/day, 200/day total); returns ScoreEnvelope
 getZipStats(zipCode)                      → public aggregate: mean, median, sampleSize, grade
 ```
 
@@ -769,7 +769,7 @@ VetKeys config: key `"test_key_1"` (local), `"key_1"` (mainnet); context `"hg-sc
 | Function | Who |
 |----------|-----|
 | `analyzeCompetitivePosition()`, `recommendValueAddingProjects()`, `getMarketSnapshot()`, `getZipStats()`, `getNeighborhoodPublicKey()` | Public (no auth, query) |
-| `submitScore()` | Any authenticated |
+| `submitScore()` | Owner or editor of a home with at least one job |
 | `getMyScoreEncrypted()` | Self (authenticated; costs cycles) |
 | `recordMarketSnapshot()` | Admin |
 

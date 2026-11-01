@@ -6,9 +6,10 @@
  * Run:      npm run test:integration  (from repo root)
  *
  * What these tests prove that unit tests cannot:
- *   - Candid IDL: JobSummary record, StoredScore / ZipStats / ScoreEnvelope records,
+ *   - Candid IDL: StoredScore / ZipStats / ScoreEnvelope records,
  *     updatedAt (Int bigint)
- *   - submitScore() stores score and returns StoredScore with numeric fields
+ *   - submitScore(propertyId) scores a real home from the property and job
+ *     canisters, and refuses a caller who can't edit it
  *   - getZipStats(zipCode) returns aggregated stats after score submission
  *   - getNeighborhoodPublicKey() returns non-empty Uint8Array
  *   - getMyScoreEncrypted() round-trip: submitted score is retrievable with key
@@ -16,15 +17,17 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import {
-  submitScore,
   getZipStats,
   getNeighborhoodPublicKey,
-  getMyScoreEncrypted,
   computePropertyScore,
+  neighbourhoodIdlFactory,
 } from "@/services/market";
-import type { StoredScore, ZipStats } from "@/services/market";
+import type { ZipStats } from "@/services/market";
+import { propertyService } from "@/services/property";
+import { jobService } from "@/services/job";
 import { Actor } from "@icp-sdk/core/agent";
-import { agentFor, freshIdentity } from "./helpers";
+import type { Identity } from "@icp-sdk/core/agent";
+import { agentFor, freshIdentity, asIdentity } from "./helpers";
 
 const CANISTER_ID = (process.env as any).MARKET_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
@@ -32,33 +35,61 @@ const deployed = !!CANISTER_ID;
 const RUN_ID = Date.now();
 const ZIP    = "78701";
 
-const SAMPLE_JOBS = [
-  { serviceType: "HVAC",    completedYear: 2023, amountCents: 250_000, isDiy: false, isVerified: true  },
-  { serviceType: "Roofing", completedYear: 2022, amountCents: 800_000, isDiy: false, isVerified: true  },
-  { serviceType: "Painting",completedYear: 2024, amountCents: 50_000,  isDiy: true,  isVerified: false },
-];
+/** The market canister as `identity` (the service's own actor is bound to the test identity). */
+async function marketAs(identity: Identity): Promise<any> {
+  return Actor.createActor(neighbourhoodIdlFactory, { agent: await agentFor(identity), canisterId: CANISTER_ID });
+}
+
+let homeCount = 0;
+/**
+ * A fresh homeowner with one home in ZIP and one DIY job on it. submitScore
+ * reads both from the property and job canisters (CD-2), so a score needs
+ * a real home with a real job.
+ */
+async function scoredHome(): Promise<{ identity: Identity; propertyId: string }> {
+  const identity = freshIdentity();
+  homeCount += 1;
+  const propertyId = await asIdentity(identity, [propertyService, jobService], async () => {
+    const prop = await propertyService.registerProperty({
+      address:      `${RUN_ID}-${homeCount} Score Ln`,
+      city:         "Austin",
+      state:        "TX",
+      zipCode:      ZIP,
+      propertyType: "SingleFamily",
+      yearBuilt:    2005,
+      squareFeet:   1800,
+      tier:         "Free",
+    });
+    await jobService.create({
+      propertyId:  prop.id,
+      serviceType: "HVAC",
+      amount:      250_000,
+      date:        "2023-05-01",
+      description: "HVAC replacement",
+      isDiy:       true,
+    });
+    return prop.id;
+  });
+  return { identity, propertyId };
+}
 
 // ─── submitScore ──────────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("submitScore — Candid serialization", () => {
-  let stored: StoredScore;
-
-  beforeAll(async () => {
-    stored = await submitScore(SAMPLE_JOBS, 2005, ZIP);
+describe.skipIf(!deployed)("submitScore — scores a real home from canister records", () => {
+  it("returns a numeric score with the property's own zip", async () => {
+    const { identity, propertyId } = await scoredHome();
+    const r = await (await marketAs(identity)).submitScore(propertyId);
+    expect("ok" in r).toBe(true);
+    expect(Number(r.ok.score)).toBeGreaterThanOrEqual(0);
+    expect(r.ok.zipCode).toBe(ZIP);
+    expect(typeof r.ok.updatedAt).toBe("bigint");
+    expect(r.ok.updatedAt).toBeGreaterThan(0n);
   });
 
-  it("returns a numeric score", () => {
-    expect(typeof stored.score).toBe("number");
-    expect(stored.score).toBeGreaterThanOrEqual(0);
-  });
-
-  it("zipCode is preserved", () => {
-    expect(stored.zipCode).toBe(ZIP);
-  });
-
-  it("updatedAt is a positive bigint", () => {
-    expect(typeof stored.updatedAt).toBe("bigint");
-    expect(stored.updatedAt).toBeGreaterThan(0n);
+  it("refuses a caller who can't edit the home", async () => {
+    const { propertyId } = await scoredHome();
+    const r = await (await marketAs(freshIdentity())).submitScore(propertyId);
+    expect(r).toEqual({ err: { NotAuthorized: null } });
   });
 });
 
@@ -69,24 +100,14 @@ describe.skipIf(!deployed)("getZipStats — returns aggregated stats after submi
 
   beforeAll(async () => {
     // getZipStats only answers once MIN_ZIP_SAMPLE (5) homeowners in the zip
-    // have a score (M12 k-anonymity), so four neighbours submit alongside the
-    // test identity.
-    await submitScore(SAMPLE_JOBS, 2005, ZIP);
-    const idl = ({ IDL }: any) => IDL.Service({
-      submitScore: IDL.Func(
-        [IDL.Vec(IDL.Record({
-          serviceType: IDL.Text, completedYear: IDL.Nat, amountCents: IDL.Nat, isDiy: IDL.Bool, isVerified: IDL.Bool,
-        })), IDL.Nat, IDL.Text],
-        [IDL.Variant({ ok: IDL.Reserved, err: IDL.Reserved })], []),
-    });
-    for (let i = 0; i < 4; i++) {
-      const neighbour = Actor.createActor(idl, { agent: await agentFor(freshIdentity()), canisterId: CANISTER_ID }) as any;
-      const r = await neighbour.submitScore(SAMPLE_JOBS, BigInt(1990 + i), ZIP);
-      if (!("ok" in r)) throw new Error(`neighbour submitScore failed: ${JSON.stringify(r)}`);
+    // have a score (M12 k-anonymity).
+    for (let i = 0; i < 5; i++) {
+      const { identity, propertyId } = await scoredHome();
+      const r = await (await marketAs(identity)).submitScore(propertyId);
+      if (!("ok" in r)) throw new Error(`submitScore failed: ${JSON.stringify(r)}`);
     }
     stats = await getZipStats(ZIP);
-  });
-
+  }, 120_000);
   it("returns non-null stats for a submitted zip", () => {
     expect(stats).not.toBeNull();
   });
@@ -144,13 +165,16 @@ describe.skipIf(!deployed)("getNeighborhoodPublicKey — returns non-empty key b
 describe.skipIf(!deployed)("getMyScoreEncrypted — score survives canister storage", () => {
   it("returns an envelope with the correct zipCode after submission (skipped if VetKD not available)", async () => {
     try {
-      await submitScore(SAMPLE_JOBS, 2005, ZIP);
+      const { identity, propertyId } = await scoredHome();
+      const market = await marketAs(identity);
+      const stored = await market.submitScore(propertyId);
+      if (!("ok" in stored)) throw new Error(`submitScore failed: ${JSON.stringify(stored)}`);
       const publicKey = await getNeighborhoodPublicKey();
-      const envelope = await getMyScoreEncrypted(publicKey);
-      expect(envelope.zipCode).toBe(ZIP);
-      expect(typeof envelope.score).toBe("number");
-      expect(envelope.score).toBeGreaterThanOrEqual(0);
-      expect(envelope.encryptedKey).toBeInstanceOf(Uint8Array);
+      const r = await market.getMyScoreEncrypted(Array.from(publicKey));
+      if ("err" in r) throw new Error(JSON.stringify(r.err));
+      expect(r.ok.zipCode).toBe(ZIP);
+      expect(Number(r.ok.score)).toBeGreaterThanOrEqual(0);
+      expect(r.ok.encryptedKey.length).toBeGreaterThan(0);
     } catch (e: any) {
       expect(e.message ?? String(e)).toMatch(/vetkd_public_key|IC0406|IC0536|subnetId/i);
     }
@@ -174,9 +198,6 @@ describe.skipIf(!deployed)("computePropertyScore — on-chain FSBO score", () =>
   it("returns a number in 0-100 when a wired property has jobs", async () => {
     // This test only runs when all three canisters are wired (deploy.sh handles it).
     // If canister IDs are not wired, computePropertyScore returns null — skip gracefully.
-    const { propertyService } = await import("@/services/property");
-    const { jobService } = await import("@/services/job");
-
     let prop: Awaited<ReturnType<typeof propertyService.registerProperty>>;
     try {
       prop = await propertyService.registerProperty({

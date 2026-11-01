@@ -10,7 +10,9 @@ import { startPoller }                from "./poller";
 import { requestPrincipal }           from "./session";
 import { clearPhone, forgetPrefs, publicPrefs, setPrefs, setVerifiedPhone } from "./prefs";
 import { emailConfigured }            from "./email";
-import { E164, allowCodeRequest, allowCodeToPhone, checkVerification, smsConfigured, startVerification } from "./sms";
+import {
+  E164, allowCodeRequest, allowCodeToPhone, checkVerification, smsConfigured, smsCountryAllowed, startVerification,
+} from "./sms";
 import { relayIdentity }              from "./icp";
 import { emailUnsubscribeId, safeEqual, unsubscribeTokenFor, validUnsubscribeToken } from "./unsubscribe";
 import { startPulse }                 from "./pulse";
@@ -213,6 +215,11 @@ export function buildApp() {
       res.status(400).json({ error: "phone must be in international format, e.g. +15125550142" });
       return;
     }
+    // CD-4: only numbers in countries we serve (SMS pumping).
+    if (!smsCountryAllowed(phone)) {
+      res.status(400).json({ error: "unsupported_country" });
+      return;
+    }
     // Per-principal, per-number and global caps (SMS pumping / harassing a
     // third-party number from many cheap principals).
     if (!allowCodeRequest(principal) || !allowCodeToPhone(phone)) {
@@ -241,6 +248,10 @@ export function buildApp() {
     const { phone, code } = req.body as { phone?: unknown; code?: unknown };
     if (typeof phone !== "string" || !E164.test(phone) || typeof code !== "string" || !/^\d{4,10}$/.test(code)) {
       res.status(400).json({ error: "phone and code are required" });
+      return;
+    }
+    if (!smsCountryAllowed(phone)) {
+      res.status(400).json({ error: "unsupported_country" });
       return;
     }
     try {

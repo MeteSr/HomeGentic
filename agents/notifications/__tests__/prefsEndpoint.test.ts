@@ -88,6 +88,19 @@ describe("SMS confirmation", () => {
     expect(smsMock.startVerification).not.toHaveBeenCalled();
   });
 
+  it("won't text numbers outside the US and Canada (SMS pumping)", async () => {
+    mockPrincipal.mockResolvedValue("sms-user");
+    for (const phone of ["+18765550142", "+447700900123", "+19005550142"]) {
+      const res = await request(app).post("/api/sms/start").send({ phone });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("unsupported_country");
+    }
+    const confirm = await request(app).post("/api/sms/confirm").send({ phone: "+18765550142", code: "123456" });
+    expect(confirm.body.error).toBe("unsupported_country");
+    expect(smsMock.startVerification).not.toHaveBeenCalled();
+    expect(smsMock.checkVerification).not.toHaveBeenCalled();
+  });
+
   it("limits code requests per user", async () => {
     mockPrincipal.mockResolvedValue("chatty-user");
     // Different numbers so only the per-user cap (5/hour) is in play.

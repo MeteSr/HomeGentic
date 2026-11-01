@@ -272,11 +272,18 @@ Each channel is off until its variables are set; Settings hides its rows while i
 | `TWILIO_AUTH_TOKEN` | Twilio auth token — keep secret |
 | `TWILIO_VERIFY_SERVICE_SID` | Twilio Verify service (`VA…`) that texts the confirmation codes |
 | `TWILIO_MESSAGING_SERVICE_SID` | Messaging service (`MG…`) that sends alerts — or set `TWILIO_FROM_NUMBER` (E.164) instead |
+| `SMS_GLOBAL_HOURLY_LIMIT` / `SMS_GLOBAL_DAILY_LIMIT` | Confirmation codes the relay sends across all users (default 50 an hour, 300 a day) |
+| `SMS_ALLOWED_COUNTRY_CODES` | Extra calling codes to text, comma-separated (e.g. `44,61`). Default: US and Canada only |
 
 SMS turns on only when the account SID, auth token, Verify service and a sender are all set.
 Texting US numbers from a 10-digit long code needs an approved **A2P 10DLC** brand and campaign
 in Twilio, attached to the messaging service; without it carriers filter the alerts. Each user can
 request at most 5 codes an hour, and every alert ends "Reply STOP to opt out" (Twilio handles STOP).
+
+**SMS pumping (cycle-drain audit CD-4).** The relay only texts US and Canadian numbers: +1
+Caribbean area codes and 900 numbers are refused. Also, in the Twilio console: turn on **Fraud
+Guard** on the Verify service, and under **Messaging → Settings → Geo permissions** (and Verify's
+own geo permissions) allow only the United States and Canada.
 
 VAPID keys are stable — regenerate only if the private key is compromised (invalidates all existing browser subscriptions).
 

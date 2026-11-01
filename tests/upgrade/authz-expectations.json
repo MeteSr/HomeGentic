@@ -81,8 +81,7 @@
     "stranger": [
       "computePropertyScore?",
       "deleteMyData",
-      "setBootstrapNonce?",
-      "submitScore"
+      "setBootstrapNonce?"
     ],
     "anonymous": []
   },

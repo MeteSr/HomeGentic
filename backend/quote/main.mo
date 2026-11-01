@@ -20,6 +20,7 @@ import Result   "mo:core/Result";
 import Set      "mo:core/Set";
 import Text     "mo:core/Text";
 import Time     "mo:core/Time";
+import Cycles   "mo:core/Cycles";
 import ServiceTypes "../shared/ServiceType";
 import Notify       "../shared/Notify";
 import Index        "../shared/Index";
@@ -280,6 +281,20 @@ persistent actor Quote {
   /// the requestId (not the homeowner principal), so one reveal key opens one
   /// request's bids only — and bidders never need the homeowner's principal.
   private func bidIdentity(requestId: Text) : Blob { requestId.encodeUtf8() };
+
+  /// CD-3 (cycle-drain audit 2026-10-31): each reveal is one vetKD derive
+  /// (~26B cycles on key_1). Once the window has closed the bids never
+  /// change, so a few reveals per request a day are plenty; the canister-wide
+  /// budget bounds spend across every account. Transient: these counts reset
+  /// on upgrade (reviewing-motoko S2), and they change no stable type.
+  private transient let MAX_REVEALS_PER_REQUEST_PER_DAY : Nat = 5;
+  private transient let MAX_REVEALS_PER_DAY_TOTAL : Nat = 500;
+  private transient let revealsByRequest = Map.empty<Text, (Nat, Int)>();
+  private transient let revealBudget = ThresholdCost.newBudget();
+  /// CD-3: a sealed-bid window shorter than this only served to reach the
+  /// reveal step (and its vetKD derive) sooner.
+  private transient let MIN_SEALED_WINDOW_NS : Int = 3_600_000_000_000;
+  private transient let REVEAL_DAY_NS : Int = 86_400_000_000_000;
   /// M2: an IBE ciphertext of a 4-byte amount is ~150 bytes.
   private transient let MAX_CIPHERTEXT_BYTES : Nat = 1024;
 
@@ -1086,7 +1101,8 @@ persistent actor Quote {
     if (Text.size(propertyId)  == 0)   return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(description) == 0)   return #err(#InvalidInput("description cannot be empty"));
     if (Text.size(description) > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
-    if (closeAtNs <= Time.now())        return #err(#InvalidInput("closeAt must be in the future"));
+    if (closeAtNs < Time.now() + MIN_SEALED_WINDOW_NS)
+      return #err(#InvalidInput("closeAt must be at least an hour from now"));
     if (Text.size(propertyId) > 200)   return #err(#InvalidInput("propertyId too long"));
     switch (zipCode) { case (?z) { if (Text.size(z) > 20) return #err(#InvalidInput("zipCode too long")) }; case null {} };
 
@@ -1382,6 +1398,26 @@ persistent actor Quote {
             return #err(#InvalidInput("This request does not use sealed bids"));
           };
         };
+
+        // CD-3: cycles floor, then the per-request and canister-wide caps.
+        // Checked after the auth await, so a stranger can't use up a
+        // homeowner's reveals; nothing below awaits before the derive.
+        if (not ThresholdCost.affordable(Cycles.balance(), vetkdDeriveCycles()))
+          return #err(#InvalidInput("Revealing bids is unavailable right now. Please try again later."));
+        let now = Time.now();
+        let nextCount : (Nat, Int) = switch (revealsByRequest.get(requestId)) {
+          case (?(n, start)) {
+            if (now - start < REVEAL_DAY_NS) {
+              if (n >= MAX_REVEALS_PER_REQUEST_PER_DAY)
+                return #err(#InvalidInput("You've opened these bids " # n.toText() # " times today. Please try again tomorrow."));
+              (n + 1, start)
+            } else { (1, now) }
+          };
+          case null { (1, now) };
+        };
+        if (not ThresholdCost.take(revealBudget, now, MAX_REVEALS_PER_DAY_TOTAL))
+          return #err(#InvalidInput("Revealing bids is busy today. Please try again tomorrow."));
+        revealsByRequest.add(requestId, nextCount);
 
         // Derive the homeowner's IBE private key encrypted to their transport key.
         // L1: derive for the request's identity, not the caller's principal —
