@@ -11,6 +11,8 @@
 import { authService } from "./auth";
 import { useAuthStore } from "@/store/authStore";
 import { SESSION_HEADER, createSessionTokenCache } from "@homegentic/shared/agentSession";
+import { withAiChecks, aiRefusalMessage, HUMAN_VERIFY_PATH } from "@homegentic/shared/aiChecks";
+import { ensureHuman } from "./humanCheck";
 
 export const AGENT_SESSION_HEADER = SESSION_HEADER;
 
@@ -33,9 +35,11 @@ export function clearAgentSession(): void {
 }
 
 /**
- * fetch() with the session header attached. If the Worker answers 401 (token
- * unknown or expired, e.g. after a canister reinstall), get a fresh token and
- * retry once.
+ * fetch() with the session header attached, plus the Worker's abuse checks:
+ *  - 401 (token unknown or expired, e.g. after a canister reinstall): get a
+ *    fresh token and retry once.
+ *  - 403 `human_verification_required` and short 429 `slow_down`: see
+ *    withAiChecks (one-time human check; retry with exponential backoff).
  */
 export async function fetchWithAgentSession(url: string, init: RequestInit): Promise<Response> {
   const send = async () => {
@@ -45,8 +49,28 @@ export async function fetchWithAgentSession(url: string, init: RequestInit): Pro
       headers: { ...(init.headers as Record<string, string>), ...(token ? { [AGENT_SESSION_HEADER]: token } : {}) },
     });
   };
-  const res = await send();
-  if (res.status !== 401) return res;
-  clearAgentSession();
-  return send();
+  let res = await send();
+  if (res.status === 401) {
+    clearAgentSession();
+    res = await send();
+  }
+  return withAiChecks(res, {
+    send,
+    humanCheck: (siteKey) => ensureHuman(siteKey, (token) => verifyHumanToken(url, init, token)),
+  });
+}
+
+export { aiRefusalMessage };
+
+/** POST the Turnstile token to the same Worker the request went to. */
+async function verifyHumanToken(url: string, init: RequestInit, token: string): Promise<boolean> {
+  const verifyUrl = new URL(HUMAN_VERIFY_PATH, new URL(url, window.location.origin)).toString();
+  const headers = { ...(init.headers as Record<string, string>), "Content-Type": "application/json" };
+  const session = await getAgentSessionToken();
+  const res = await fetch(verifyUrl, {
+    method: "POST",
+    headers: { ...headers, ...(session ? { [AGENT_SESSION_HEADER]: session } : {}) },
+    body: JSON.stringify({ token }),
+  });
+  return res.ok;
 }

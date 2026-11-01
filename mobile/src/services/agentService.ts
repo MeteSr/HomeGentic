@@ -1,5 +1,7 @@
 /** Pure types and helpers for interacting with the voice-agent proxy. */
 import { SESSION_HEADER } from "@homegentic/shared/agentSession";
+import { aiRefusalMessage } from "@homegentic/shared/aiChecks";
+import { aiFetch } from "./aiFetch";
 
 const VOICE_AGENT_URL =
   process.env.EXPO_PUBLIC_VOICE_AGENT_URL ?? "http://localhost:8787";
@@ -74,14 +76,14 @@ export async function callAgent(
   context: AgentContext,
   sessionToken?: string | null,
 ): Promise<AgentResponse> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (sessionToken) headers[SESSION_HEADER] = sessionToken;
-  const res = await fetch(`${VOICE_AGENT_URL}/api/agent`, {
+  const res = await aiFetch(`${VOICE_AGENT_URL}/api/agent`, {
     method:  "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ messages, context }),
-  });
+  }, sessionToken ?? null);
 
+  const refusal = await aiRefusalMessage(res);
+  if (refusal) return { type: "error", message: refusal };
   if (res.status === 429) {
     return { type: "error", message: "You've used all your AI calls for now." };
   }

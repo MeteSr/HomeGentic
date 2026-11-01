@@ -18,6 +18,19 @@ export class HttpError extends Error {
 export const MAX_JSON_BYTES = 64 * 1024;
 /** Cap for routes that carry a base64 image/PDF (≈ 6 MB of base64 ≈ 4.5 MB file). */
 export const MAX_UPLOAD_BYTES = 6 * 1024 * 1024;
+/**
+ * CD-1: PDFs sent to Claude are billed per page (text + page image), so a big
+ * PDF is the most expensive single call. Images are resized by the API to
+ * about 1.15 MP, so their cost is bounded whatever their size.
+ */
+export const MAX_AI_PDF_BYTES = 1_500_000;
+
+/** Whether a base64 PDF decodes to more than MAX_AI_PDF_BYTES. */
+export function pdfTooLarge(mimeType: unknown, base64Data: unknown): boolean {
+  return mimeType === "application/pdf" && typeof base64Data === "string" &&
+    Math.floor((base64Data.length * 3) / 4) > MAX_AI_PDF_BYTES;
+}
+
 /** Cap for Stripe webhook payloads. */
 export const MAX_WEBHOOK_BYTES = 512 * 1024;
 
@@ -136,6 +149,9 @@ export function redactRecord(data: unknown, maxKeys = 20): Record<string, string
 // ── Model-input caps (F-4) ────────────────────────────────────────────────────
 
 export const MAX_AGENT_MESSAGES     = 24;
+/** CD-1: total text across one agent request, and images per request. */
+export const MAX_AGENT_TOTAL_TEXT_CHARS = 64_000;
+export const MAX_AGENT_IMAGES           = 4;
 export const MAX_MESSAGE_TEXT_CHARS = 8_000;
 export const MAX_CHAT_MESSAGE_CHARS = 2_000;
 
@@ -149,13 +165,16 @@ export function sanitiseAgentMessages(raw: unknown): any[] | null {
   if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_AGENT_MESSAGES) return null;
   const clampText = (t: unknown) => (typeof t === "string" ? t.slice(0, MAX_MESSAGE_TEXT_CHARS) : "");
   const out: any[] = [];
+  let totalText = 0;
+  let images = 0;
+  const clampAndCount = (t: unknown) => { const c = clampText(t); totalText += c.length; return c; };
   for (const m of raw) {
     if (!m || typeof m !== "object") return null;
     const role = (m as any).role;
     if (role !== "user" && role !== "assistant") return null;
     const content = (m as any).content;
     if (typeof content === "string") {
-      out.push({ role, content: clampText(content) });
+      out.push({ role, content: clampAndCount(content) });
       continue;
     }
     if (!Array.isArray(content) || content.length > 20) return null;
@@ -164,11 +183,12 @@ export function sanitiseAgentMessages(raw: unknown): any[] | null {
       if (!b || typeof b !== "object") return null;
       switch ((b as any).type) {
         case "text":
-          blocks.push({ type: "text", text: clampText((b as any).text) });
+          blocks.push({ type: "text", text: clampAndCount((b as any).text) });
           break;
         case "image": {
           const src = (b as any).source;
           if (!src || src.type !== "base64" || typeof src.data !== "string" || typeof src.media_type !== "string") return null;
+          if (++images > MAX_AGENT_IMAGES) return null;
           blocks.push({ type: "image", source: { type: "base64", media_type: src.media_type, data: src.data } });
           break;
         }
@@ -184,7 +204,7 @@ export function sanitiseAgentMessages(raw: unknown): any[] | null {
           blocks.push({
             type: "tool_result",
             tool_use_id: String((b as any).tool_use_id ?? "").slice(0, 100),
-            content: clampText(typeof (b as any).content === "string" ? (b as any).content : JSON.stringify((b as any).content ?? "")),
+            content: clampAndCount(typeof (b as any).content === "string" ? (b as any).content : JSON.stringify((b as any).content ?? "")),
           });
           break;
         default:
@@ -193,5 +213,6 @@ export function sanitiseAgentMessages(raw: unknown): any[] | null {
     }
     out.push({ role, content: blocks });
   }
+  if (totalText > MAX_AGENT_TOTAL_TEXT_CHARS) return null;
   return out;
 }

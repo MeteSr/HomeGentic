@@ -56,6 +56,10 @@ import { handleShowingRequest, fileShowingInCanister } from "./showings";
 import { r2PhotoStore } from "./photoStore";
 import { fetchPhotoAccess } from "../photoCanister";
 import { markIdentityCleared } from "./propertyCanister";
+import {
+  gateAiCall, verifyHuman, strike, blockedSeconds, slowDownBody, isFreeTier, recordFreeUsage,
+  newAccountAuxLimit, allowedHumanCheckRedirect, humanCheckPage, humanCheckPageHeaders,
+} from "./aiGuard";
 export { RateLimiterDO } from "./rateLimiterDO";
 import {
   HttpError,
@@ -65,6 +69,8 @@ import {
   MAX_UPLOAD_BYTES,
   MAX_WEBHOOK_BYTES,
   MAX_CHAT_MESSAGE_CHARS,
+  MAX_AI_PDF_BYTES,
+  pdfTooLarge,
   timingSafeEqualStr,
   isAllowedRedirectUrl,
   sanitiseAgentMessages,
@@ -145,6 +151,15 @@ export interface Env {
   RATE_LIMITER?: DurableObjectNamespace;
   // R2: off-chain photo bytes (/photos/*), wrapped by r2PhotoStore. Unbound → 503.
   PHOTOS?: R2Bucket;
+  // AI abuse protection (src/aiGuard.ts, CD-1)
+  /** Cloudflare Turnstile secret (Worker secret). Free accounts need a pass before AI calls. */
+  TURNSTILE_SECRET_KEY?: string;
+  /** Turnstile site key (public var), returned to clients that must pass the check. */
+  TURNSTILE_SITE_KEY?: string;
+  /** Weighted tokens (input + 5 × output) per UTC day for all free accounts together. */
+  FREE_AI_DAILY_TOKEN_BUDGET?: string;
+  /** Aux AI calls per day for a free account in its first week (default 3). */
+  NEW_ACCOUNT_AUX_DAILY_LIMIT?: string;
 }
 
 // ── Credit pack config (mirrors server.ts CREDIT_PACKS) ──────────────────────
@@ -426,12 +441,25 @@ export default {
       return new Response(null, { status: 204, headers: cors });
     }
 
+    // Exponential backoff (aiGuard.ts): an IP that keeps collecting 429s is
+    // blocked for doubling periods. Requests made while blocked are strikes too.
+    const clientIp = request.headers.get("CF-Connecting-IP") ?? "unknown";
+    if (path.startsWith("/api/") && backoffApplies(path)) {
+      const wait = await blockedSeconds(env, [`ip:${clientIp}`]);
+      if (wait > 0) {
+        ctx.waitUntil(strike(env, [`ip:${clientIp}`]).catch(() => {}));
+        logRequest(request, 429, startMs, reqId, traceId);
+        return json(slowDownBody(wait), 429, { ...cors, "Retry-After": String(wait) });
+      }
+    }
+
     // Global 30 req/min rate limit on /api/ routes
     if (path.startsWith("/api/")) {
-      const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+      const ip = clientIp;
       const allowed = await checkGlobalRateLimit(ip, env);
       if (!allowed) {
-        const resp = json({ error: "Too many requests — please wait before retrying." }, 429, cors);
+        if (backoffApplies(path)) ctx.waitUntil(strike(env, [`ip:${ip}`]).catch(() => {}));
+        const resp = json({ error: "Too many requests — please wait before retrying." }, 429, { ...cors, "Retry-After": "60" });
         logRequest(request, 429, startMs, reqId, traceId);
         return resp;
       }
@@ -480,6 +508,14 @@ export default {
       }
     }
 
+    // Every other 429 (daily limits, budgets) is a strike against the IP and,
+    // when the request carried a valid session, the principal.
+    if (response.status === 429 && path.startsWith("/api/") && backoffApplies(path)) {
+      const p = resolvedPrincipals.get(request);
+      const keys = [`ip:${clientIp}`, ...(p && p !== "anon" ? [`p:${p}`] : [])];
+      ctx.waitUntil(strike(env, keys).catch(() => {}));
+    }
+
     // Attach request-id / trace-id to every response
     const headers = new Headers(response.headers);
     headers.set("x-request-id", reqId);
@@ -523,6 +559,26 @@ async function route(
     }), cors);
   }
 
+  // ── Human check (aiGuard.ts, CD-1) ─────────────────────────────────────────
+  // GET /human-check: the Turnstile page the mobile app opens in a browser
+  // session; it hands the token back through the app's URL scheme.
+  if (path === "/human-check" && method === "GET") {
+    const redirect = allowedHumanCheckRedirect(new URL(request.url).searchParams.get("redirect"));
+    if (!redirect || !env.TURNSTILE_SITE_KEY) return json({ error: "unavailable" }, 400, cors);
+    const nonce = crypto.randomUUID().replace(/-/g, "");
+    return new Response(humanCheckPage(env.TURNSTILE_SITE_KEY, redirect, nonce), { status: 200, headers: humanCheckPageHeaders(nonce) });
+  }
+  // POST /api/human/verify { token } — marks the session's principal as human.
+  if (path === "/api/human/verify" && method === "POST") {
+    const principal = await callerPrincipal(request, env);
+    if (!principal || principal === "anon") return json({ error: "session_required" }, 401, cors);
+    const body = await readJsonBody(request, MAX_JSON_BYTES);
+    const ip   = request.headers.get("CF-Connecting-IP") ?? "unknown";
+    const r = await verifyHuman(env, principal, (body as { token?: unknown })?.token, ip);
+    if (r.status === 400) ctx.waitUntil(strike(env, [`ip:${ip}`, `p:${principal}`]).catch(() => {}));
+    return json(r.body, r.status, cors);
+  }
+
   // ── POST /api/fsbo/showing-request ─────────────────────────────────────────
   // A buyer asks to see a live FSBO listing (src/showings.ts). Signed-in or
   // not; per-IP limits run before the listing canister is called (M-2).
@@ -546,7 +602,12 @@ async function route(
       return json({ error: "session_required" }, 401, cors);
     }
     if (AUX_AI_ROUTES.has(path)) {
-      const quota = await checkAuxAiRateLimit(sessionPrincipal, await resolveTier(sessionPrincipal, env), env);
+      const tier = await resolveTier(sessionPrincipal, env);
+      const gate = await aiGate(sessionPrincipal, tier, env, ctx, provider, cors);
+      if ("deny" in gate) return gate.deny;
+      const quota = await checkAuxAiRateLimit(
+        sessionPrincipal, tier, env, gate.newAccount ? newAccountAuxLimit(env) : undefined,
+      );
       if (!quota.allowed) {
         return json({ error: "daily_ai_limit_reached", limit: quota.limit, resetsAt: quota.resetsAt }, 429, cors);
       }
@@ -565,7 +626,10 @@ async function route(
 
     const principal = await callerPrincipal(request, env);
     if (!principal) return json({ error: "session_required" }, 401, cors);
-    const chat = await checkChatRateLimit(principal, await resolveTier(principal, env), env);
+    const chatTier = await resolveTier(principal, env);
+    const chatGate = await aiGate(principal, chatTier, env, ctx, provider, cors);
+    if ("deny" in chatGate) return chatGate.deny;
+    const chat = await checkChatRateLimit(principal, chatTier, env);
     if (!chat.allowed) {
       return json({ error: "daily_chat_limit_reached", limit: chat.limit, resetsAt: chat.resetsAt }, 429, cors);
     }
@@ -601,7 +665,7 @@ async function route(
     const { context } = body;
     const messages = sanitiseAgentMessages(body?.messages);
     if (!messages) {
-      return json({ error: "messages array is required (max 24 user/assistant messages)" }, 400, cors);
+      return json({ error: "messages array is required (max 24 user/assistant messages, 64,000 characters and 4 images in total)" }, 400, cors);
     }
 
     // Principal comes from the canister-issued session token and the tier
@@ -610,6 +674,8 @@ async function route(
     const principal = await callerPrincipal(request, env);
     if (!principal) return json({ error: "session_required" }, 401, cors);
     const tier      = await resolveTier(principal, env);
+    const agentGate = await aiGate(principal, tier, env, ctx, provider, cors);
+    if ("deny" in agentGate) return agentGate.deny;
 
     const limit = await checkAgentRateLimit(principal, tier, env);
 
@@ -677,6 +743,7 @@ async function route(
   // ── POST /api/classify ────────────────────────────────────────────────────
   if (path === "/api/classify" && method === "POST") {
     const { fileName: rawFileName, mimeType, base64Data } = await readJsonBody(request, MAX_UPLOAD_BYTES);
+    if (pdfTooLarge(mimeType, base64Data)) return json({ error: "pdf_too_large", maxBytes: MAX_AI_PDF_BYTES }, 413, cors);
     const fileName = typeof rawFileName === "string" ? rawFileName.slice(0, 200) : "";
     if (!fileName || !mimeType || typeof base64Data !== "string" || !base64Data) {
       return json({ error: "fileName, mimeType, and base64Data are required" }, 400, cors);
@@ -723,6 +790,7 @@ JSON shape:
   // ── POST /api/extract-bill ────────────────────────────────────────────────
   if (path === "/api/extract-bill" && method === "POST") {
     const { fileName: rawFileName, mimeType, base64Data } = await readJsonBody(request, MAX_UPLOAD_BYTES);
+    if (pdfTooLarge(mimeType, base64Data)) return json({ error: "pdf_too_large", maxBytes: MAX_AI_PDF_BYTES }, 413, cors);
     const fileName = typeof rawFileName === "string" ? rawFileName.slice(0, 200) : "";
     if (!fileName || !mimeType || typeof base64Data !== "string" || !base64Data) {
       return json({ error: "fileName, mimeType, and base64Data are required" }, 400, cors);
@@ -911,6 +979,7 @@ Rules:
   // ── POST /api/extract-document ────────────────────────────────────────────
   if (path === "/api/extract-document" && method === "POST") {
     const { fileName: rawFileName, mimeType, base64Data } = await readJsonBody(request, MAX_UPLOAD_BYTES);
+    if (pdfTooLarge(mimeType, base64Data)) return json({ error: "pdf_too_large", maxBytes: MAX_AI_PDF_BYTES }, 413, cors);
     const fileName = typeof rawFileName === "string" ? rawFileName.slice(0, 200) : "";
     if (!fileName || !mimeType || typeof base64Data !== "string" || !base64Data) {
       return json({ error: "fileName, mimeType, and base64Data are required" }, 400, cors);
@@ -1879,11 +1948,41 @@ function photoStorageReady(env: Env): boolean {
   return Boolean(env.PHOTOS && env.CANISTER_ID_PHOTO && env.DFX_IDENTITY_PEM);
 }
 
+/** Principal each request's session resolved to, for the backoff strike in fetch(). */
+const resolvedPrincipals = new WeakMap<Request, string | null>();
+
 async function callerPrincipal(request: Request, env: Env): Promise<string | null> {
-  if (!env.CANISTER_ID_AUTH && env.NODE_ENV !== "production") {
-    return request.headers.get("x-icp-principal") ?? "anon";
+  if (resolvedPrincipals.has(request)) return resolvedPrincipals.get(request) ?? null;
+  const p = (!env.CANISTER_ID_AUTH && env.NODE_ENV !== "production")
+    ? request.headers.get("x-icp-principal") ?? "anon"
+    : await resolveSessionPrincipal(request.headers.get(SESSION_HEADER), env);
+  resolvedPrincipals.set(request, p);
+  return p;
+}
+
+/** Backoff covers HomeGentic's own /api routes, not Stripe's webhooks or Bid to List (own limits). */
+function backoffApplies(path: string): boolean {
+  return !path.startsWith("/api/stripe/webhook") && !path.startsWith("/api/bidtolist/");
+}
+
+/**
+ * The CD-1 gate in front of a Claude call: backoff block, human check and the
+ * free-tier daily budget. On success, free-tier token usage is counted against
+ * that budget. Returns a Response to send instead, or the new-account flag.
+ */
+async function aiGate(
+  principal: string, tier: string, env: Env, ctx: ExecutionContext,
+  provider: AnthropicProvider, cors: Record<string, string>,
+): Promise<{ deny: Response } | { newAccount: boolean }> {
+  const gate = await gateAiCall(env, principal, tier);
+  if (!gate.ok) {
+    const headers = gate.retryAfterSeconds ? { ...cors, "Retry-After": String(gate.retryAfterSeconds) } : cors;
+    return { deny: json(gate.body, gate.status, headers) };
   }
-  return resolveSessionPrincipal(request.headers.get(SESSION_HEADER), env);
+  provider.onUsage = isFreeTier(tier)
+    ? (u) => ctx.waitUntil(recordFreeUsage(env, u).catch(() => {}))
+    : null;
+  return { newAccount: gate.newAccount };
 }
 
 async function verifyContext(

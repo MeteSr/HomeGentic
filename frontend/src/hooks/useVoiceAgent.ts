@@ -14,7 +14,7 @@ import { buildImageUserMessage, fileToBase64, type SupportedImageMimeType } from
 import { useAuthStore } from "../store/authStore";
 import { paymentService } from "../services/payment";
 import { contractorService } from "../services/contractor";
-import { fetchWithAgentSession } from "../services/agentSession";
+import { fetchWithAgentSession, aiRefusalMessage } from "../services/agentSession";
 
 // ── Minimal message types (mirrors Anthropic SDK without importing it) ─────────
 
@@ -470,6 +470,8 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
         body: JSON.stringify({ message: userMessage, context }),
       });
 
+      const refusal = await aiRefusalMessage(res);
+      if (refusal) throw new Error(refusal);
       if (res.status === 429) {
         setQuotaExhausted(true);
         throw new Error("You've used today's free questions. Upgrade to Pro for unlimited answers.");
@@ -541,6 +543,8 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
           body: JSON.stringify({ messages, context }),
         });
 
+        const refusal = await aiRefusalMessage(res);
+        if (refusal) throw new Error(refusal);
         if (res.status === 429) {
           paymentService.getMyAgentCredits().then(setCreditBalance).catch((e) => console.error("[useVoiceAgent] credit balance refresh failed:", e));
           setQuotaExhausted(true);

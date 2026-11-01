@@ -7,7 +7,8 @@
  */
 
 import { getAgentSessionToken } from "./agentSession";
-import { SESSION_HEADER } from "@homegentic/shared/agentSession";
+import { aiRefusalMessage } from "@homegentic/shared/aiChecks";
+import { aiFetch } from "./aiFetch";
 
 const VOICE_AGENT_URL =
   process.env.EXPO_PUBLIC_VOICE_AGENT_URL ?? "http://localhost:8787";
@@ -40,14 +41,14 @@ export async function extractDocument(
   base64Data: string,
 ): Promise<DocumentExtraction> {
   // The Worker only runs AI routes for a signed-in user's session.
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
   const token = await getAgentSessionToken().catch(() => null);
-  if (token) headers[SESSION_HEADER] = token;
-  const res = await fetch(`${VOICE_AGENT_URL}/api/extract-document`, {
+  const res = await aiFetch(`${VOICE_AGENT_URL}/api/extract-document`, {
     method:  "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ fileName, mimeType, base64Data }),
-  });
+  }, token);
+  const refusal = await aiRefusalMessage(res);
+  if (refusal) throw new Error(refusal);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Document extraction failed");

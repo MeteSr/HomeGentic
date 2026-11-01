@@ -136,6 +136,7 @@ deadline reminders.
 | `CANISTER_ID_FEE` | Fee canister ID — Contractor Free referral fees: saving cards (`/api/stripe/referral-card`, webhook `checkout.session.completed`) and the hourly charge run; declined cards get a Stripe invoice (`invoice.paid` settles it). Subscribe the webhook to `payment_intent.succeeded` too, so a charge is recorded even when the hourly run couldn't record it. The Worker's identity must be added with `fee.addReferralRelay` (`scripts/deploy.sh` does it) |
 | `CANISTER_ID_LISTING` | Listing canister ID — files buyers' FSBO showing requests (`/api/fsbo/showing-request`, rate-limited per IP). The Worker's identity must be added with `listing.addShowingRelay` (`scripts/deploy.sh` does it); without both, the "Request a showing" form fails |
 | `RESEND_API_KEY`, `RESEND_FROM` | Transactional email (moved off `ai_proxy`, whose memory node operators can read) |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret for the one-time human check free accounts pass before any AI call (`POST /api/human/verify`). Put the widget's site key in `TURNSTILE_SITE_KEY` in `wrangler.toml`, and allow both the frontend's hostname and the Worker's hostname on the widget (the mobile app shows the check on the Worker's `/human-check` page). Without the secret, free accounts get no AI in production |
 | `ATTOM_API_KEY` | Property-record lookups |
 | `OPENPERMIT_API_KEY` | Permit imports |
 | `LOCAL_BROKER_EMAIL` | Recipient of broker-lead emails |

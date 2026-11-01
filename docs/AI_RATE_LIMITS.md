@@ -47,6 +47,25 @@ deliberately both smaller and paced weekly rather than daily: at 10/day it
 would cost roughly the same as Pro's own allowance while returning $0 in
 revenue (see "Financial basis" below).
 
+## Abuse protection (cycle-drain audit CD-1, 2026-10-31)
+
+Every limit above is per account, and accounts are free to create, so the
+Worker adds checks in front of every Claude call (`agents/voice/src/aiGuard.ts`):
+
+| Check | Applies to | Behaviour |
+|---|---|---|
+| **Human check** | Free, ContractorFree | Cloudflare Turnstile, once per account (remembered a year). Until it's passed, AI routes answer 403 `human_verification_required` with the site key; the web app shows the widget in a dialog, the mobile app opens the Worker's `/human-check` page |
+| **Free daily budget** | Free, ContractorFree | All free accounts share `FREE_AI_DAILY_TOKEN_BUDGET` weighted tokens per UTC day (input + 5 × output; default 10M ≈ $30). Once spent, free calls get 429 `free_ai_budget_reached` until midnight UTC. Paid accounts are never counted or cut off |
+| **New accounts** | Free, first 7 days after the human check | `NEW_ACCOUNT_AUX_DAILY_LIMIT` (default 3) document/AI calls a day instead of 25 |
+| **Exponential backoff** | Everyone, every `/api` route except Stripe webhooks and Bid to List | Each 429 or failed human check is a strike on the IP and the principal. After 3 strikes in 24 h, each further strike blocks for 30 s, 1, 2, 4 … minutes, up to 1 hour; requests made while blocked are strikes too. Blocked calls get 429 `slow_down` with `Retry-After` |
+| **Input caps** | Everyone | PDFs sent to Claude ≤ 1.5 MB; an agent request ≤ 64,000 characters of text and 4 images in total |
+
+Clients use `@homegentic/shared/aiChecks`: they retry a short `slow_down`
+(≤ 10 s) at most twice, doubling the wait with jitter, and show the other
+refusals as messages.
+
+Also set a monthly spend limit in the Anthropic console as the last backstop.
+
 ## Financial basis
 
 Model: `claude-sonnet-4-6` at $3.00/1M input tokens, $15.00/1M output tokens.
