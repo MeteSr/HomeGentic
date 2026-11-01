@@ -13,8 +13,8 @@
  * The sessionToken groups one person's typing and the final pick into one
  * Google billing session.
  *
- * TODO: add the shared human check (Turnstile) here once it lands for the
- * Worker's other paid routes.
+ * index.ts first runs gatePaidCall (aiGuard.ts): the AI routes' backoff block
+ * and Turnstile human check, but not their free-tier Claude budget.
  */
 
 import { hitCounter, peekCounter, type KVEnv } from "./rateLimiter";

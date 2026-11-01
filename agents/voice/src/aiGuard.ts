@@ -177,11 +177,15 @@ export type AiGate =
   | { ok: true; newAccount: boolean }
   | { ok: false; status: 403 | 429; body: Record<string, unknown>; retryAfterSeconds?: number };
 
-export async function gateAiCall(env: AiGuardEnv, principal: string, tier: string): Promise<AiGate> {
+/**
+ * The backoff block and (free tier) human check, without the Claude budget:
+ * for paid non-AI calls such as Google Places address suggestions, which
+ * keep their own quotas.
+ */
+export async function gatePaidCall(env: AiGuardEnv, principal: string, tier: string): Promise<AiGate> {
   const wait = await blockedSeconds(env, [`p:${principal}`]);
   if (wait > 0) return { ok: false, status: 429, body: slowDownBody(wait), retryAfterSeconds: wait };
   if (!isFreeTier(tier)) return { ok: true, newAccount: false };
-
   if (humanCheckRequired(env) && !(await isHuman(env, principal))) {
     return {
       ok: false,
@@ -189,6 +193,12 @@ export async function gateAiCall(env: AiGuardEnv, principal: string, tier: strin
       body: { error: "human_verification_required", siteKey: env.TURNSTILE_SITE_KEY ?? null },
     };
   }
+  return { ok: true, newAccount: false };
+}
+
+export async function gateAiCall(env: AiGuardEnv, principal: string, tier: string): Promise<AiGate> {
+  const base = await gatePaidCall(env, principal, tier);
+  if (!base.ok || !isFreeTier(tier)) return base;
   if (await freeBudgetSpent(env)) {
     return { ok: false, status: 429, body: { error: "free_ai_budget_reached", resetsAt: nextUtcMidnight() } };
   }

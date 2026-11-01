@@ -58,7 +58,7 @@ import { r2PhotoStore } from "./photoStore";
 import { fetchPhotoAccess } from "../photoCanister";
 import { markIdentityCleared } from "./propertyCanister";
 import {
-  gateAiCall, verifyHuman, strike, blockedSeconds, slowDownBody, isFreeTier, recordFreeUsage,
+  gateAiCall, gatePaidCall, verifyHuman, strike, blockedSeconds, slowDownBody, isFreeTier, recordFreeUsage,
   newAccountAuxLimit, allowedHumanCheckRedirect, humanCheckPage, humanCheckPageHeaders,
 } from "./aiGuard";
 export { RateLimiterDO } from "./rateLimiterDO";
@@ -613,6 +613,15 @@ async function route(
       );
       if (!quota.allowed) {
         return json({ error: "daily_ai_limit_reached", limit: quota.limit, resetsAt: quota.resetsAt }, 429, cors);
+      }
+    }
+    if (ADDRESS_ROUTES.has(path)) {
+      // Paid Google calls: the AI routes' backoff block and human check, but
+      // not the free-tier Claude budget; quotas live in addressSuggest.ts.
+      const gate = await gatePaidCall(env, sessionPrincipal, await resolveTier(sessionPrincipal, env));
+      if (!gate.ok) {
+        const headers = gate.retryAfterSeconds ? { ...cors, "Retry-After": String(gate.retryAfterSeconds) } : cors;
+        return json(gate.body, gate.status, headers);
       }
     }
   }
