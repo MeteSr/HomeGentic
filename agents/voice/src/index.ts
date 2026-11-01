@@ -615,6 +615,12 @@ async function route(
         return json({ error: "daily_ai_limit_reached", limit: quota.limit, resetsAt: quota.resetsAt }, 429, cors);
       }
     }
+    if (ADDRESS_ROUTES.has(path)) {
+      // Paid Google calls: same backoff block, human check and free-tier
+      // budget as the AI routes; per-route quotas live in addressSuggest.ts.
+      const gate = await aiGate(sessionPrincipal, await resolveTier(sessionPrincipal, env), env, ctx, provider, cors);
+      if ("deny" in gate) return gate.deny;
+    }
   }
 
   // ── POST /api/chat ────────────────────────────────────────────────────────

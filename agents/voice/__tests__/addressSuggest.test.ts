@@ -2,6 +2,7 @@
  * src/addressSuggest.ts — Add Property address suggestions via Google Places.
  *
  * ADDR.1  routes need a session (401 without one)
+ * ADDR.1b the AI routes' gate (human check) runs first
  * ADDR.2  suggest: key in a header only, US addresses, short input skipped
  * ADDR.3  per-minute limit with exponential lockout, daily and global limits
  * ADDR.4  place: components parsed into address / city / state / ZIP
@@ -94,6 +95,25 @@ describe("ADDR.1 — session required", () => {
       { waitUntil: () => {} } as any,
     );
     expect(res.status).toBe(401);
+  });
+});
+
+describe("ADDR.1b — shared AI gate", () => {
+  it("asks a free-tier caller who hasn't passed the human check to do it first", async () => {
+    const f = jest.spyOn(globalThis, "fetch");
+    const res = await worker.fetch(
+      new Request("https://w.test/api/address/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": "pubkey", "x-agent-session": "hgs_good" },
+        body: JSON.stringify({ input: "12 elm" }),
+      }),
+      env(),
+      { waitUntil: () => {} } as any,
+    );
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: "human_verification_required" });
+    expect(f).not.toHaveBeenCalledWith(expect.stringContaining("places.googleapis.com"), expect.anything());
+    f.mockRestore();
   });
 });
 
