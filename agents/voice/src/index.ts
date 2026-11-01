@@ -599,6 +599,7 @@ async function route(
   // Stripe needs a verified caller. The x-api-key is public, so it doesn't
   // count; the canister-issued x-agent-session token does.
   let sessionPrincipal: string | null = null;
+  let sessionTier = "Free";
   if (method === "POST" && (AUX_AI_ROUTES.has(path) || STRIPE_SESSION_ROUTES.has(path) || OFFCHAIN_OUTCALL_ROUTES.has(path) || ADDRESS_ROUTES.has(path))) {
     sessionPrincipal = await callerPrincipal(request, env);
     if (!sessionPrincipal || sessionPrincipal === "anon") {
@@ -615,10 +616,14 @@ async function route(
         return json({ error: "daily_ai_limit_reached", limit: quota.limit, resetsAt: quota.resetsAt }, 429, cors);
       }
     }
-    if (ADDRESS_ROUTES.has(path)) {
-      // Paid Google calls: the AI routes' backoff block and human check, but
-      // not the free-tier Claude budget; quotas live in addressSuggest.ts.
-      const gate = await gatePaidCall(env, sessionPrincipal, await resolveTier(sessionPrincipal, env));
+    if (ADDRESS_ROUTES.has(path) || OFFCHAIN_OUTCALL_ROUTES.has(path)) {
+      // Paid Google / ATTOM / permit / email calls: the AI routes' backoff
+      // block and human check, but not the free-tier Claude budget; quotas
+      // live in addressSuggest.ts and offchainOutcalls.ts. CD-9/CD-11: a
+      // throwaway account must pass the human check before it can spend the
+      // shared ATTOM, permit and email budgets.
+      sessionTier = await resolveTier(sessionPrincipal, env);
+      const gate = await gatePaidCall(env, sessionPrincipal, sessionTier);
       if (!gate.ok) {
         const headers = gate.retryAfterSeconds ? { ...cors, "Retry-After": String(gate.retryAfterSeconds) } : cors;
         return json(gate.body, gate.status, headers);
@@ -1295,9 +1300,9 @@ Rules:
     const r =
       path === "/api/recalls"                 ? await findRecalls(body, env) :
       path === "/api/license/check"           ? await checkLicense(p, env) :
-      path === "/api/property/details"        ? await lookupPropertyDetails(body, p, env) :
-      path === "/api/permits/import"          ? await importPermits(body, p, env) :
-      path === "/api/email/contractor-invite" ? await sendContractorInvite(body, p, env, getInvitePreview) :
+      path === "/api/property/details"        ? await lookupPropertyDetails(body, p, env, fetch, sessionTier) :
+      path === "/api/permits/import"          ? await importPermits(body, p, env, fetch, sessionTier) :
+      path === "/api/email/contractor-invite" ? await sendContractorInvite(body, p, env, getInvitePreview, fetch, sessionTier) :
                                                 await sendBrokerLead(body, p, env);
     return json(r.body as object, r.status, cors);
   }

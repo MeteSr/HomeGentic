@@ -60,6 +60,13 @@ Worker adds checks in front of every Claude call (`agents/voice/src/aiGuard.ts`)
 | **Exponential backoff** | Everyone, every `/api` route except Stripe webhooks and Bid to List | Each 429 or failed human check is a strike on the IP and the principal. After 3 strikes in 24 h, each further strike blocks for 30 s, 1, 2, 4 … minutes, up to 1 hour; requests made while blocked are strikes too. Blocked calls get 429 `slow_down` with `Retry-After` |
 | **Input caps** | Everyone | PDFs sent to Claude ≤ 1.5 MB; an agent request ≤ 64,000 characters of text and 4 images in total |
 
+The other paid-API routes (address suggestions, ATTOM property lookups, permit
+imports, contractor-invite and broker emails) get the human check and backoff
+but not the Claude budget (CD-9, CD-11). Their global daily budgets
+(`ATTOM_DAILY_BUDGET` 300, `PERMIT_DAILY_BUDGET` 1,000,
+`INVITE_EMAIL_DAILY_BUDGET` 500) let free accounts together use at most 70%,
+so paying users always have the rest.
+
 Clients use `@homegentic/shared/aiChecks`: they retry a short `slow_down`
 (≤ 10 s) at most twice, doubling the wait with jitter, and show the other
 refusals as messages.
