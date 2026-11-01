@@ -372,22 +372,24 @@ describe("SEC.3 — inspect_message cycle-drain mitigation (advisory)", () => {
   it("backend/auth/main.mo implements inspect to reject anonymous/empty-payload calls", () => {
     const src = readCanister("auth");
     expect(src).toMatch(/system\s+func\s+inspect/);
-    expect(src).toMatch(/isAnonymous/);
-    expect(src).toMatch(/arg\.size\(\)/);
+    expect(src).toMatch(/Inspect\.accept\(caller, arg,/);
   });
 
   it("backend/photo/main.mo implements inspect to reject anonymous/empty-payload calls", () => {
     const src = readCanister("photo");
     expect(src).toMatch(/system\s+func\s+inspect/);
-    expect(src).toMatch(/isAnonymous/);
-    expect(src).toMatch(/arg\.size\(\)/);
+    expect(src).toMatch(/Inspect\.accept\(caller, arg,/);
   });
 
   it("backend/sensor/main.mo implements inspect to reject anonymous/empty-payload calls", () => {
     const src = readCanister("sensor");
     expect(src).toMatch(/system\s+func\s+inspect/);
-    expect(src).toMatch(/isAnonymous/);
-    expect(src).toMatch(/arg\.size\(\)/);
+    expect(src).toMatch(/Inspect\.accept\(caller, arg,/);
+  });
+
+  it("the shared Inspect.accept refuses anonymous, empty and oversized calls (CD-5)", () => {
+    const src = readFileSync(resolve(ROOT, "backend", "shared", "Inspect.mo"), "utf-8");
+    expect(src).toMatch(/not caller\.isAnonymous\(\) and arg\.size\(\) > 0 and arg\.size\(\) <= maxBytes/);
   });
 
   it("advisory — count of canisters with inspect (track adoption progress)", () => {
@@ -395,7 +397,7 @@ describe("SEC.3 — inspect_message cycle-drain mitigation (advisory)", () => {
       const src = readFileSync(resolve(ROOT, "backend", d, "main.mo"), "utf-8");
       return /system\s+func\s+inspect/.test(src);
     });
-    // auth, photo, sensor all implemented — set to >= 3.
-    expect(withInspect.length).toBeGreaterThanOrEqual(3);
+    // Every canister has one since CD-5 (2026-11-01).
+    expect(withInspect.length).toBe(backendDirs.length);
   });
 });
