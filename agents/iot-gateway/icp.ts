@@ -15,7 +15,7 @@ import { Principal } from "@icp-sdk/core/principal";
 import type { DeviceSourceName, SensorEventType, SensorReading } from "./types";
 import { logger } from "../../packages/shared/src/logger";
 import { idlFactory as sensorIdlFactory } from "../../packages/shared/src/declarations/sensor";
-import { idlFactory as authIdlFactory } from "../../packages/shared/src/declarations/auth";
+import { sessionLookupIdl } from "../../packages/shared/src/sessionLookup";
 import { rootKeyFor } from "../../packages/shared/src/rootKey";
 
 // ── Actor interface ───────────────────────────────────────────────────────────
@@ -223,7 +223,8 @@ export async function resolveAgentSession(token: string): Promise<string | null>
     if (!canisterId) throw new Error("CANISTER_ID_AUTH environment variable is not set");
     const host = process.env.ICP_HOST ?? "http://localhost:4943";
     const agent = await HttpAgent.create({ host, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY) });
-    _authActor = Actor.createActor(authIdlFactory, { agent, canisterId });
+    // Replicated, certified call, not a single-replica query (sessionLookup.ts).
+    _authActor = Actor.createActor(sessionLookupIdl, { agent, canisterId });
   }
   const res = await _authActor.resolveAgentSession(token);
   return res[0] ? res[0].toText() : null;

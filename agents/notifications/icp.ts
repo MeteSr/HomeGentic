@@ -22,6 +22,7 @@ import { rootKeyFor } from "../../packages/shared/src/rootKey";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
 import { idlFactory as contractorIdl } from "../../packages/shared/src/declarations/contractor";
 import { idlFactory as authIdl } from "../../packages/shared/src/declarations/auth";
+import { sessionLookupIdl } from "../../packages/shared/src/sessionLookup";
 import { idlFactory as propertyIdl } from "../../packages/shared/src/declarations/property";
 import { idlFactory as jobIdl } from "../../packages/shared/src/declarations/job";
 import { idlFactory as paymentIdl } from "../../packages/shared/src/declarations/payment";
@@ -173,7 +174,8 @@ export async function isContractorPro(principal: string): Promise<boolean> {
 
 /** The principal an agent session token belongs to, or null if it's unknown or expired. */
 export async function resolveAgentSession(token: string): Promise<string | null> {
-  const actor = Actor.createActor(authIdl, {
+  // Replicated, certified call, not a single-replica query (sessionLookup.ts).
+  const actor = Actor.createActor(sessionLookupIdl, {
     agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_AUTH"),
   }) as any;
   const res: [] | [Principal] = await actor.resolveAgentSession(token);

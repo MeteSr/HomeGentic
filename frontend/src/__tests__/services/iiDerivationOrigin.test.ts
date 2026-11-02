@@ -17,7 +17,9 @@ async function load(origin: string | undefined) {
   return import("@/services/actor");
 }
 
-afterEach(() => { delete process.env.II_DERIVATION_ORIGIN; });
+afterEach(() => {
+  delete process.env.II_DERIVATION_ORIGIN;
+});
 
 describe("iiDerivationOrigin", () => {
   it("is undefined when no derivation origin is configured (local, tests)", async () => {
