@@ -83,6 +83,7 @@ export interface _SERVICE {
   deleteBill: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   deleteRecurringExpense: ActorMethod<[string], { ok: null } | { err: Error }>;
+  getApiDoc: ActorMethod<[], string>;
   getBillsForProperties: ActorMethod<[string[]], BillRecord[]>;
   getBillsForProperty: ActorMethod<[string], { ok: BillRecord[] } | { err: Error }>;
   getRecurringExpensesForProperty: ActorMethod<[string], { ok: RecurringExpense[] } | { err: Error }>;

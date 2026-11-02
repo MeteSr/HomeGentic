@@ -150,6 +150,7 @@ export interface _SERVICE {
     { ok: QuoteRequest } | { err: Error }
   >;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
+  getApiDoc: ActorMethod<[], string>;
   getIbePublicKey: ActorMethod<[], Uint8Array | number[]>;
   getLocalPriceStats: ActorMethod<
     [string, string],

@@ -7,7 +7,9 @@
 #   1. every canister for the environment is Running;
 #   2. the deployed code answers: payment's pricing table (a read every
 #      signed-out page makes) comes back non-empty;
-#   3. the frontend canister serves the app's index page;
+#   3. the frontend canister serves the app's index page, plus the ICP MCP
+#      manifest (matching canister_ids.json), a getApiDoc() answer from each
+#      listed canister, and the II derivation origin;
 #   4. with VOICE_AGENT_URL set, the voice Worker's /health is 200 (it checks
 #      its own canister IDs and secrets).
 #
@@ -50,6 +52,29 @@ if [ "${ONLY:-}" != "worker" ]; then
   if [ -n "$fe" ]; then
     page=$(curl -fsS --max-time 30 "https://$fe.icp0.io/" 2>&1 || true)
     if [[ "$page" == *'id="root"'* ]]; then echo "  ✓ https://$fe.icp0.io/"; else fail "frontend https://$fe.icp0.io/ did not serve the app"; fi
+
+    # ICP MCP (frontend/scripts/icArchitecture.mjs): the manifest is real JSON
+    # (not the SPA shell) naming this environment's canisters, and each listed
+    # canister answers getApiDoc().
+    echo "▶ ICP MCP discoverability"
+    if [ "${ICP_MCP_DISABLED:-}" = "1" ]; then
+      echo "  - skipped: ICP_MCP_DISABLED=1, so the manifest isn't published"
+    else
+      manifest=$(curl -fsS --max-time 30 "https://$fe.icp0.io/.well-known/ic-architecture" 2>/dev/null || true)
+      listed=$(python3 -c 'import json,sys; [print(c["name"], c["id"]) for c in json.loads(sys.argv[1])["canisters"]]' "$manifest" 2>/dev/null || true)
+      if [ -z "$listed" ]; then
+        fail "/.well-known/ic-architecture is missing or not JSON"
+      else
+        while read -r name id; do
+          want=$(canister_id "$name" "$ICP_ENV")
+          if [ "$id" != "$want" ]; then fail "ic-architecture lists $name as $id, canister_ids.json has ${want:-nothing}"; continue; fi
+          doc=$(icp canister call "$name" getApiDoc '()' -e "$ICP_ENV" 2>&1 || true)
+          if [[ "$doc" == *"HomeGentic"* ]]; then echo "  ✓ $name listed, getApiDoc answers"; else fail "$name.getApiDoc: $(printf '%s' "$doc" | tail -1)"; fi
+        done <<<"$listed"
+      fi
+      origin=$(curl -fsS --max-time 30 "https://$fe.icp0.io/.well-known/ii-derivation-origin" 2>/dev/null | head -1 || true)
+      if [ "$origin" = "https://$fe.icp0.io" ]; then echo "  ✓ ii-derivation-origin"; else fail "ii-derivation-origin is '${origin}', want https://$fe.icp0.io"; fi
+    fi
   fi
 fi
 

@@ -51,6 +51,7 @@ import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
+import ApiDoc "ApiDoc";
 
 persistent actor Property {
 
@@ -2810,6 +2811,11 @@ persistent actor Property {
       totalFixtures;
     }
   };
+
+  /// A guide for AI assistants and other integrators to how this canister
+  /// behaves: units, auth, what can't be undone, fees (service-discoverability
+  /// skill, Layer 3; read through ICP MCP). Text in ./ApiDoc.mo.
+  public query func getApiDoc() : async Text { ApiDoc.text() };
 
   // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
 

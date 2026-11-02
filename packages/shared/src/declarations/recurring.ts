@@ -61,6 +61,7 @@ export const idlFactory = ({ IDL }: any) => {
   });
 
   return IDL.Service({
+    getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
     deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     createRecurringService: IDL.Func(
       [

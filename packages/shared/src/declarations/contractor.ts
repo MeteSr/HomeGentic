@@ -103,6 +103,7 @@ export const idlFactory = ({ IDL }: any) => {
     featuredAt:   IDL.Int,
   });
   return IDL.Service({
+    getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
     register: IDL.Func(
       [RegisterArgs],
       [IDL.Variant({ ok: ContractorProfile, err: Error })],

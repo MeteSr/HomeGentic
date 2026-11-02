@@ -124,6 +124,7 @@ export interface _SERVICE {
   >;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   dismissEmailDraft: ActorMethod<[string], UnitResult>;
+  getApiDoc: ActorMethod<[], string>;
   getCertificationData: ActorMethod<
     [string],
     {

@@ -75,6 +75,7 @@ export interface _SERVICE {
     { ok: RecurringService } | { err: Error }
   >;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
+  getApiDoc: ActorMethod<[], string>;
   getByProperty: ActorMethod<[string], RecurringService[]>;
   getMetrics: ActorMethod<
     [],

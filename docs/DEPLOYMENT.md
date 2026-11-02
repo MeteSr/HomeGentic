@@ -568,6 +568,15 @@ IDs; `deploy.sh` sets `REQUIRE_CANISTER_IDS=1`, so the build fails instead.
 Running `icp deploy frontend` before step 2 will serve a stale build without the
 updated `_headers` security headers.
 
+**ICP MCP.** A testnet or ic build also writes `/.well-known/ic-architecture` and
+`/.well-known/ii-derivation-origin` (see ARCHITECTURE.md → AI Assistants). The build fails if any listed
+canister's `CANISTER_ID_*` or `II_DERIVATION_ORIGIN` is missing, and `scripts/smoke-deployed.sh` checks that
+the published manifest matches `canister_ids.json` and that each listed canister answers `getApiDoc()`.
+Optional, for the operator: register with DFINITY by emailing mcp@dfinity.org (legal name and country, the
+accepting person's name, role and email, origin `https://homegentic.app`, the listed canister IDs, the
+Privacy Policy URL, and the terms version), and ask there to be added to the connector's known-app list so
+users can say "HomeGentic" instead of giving the URL.
+
 ## Frontend build variables
 
 `frontend/vite.config.ts` reads `.env` at the repo root (which `deploy.sh`

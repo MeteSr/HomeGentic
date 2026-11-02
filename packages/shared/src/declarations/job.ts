@@ -69,6 +69,7 @@ export const idlFactory = ({ IDL }: any) => {
   const UnitResult = IDL.Variant({ ok: IDL.Null, err: Error });
   const TextResult = IDL.Variant({ ok: IDL.Text, err: Error });
   return IDL.Service({
+    getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
     getMyInboxToken:    IDL.Func([], [TextResult], []),
     resetMyInboxToken:  IDL.Func([], [TextResult], []),
     relayAddEmailDraft: IDL.Func([IDL.Text, EmailDraftInput], [TextResult], []),

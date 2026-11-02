@@ -21,6 +21,7 @@ export const idlFactory = ({ IDL }: any) => {
     Unavailable: IDL.Text,
   });
   return IDL.Service({
+    getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
     deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     createScheduleEntry: IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],
