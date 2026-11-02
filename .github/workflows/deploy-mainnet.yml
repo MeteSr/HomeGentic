@@ -153,6 +153,7 @@ jobs:
           ICP_ENV: ic
 
       - name: Tag the release
+        id: tag
         # Rollback means redeploying a known commit (docs/UPGRADE_RUNBOOK.md),
         # so every successful mainnet deploy gets a tag on the commit it ran.
         if: success()
@@ -164,6 +165,30 @@ jobs:
           git -c core.hooksPath=/dev/null push \
             "https://x-access-token:${CI_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$TAG"
           echo "Tagged $GITHUB_SHA as $TAG" >> "$GITHUB_STEP_SUMMARY"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release notes
+        # A GitHub release per mainnet deploy: the merged PRs since the last
+        # deploy (GitHub's generated notes) and what is running (module hash
+        # per canister), so "what changed" and "which commit is this wasm"
+        # both have an answer. A failure here doesn't fail the deploy.
+        if: success() && steps.tag.outputs.tag != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.CI_PUSH_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          ICP_ENV: ic
+        run: |
+          bash scripts/ops/release-manifest.sh > release-manifest.tsv
+          git fetch --quiet --depth=1 origin 'refs/tags/mainnet-*:refs/tags/mainnet-*' || true
+          PREV=$(git tag -l 'mainnet-*' --sort=-refname | grep -vx "$TAG" | head -1 || true)
+          {
+            echo "Deployed to mainnet by run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} from ${GITHUB_SHA}."
+            echo
+            echo "Rollback: docs/UPGRADE_RUNBOOK.md. Running canisters and module hashes are in release-manifest.tsv."
+          } > notes.md
+          gh release create "$TAG" release-manifest.tsv --title "$TAG" --notes-file notes.md --generate-notes \
+            ${PREV:+--notes-start-tag "$PREV"} --verify-tag
 
       - name: Post-deploy cycle health gate
         # Fail the deploy if any canister is within 30 days of its freezing
