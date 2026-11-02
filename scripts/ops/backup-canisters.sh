@@ -6,7 +6,7 @@
 # rolling pre-deploy snapshot deploy.sh keeps is the only one there), pack and
 # encrypt it to BACKUP_AGE_RECIPIENT with age, and copy it to BACKUP_DEST.
 # Backups older than BACKUP_RETENTION_DAYS are deleted from BACKUP_DEST.
-# Run weekly by .github/workflows/backup.yml; restore with
+# Run daily by .github/workflows/backup.yml; restore with
 # scripts/ops/restore-drill.sh (docs/INCIDENT_RUNBOOK.md, "Restore from an
 # off-chain backup").
 #

@@ -924,9 +924,20 @@ persistent actor Monitoring {
     };
   };
 
+  /// The Privacy Policy keeps service logs at most 90 days, and an error
+  /// message can carry whatever the page was showing.
+  private transient let ERROR_RETENTION_NS : Int = 90 * 24 * 60 * 60 * 1_000_000_000;
+
+  private func pruneOldErrors(errors: Map.Map<Text, ErrorSummary>) {
+    let cutoff = Time.now() - ERROR_RETENTION_NS;
+    let old = errors.entries().filter(func((_, e) : (Text, ErrorSummary)) : Bool { e.lastSeen < cutoff }).toArray();
+    for ((fp, _) in old.values()) { errors.remove(fp) };
+  };
+
   /// Merge one error summary into `errors`. An error seen again after it was
   /// resolved is reopened (a regression), so the ops watchdog alerts on it.
   private func upsertError(errors: Map.Map<Text, ErrorSummary>, input: ErrorSummaryInput) {
+    pruneOldErrors(errors);
     let normalizedFingerprint = strTrunc(input.fingerprint, 64);
     if (Text.size(normalizedFingerprint) == 0) return;
     switch (errors.get(normalizedFingerprint)) {

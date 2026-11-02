@@ -3,7 +3,16 @@
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync, execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, symlinkSync, appendFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+  existsSync,
+  symlinkSync,
+  appendFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,13 +30,26 @@ let recipient = "";
 
 function env(extra = {}) {
   return {
-    PATH: `${bin}:${process.env.PATH}`, FAKE_ICP_STATE: state, ICP_ENV: "testnet", ICP_NETWORK_ARGS: "-n local",
-    BACKUP_DEST: dest, BACKUP_AGE_RECIPIENT: recipient, BACKUP_AGE_IDENTITY_FILE: key,
-    BACKUP_CANISTERS: "job bills", CANISTER_ID_JOB: "job-id", CANISTER_ID_BILLS: "bills-id", ...extra,
+    PATH: `${bin}:${process.env.PATH}`,
+    FAKE_ICP_STATE: state,
+    ICP_ENV: "testnet",
+    ICP_NETWORK_ARGS: "-n local",
+    BACKUP_DEST: dest,
+    BACKUP_AGE_RECIPIENT: recipient,
+    BACKUP_AGE_IDENTITY_FILE: key,
+    BACKUP_CANISTERS: "job bills",
+    CANISTER_ID_JOB: "job-id",
+    CANISTER_ID_BILLS: "bills-id",
+    ...extra,
   };
 }
-const run = (script, args, extra) => spawnSync("bash", [`scripts/ops/${script}`, ...args], { cwd: ROOT, env: env(extra), encoding: "utf8" });
-const data = (id, v) => { mkdirSync(join(state, id, "snaps"), { recursive: true }); writeFileSync(join(state, id, "data"), v); writeFileSync(join(state, id, "status"), "Running"); };
+const run = (script, args, extra) =>
+  spawnSync("bash", [`scripts/ops/${script}`, ...args], { cwd: ROOT, env: env(extra), encoding: "utf8" });
+const data = (id, v) => {
+  mkdirSync(join(state, id, "snaps"), { recursive: true });
+  writeFileSync(join(state, id, "data"), v);
+  writeFileSync(join(state, id, "status"), "Running");
+};
 const status = (id) => readFileSync(join(state, id, "status"), "utf8").trim();
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -57,14 +79,18 @@ test("backs up every canister encrypted, restarts each, and leaves no snapshot b
   }
 });
 
-test("a canister that can't be snapshotted is restarted and fails the run; the others are still backed up", { skip: !haveAge }, () => {
-  const r = run("backup-canisters.sh", [], { FAKE_FAIL_SNAPSHOT: "bills-id", BACKUP_DATE: "2099-01-01" });
-  assert.equal(r.status, 1);
-  assert.match(r.stdout, /Not backed up: bills/);
-  assert.equal(status("bills-id"), "Running");
-  assert.ok(existsSync(join(dest, "testnet", "2099-01-01", "job.tar.gz.age")));
-  assert.ok(!existsSync(join(dest, "testnet", "2099-01-01", "bills.tar.gz.age")));
-});
+test(
+  "a canister that can't be snapshotted is restarted and fails the run; the others are still backed up",
+  { skip: !haveAge },
+  () => {
+    const r = run("backup-canisters.sh", [], { FAKE_FAIL_SNAPSHOT: "bills-id", BACKUP_DATE: "2099-01-01" });
+    assert.equal(r.status, 1);
+    assert.match(r.stdout, /Not backed up: bills/);
+    assert.equal(status("bills-id"), "Running");
+    assert.ok(existsSync(join(dest, "testnet", "2099-01-01", "job.tar.gz.age")));
+    assert.ok(!existsSync(join(dest, "testnet", "2099-01-01", "bills.tar.gz.age")));
+  },
+);
 
 test("deletes backups older than the retention period", { skip: !haveAge }, () => {
   mkdirSync(join(dest, "testnet", "2000-01-01"), { recursive: true });

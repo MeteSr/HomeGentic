@@ -5,7 +5,9 @@ describe("serviceErrors", () => {
   beforeEach(() => {
     sent.length = 0;
     _reset();
-    _setSender(async (input) => { sent.push(input); });
+    _setSender(async (input) => {
+      sent.push(input);
+    });
     jest.useFakeTimers({ now: 1_000 });
   });
   afterEach(() => jest.useRealTimers());
@@ -29,7 +31,9 @@ describe("serviceErrors", () => {
   });
 
   it("swallows a failing monitoring call", async () => {
-    _setSender(async () => { throw new Error("down"); });
+    _setSender(async () => {
+      throw new Error("down");
+    });
     await expect(reportServiceError("inbox", "inbound mail failed")).resolves.toBeUndefined();
   });
 

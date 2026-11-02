@@ -1,6 +1,6 @@
 name: Off-chain Backup
 
-# Weekly: snapshots every data canister (a few seconds of downtime each),
+# Daily: snapshots every data canister (a few seconds of downtime each),
 # downloads the snapshots and the Fly relays' data files, encrypts them to
 # BACKUP_AGE_RECIPIENT with age and copies them to the R2 backup bucket,
 # keeping 35 days (scripts/ops/backup-canisters.sh). The private key that
@@ -16,7 +16,7 @@ name: Off-chain Backup
 
 on:
   schedule:
-    - cron: '23 8 * * 0'   # Sundays 08:23 UTC (early morning in the US)
+    - cron: '23 8 * * *'   # daily, 08:23 UTC (early morning in the US)
   workflow_dispatch:
     inputs:
       env:
