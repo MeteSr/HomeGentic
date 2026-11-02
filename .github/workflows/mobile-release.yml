@@ -150,7 +150,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: mobile/package-lock.json
 
-      - uses: expo/expo-github-action@c7b66a9c327a43a8fa7c0158e7f30d6040d2481e # v8
+      - uses: expo/expo-github-action@9da89d3617bb88139671bad31b09c65714c2ee06 # v9.0.1
         with:
           eas-version: ${{ env.EAS_CLI_VERSION }}
           token: ${{ secrets.EXPO_TOKEN }}
@@ -182,7 +182,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: mobile/package-lock.json
 
-      - uses: expo/expo-github-action@c7b66a9c327a43a8fa7c0158e7f30d6040d2481e # v8
+      - uses: expo/expo-github-action@9da89d3617bb88139671bad31b09c65714c2ee06 # v9.0.1
         with:
           eas-version: ${{ env.EAS_CLI_VERSION }}
           token: ${{ secrets.EXPO_TOKEN }}
