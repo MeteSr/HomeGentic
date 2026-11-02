@@ -1,15 +1,20 @@
 # Contributing to HomeGentic
 
-Thank you for your interest in contributing to HomeGentic!
+HomeGentic is source-available, not open source (see [LICENSE](LICENSE)). We
+don't accept outside pull requests unless we've agreed the work with you in
+writing first, because a contribution has to be licensed to HomeGentic before
+it can be merged. Security reports are welcome any time: see
+[SECURITY.md](SECURITY.md). Bugs and ideas can go in an issue.
+
+This guide is for people working on the codebase with us.
 
 ## Getting Started
 
-1. Fork the repository
-2. Clone your fork: `git clone https://github.com/your-username/homegentic.git`
-3. Install Node.js 22+
-4. Install the canister tooling: `npm install -g @icp-sdk/icp-cli` and [mops](https://mops.one) (plus [dfx](https://internetcomputer.org/docs/current/developer-docs/setup/install/) if you'll run the bash canister tests or regenerate declarations)
-5. Start the local network: `make start`
-6. Deploy canisters: `make deploy`
+1. Clone the repository: `git clone https://github.com/MeteSr/homegentic.git`
+2. Install Node.js 22+
+3. Install the canister tooling: `npm install -g @icp-sdk/icp-cli` and [mops](https://mops.one) (plus [dfx](https://internetcomputer.org/docs/current/developer-docs/setup/install/) if you'll run the bash canister tests)
+4. Start the local network: `make start`
+5. Deploy canisters: `make deploy`
 
 ## Development Workflow
 
@@ -19,7 +24,7 @@ Thank you for your interest in contributing to HomeGentic!
    - Everything: `npm run lint` (and `npm run knip` if you removed or moved frontend code)
    - Frontend: `cd frontend && npx tsc --noEmit -p . && npm run test:unit`
    - Canisters: `make check-motoko` and `npm run check:motoko-warnings`, then `make test` against a local replica
-4. Open a pull request using the template. CI runs unit, e2e, visual, backend, integration and stable-compatibility checks, plus a secrets scan
+4. Open a pull request using the template. Its title goes into the changelog and the release notes, so say what changed for users. CI runs unit, e2e, visual, backend, integration and stable-compatibility checks, plus a secrets scan
 5. If your change intentionally alters the UI, `test-visual` fails and `test-visual-heal` commits regenerated baselines to your branch — review them
 
 ## Code Conventions
@@ -35,7 +40,7 @@ Thank you for your interest in contributing to HomeGentic!
 
 - All new canisters go under `backend/<name>/main.mo`
 - Add a corresponding `test.sh` under `backend/<name>/test.sh`
-- Register the canister in `icp.yaml` (and `dfx.json`, which the declarations generator and bash tests still use)
+- Register the canister in `icp.yaml` (and `dfx.json`, which the bash canister tests still use)
 - Add a deploy step (and admin bootstrap via `setBootstrapNonce` + `addAdmin`) to `scripts/deploy.sh`
 - Add its IDL as `packages/shared/src/declarations/<name>.ts` and document its methods in `docs/API.md`
 
