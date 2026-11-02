@@ -20,6 +20,7 @@ import Int      "mo:core/Int";
 import Nat      "mo:core/Nat";
 import Option   "mo:core/Option";
 import Order    "mo:core/Order";
+import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
 import Set      "mo:core/Set";
 import Text     "mo:core/Text";

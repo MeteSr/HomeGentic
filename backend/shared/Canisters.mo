@@ -8,6 +8,7 @@
 import Debug     "mo:core/Debug";
 import Principal "mo:core/Principal";
 import Runtime   "mo:core/Runtime";
+import Text      "mo:core/Text";
 import Errors "Errors";
 
 module {
