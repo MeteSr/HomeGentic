@@ -165,8 +165,7 @@ describe.skipIf(!deployed)("submitReview & getReviewsForContractor", () => {
       // Acceptable failures: duplicate review, rate limit, or synthetic jobId rejected by
       // cross-canister validation (M-09 security fix — job canister verifies jobId exists)
       if (
-        !e.message?.includes("Duplicate") &&
-        !e.message?.includes("RateLimitExceeded") &&
+        !["Duplicate", "DuplicateReview", "RateLimited"].includes(e?.code) &&
         !e.message?.includes("jobId does not exist")
       ) throw e;
     }
@@ -186,7 +185,7 @@ describe.skipIf(!deployed)("verifyContractor — admin flag", () => {
       expect(result.isVerified).toBe(true);
     } catch (e: any) {
       // Unauthorized: test identity is not admin — acceptable in non-seeded deploys
-      expect(e.message).toMatch(/NotAuthorized|Unauthorized|NotFound/i);
+      expect(["NotAuthorized", "NotFound"]).toContain(e.code);
     }
   });
 });

@@ -39,7 +39,7 @@ beforeAll(async () => {
     });
   } catch (err: any) {
     // AlreadyExists on subsequent runs — fetch existing profile instead
-    if (err.message?.includes("AlreadyExists") || err.message?.includes("already")) {
+    if (err?.code === "AlreadyExists") {
       profile = await authService.getProfile();
     } else {
       throw err;

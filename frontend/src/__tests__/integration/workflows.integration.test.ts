@@ -268,7 +268,7 @@ describe.skipIf(!integrationReady)("WF.B — Quote request → bid → accept", 
     try {
       await registerContractor(seededIdentity(203), "WF.B Contractor");
     } catch (e: any) {
-      if (!String(e?.message ?? e).includes("AlreadyExists")) throw e;
+      if (e?.code !== "AlreadyExists") throw e;
     }
 
     // Register a property for the homeowner to quote against

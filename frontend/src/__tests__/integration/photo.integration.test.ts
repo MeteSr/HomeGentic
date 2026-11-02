@@ -173,13 +173,14 @@ describe.skipIf(!deployed)("SHA-256 deduplication", () => {
     const p1 = await photoService.upload(file1, JOB_ID, PROPERTY_ID, "Framing", "Dedup test A");
 
     // The canister returns #Duplicate(existingId) on hash collision; the service
-    // surfaces this as an Error whose message IS the existing photo ID.
+    // surfaces it as a CanisterError whose detail is the existing photo ID.
     try {
       const p2 = await photoService.upload(file2, JOB_ID, PROPERTY_ID, "Framing", "Dedup test B");
       expect(p2.id).toBe(p1.id);
     } catch (e: any) {
-      // Error message is the duplicate photo's ID — verify it matches p1
-      expect(e.message).toBe(p1.id);
+      // The error carries the duplicate photo's ID — verify it matches p1
+      expect(e.code).toBe("Duplicate");
+      expect(e.detail).toBe(p1.id);
     }
   });
 });
@@ -197,7 +198,7 @@ describe.skipIf(!deployed)("deletePhoto — removes record", () => {
     } catch (e: any) {
       // Unauthorized when propCanisterId is configured and the test property
       // doesn't exist in the property canister — expected in local integration runs.
-      if (e.message === "NotAuthorized" || e.message === "Unauthorized") return;
+      if (e?.code === "NotAuthorized") return;
       throw e;
     }
 
