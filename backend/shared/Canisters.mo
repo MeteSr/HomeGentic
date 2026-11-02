@@ -7,9 +7,42 @@
 
 import Debug     "mo:core/Debug";
 import Principal "mo:core/Principal";
+import Runtime   "mo:core/Runtime";
+import Text      "mo:core/Text";
 import Errors "Errors";
 
 module {
+  /// M-5 (icp-cli pitfall 22): `icp deploy` stamps every canister's ID into
+  /// every canister's settings as `PUBLIC_CANISTER_ID:<name>`, refreshed on
+  /// each deploy. Each canister re-reads its siblings' IDs from these when it
+  /// is installed or upgraded, so a reinstall or a missed setter call heals on
+  /// the next deploy. When the variable is absent (dfx, PocketIC tests, or a
+  /// canister not in this environment) the stored ID, set by the setter
+  /// methods, stays as it is.
+  public func envId<system>(name : Text, current : Text) : Text {
+    switch (canisterIdVar<system>(name)) {
+      case (?id) { if (id.size() > 0) id else current };
+      case null current;
+    }
+  };
+
+  /// The `PUBLIC_CANISTER_ID:<name>` variable. `#` builds a rope, and the
+  /// env_var system calls need one flat UTF-8 buffer (a rope reaches them as
+  /// "not a valid UTF-8 string"), so the key goes through a Blob first.
+  func canisterIdVar<system>(name : Text) : ?Text {
+    let key = "PUBLIC_CANISTER_ID:" # name;
+    let flat = switch (key.encodeUtf8().decodeUtf8()) { case (?t) t; case null key };
+    Runtime.envVar<system>(flat)
+  };
+
+  /// `envId` for IDs held as a principal.
+  public func envPrincipal<system>(name : Text, current : ?Principal) : ?Principal {
+    switch (canisterIdVar<system>(name)) {
+      case (?id) { if (id.size() > 0) ?Principal.fromText(id) else current };
+      case null current;
+    }
+  };
+
   /// Subscription tier, as `payment` returns it.
   public type Tier = { #Free; #Pro; #ContractorFree; #ContractorPro };
 
@@ -97,13 +130,19 @@ module {
 
   /// Writes one entry to the audit canister, fire-and-forget: does nothing when
   /// `audit` isn't wired, and a failed call is printed, never thrown, so an
-  /// audit outage can't block the admin action being logged.
+  /// audit outage can't block the admin action being logged. The call is a
+  /// bounded wait (AUDIT_TIMEOUT_SECONDS): a stalled audit canister can't hold
+  /// the caller open, which would stop it from being stopped for an upgrade
+  /// (canister-security pitfall 12). A timed-out entry is lost, like any other
+  /// failed fire-and-forget write.
+  public let AUDIT_TIMEOUT_SECONDS : Nat32 = 60;
+
   public func auditLog(audit : ?Principal, source : Text, action : Text, subject : ?Principal, detail : Text) : async* () {
     switch (audit) {
       case null {};
       case (?id) {
         let a : Audit = actor (id.toText());
-        try { ignore await a.log(source, action, subject, detail) } catch _ { Debug.print("[" # source # "] fire-and-forget call failed") };
+        try { ignore await (with timeout = AUDIT_TIMEOUT_SECONDS) a.log(source, action, subject, detail) } catch _ { Debug.print("[" # source # "] fire-and-forget call failed") };
       };
     };
   };

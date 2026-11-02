@@ -7,7 +7,7 @@
 # Memory-incompatible program upgrade", and the only way out is a reinstall
 # that wipes the canister's data. This catches that at PR time instead.
 #
-# For every canister in icp.yaml it compiles BASE and HEAD with
+# For every canister in mops.toml it compiles BASE and HEAD with
 # `moc --stable-types` and runs `moc --stable-compatible base.most head.most`.
 # New canisters (no main.mo at BASE) are skipped.
 #
@@ -43,8 +43,8 @@ stable_types() {   # $1 tree, $2 main.mo (relative), $3 package flags, $4 out pr
   [ -f "$4.most" ]
 }
 
-CANISTERS=$(awk '/^canisters:/{p=1;next} /^[a-z]/{p=0} p && /^  - name:/{n=$3} p && /main:/{print n" "$2}' icp.yaml)
-[ -n "$CANISTERS" ] || { echo "❌ no Motoko canisters found in icp.yaml"; exit 2; }
+CANISTERS=$(awk -F'"' '/^\[canisters\./{n=$0; sub(/^\[canisters\./,"",n); sub(/\].*/,"",n)} n!="" && /^main *=/{print n" "$2; n=""}' mops.toml)
+[ -n "$CANISTERS" ] || { echo "❌ no Motoko canisters found in mops.toml"; exit 2; }
 
 echo "Stable-memory compatibility: $(git rev-parse --short "$BASE_SHA") → $(git rev-parse --short HEAD)"
 declare -a BROKEN=() ERRORED=()

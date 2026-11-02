@@ -23,6 +23,7 @@ import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
+import Sha256 "../shared/Sha256";
 
 persistent actor class Auth(initDeployer : Principal) {
 
@@ -109,8 +110,14 @@ persistent actor class Auth(initDeployer : Principal) {
   /// authenticates the issueAgentSession call, so only the owner can mint a
   /// token for itself. At most one live token per principal.
   public type AgentSession = { owner : Principal; expiresAt : Int };
+  /// Legacy maps keyed by the raw token. Nothing writes them any more:
+  /// postupgrade moves their entries into the hashed maps below.
   private let agentSessions       = Map.empty<Text, AgentSession>();
   private let agentSessionByOwner = Map.empty<Principal, Text>();
+  /// Sessions keyed by the hex SHA-256 of the token, so canister state (which
+  /// node operators can read) never holds a usable bearer token.
+  private let agentSessionsByHash    = Map.empty<Text, AgentSession>();
+  private let agentSessionHashByOwner = Map.empty<Principal, Text>();
   private transient let AGENT_SESSION_TTL_NS : Int = 24 * 60 * 60 * 1_000_000_000;
 
   /// Principals allowed to look up a user's email for notifications — the
@@ -387,11 +394,28 @@ persistent actor class Auth(initDeployer : Principal) {
   };
 
   private func dropAgentSession(owner : Principal) {
-    switch (agentSessionByOwner.get(owner)) {
-      case (?old) { agentSessions.remove(old) };
+    switch (agentSessionHashByOwner.get(owner)) {
+      case (?old) { agentSessionsByHash.remove(old) };
       case null {};
     };
-    agentSessionByOwner.remove(owner);
+    agentSessionHashByOwner.remove(owner);
+  };
+
+  /// Move sessions stored under the raw token into the hashed maps.
+  /// Idempotent: the legacy maps are empty after the first run.
+  private func hashLegacyAgentSessions() {
+    for ((token, s) in agentSessions.entries().toArray().values()) {
+      agentSessionsByHash.add(Sha256.hexOfText(token), s);
+    };
+    for ((owner, token) in agentSessionByOwner.entries().toArray().values()) {
+      agentSessionHashByOwner.add(owner, Sha256.hexOfText(token));
+    };
+    agentSessions.clear();
+    agentSessionByOwner.clear();
+  };
+
+  system func postupgrade() {
+    hashLegacyAgentSessions();
   };
 
   /// Issue a 24-hour voice-agent session token for the caller (registered
@@ -406,8 +430,9 @@ persistent actor class Auth(initDeployer : Principal) {
     let token     = "hgs_" # blobToHex(await Random.blob());   // 256 bits of IC randomness
     let expiresAt = Time.now() + AGENT_SESSION_TTL_NS;
     dropAgentSession(msg.caller);
-    agentSessions.add(token, { owner = msg.caller; expiresAt });
-    agentSessionByOwner.add(msg.caller, token);
+    let tokenHash = Sha256.hexOfText(token);
+    agentSessionsByHash.add(tokenHash, { owner = msg.caller; expiresAt });
+    agentSessionHashByOwner.add(msg.caller, tokenHash);
     #ok({ token; expiresAt })
   };
 
@@ -439,18 +464,18 @@ persistent actor class Auth(initDeployer : Principal) {
     // case an older token for this owner was ever left behind. Sessions are
     // only issued to registered profiles, so a caller with neither a profile
     // nor a session skips the sweep (CD-6: anyone can call this).
-    let tokens = if (not hadProfile and agentSessionByOwner.get(caller) == null) [] else agentSessions.entries()
+    let tokens = if (not hadProfile and agentSessionHashByOwner.get(caller) == null) [] else agentSessionsByHash.entries()
       .filter(func((_, s) : (Text, AgentSession)) : Bool { Principal.equal(s.owner, caller) })
       .map(func((t, _) : (Text, AgentSession)) : Text { t })
       .toArray();
     for (t in tokens.values()) {
-      agentSessions.remove(t);
+      agentSessionsByHash.remove(t);
       removed += 1;
     };
-    switch (agentSessionByOwner.get(caller)) {
+    switch (agentSessionHashByOwner.get(caller)) {
       case (?t) {
-        if (agentSessions.get(t) != null) { agentSessions.remove(t); removed += 1 };
-        agentSessionByOwner.remove(caller);
+        if (agentSessionsByHash.get(t) != null) { agentSessionsByHash.remove(t); removed += 1 };
+        agentSessionHashByOwner.remove(caller);
       };
       case null {};
     };
@@ -495,7 +520,7 @@ persistent actor class Auth(initDeployer : Principal) {
     if (not isNotifier(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
     let cap = if (limit == 0 or limit > 200) 200 else limit;
     let iter = switch (after) {
-      case (?a) Map.entriesFrom(users, Principal.compare, a);
+      case (?a) users.entriesFrom(a);
       case null users.entries();
     };
     let out = List.empty<{ principal : Principal; email : Text }>();
@@ -512,7 +537,7 @@ persistent actor class Auth(initDeployer : Principal) {
   /// The principal a live session token belongs to, or null if the token is
   /// unknown or expired. The token itself is the secret, so this is public.
   public query func resolveAgentSession(token : Text) : async ?Principal {
-    switch (agentSessions.get(token)) {
+    switch (agentSessionsByHash.get(Sha256.hexOfText(token))) {
       case (?s) { if (s.expiresAt > Time.now()) ?s.owner else null };
       case null null;
     }
@@ -590,4 +615,13 @@ persistent actor class Auth(initDeployer : Principal) {
       errorsByMethod = errsByMethod.entries().toArray();
     }
   };
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    auditCanisterId := Canisters.envPrincipal<system>("audit", auditCanisterId);
+  };
+  syncCanisterIds<system>();
 }

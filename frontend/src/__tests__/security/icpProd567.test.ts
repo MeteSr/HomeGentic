@@ -23,7 +23,7 @@ describe("PROD.5 — deploy.sh includes frontend build and deploy", () => {
   const deploy = () => read("scripts/deploy.sh");
 
   it("deploy.sh runs npm run build for the frontend", () => {
-    // Must trigger a frontend build so dist/ + .ic-assets.json5 exist before upload
+    // Must trigger a frontend build so dist/ + _headers exist before upload
     expect(deploy()).toMatch(/npm.*run.*build|npm.*build/);
   });
 

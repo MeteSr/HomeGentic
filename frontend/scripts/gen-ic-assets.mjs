@@ -1,21 +1,22 @@
 #!/usr/bin/env node
 /**
- * Generates frontend/dist/.ic-assets.json5 at the end of every production build.
+ * Generates frontend/dist/_headers at the end of every production build.
  *
  * Why here and not in frontend/public/?
  *   public/ is copied verbatim — Vite does not substitute %VITE_*% placeholders
  *   inside it.  The voice agent URL must be resolved before the file is written so
  *   the CSP connect-src contains the real origin, not a literal placeholder.
  *
- * The assets canister reads this file during `dfx deploy frontend` and sets the
- * listed headers on every HTTP response it serves.  An HTTP-header CSP is stronger
- * than a <meta> tag CSP because the assets canister includes it in the certified
- * BLS-signed response — a network attacker cannot strip it.
+ * The frontend canister (@dfinity/static-site recipe) reads dist/_headers when
+ * `icp deploy frontend` syncs dist/ and sets the listed headers on every
+ * response it serves.  An HTTP-header CSP is stronger than a <meta> tag CSP
+ * because the canister includes it in the certified response — a network
+ * attacker cannot strip it.
  *
- * Ordering requirement:
- *   dfx deploy --network ic    (writes CANISTER_ID_* + VITE_* to .env)
+ * Ordering requirement (scripts/deploy.sh):
+ *   canister IDs + VITE_* written to .env
  *   npm run build              (Vite reads .env; this script runs as postbuild)
- *   dfx deploy frontend --network ic   (uploads dist/ including .ic-assets.json5)
+ *   icp deploy frontend        (syncs dist/ including _headers and _redirects)
  */
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
@@ -121,54 +122,48 @@ const csp = [
   "frame-ancestors 'none'",
 ].join("; ");
 
-// ── Write .ic-assets.json5 ────────────────────────────────────────────────────
-const icAssets = [
-  {
-    match: "**/*",
-    // Serve only through the certified (icp0.io / ic0.app) domain, never the
-    // uncertified raw.* domain where a malicious node could alter responses.
-    allow_raw_access: false,
-    enable_aliasing: true,
-    headers: {
-      // HSTS: tell browsers to always use HTTPS for this origin for 1 year
-      "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-      // Prevent this app from being embedded in a frame (clickjacking)
-      "X-Frame-Options": "DENY",
-      // Prevent browsers from MIME-sniffing response content types
-      "X-Content-Type-Options": "nosniff",
-      // Don't leak the full URL in Referer headers to third-party origins
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      // Allow mic for voice agent (top-level only); block camera + geolocation
-      "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
-      "Content-Security-Policy": csp,
-    },
-  },
-  // Vite names everything under /assets/ by content hash, so a changed file
-  // gets a new URL and these can be cached for good. index.html is served
-  // no-cache so a deploy is picked up at once (the canister answers a
-  // revalidation with 304 when nothing changed).
-  {
-    match: "assets/**/*",
-    headers: { "Cache-Control": "public, max-age=31536000, immutable" },
-  },
-  {
-    match: "**/*.html",
-    headers: { "Cache-Control": "no-cache" },
-  },
-];
+// ── Write _headers ────────────────────────────────────────────────────────────
+// The frontend canister is the certified-assets canister (@dfinity/static-site
+// recipe, static-site skill). It reads dist/_headers (Netlify syntax: a path
+// pattern, then indented "Name: value" lines) and adds no headers of its own,
+// so every security header is listed here. Patterns match the file (asset
+// key), with one "*" wildcard that also matches "/"; every matching block
+// contributes. SPA routing lives in public/_redirects, copied into dist/.
+// It serves no uncertified "raw" mode setting: link only to the certified
+// domain (static-site pitfall 14).
+const blocks = [];
+const block = (pattern, headers) => blocks.push([pattern, ...Object.entries(headers).map(([k, v]) => `  ${k}: ${v}`)].join("\n"));
 
-// ── .well-known ───────────────────────────────────────────────────────────────
-// The assets canister skips dot-folders unless told otherwise, so the folder is
-// always listed: public/.well-known holds security.txt, ic-domains (custom
-// domain registration, custom-domains skill) and ii-alternative-origins.
-icAssets.push({ match: ".well-known", ignore: false });
+// Every file.
+block("/*", {
+  // HSTS: tell browsers to always use HTTPS for this origin for 1 year
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+  // Prevent this app from being embedded in a frame (clickjacking)
+  "X-Frame-Options": "DENY",
+  // Prevent browsers from MIME-sniffing response content types
+  "X-Content-Type-Options": "nosniff",
+  // Don't leak the full URL in Referer headers to third-party origins
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  // Allow mic for voice agent (top-level only); block camera + geolocation
+  "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
+  "Content-Security-Policy": csp,
+});
 
+// Vite names everything under /assets/ by content hash, so a changed file
+// gets a new URL and these can be cached for good. HTML is served no-cache so
+// a deploy is picked up at once (the canister answers a revalidation with 304
+// when nothing changed); every /*-rewritten client route serves index.html.
+block("/assets/*", { "Cache-Control": "public, max-age=31536000, immutable" });
+block("/*.html", { "Cache-Control": "no-cache" });
+
+// .well-known/ is uploaded automatically (the only dot-folder that is).
 // Internet Identity fetches ii-alternative-origins from the derivation origin
 // (this canister's own address) while a page on homegentic.app signs in, so it
-// needs CORS and a JSON content type (internet-identity skill).
-icAssets.push({
-  match: ".well-known/ii-alternative-origins",
-  headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+// needs CORS and a JSON content type (internet-identity skill). The bare
+// Content-Type form sets the stored media type of an extension-less file.
+block("/.well-known/ii-alternative-origins", {
+  "Access-Control-Allow-Origin": "*",
+  "Content-Type": "application/json",
 });
 
 // Universal links: iOS wants the association file served as JSON despite
@@ -178,13 +173,13 @@ if (Object.keys(wellKnown).length) {
   mkdirSync(resolve(DIST, ".well-known"), { recursive: true });
   for (const [name, body] of Object.entries(wellKnown)) {
     writeFileSync(resolve(DIST, ".well-known", name), JSON.stringify(body) + "\n");
-    icAssets.push({ match: `.well-known/${name}`, headers: { "Content-Type": "application/json" } });
+    block(`/.well-known/${name}`, { "Content-Type": "application/json" });
   }
   console.log(`[gen-ic-assets] wrote .well-known/${Object.keys(wellKnown).join(", .well-known/")}`);
 }
 
-const outPath = resolve(DIST, ".ic-assets.json5");
-writeFileSync(outPath, JSON.stringify(icAssets, null, 2) + "\n");
+const outPath = resolve(DIST, "_headers");
+writeFileSync(outPath, "# Generated by frontend/scripts/gen-ic-assets.mjs. Do not edit.\n\n" + blocks.join("\n\n") + "\n");
 
 console.log(`[gen-ic-assets] wrote ${outPath}`);
 console.log(`[gen-ic-assets] voice agent origin in CSP: ${voiceOrigin}`);

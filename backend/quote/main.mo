@@ -711,7 +711,7 @@ persistent actor Quote {
       let amounts = Index.records(ix, priceKey(svc, z, digits), quotes)
         .map(func(q : Quote) : Nat { q.amount })
         .toArray()
-        .sort(Nat.compare);
+        .sort();
       let n = amounts.size();
       if (n >= MIN_PRICE_SAMPLES) {
         return ?{
@@ -1851,4 +1851,16 @@ persistent actor Quote {
       isPaused;
     }
   };
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    payCanisterId := Canisters.envId<system>("payment", payCanisterId);
+    propCanisterId := Canisters.envId<system>("property", propCanisterId);
+    contrCanisterId := Canisters.envId<system>("contractor", contrCanisterId);
+    feeCanisterId := Canisters.envId<system>("fee", feeCanisterId);
+  };
+  syncCanisterIds<system>();
 }

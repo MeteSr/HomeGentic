@@ -93,7 +93,7 @@ bash scripts/init-test-data.sh   # Seed test users and properties
 
 ### Frontend build
 ```bash
-cd frontend && npm run build    # Outputs to frontend/dist/ (served by assets canister)
+cd frontend && npm run build    # Outputs to frontend/dist/ (served by the static-site frontend canister)
 bash scripts/ci/check-declarations.sh   # Check packages/shared declarations against the canisters (needs moc)
 bash scripts/ci/check-canister-calls.sh # Check every canister-to-canister actor type against the callee's Candid (needs moc)
 ```
@@ -120,7 +120,7 @@ docs/             ARCHITECTURE.md, API.md, SYSTEMS.md, FEATURES.md, DEPLOYMENT.m
 
 ### ICP Canister Map
 
-All 20 canisters use `persistent actor` (Motoko mo:core) — all variables are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed. `transient` is for in-memory structures that should reset on upgrade (caches such as the vetKD public keys). The existing per-minute rate-limit maps (`updateCallLimits` and friends) are plain stable `let`s, bounded by `RateLimit.sweep`; making one transient now drops a stable var, which is a stable break, so leave them. Admin-tunable stable vars (`maxUpdatesPerMin`, `platformFeeCents`, …) keep their first-install value: changing the default in code changes nothing on a deployed canister. Each exports a `metrics()` query and `pause()`/`unpause()` admin capability.
+All 20 canisters use `persistent actor` (Motoko mo:core) — all variables are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed. `transient` is for in-memory structures that should reset on upgrade (caches such as the vetKD public keys). The existing per-minute rate-limit maps (`updateCallLimits` and friends) are plain stable `let`s, bounded by `RateLimit.sweep`; making one transient now drops a stable var, which is a stable break, so leave them. Admin-tunable stable vars (`maxUpdatesPerMin`, `platformFeeCents`, …) keep their first-install value: changing the default in code changes nothing on a deployed canister. Sibling canister IDs are re-read on install and on every upgrade from the `PUBLIC_CANISTER_ID:<name>` variables `icp deploy` stamps into each canister (`syncCanisterIds` at the end of each actor, `Canisters.envId`); the `set*CanisterId` setters stay as the fallback where those variables don't exist (dfx bash suites, PocketIC tests). A new sibling ID needs both a stored var with a setter and a line in that canister's `syncCanisterIds`. Each exports a `metrics()` query and `pause()`/`unpause()` admin capability.
 
 | Canister | Responsibility |
 |---|---|
@@ -173,7 +173,7 @@ Because accounts are free to create, every Claude call also passes `agents/voice
 
 ### Frontend Service Layer
 
-`frontend/src/services/actor.ts` creates the ICP `HttpAgent`. In local dev it uses a fixed-seed Ed25519 identity to survive hot-reloads without re-authenticating. In production it uses `@icp-sdk/auth` (Internet Identity). Nothing calls `fetchRootKey()`: the browser reads the root key from the asset canister's `ic_env` cookie (or the local key vite injects in dev), and the agents take `ICP_ROOT_KEY` for a local host only (`packages/shared/src/rootKey.ts`). On a page served from an alternative origin, sign-in passes `derivationOrigin` (`II_DERIVATION_ORIGIN`, written by `scripts/deploy.sh`) so users keep the same principal.
+`frontend/src/services/actor.ts` creates the ICP `HttpAgent`. In local dev it uses a fixed-seed Ed25519 identity to survive hot-reloads without re-authenticating. In production it uses `@icp-sdk/auth` (Internet Identity). Nothing calls `fetchRootKey()`: the browser reads the root key from the frontend canister's `ic_env` cookie (or the local key vite injects in dev), and the agents take `ICP_ROOT_KEY` for a local host only (`packages/shared/src/rootKey.ts`). On a page served from an alternative origin, sign-in passes `derivationOrigin` (`II_DERIVATION_ORIGIN`, written by `scripts/deploy.sh`) so users keep the same principal.
 
 Each service file (e.g. `job.ts`, `property.ts`) imports its canister's IDL from `@homegentic/shared/declarations/<canister>` (`packages/shared/src/declarations/`) and follows a mock-fallback pattern:
 ```typescript

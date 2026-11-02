@@ -235,10 +235,10 @@ persistent actor MarketIntelligence {
 
   private func joinZip(zip : Text, p : Principal) {
     switch (zipMembers.get(zip)) {
-      case (?set) { set.add(Principal.compare, p) };
+      case (?set) { set.add(p) };
       case null {
         let set = Set.empty<Principal>();
-        set.add(Principal.compare, p);
+        set.add(p);
         zipMembers.add(zip, set);
       };
     };
@@ -247,7 +247,7 @@ persistent actor MarketIntelligence {
   private func leaveZip(zip : Text, p : Principal) {
     switch (zipMembers.get(zip)) {
       case (?set) {
-        set.remove(Principal.compare, p);
+        set.remove(p);
         if (set.isEmpty()) zipMembers.remove(zip);
       };
       case null {};
@@ -681,7 +681,7 @@ persistent actor MarketIntelligence {
     if (Text.size(zipCode) > 20) return #err(#InvalidInput("zipCode exceeds 20 characters"));
     let jobs = await jobActor.getJobSnapshotsForProperty(propertyId);
     if (jobs.size() == 0) return #err(#InvalidInput("Add a job to this home before scoring it"));
-    let scored = if (jobs.size() > MAX_SCORE_JOBS) Array.sliceToArray(jobs, 0, MAX_SCORE_JOBS) else jobs;
+    let scored = if (jobs.size() > MAX_SCORE_JOBS) jobs.sliceToArray(0, MAX_SCORE_JOBS) else jobs;
 
     let score = compositeScore(
       maintenanceScore(scored),
@@ -933,4 +933,16 @@ persistent actor MarketIntelligence {
       isPaused;
     }
   };
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    propCanisterId := Canisters.envId<system>("property", propCanisterId);
+    jobCanisterId := Canisters.envId<system>("job", jobCanisterId);
+    listingCanisterId := Canisters.envId<system>("listing", listingCanisterId);
+    reportCanisterId := Canisters.envId<system>("report", reportCanisterId);
+  };
+  syncCanisterIds<system>();
 }

@@ -2135,7 +2135,7 @@ persistent actor Property {
   /// bills and recurring answer "records for all my properties" with one
   /// cross-canister call instead of one per property.
   public query func getAccessRoles(propertyIds : [Text], principal : Principal) : async [?AccessRole] {
-    Array.tabulate<?AccessRole>(propertyIds.size(), func(i) {
+    Array.tabulate(propertyIds.size(), func(i) {
       if (i < MAX_ROLE_BATCH) accessRoleOf(propertyIds[i], principal) else null
     })
   };
@@ -2810,4 +2810,16 @@ persistent actor Property {
       totalFixtures;
     }
   };
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    auditCanisterId := Canisters.envPrincipal<system>("audit", auditCanisterId);
+    payCanisterId := Canisters.envId<system>("payment", payCanisterId);
+    jobCanisterId := Canisters.envPrincipal<system>("job", jobCanisterId);
+    listingCanisterId := Canisters.envId<system>("listing", listingCanisterId);
+  };
+  syncCanisterIds<system>();
 }

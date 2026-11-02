@@ -842,7 +842,7 @@ persistent actor Contractor {
     if (entries.size() > MAX_PORTFOLIO_ENTRIES) return #err(#InvalidInput("at most " # MAX_PORTFOLIO_ENTRIES.toText() # " portfolio entries"));
     let now = Time.now();
     var seen : [Nat] = [];
-    let stored = Array.tabulate<PortfolioEntry>(entries.size(), func(i) {
+    let stored = Array.tabulate(entries.size(), func(i) {
       let e = entries[i];
       { credentialId = e.credentialId; title = e.title; description = e.description; featuredAt = now }
     });
@@ -901,7 +901,7 @@ persistent actor Contractor {
 
   /// Uppercase, no spaces or dashes, as the Worker sends it ("cgc-123 4567" → "CGC1234567").
   private func normLicense(t: Text) : Text {
-    Text.toUpper(Text.join(Text.split(t, #predicate(func(c : Char) : Bool { c == ' ' or c == '-' })), ""))
+    t.split(#predicate(func(c : Char) : Bool { c == ' ' or c == '-' })).join("").toUpper()
   };
 
   /// Record the Worker's DBPR lookup of `contractor`'s licence number. Relay
@@ -993,7 +993,7 @@ persistent actor Contractor {
 
     // Reviews about the caller and reviews written by the caller, by index
     // (CD-6: no scan of every review).
-    let reviewIds = Iter.toArray(Index.ids(reviewsByContractor, caller.toText()).concat(Index.ids(reviewsByReviewer, caller.toText())));
+    let reviewIds = Index.ids(reviewsByContractor, caller.toText()).concat(Index.ids(reviewsByReviewer, caller.toText())).toArray();
     for (id in reviewIds.values()) {
       switch (reviews.get(id)) {
         case (?r) {
@@ -1007,7 +1007,7 @@ persistent actor Contractor {
     };
 
     // Job credentials minted for the caller as contractor.
-    let credIds = Iter.toArray(Index.ids(credentialsByContractor, caller.toText()));
+    let credIds = Index.ids(credentialsByContractor, caller.toText()).toArray();
     for (idText in credIds.values()) {
       switch (Nat.fromText(idText)) {
         case (?id) {
@@ -1219,4 +1219,15 @@ persistent actor Contractor {
       isPaused;
     }
   };
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    jobCanisterId := Canisters.envId<system>("job", jobCanisterId);
+    quoteCanisterId := Canisters.envId<system>("quote", quoteCanisterId);
+    payCanisterId := Canisters.envId<system>("payment", payCanisterId);
+  };
+  syncCanisterIds<system>();
 }

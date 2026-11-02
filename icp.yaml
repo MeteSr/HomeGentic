@@ -1,163 +1,100 @@
 canisters:
+  # Motoko canisters use the v5 recipe, which runs `mops build <name>`: each
+  # canister's entry point and the moc flags live in mops.toml.
   - name: ai_proxy
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/ai_proxy/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: auth
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/auth/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: property
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/property/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: job
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/job/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: contractor
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/contractor/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: quote
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/quote/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: payment
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/payment/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: photo
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/photo/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: monitoring
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/monitoring/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: market
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/market/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: report
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/report/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: maintenance
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/maintenance/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: sensor
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/sensor/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: listing
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/listing/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: agent
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/agent/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: fee
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/fee/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: bills
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/bills/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: recurring
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/recurring/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: audit
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/audit/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
   - name: referrals
     recipe:
-      type: "@dfinity/motoko@v4.0.0"
-      configuration:
-        main: backend/referrals/main.mo
-        args: "--actor-idl did/"
+      type: "@dfinity/motoko@v5.0.0"
 
-  # Frontend asset canister
-  #
-  # This recipe's build.script runs from the repo root, not `frontend/` —
-  # a `workdir: frontend` key was here before but icp-cli 1.4.0's
-  # asset-canister recipe doesn't honor it (confirmed by inspecting the
-  # npm debug log: cwd was the repo root, not frontend/). Since root's
-  # package.json has no "build" script of its own (only frontend/'s
-  # workspace does), a plain `npm run build` here always failed with
-  # "Missing script: build" the moment this canister was first deployed.
-  # --workspace frontend targets frontend's own build script explicitly,
-  # which works regardless of which directory the recipe actually runs
-  # the command from.
+  # Frontend: the certified-assets canister (static-site skill). It serves
+  # frontend/dist/ with the headers in dist/_headers (written by
+  # frontend/scripts/gen-ic-assets.mjs) and the SPA rule in dist/_redirects
+  # (from frontend/public/). The build runs from the repo root, so it names
+  # the frontend workspace. Moving from the legacy @dfinity/asset-canister
+  # needs one reinstall of this canister; scripts/deploy.sh does that when it
+  # finds the legacy canister still installed.
   - name: frontend
     recipe:
-      type: "@dfinity/asset-canister@v2.2.1"
+      type: "@dfinity/static-site@v0.4.0"
       configuration:
         dir: frontend/dist
         build:
-          script: npm run build --workspace frontend
+          - npm run build --workspace frontend
 
 networks:
   - name: local

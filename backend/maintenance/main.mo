@@ -466,4 +466,13 @@ persistent actor Maintenance {
     for (e in schedule.values()) { if (e.isCompleted) { completed += 1 } };
     { scheduleEntries = schedule.size(); completedEntries = completed; isPaused }
   };
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    propCanisterId := Canisters.envId<system>("property", propCanisterId);
+  };
+  syncCanisterIds<system>();
 }

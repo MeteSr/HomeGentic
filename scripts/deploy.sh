@@ -1235,7 +1235,7 @@ export VITE_APP_VERSION="${VITE_APP_VERSION:-$(git -C "$REPO_ROOT" rev-parse --s
 if [ "$ENV" != "local" ]; then export REQUIRE_CANISTER_IDS=1; fi
 echo "▶ npm run build (frontend, release $VITE_APP_VERSION)..."
 if (cd "$REPO_ROOT/frontend" && npm run build); then
-  echo "  ✓ Frontend built (dist/ + .ic-assets.json5 ready)"
+  echo "  ✓ Frontend built (dist/ + _headers ready)"
 else
   echo "  ✗ Frontend build failed — aborting"
   exit 1
@@ -1245,8 +1245,18 @@ echo ""
 echo "============================================"
 echo "  Deploying Frontend Canister"
 echo "============================================"
-echo "▶ icp deploy frontend -e $ENV..."
-if icp deploy frontend --yes -e "$ENV"; then
+# One-time move from the legacy asset canister (@dfinity/asset-canister) to the
+# certified-assets canister (@dfinity/static-site, icp.yaml). The two have
+# unrelated interfaces and stable memory, so an upgrade would leave a canister
+# that serves nothing (static-site skill, pitfall 10): reinstall it instead.
+# The frontend canister holds only build output, which the deploy re-uploads.
+FRONTEND_MODE=()
+if icp canister metadata frontend candid:service -e "$ENV" 2>/dev/null | grep -q "commit_batch"; then
+  echo "  ↻ frontend still runs the legacy asset canister — reinstalling it as the certified-assets canister"
+  FRONTEND_MODE=(--mode reinstall)
+fi
+echo "▶ icp deploy frontend ${FRONTEND_MODE[*]} -e $ENV..."
+if icp deploy frontend "${FRONTEND_MODE[@]}" --yes -e "$ENV"; then
   FRONTEND_ID=$(icp canister status frontend -e "$ENV" --id-only 2>/dev/null || echo "unknown")
   echo "  ✓ Frontend canister deployed ($FRONTEND_ID)"
   # Persist frontend ID so future deploys recognise it as an existing canister.

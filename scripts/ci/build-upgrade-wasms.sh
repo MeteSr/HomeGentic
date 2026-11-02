@@ -4,12 +4,12 @@
 #   .dfx/local/canisters/<name>/<name>.wasm   this checkout (what the tests upgrade to)
 #   .dfx/base/canisters/<name>/<name>.wasm    BASE, when given (what they upgrade from)
 #
-# Compiles with moc directly (same flags as icp.yaml), so no replica or dfx is
+# Compiles with moc directly (same flags as mops.toml), so no replica or dfx is
 # needed. Canisters missing at BASE are skipped there.
 #
 # Usage: scripts/ci/build-upgrade-wasms.sh [base-ref] [canister...]
 #   MOC=/path/to/moc   moc binary (default: `mops toolchain bin moc`)
-#   With no canister names, builds every canister in icp.yaml.
+#   With no canister names, builds every canister in mops.toml.
 set -euo pipefail
 
 BASE_REF="${1:-}"
@@ -20,11 +20,11 @@ cd "$REPO_ROOT"
 MOC="${MOC:-$(mops toolchain bin moc 2>/dev/null || true)}"
 [ -x "$MOC" ] || { echo "❌ moc not found (set MOC or run: mops toolchain use moc <version>)"; exit 2; }
 
-ALL=$(awk '/^canisters:/{p=1;next} /^[a-z]/{p=0} p && /^  - name:/{n=$3} p && /main:/{print n" "$2}' icp.yaml)
+ALL=$(awk -F'"' '/^\[canisters\./{n=$0; sub(/^\[canisters\./,"",n); sub(/\].*/,"",n)} n!="" && /^main *=/{print n" "$2; n=""}' mops.toml)
 if [ $# -gt 0 ]; then
   ALL=$(echo "$ALL" | awk -v want=" $* " 'index(want, " "$1" ")')
 fi
-[ -n "$ALL" ] || { echo "❌ no matching Motoko canisters in icp.yaml"; exit 2; }
+[ -n "$ALL" ] || { echo "❌ no matching Motoko canisters in mops.toml"; exit 2; }
 
 package_flags() {   # $1 tree — resolved in that tree so a mops.toml change is honoured
   (cd "$1" && { [ -d .mops ] || mops install >/dev/null 2>&1 || true; } && mops sources) | tr '\n' ' '

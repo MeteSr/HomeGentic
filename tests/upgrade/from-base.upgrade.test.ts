@@ -17,22 +17,27 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { PocketIc, createIdentity } from "@dfinity/pic";
+import { IDL } from "@icp-sdk/core/candid";
 import type { Identity } from "@icp-sdk/core/agent";
 import { readFileSync } from "fs";
 import { createPic, wasmPath, baseWasmPath, tearDownLeftovers } from "./__helpers__/setup";
 import { idlFactory as jobIdl } from "../../packages/shared/src/declarations/job";
 import { idlFactory as propIdl } from "../../packages/shared/src/declarations/property";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
+import { idlFactory as authIdl } from "../../packages/shared/src/declarations/auth";
 
-const CANISTERS = ["photo", "sensor", "job", "property", "quote", "audit"];
+const CANISTERS = ["photo", "sensor", "job", "property", "quote", "audit", "auth"];
 const haveBase = CANISTERS.every((c) => baseWasmPath(c) !== null);
 if (!haveBase) console.warn("No base Wasm in .dfx/base/: installing this branch's build, so no version change is tested.");
 
 /** Installs `name` from the base branch; `upgrade()` moves it to this branch. */
-async function fromBase(name: string, idl: any) {
+async function fromBase(name: string, idl: any, initArg?: (ctl: Identity) => Uint8Array) {
   const pic: PocketIc = await createPic();
   const ctl = createIdentity("ctl");
-  const f = await pic.setupCanister({ idlFactory: idl, wasm: baseWasmPath(name) ?? wasmPath(name), sender: ctl.getPrincipal() });
+  const f = await pic.setupCanister({
+    idlFactory: idl, wasm: baseWasmPath(name) ?? wasmPath(name), sender: ctl.getPrincipal(),
+    ...(initArg ? { arg: initArg(ctl) } : {}),
+  });
   const as = (id: Identity) => { const a = pic.createActor<any>(idl, f.canisterId); a.setIdentity(id); return a; };
   const upgrade = () => pic.upgradeCanister({ canisterId: f.canisterId, wasm: readFileSync(wasmPath(name)) });
   /** Makes `admin` an admin: only a controller may open the bootstrap (setBootstrapNonce). */
@@ -121,6 +126,37 @@ describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this b
     await t.upgrade();
     expect(await a.getPhotosByJob("JOB_BIG")).toHaveLength(5);
     expect(await a.getPhotosByJob("JOB_1")).toHaveLength(4);
+    await t.done();
+  }, TIMEOUT);
+
+  // ── auth: agent sessions move from raw-token keys to hashed keys ─────────
+  it("auth: sessions issued before the upgrade still resolve, and stay revocable", async () => {
+    // Auth is `actor class Auth(initDeployer : Principal)`.
+    const t = await fromBase("auth", authIdl, (ctl) => IDL.encode([IDL.Principal], [ctl.getPrincipal()]));
+    const A = createIdentity("A"), B = createIdentity("B");
+    const a = t.as(A), b = t.as(B);
+    for (const [x, email] of [[a, "a@example.com"], [b, "b@example.com"]] as const) {
+      expect("ok" in await x.register({ role: { Homeowner: null }, email, phone: "555-0100" })).toBe(true);
+    }
+    const tokA = (await a.issueAgentSession()).ok.token;
+    const tokB = (await b.issueAgentSession()).ok.token;
+    await t.upgrade();
+
+    const who = async (tok: string) => (await a.resolveAgentSession(tok))[0]?.toText() ?? null;
+    expect(await who(tokA)).toBe(A.getPrincipal().toText());
+    expect(await who(tokB)).toBe(B.getPrincipal().toText());
+    expect(await who("hgs_" + "0".repeat(64))).toBeNull();
+
+    // The owner index moved too: revoking or reissuing drops the old token.
+    await a.revokeAgentSession();
+    expect(await who(tokA)).toBeNull();
+    const tokB2 = (await b.issueAgentSession()).ok.token;
+    expect(await who(tokB)).toBeNull();
+    expect(await who(tokB2)).toBe(B.getPrincipal().toText());
+
+    // A second upgrade finds nothing left to move and keeps the hashed sessions.
+    await t.upgrade();
+    expect(await who(tokB2)).toBe(B.getPrincipal().toText());
     await t.done();
   }, TIMEOUT);
 

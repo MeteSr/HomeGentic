@@ -556,7 +556,7 @@ cycles wallet.
 # 1. Deploy all Motoko canisters (writes CANISTER_ID_* to .env)
 icp deploy -e ic
 
-# 2. Build the frontend (reads .env for canister IDs; writes dist/.ic-assets.json5)
+# 2. Build the frontend (reads .env for canister IDs; writes dist/_headers)
 cd frontend && npm run build && cd ..
 
 # 3. Deploy the frontend/assets canister (uploads dist/ including security headers)
@@ -566,7 +566,7 @@ icp deploy frontend -e ic
 Running `npm run build` before step 1 would produce a bundle with empty canister
 IDs; `deploy.sh` sets `REQUIRE_CANISTER_IDS=1`, so the build fails instead.
 Running `icp deploy frontend` before step 2 will serve a stale build without the
-updated `.ic-assets.json5` security headers.
+updated `_headers` security headers.
 
 ## Frontend build variables
 

@@ -1111,4 +1111,13 @@ persistent actor Payment {
       };
     }
   };
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    auditCanisterId := Canisters.envPrincipal<system>("audit", auditCanisterId);
+  };
+  syncCanisterIds<system>();
 }

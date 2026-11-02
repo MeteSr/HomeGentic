@@ -34,13 +34,14 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/mops
-          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml', 'mops.lock') }}
 
       - name: Install mops
         run: npm install -g ic-mops@3.5.1
 
       - name: Install Motoko dependencies
-        run: mops install
+        run: |
+          mops install --locked
 
       - name: Initialize mops toolchain (downloads moc)
         run: mops toolchain use moc 1.16.1
@@ -127,12 +128,12 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/mops
-          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml', 'mops.lock') }}
 
       - name: Install mops and moc
         run: |
           npm install -g ic-mops@3.5.1
-          mops install
+          mops install --locked
           mops toolchain use moc 1.16.1
           "$(mops toolchain bin moc)" --version
 
@@ -184,11 +185,13 @@ jobs:
         # automatically on local replicas. icp-cli's managed PocketIC network has no
         # cycles infrastructure so icp canister create fails on fresh networks.
         # test-backend.sh also calls `dfx ping`, so dfx must be the active replica.
+        # dfx 0.32 or later: its replica exports the ic0.env_var_* calls the
+        # canisters use to read PUBLIC_CANISTER_ID:<name> (0.24 rejected the wasm).
         run: |
-          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz"
-          echo "d8701438d05d9da0da0c90ab9342ac9ba6b0371ae9f5d1a943e94600fd674498  /tmp/dfx.tar.gz" | sha256sum -c -
-          tar -xzf /tmp/dfx.tar.gz
-          DFX_BIN=$(find . -name "dfx*" -type f -perm /111 | head -1)
+          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.32.0/dfx-0.32.0-x86_64-linux.tar.gz"
+          echo "218dad11e0519e11c7a310b5c7cb1eadff109bb5db1ea3432f08c870432a80fc  /tmp/dfx.tar.gz" | sha256sum -c -
+          mkdir -p /tmp/dfx-install && tar -xzf /tmp/dfx.tar.gz -C /tmp/dfx-install
+          DFX_BIN=$(find /tmp/dfx-install -name dfx -type f -perm /111 | head -1)
           sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
           dfx --version
 
@@ -196,17 +199,17 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/mops
-          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml', 'mops.lock') }}
 
       - name: Install mops
         run: npm install -g ic-mops@3.5.1
 
       - name: Install Motoko dependencies
-        run: mops install
+        run: mops install --locked
 
       - name: Initialize mops toolchain (downloads moc 1.16.1)
         # Export DFX_MOC_PATH so dfx uses the mops-managed moc instead of its
-        # bundled one — dfx 0.24.x bundles an older moc that lacks persistent actor.
+        # bundled one, so every build uses moc 1.16.1.
         run: |
           mops toolchain use moc 1.16.1
           MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
@@ -243,10 +246,10 @@ jobs:
 
       - name: Install dfx
         run: |
-          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz"
-          echo "d8701438d05d9da0da0c90ab9342ac9ba6b0371ae9f5d1a943e94600fd674498  /tmp/dfx.tar.gz" | sha256sum -c -
-          tar -xzf /tmp/dfx.tar.gz
-          DFX_BIN=$(find . -name "dfx*" -type f -perm /111 | head -1)
+          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.32.0/dfx-0.32.0-x86_64-linux.tar.gz"
+          echo "218dad11e0519e11c7a310b5c7cb1eadff109bb5db1ea3432f08c870432a80fc  /tmp/dfx.tar.gz" | sha256sum -c -
+          mkdir -p /tmp/dfx-install && tar -xzf /tmp/dfx.tar.gz -C /tmp/dfx-install
+          DFX_BIN=$(find /tmp/dfx-install -name dfx -type f -perm /111 | head -1)
           sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
           dfx --version
 
@@ -254,12 +257,12 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/mops
-          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml', 'mops.lock') }}
 
       - name: Install mops and Motoko dependencies
         run: |
           npm install -g ic-mops@3.5.1
-          mops install
+          mops install --locked
           mops toolchain use moc 1.16.1
           MOC_BIN=$(mops toolchain bin moc)
           echo "DFX_MOC_PATH=$MOC_BIN" >> "$GITHUB_ENV"
