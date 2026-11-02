@@ -8,7 +8,6 @@
 import Debug     "mo:core/Debug";
 import Principal "mo:core/Principal";
 import Runtime   "mo:core/Runtime";
-import Text      "mo:core/Text";
 import Errors "Errors";
 
 module {
@@ -31,7 +30,7 @@ module {
   /// "not a valid UTF-8 string"), so the key goes through a Blob first.
   func canisterIdVar<system>(name : Text) : ?Text {
     let key = "PUBLIC_CANISTER_ID:" # name;
-    let flat = switch (Text.decodeUtf8(key.encodeUtf8())) { case (?t) t; case null key };
+    let flat = switch (key.encodeUtf8().decodeUtf8()) { case (?t) t; case null key };
     Runtime.envVar<system>(flat)
   };
 

@@ -21,9 +21,23 @@ describe("deploy.sh — reinstall guard", () => {
   const deploy = read("scripts/deploy.sh");
   const code = codeLines(deploy).join("\n");
 
+  // The frontend's one-time move off the legacy asset canister is the only
+  // other reinstall; it holds build output only (see the frontend test below).
+  const FRONTEND_REINSTALL = "FRONTEND_MODE=(--mode reinstall)";
+
   it("only ever reinstalls through the single guarded branch", () => {
-    expect(code.match(/--mode reinstall/g) ?? []).toHaveLength(1);
+    const backend = code.replace(FRONTEND_REINSTALL, "");
+    expect(backend.match(/--mode reinstall/g) ?? []).toHaveLength(1);
     expect(code).not.toMatch(/--mode\s+"\$INSTALL_MODE"/);
+  });
+
+  it("reinstalls the frontend only while it still runs the legacy asset canister", () => {
+    expect(code.split(FRONTEND_REINSTALL)).toHaveLength(2);
+    const at = code.indexOf(FRONTEND_REINSTALL);
+    const gate = code.slice(code.lastIndexOf("if ", at), at);
+    expect(gate).toContain("icp canister metadata frontend candid:service");
+    expect(gate).toContain("commit_batch");
+    expect(code).toMatch(/icp deploy frontend "\$\{FRONTEND_MODE\[@\]\}"/);
   });
 
   it("tries an in-place upgrade before any reinstall", () => {
@@ -61,6 +75,7 @@ describe("stable-compat CI gate", () => {
     const script = read("scripts/ci/check-stable-compat.sh");
     expect(script).toContain("--stable-types");
     expect(script).toContain("--stable-compatible");
-    expect(script).toContain("icp.yaml");
+    // Canister entry points come from mops.toml's [canisters] tables.
+    expect(script).toContain("mops.toml");
   });
 });

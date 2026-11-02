@@ -73,12 +73,13 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/mops
-          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml', 'mops.lock') }}
 
       - name: Install mops and Motoko dependencies
         run: |
           npm install -g ic-mops@3.5.1
-          mops install
+          # The base leg runs the base branch's mops.toml, which the lock may not match.
+          mops install ${{ matrix.leg == 'head' && '--locked' || '' }}
           mops toolchain use moc 1.16.1
           MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
           if [ -z "$MOC_BIN" ]; then

@@ -34,16 +34,14 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/mops
-          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml', 'mops.lock') }}
 
       - name: Install mops
         run: npm install -g ic-mops@3.5.1
 
       - name: Install Motoko dependencies
         run: |
-          mops install
-          # TEMPORARY: print the generated lock so it can be committed.
-          if ! git ls-files --error-unmatch mops.lock >/dev/null 2>&1; then echo "----- mops.lock -----"; cat mops.lock; echo "----- end mops.lock -----"; fi
+          mops install --locked
 
       - name: Initialize mops toolchain (downloads moc)
         run: mops toolchain use moc 1.16.1
@@ -130,12 +128,12 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/mops
-          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml', 'mops.lock') }}
 
       - name: Install mops and moc
         run: |
           npm install -g ic-mops@3.5.1
-          mops install
+          mops install --locked
           mops toolchain use moc 1.16.1
           "$(mops toolchain bin moc)" --version
 
@@ -201,13 +199,13 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/mops
-          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml', 'mops.lock') }}
 
       - name: Install mops
         run: npm install -g ic-mops@3.5.1
 
       - name: Install Motoko dependencies
-        run: mops install
+        run: mops install --locked
 
       - name: Initialize mops toolchain (downloads moc 1.16.1)
         # Export DFX_MOC_PATH so dfx uses the mops-managed moc instead of its
@@ -259,12 +257,12 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/mops
-          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml', 'mops.lock') }}
 
       - name: Install mops and Motoko dependencies
         run: |
           npm install -g ic-mops@3.5.1
-          mops install
+          mops install --locked
           mops toolchain use moc 1.16.1
           MOC_BIN=$(mops toolchain bin moc)
           echo "DFX_MOC_PATH=$MOC_BIN" >> "$GITHUB_ENV"
