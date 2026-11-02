@@ -62,10 +62,10 @@ jobs:
 
       - name: Install dfx
         run: |
-          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz"
-          echo "d8701438d05d9da0da0c90ab9342ac9ba6b0371ae9f5d1a943e94600fd674498  /tmp/dfx.tar.gz" | sha256sum -c -
-          tar -xzf /tmp/dfx.tar.gz
-          DFX_BIN=$(find . -name "dfx*" -type f -perm /111 | head -1)
+          curl -fsSL -o /tmp/dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/0.32.0/dfx-0.32.0-x86_64-linux.tar.gz"
+          echo "218dad11e0519e11c7a310b5c7cb1eadff109bb5db1ea3432f08c870432a80fc  /tmp/dfx.tar.gz" | sha256sum -c -
+          mkdir -p /tmp/dfx-install && tar -xzf /tmp/dfx.tar.gz -C /tmp/dfx-install
+          DFX_BIN=$(find /tmp/dfx-install -name dfx -type f -perm /111 | head -1)
           sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
           dfx --version
 
