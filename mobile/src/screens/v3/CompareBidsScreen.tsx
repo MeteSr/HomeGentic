@@ -6,6 +6,7 @@ import { useLoad } from "../../hooks/useLoad";
 import { acceptBid, Bid, getBids } from "../../services/quoteService";
 import { Card, Chip, chipTone, EmptyRow, Kicker, Loading, Pill, PushedScroll } from "../../components/ui";
 import { family, type, v3 } from "../../theme";
+import { errorMessage } from "@homegentic/shared/canisterError";
 
 type Props = NativeStackScreenProps<RootStackParamList, "CompareBids">;
 
@@ -36,7 +37,7 @@ export default function CompareBidsScreen({ route, navigation }: Props) {
               await acceptBid(b.id);
               await bids.reload();
             } catch (e: any) {
-              Alert.alert("Couldn't accept the bid", e?.message ?? "Try again in a moment.");
+              Alert.alert("Couldn't accept the bid", errorMessage(e, "Try again in a moment."));
             } finally {
               setAccepting(null);
             }

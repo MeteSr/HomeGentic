@@ -7,7 +7,11 @@ import { HttpAgent } from "@icp-sdk/core/agent";
 import { idlFactory as recurringIdl }   from "@homegentic/shared/declarations/recurring";
 import { idlFactory as maintenanceIdl } from "@homegentic/shared/declarations/maintenance";
 import { idlFactory as sensorIdl }      from "@homegentic/shared/declarations/sensor";
-import { actorFor, nsToMs, tag, unwrap } from "./canister";
+import { actorFor, nsToMs, tag, unwrap, variant } from "./canister";
+import type { _SERVICE as MaintenanceCanister } from "@homegentic/shared/types/maintenance";
+import type { _SERVICE as RecurringCanister } from "@homegentic/shared/types/recurring";
+import type { _SERVICE as SensorCanister } from "@homegentic/shared/types/sensor";
+import type * as RecurringTypes from "@homegentic/shared/types/recurring";
 
 const RECURRING_CANISTER_ID   = process.env.EXPO_PUBLIC_RECURRING_CANISTER_ID   ?? "";
 const MAINTENANCE_CANISTER_ID = process.env.EXPO_PUBLIC_MAINTENANCE_CANISTER_ID ?? "";
@@ -76,7 +80,7 @@ export function nextDue(svc: Pick<RecurringService, "startDate" | "lastVisit" | 
 }
 
 export async function getRecurringServices(propertyId: string, agent?: HttpAgent): Promise<RecurringService[]> {
-  const a = actorFor(recurringIdl, RECURRING_CANISTER_ID, agent);
+  const a = actorFor<RecurringCanister>(recurringIdl, RECURRING_CANISTER_ID, agent);
   const raw: any[] = await a.getByProperty(propertyId);
   const active = raw.filter((r) => tag(r.status) !== "Cancelled");
   const logs: any[][] = await Promise.all(active.map((r) => a.getVisitLogs(r.id).catch(() => [])));
@@ -101,13 +105,13 @@ export async function createRecurringService(
   input: { serviceType: RecurringServiceType; providerName: string; providerPhone: string | null; frequency: Frequency; startDate: string; notes: string | null },
   agent?: HttpAgent,
 ): Promise<void> {
-  unwrap(await actorFor(recurringIdl, RECURRING_CANISTER_ID, agent).createRecurringService(
+  unwrap(await actorFor<RecurringCanister>(recurringIdl, RECURRING_CANISTER_ID, agent).createRecurringService(
     propertyId,
-    { [input.serviceType]: null },
+    variant<RecurringTypes.RecurringServiceType>(input.serviceType),
     input.providerName,
     [],
     input.providerPhone ? [input.providerPhone] : [],
-    { [input.frequency]: null },
+    variant<RecurringTypes.Frequency>(input.frequency),
     input.startDate,
     [],
     input.notes ? [input.notes] : [],
@@ -117,7 +121,7 @@ export async function createRecurringService(
 /** Logs a visit for today — "Mark done". */
 export async function logVisit(serviceId: string, today = new Date(), agent?: HttpAgent): Promise<void> {
   const date = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, "0"), String(today.getDate()).padStart(2, "0")].join("-");
-  unwrap(await actorFor(recurringIdl, RECURRING_CANISTER_ID, agent).addVisitLog(serviceId, date, []));
+  unwrap(await actorFor<RecurringCanister>(recurringIdl, RECURRING_CANISTER_ID, agent).addVisitLog(serviceId, date, []));
 }
 
 // ── Maintenance schedule ─────────────────────────────────────────────────────
@@ -132,7 +136,7 @@ export interface ScheduleEntry {
 }
 
 export async function getSchedule(propertyId: string, agent?: HttpAgent): Promise<ScheduleEntry[]> {
-  const raw: any[] = await actorFor(maintenanceIdl, MAINTENANCE_CANISTER_ID, agent).getScheduleByProperty(propertyId);
+  const raw: any[] = await actorFor<MaintenanceCanister>(maintenanceIdl, MAINTENANCE_CANISTER_ID, agent).getScheduleByProperty(propertyId);
   return raw.map((e) => ({
     id:              e.id,
     systemName:      e.systemName,
@@ -144,7 +148,7 @@ export async function getSchedule(propertyId: string, agent?: HttpAgent): Promis
 }
 
 export async function completeScheduleEntry(entryId: string, agent?: HttpAgent): Promise<void> {
-  unwrap(await actorFor(maintenanceIdl, MAINTENANCE_CANISTER_ID, agent).markCompleted(entryId));
+  unwrap(await actorFor<MaintenanceCanister>(maintenanceIdl, MAINTENANCE_CANISTER_ID, agent).markCompleted(entryId));
 }
 
 /** A planned task is overdue once its month (or year, if no month) has passed. */
@@ -287,7 +291,7 @@ export function summariseSensors(
 
 export async function getSensorSummaries(propertyId: string, agent?: HttpAgent): Promise<SensorSummary[]> {
   if (!SENSOR_CANISTER_ID) return [];
-  const a = actorFor(sensorIdl, SENSOR_CANISTER_ID, agent);
+  const a = actorFor<SensorCanister>(sensorIdl, SENSOR_CANISTER_ID, agent);
   const [devices, events]: [any[], any[]] = await Promise.all([
     a.getDevicesForProperty(propertyId),
     a.getEventsForProperty(propertyId, 50n),

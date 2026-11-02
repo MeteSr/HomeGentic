@@ -1,7 +1,9 @@
 import { HttpAgent } from "@icp-sdk/core/agent";
 import { Principal } from "@icp-sdk/core/principal";
 import { idlFactory } from "@homegentic/shared/declarations/property";
-import { actorFor, nsToMs, tag, unwrap } from "./canister";
+import { actorFor, nsToMs, tag, unwrap, variant } from "./canister";
+import type { _SERVICE as PropertyCanister } from "@homegentic/shared/types/property";
+import type * as PropertyTypes from "@homegentic/shared/types/property";
 
 export type VerificationLevel = "Unverified" | "PendingReview" | "Basic" | "Premium";
 export type ManagerRole = "Viewer" | "Manager" | "CoOwner";
@@ -72,7 +74,7 @@ export interface Room {
 const PROPERTY_CANISTER_ID = process.env.EXPO_PUBLIC_PROPERTY_CANISTER_ID ?? "";
 
 function actor(agent?: HttpAgent) {
-  return actorFor(idlFactory, PROPERTY_CANISTER_ID, agent);
+  return actorFor<PropertyCanister>(idlFactory, PROPERTY_CANISTER_ID, agent);
 }
 
 export function fromRaw(raw: any): Property {
@@ -142,7 +144,7 @@ export async function inviteManager(
 ): Promise<ManagerInvite> {
   const raw: any = unwrap(await actor(agent).inviteManager(
     propertyId,
-    { [role]: null },
+    variant<PropertyTypes.ManagerRole>(role),
     displayName,
     spendLimitCents == null ? [] : [BigInt(spendLimitCents)],
   ));
@@ -159,7 +161,7 @@ export async function updateManager(
   unwrap(await actor(agent).updateManagerRole(
     propertyId,
     Principal.fromText(managerPrincipal),
-    { [role]: null },
+    variant<PropertyTypes.ManagerRole>(role),
     spendLimitCents == null ? [] : [BigInt(spendLimitCents)],
   ));
 }

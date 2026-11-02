@@ -1,4 +1,4 @@
-import { HttpAgent, Actor } from "@icp-sdk/core/agent";
+import type { HttpAgent } from "@icp-sdk/core/agent";
 import { idlFactory as quoteIdlFactory } from "@homegentic/shared/declarations/quote";
 import { idlFactory as jobIdlFactory } from "@homegentic/shared/declarations/job";
 import { idlFactory as contractorIdlFactory } from "@homegentic/shared/declarations/contractor";
@@ -6,6 +6,10 @@ import { getIcpAgent }      from "./icpAgent";
 import { referralFeeCents, isFeeFloored, type PlanTier } from "./planService";
 import { serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import type { Job } from "./jobService";
+import { actorFor } from "./canister";
+import type { _SERVICE as ContractorCanister } from "@homegentic/shared/types/contractor";
+import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
+import type { _SERVICE as QuoteCanister } from "@homegentic/shared/types/quote";
 
 export type Urgency = "Low" | "Medium" | "High" | "Emergency";
 
@@ -116,21 +120,15 @@ function fromPendingJob(raw: any): PendingSignatureJob {
 
 export async function getLeads(agent?: HttpAgent): Promise<Lead[]> {
   const ag = agent ?? getIcpAgent();
-  const a = Actor.createActor(quoteIdlFactory as any, {
-    agent: ag,
-    canisterId: QUOTE_CANISTER_ID,
-  });
-  const raw: any[] = await (a as any).getOpenRequests();
+  const a = actorFor<QuoteCanister>(quoteIdlFactory, QUOTE_CANISTER_ID, ag);
+  const raw: any[] = await a.getOpenRequests();
   return raw.map(fromQuoteRequest);
 }
 
 export async function getPendingSignatureJobs(agent?: HttpAgent): Promise<PendingSignatureJob[]> {
   const ag = agent ?? getIcpAgent();
-  const a = Actor.createActor(jobIdlFactory as any, {
-    agent: ag,
-    canisterId: JOB_CANISTER_ID,
-  });
-  const raw: any[] = await (a as any).getJobsPendingMySignature();
+  const a = actorFor<JobCanister>(jobIdlFactory, JOB_CANISTER_ID, ag);
+  const raw: any[] = await a.getJobsPendingMySignature();
   return raw.map(fromPendingJob);
 }
 
@@ -156,8 +154,8 @@ const CONTRACTOR_CANISTER_ID = process.env.EXPO_PUBLIC_CONTRACTOR_CANISTER_ID ??
 /** The signed-in contractor's profile, or null if they haven't set one up. */
 export async function getMyContractorProfile(agent?: HttpAgent): Promise<ContractorProfile | null> {
   if (!CONTRACTOR_CANISTER_ID) return null;
-  const a = Actor.createActor(contractorIdlFactory as any, { agent: agent ?? getIcpAgent(), canisterId: CONTRACTOR_CANISTER_ID });
-  const r: any = await (a as any).getMyProfile();
+  const a = actorFor<ContractorCanister>(contractorIdlFactory, CONTRACTOR_CANISTER_ID, agent ?? getIcpAgent());
+  const r: any = await a.getMyProfile();
   if (!("ok" in r)) return null;
   return {
     name:          r.ok.name,

@@ -9,6 +9,7 @@
 import type { HttpAgent } from "@icp-sdk/core/agent";
 import { idlFactory } from "@homegentic/shared/declarations/listing";
 import { actorFor, nsToMs, tag } from "./canister";
+import type { _SERVICE as ListingCanister } from "@homegentic/shared/types/listing";
 
 const LISTING_CANISTER_ID = process.env.EXPO_PUBLIC_LISTING_CANISTER_ID ?? "";
 
@@ -119,7 +120,7 @@ function unwrapListing<T>(result: any): T {
 
 function actor(agent?: HttpAgent): any {
   if (!LISTING_CANISTER_ID) throw new Error("Listings aren't available in this build.");
-  return actorFor(idlFactory, LISTING_CANISTER_ID, agent);
+  return actorFor<ListingCanister>(idlFactory, LISTING_CANISTER_ID, agent);
 }
 
 // ── Reads ─────────────────────────────────────────────────────────────────────

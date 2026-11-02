@@ -1,11 +1,15 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { HttpAgent, Actor } from "@icp-sdk/core/agent";
+import type { HttpAgent } from "@icp-sdk/core/agent";
 import { idlFactory as jobIdlFactory }   from "@homegentic/shared/declarations/job";
 import { idlFactory as photoIdlFactory } from "@homegentic/shared/declarations/photo";
 import { uploadPhotoPreferOffChain, type OffChainDeps } from "@homegentic/shared/photoUpload";
 import { getIcpAgent }      from "./icpAgent";
 import { getAgentSessionToken } from "./agentSession";
+import { actorFor, unwrap } from "./canister";
+import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
+import type { _SERVICE as PhotoCanister } from "@homegentic/shared/types/photo";
+import { serviceTypeVariant } from "@homegentic/shared/serviceTypes";
 
 export type JobStatus = "pending" | "awaiting_contractor" | "verified" | "pending_homeowner_approval";
 
@@ -44,14 +48,12 @@ export interface Job {
 const JOB_CANISTER_ID   = process.env.EXPO_PUBLIC_JOB_CANISTER_ID   ?? "";
 const PHOTO_CANISTER_ID = process.env.EXPO_PUBLIC_PHOTO_CANISTER_ID ?? "";
 
-
-
 function getJobActor(agent: HttpAgent) {
-  return Actor.createActor(jobIdlFactory as any, { agent, canisterId: JOB_CANISTER_ID });
+  return actorFor<JobCanister>(jobIdlFactory, JOB_CANISTER_ID, agent);
 }
 
 function getPhotoActor(agent: HttpAgent) {
-  return Actor.createActor(photoIdlFactory as any, { agent, canisterId: PHOTO_CANISTER_ID });
+  return actorFor<PhotoCanister>(photoIdlFactory, PHOTO_CANISTER_ID, agent);
 }
 
 const STATUS_MAP: Record<string, JobStatus> = {
@@ -88,13 +90,6 @@ function fromRaw(raw: any): Job {
   };
 }
 
-function unwrap<T>(result: any): T {
-  if ("ok" in result) return result.ok as T;
-  const key = Object.keys(result.err)[0];
-  const val = result.err[key];
-  throw new Error(typeof val === "string" ? val : key);
-}
-
 // ── Date helper ───────────────────────────────────────────────────────────────
 
 /** Convert YYYY-MM-DD string to nanoseconds (BigInt) for the canister. */
@@ -106,17 +101,17 @@ function dateToNs(dateStr: string): bigint {
 
 export async function getJobs(propertyId: string, agent?: HttpAgent): Promise<Job[]> {
   const a = getJobActor(agent ?? getIcpAgent());
-  const result = await (a as any).getJobsForProperty(propertyId);
+  const result = await a.getJobsForProperty(propertyId);
   const raw: any[] = unwrap(result);
   return raw.map(fromRaw);
 }
 
 export async function createJob(input: CreateJobInput, agent?: HttpAgent): Promise<Job> {
   const a = getJobActor(agent ?? getIcpAgent());
-  const result = await (a as any).createJob(
+  const result = await a.createJob(
     input.propertyId,
     input.description,           // title — use description as title on mobile
-    { [input.serviceType]: null },
+    serviceTypeVariant(input.serviceType),
     input.description,
     input.contractorName ? [input.contractorName] : [],
     BigInt(input.amountCents),
@@ -134,7 +129,7 @@ export async function createJob(input: CreateJobInput, agent?: HttpAgent): Promi
  */
 export async function getPendingProposals(agent?: HttpAgent): Promise<Job[]> {
   const a = getJobActor(agent ?? getIcpAgent());
-  const raw: any[] = await (a as any).getPendingProposals();
+  const raw: any[] = await a.getPendingProposals();
   return raw.map(fromRaw);
 }
 
@@ -143,7 +138,7 @@ export async function getPendingProposals(agent?: HttpAgent): Promise<Job[]> {
  */
 export async function getJobsPendingMySignature(agent?: HttpAgent): Promise<Job[]> {
   const a = getJobActor(agent ?? getIcpAgent());
-  const raw: any[] = await (a as any).getJobsPendingMySignature();
+  const raw: any[] = await a.getJobsPendingMySignature();
   return raw.map(fromRaw);
 }
 
@@ -153,7 +148,7 @@ export async function getJobsPendingMySignature(agent?: HttpAgent): Promise<Job[
  */
 export async function getMyReferralJobs(agent?: HttpAgent): Promise<Job[]> {
   const a = getJobActor(agent ?? getIcpAgent());
-  const raw: any[] = await (a as any).getMyReferralJobs();
+  const raw: any[] = await a.getMyReferralJobs();
   return raw.map(fromRaw);
 }
 
@@ -162,7 +157,7 @@ export async function getMyReferralJobs(agent?: HttpAgent): Promise<Job[]> {
  */
 export async function verifyJob(jobId: string, agent?: HttpAgent): Promise<Job> {
   const a = getJobActor(agent ?? getIcpAgent());
-  const result = await (a as any).verifyJob(jobId);
+  const result = await a.verifyJob(jobId);
   return fromRaw(unwrap(result));
 }
 

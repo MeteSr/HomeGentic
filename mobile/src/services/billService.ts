@@ -11,6 +11,7 @@ import { aiRefusalMessage } from "@homegentic/shared/aiChecks";
 import { aiFetch } from "./aiFetch";
 import { idlFactory } from "@homegentic/shared/declarations/bills";
 import { actorFor, nsToMs, tag } from "./canister";
+import type { _SERVICE as BillsCanister } from "@homegentic/shared/types/bills";
 
 const VOICE_AGENT_URL =
   process.env.EXPO_PUBLIC_VOICE_AGENT_URL ?? "http://localhost:8787";
@@ -94,7 +95,7 @@ export async function extractBill(
 
 function billsActor(): any {
   if (!BILLS_CANISTER_ID) throw new Error("Bills aren't available in this build (EXPO_PUBLIC_BILLS_CANISTER_ID is not set)");
-  return actorFor(idlFactory, BILLS_CANISTER_ID);
+  return actorFor<BillsCanister>(idlFactory, BILLS_CANISTER_ID);
 }
 
 /** Map a bills-canister error variant to an Error (TierLimitReachedError for the plan limit). */

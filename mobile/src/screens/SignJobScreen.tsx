@@ -17,6 +17,7 @@ import {
   canSign,
 } from "../services/signJobService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
+import { errorMessage } from "@homegentic/shared/canisterError";
 
 // SignJobScreen is mounted from ContractorStack.
 // For homeowner signing (15.8.4), add the same screen to ChatStack when needed.
@@ -67,7 +68,7 @@ export default function SignJobScreen({ route, navigation }: Props) {
                 [{ text: "OK", onPress: () => navigation.goBack() }],
               );
             } catch (err) {
-              const msg = err instanceof Error ? err.message : "Something went wrong";
+              const msg = errorMessage(err, "Something went wrong");
               Alert.alert("Could not sign", msg);
             } finally {
               setSigning(false);

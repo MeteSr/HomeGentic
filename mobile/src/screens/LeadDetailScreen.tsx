@@ -20,6 +20,7 @@ import {
   type BidForm,
 } from "../services/bidFormService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
+import { errorMessage } from "@homegentic/shared/canisterError";
 
 type Props = NativeStackScreenProps<RootStackParamList, "LeadDetail">;
 
@@ -74,7 +75,7 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
                 [{ text: "OK", onPress: () => navigation.goBack() }],
               );
             } catch (err) {
-              const msg = err instanceof Error ? err.message : "Something went wrong";
+              const msg = errorMessage(err, "Something went wrong");
               Alert.alert("Could not submit bid", msg);
             } finally {
               setSubmitting(false);

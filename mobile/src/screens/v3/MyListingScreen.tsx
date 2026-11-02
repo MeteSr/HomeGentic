@@ -12,6 +12,7 @@ import {
 import { HOMEGENTIC_WEB_URL } from "../../services/reportService";
 import { Card, Chip, chipTone, CloseButton, EmptyRow, Kicker, Loading, Pill, PushedScroll, SectionLabel, Sheet } from "../../components/ui";
 import { family, type, v3 } from "../../theme";
+import { errorMessage } from "@homegentic/shared/canisterError";
 
 type Props = NativeStackScreenProps<RootStackParamList, "MyListing">;
 
@@ -84,7 +85,7 @@ export default function MyListingScreen({ route, navigation }: Props) {
       setEditing(null);
       await data.reload();
     } catch (e: any) {
-      Alert.alert(failTitle, e?.message ?? "Check your connection and try again.");
+      Alert.alert(failTitle, errorMessage(e, "Check your connection and try again."));
     } finally {
       setBusy(null);
     }
