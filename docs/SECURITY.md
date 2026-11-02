@@ -15,7 +15,7 @@ which is the first call in every public `shared` update function:
 
 ```motoko
 private func requireActive(caller: Principal) : Result.Result<(), Error> {
-  if (Principal.isAnonymous(caller)) return #err(#Unauthorized);
+  if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
   // ... pause check, rate limit check
 };
 ```
