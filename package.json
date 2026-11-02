@@ -35,9 +35,9 @@
     "gen:declaration-types": "node --experimental-strip-types --no-warnings scripts/gen-declaration-types.mjs"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.11.1",
+    "@axe-core/playwright": "^4.14.0",
     "@dfinity/internet-identity-playwright": "^3.0.0",
-    "@playwright/test": "^1.44.0",
+    "@playwright/test": "^1.64.1",
     "axe-playwright": "^2.2.2",
     "knip": "^6.44.1",
     "oxlint": "^1.90.0",
