@@ -284,9 +284,11 @@ wait_for_background() {
 }
 
 # ── Seed icp-cli state from canister_ids.json ────────────────────────────────
-# icp canister install resolves names via .icp/data/mappings/<env>.ids.json.
-# On a fresh CI runner that file doesn't exist; generate it from the committed
-# canister_ids.json so installs work without re-creating canister slots.
+# icp canister install resolves names via .icp/data/mappings/<env>.ids.json,
+# which icp-cli treats as the source of truth. canister_ids.json (dfx format)
+# is kept for the scripts that still read it. Merge the two: an ID already in
+# the mappings file wins, a disagreement is printed, and IDs only in
+# canister_ids.json are added, so installs work without re-creating slots.
 if [ "$ENV" != "local" ] && [ -f "canister_ids.json" ] && command -v python3 >/dev/null 2>&1; then
   mkdir -p ".icp/data/mappings"
   ENV="$ENV" python3 - <<'PYEOF'
@@ -295,19 +297,25 @@ env = os.environ.get("ENV", "")
 src = json.load(open("canister_ids.json"))
 flat = {k: v[env] for k, v in src.items() if isinstance(v, dict) and v.get(env)}
 dest = f".icp/data/mappings/{env}.ids.json"
-json.dump(flat, open(dest, "w"), indent=2)
-print(f"  ✓ Seeded {len(flat)} canister IDs into {dest}")
+mapped = json.load(open(dest)) if os.path.exists(dest) else {}
+for name, cid in flat.items():
+    if name in mapped and mapped[name] != cid:
+        print(f"  ⚠️  {name}: {dest} has {mapped[name]}, canister_ids.json has {cid}; using {dest}")
+merged = {**flat, **mapped}
+json.dump(merged, open(dest, "w"), indent=2)
+print(f"  ✓ {len(merged)} canister IDs in {dest}")
 PYEOF
 fi
 
 # ── Determine which canisters need new slot creation ─────────────────────────
-# Read canister_ids.json to skip creation for canisters already deployed.
-# Upgrade deploys (all IDs known) cost 0 cycles — only fresh canisters need 2T each.
+# Read the merged mappings file (seeded above) to skip creation for canisters
+# already deployed. Upgrade deploys (all IDs known) cost 0 cycles.
 CANISTERS_TO_CREATE=()
-if [ "$ENV" != "local" ] && [ -f "canister_ids.json" ] && command -v python3 >/dev/null 2>&1; then
-  # Check all 17 backend canisters plus frontend (deployed separately but also needs a slot)
+_MAPPINGS=".icp/data/mappings/$ENV.ids.json"
+if [ "$ENV" != "local" ] && [ -f "$_MAPPINGS" ] && command -v python3 >/dev/null 2>&1; then
+  # Check every backend canister plus frontend (deployed separately but also needs a slot)
   for _c in "${CANISTERS[@]}" frontend; do
-    _id=$(python3 -c "import json,sys; d=json.load(open('canister_ids.json')); print(d.get('$_c',{}).get('$ENV',''))" 2>/dev/null || echo "")
+    _id=$(python3 -c "import json,sys; d=json.load(open('$_MAPPINGS')); print(d.get('$_c',''))" 2>/dev/null || echo "")
     [ -z "$_id" ] && CANISTERS_TO_CREATE+=("$_c")
   done
 else
@@ -315,37 +323,53 @@ else
 fi
 
 if [ ${#CANISTERS_TO_CREATE[@]} -eq 0 ]; then
-  echo "▶ All canister IDs found in canister_ids.json — upgrade deploy, skipping slot creation"
+  echo "▶ All canister IDs found in $_MAPPINGS — upgrade deploy, skipping slot creation"
 else
   echo "▶ ${#CANISTERS_TO_CREATE[@]} new canister slot(s) needed: ${CANISTERS_TO_CREATE[*]}"
 fi
 
-# ── Fund cycles ledger from dfx wallet (non-local fresh deploy only) ─────────
-# Only needed when creating new canister slots (2T each). Upgrade deploys skip this.
-if [ "$ENV" != "local" ] && [ ${#CANISTERS_TO_CREATE[@]} -gt 0 ] && [ -n "${DFX_WALLET_ID:-}" ] && [ -n "${DFX_IDENTITY_PEM:-}" ]; then
-  echo "▶ Configuring dfx wallet for cycles-funded canister creation..."
-  _DFX_PEM=$(mktemp /tmp/dfx-pem-XXXXXX.pem)
-  printf '%s' "$DFX_IDENTITY_PEM" > "$_DFX_PEM"
-  dfx identity import --storage-mode=plaintext ci-deploy "$_DFX_PEM" 2>/dev/null || true
-  dfx identity use ci-deploy
-  dfx identity set-wallet "$DFX_WALLET_ID" --network ic
-  rm -f "$_DFX_PEM"
-  echo "  ✓ dfx wallet: $DFX_WALLET_ID"
-
-  # 2.5T per new canister (2T slot + 0.5T overhead for install gas and calls).
-  # Wallet must hold at least this amount — top up at https://nns.ic0.app if needed.
-  _FUND=$(( ${#CANISTERS_TO_CREATE[@]} * 2500000000000 ))
-  echo "▶ Depositing ${_FUND} cycles (${#CANISTERS_TO_CREATE[@]} × 2.5T) from wallet to cycles ledger for $DEPLOY_PRINCIPAL..."
-  if dfx canister call um5iw-rqaaa-aaaaq-qaaba-cai deposit \
-    "(record { to = record { owner = principal \"$DEPLOY_PRINCIPAL\"; subaccount = null }; memo = null; created_at_time = null })" \
-    --with-cycles "$_FUND" \
-    --wallet "$DFX_WALLET_ID" \
-    --network ic; then
-    echo "  ✓ Cycles ledger funded"
-  else
-    echo "  ⚠️  Cycles ledger deposit failed."
-    echo "     Ensure wallet $DFX_WALLET_ID has ≥ 40T cycles before a fresh deploy."
-    echo "     Upgrade deploys (canisters already exist) do not need this step."
+# ── Fund the deploy identity's cycles (non-local fresh deploy only) ─────────
+# Only needed when creating new canister slots. Upgrade deploys skip this.
+# icp-cli skill, "Funding an identity for mainnet": each creation takes 2T plus
+# the cycles-ledger fee (100M) from the identity's balance; add 10% margin.
+# Order: already enough → nothing to do; else mint the gap from the identity's
+# ICP; else the legacy dfx cycles wallet (DFX_WALLET_ID + DFX_IDENTITY_PEM);
+# else stop and say how much is missing.
+if [ "$ENV" != "local" ] && [ ${#CANISTERS_TO_CREATE[@]} -gt 0 ]; then
+  _NEED=$(( ${#CANISTERS_TO_CREATE[@]} * 2100000000000 * 11 / 10 ))
+  _HAVE=$(icp cycles balance -n ic -q 2>/dev/null | tr -dc '0-9' || true)
+  _HAVE=${_HAVE:-0}
+  echo "▶ Cycles for ${#CANISTERS_TO_CREATE[@]} new canister(s): need ${_NEED}, deploy identity has ${_HAVE}"
+  if [ "$_HAVE" -lt "$_NEED" ]; then
+    _GAP=$(( _NEED - _HAVE ))
+    if icp cycles mint --cycles "$_GAP" -n ic >/dev/null 2>&1; then
+      echo "  ✓ Minted ${_GAP} cycles from the deploy identity's ICP"
+    elif [ -n "${DFX_WALLET_ID:-}" ] && [ -n "${DFX_IDENTITY_PEM:-}" ]; then
+      # Legacy path (icp-cli skill pitfall 1: dfx is being retired here).
+      # Remove once the deploy identity holds ICP or cycles of its own.
+      echo "▶ No ICP to mint from; depositing ${_GAP} cycles from dfx wallet $DFX_WALLET_ID..."
+      _DFX_PEM=$(mktemp /tmp/dfx-pem-XXXXXX.pem)
+      printf '%s' "$DFX_IDENTITY_PEM" > "$_DFX_PEM"
+      dfx identity import --storage-mode=plaintext ci-deploy "$_DFX_PEM" 2>/dev/null || true
+      dfx identity use ci-deploy
+      dfx identity set-wallet "$DFX_WALLET_ID" --network ic
+      rm -f "$_DFX_PEM"
+      if dfx canister call um5iw-rqaaa-aaaaq-qaaba-cai deposit \
+        "(record { to = record { owner = principal \"$DEPLOY_PRINCIPAL\"; subaccount = null }; memo = null; created_at_time = null })" \
+        --with-cycles "$_GAP" \
+        --wallet "$DFX_WALLET_ID" \
+        --network ic; then
+        echo "  ✓ Cycles ledger funded"
+      else
+        echo "  ERROR: cycles ledger deposit from wallet $DFX_WALLET_ID failed (short ${_GAP} cycles)."
+        exit 1
+      fi
+    else
+      echo "  ERROR: the deploy identity $DEPLOY_PRINCIPAL is short ${_GAP} cycles and holds no ICP to mint from."
+      echo "     Send it ICP and run: icp cycles mint --cycles ${_GAP} -n ic"
+      echo "     or buy cycles with a card: icp cycles buy --cycles ${_GAP} -n ic"
+      exit 1
+    fi
   fi
 fi
 
