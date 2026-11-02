@@ -1,6 +1,17 @@
 # HomeGentic API Reference
 
 All canisters return `Result.Result<T, Error>` on update calls unless noted otherwise.
+
+**Errors.** Each canister's `Error` contains the shared cases from `backend/shared/Errors.mo` plus the cases listed in its section. A client can rely on these:
+
+| Case | Meaning | Retry |
+|---|---|---|
+| `#NotAuthorized` | The caller may not do this (anonymous, not the owner, not an admin) | No |
+| `#NotFound` | The thing asked for doesn't exist | No |
+| `#InvalidInput : Text` | The request isn't acceptable, including a daily or per-property cap; the text is for a person | Not as sent |
+| `#Paused` | An admin paused writes on this canister | Later |
+| `#RateLimited` | The caller went over the per-minute update limit | After a minute |
+| `#Unavailable : Text` | A canister this one depends on isn't wired or didn't answer; the text is for a person | Later |
 Every canister exposes a metrics query — `getMetrics()` in most, `metrics()` in agent, audit, bills, fee, listing and referrals — and the admin lifecycle methods listed at the end of each section.
 
 Signatures and query/update types in this file are generated from the Motoko source; the canister's `main.mo` is authoritative if they ever disagree.

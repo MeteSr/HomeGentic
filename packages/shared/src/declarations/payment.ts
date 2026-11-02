@@ -18,6 +18,8 @@ export const idlFactory = ({ IDL }: any) => {
     PaymentFailed: IDL.Text,
     RateLimited:   IDL.Null,
     InvalidInput:  IDL.Text,
+    Paused: IDL.Null,
+    Unavailable: IDL.Text,
   });
   const PricingInfo = IDL.Record({
     tier:                  Tier,

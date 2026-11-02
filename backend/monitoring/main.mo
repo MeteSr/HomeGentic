@@ -21,6 +21,7 @@ import Timer     "mo:core/Timer";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Monitoring {
 
@@ -130,11 +131,7 @@ persistent actor Monitoring {
     fromCache   : Bool;         // true = fell back to last recordCanisterMetrics value
   };
 
-  public type Error = {
-    #NotFound;
-    #NotAuthorized;
-    #InvalidInput: Text;
-  };
+  public type Error = Errors.Common;
 
   public type ProductMetrics = {
     // Property verification funnel
@@ -377,9 +374,9 @@ persistent actor Monitoring {
 
   private func _requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
+      return #err(#RateLimited)
     };
     #ok(())
   };

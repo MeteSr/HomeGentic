@@ -16,6 +16,7 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
+import { errorMessage } from "@/services/candid";
 
 const UI = V2_COLORS;
 const CARD_SHADOW = "0 1px 3px rgba(11,13,26,0.05)";
@@ -103,7 +104,7 @@ export default function ListingNewPage() {
       toast.success("Published to licensed agents.");
       navigate(`/listing/${req.id}`);
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to publish listing request");
+      toast.error(errorMessage(err, "Failed to publish listing request"));
     } finally {
       setLoading(false);
     }

@@ -24,6 +24,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Referrals {
 
@@ -37,13 +38,11 @@ persistent actor Referrals {
     convertedAt : ?Int;
   };
 
-  public type Error = {
+  public type Error = Errors.Common or {
     #AlreadyReferred;
     #SelfReferral;
     #CodeNotFound;
     #AlreadyConverted;
-    #Unauthorized;
-    #InvalidInput : Text;
   };
 
   public type Stats = {
@@ -139,9 +138,9 @@ persistent actor Referrals {
   };
 
   private func requireActive(caller : Principal) : Result.Result<(), Error> {
-    if (caller.isAnonymous()) return #err(#Unauthorized);
-    if (Admin.pausedNow(paused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
-    if (not tryConsumeSlot(caller)) return #err(#InvalidInput("Rate limit exceeded. Try again in a minute."));
+    if (caller.isAnonymous()) return #err(#NotAuthorized);
+    if (Admin.pausedNow(paused, pauseExpiryNs, Time.now())) return #err(#Paused);
+    if (not tryConsumeSlot(caller)) return #err(#RateLimited);
     #ok(())
   };
 
@@ -197,7 +196,7 @@ persistent actor Referrals {
     if (Text.size(paymentCanisterId) > 0 and not isAdmin(msg.caller)) {
       let pay = Canisters.payment(paymentCanisterId);
       let tier = try { await pay.getTierForPrincipal(msg.caller) } catch (_) {
-        return #err(#InvalidInput("Could not verify subscription status; try again later"))
+        return #err(#Unavailable("Could not verify subscription status; try again later"))
       };
       switch (tier) {
         case (#Free or #ContractorFree) {};
@@ -226,7 +225,7 @@ persistent actor Referrals {
   public shared(msg) func markConverted(referee : Principal) : async Result.Result<(), Error> {
     let caller = msg.caller.toText();
     if (caller != paymentCanisterId and not isAdmin(msg.caller)) {
-      return #err(#Unauthorized);
+      return #err(#NotAuthorized);
     };
 
     let refText = referee.toText();
@@ -292,14 +291,14 @@ persistent actor Referrals {
   };
 
   public shared(msg) func pause(durationSeconds : ?Nat) : async Result.Result<(), Error> {
-    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     paused := true;
     pauseExpiryNs := Admin.pauseExpiry(durationSeconds, Time.now());
     #ok(())
   };
 
   public shared(msg) func unpause() : async Result.Result<(), Error> {
-    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     paused        := false;
     pauseExpiryNs := null;
     #ok(())

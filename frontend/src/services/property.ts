@@ -2,7 +2,7 @@ import { lazyActor } from "./lazyActor";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 import { idlFactory } from "@homegentic/shared/declarations/property";
 import type { _SERVICE as PropertyCanister } from "@homegentic/shared/types/property";
-import { candidErrorMessage, variant } from "./candid";
+import { canisterError, variant } from "./candid";
 import type * as PropertyTypes from "@homegentic/shared/types/property";
 export { idlFactory };
 
@@ -253,7 +253,7 @@ function unwrap(result: any): Property {
   if (key === "DuplicateAddress") {
     throw new Error("This address is already registered and verified by another owner.");
   }
-  throw new Error(typeof val === "string" ? val : key);
+  throw canisterError(result.err);
 }
 
 /** E2E: window.__e2e_transfers = { [token]: PendingTransfer } stands in for the canister's pending transfers. */
@@ -337,7 +337,7 @@ export const propertyService = {
     }
     const a = await getActor();
     const result = await a.getVerifyStatus(propertyId);
-    if ("err" in result) throw new Error(Object.keys(result.err)[0]);
+    if ("err" in result) throw canisterError(result.err);
     const r = result.ok;
     const base: VerifyClaimData = {
       propertyId: r.propertyId,
@@ -364,7 +364,7 @@ export const propertyService = {
   async markIdentityCleared(propertyId: string, sessionId: string, name: string): Promise<Property> {
     const a = await getActor();
     const result = await a.markIdentityCleared(propertyId, sessionId, name);
-    if ("err" in result) throw new Error(Object.keys(result.err)[0]);
+    if ("err" in result) throw canisterError(result.err);
     return fromProperty(result.ok);
   },
 
@@ -386,7 +386,7 @@ export const propertyService = {
   async getPendingVerifications(): Promise<Property[]> {
     const a = await getActor();
     const result: any = await a.getPendingVerifications();
-    if ("err" in result) throw new Error(Object.keys(result.err)[0]);
+    if ("err" in result) throw canisterError(result.err);
     return (result.ok as any[]).map(fromProperty);
   },
 
@@ -416,7 +416,7 @@ export const propertyService = {
     if ("ok" in result) {
       return fromPendingTransfer(result.ok);
     }
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   /** Step 2: authenticated buyer presents the token to claim ownership. */
@@ -444,8 +444,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.cancelTransfer(propertyId);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      throw new Error(key);
+      throw canisterError(result.err);
     }
   },
 
@@ -531,7 +530,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.inviteManager(propertyId, variant(role), displayName, spendLimitCents !== undefined ? [BigInt(spendLimitCents)] : []);
     if ("ok" in result) return fromManagerInvite(result.ok);
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   /** Invited person clicks the link and claims their manager role. */
@@ -544,7 +543,7 @@ export const propertyService = {
         role       : Object.keys(result.ok.role)[0] as ManagerRole,
       };
     }
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   /** Owner cancels a pending (not yet claimed) invite. */
@@ -552,7 +551,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.cancelManagerInvite(propertyId, token);
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
   },
 
@@ -561,7 +560,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.getPendingInvitesForProperty(propertyId);
     if ("ok" in result) return (result.ok as any[]).map(fromManagerInvite);
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   /** Owner changes a manager's role and/or spend limit. */
@@ -570,7 +569,7 @@ export const propertyService = {
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const result = await a.updateManagerRole(propertyId, P.fromText(managerPrincipal), variant(role), spendLimitCents !== undefined ? [BigInt(spendLimitCents)] : []);
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
   },
 
@@ -580,7 +579,7 @@ export const propertyService = {
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const result = await a.removeManager(propertyId, P.fromText(managerPrincipal));
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
   },
 
@@ -589,7 +588,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.resignAsManager(propertyId);
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
   },
 
@@ -616,7 +615,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.getPropertyManagers(propertyId);
     if ("ok" in result) return (result.ok as any[]).map(fromPropertyManager);
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   /** Look up a manager invite by token (used by the claim page before login). */
@@ -640,7 +639,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.recordManagerActivity(propertyId, description);
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
   },
 
@@ -649,7 +648,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.getOwnerNotifications(propertyId);
     if ("ok" in result) return (result.ok as any[]).map(fromOwnerNotification);
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   /** Mark all unseen notifications for a property as seen. */
@@ -657,7 +656,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.dismissNotifications(propertyId);
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
   },
 
@@ -666,7 +665,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.requestApproval(propertyId, description, BigInt(amountCents));
     if ("ok" in result) return Number(result.ok);
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   /** Owner approves or declines a pending approval request. */
@@ -674,7 +673,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.respondToApproval(propertyId, BigInt(approvalId), approve);
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
   },
 
@@ -683,7 +682,7 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.getApprovals(propertyId);
     if ("ok" in result) return (result.ok as any[]).map(fromApproval);
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   /** Cross-canister auth check: is this principal allowed to act on this property?

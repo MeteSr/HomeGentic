@@ -2,7 +2,7 @@ import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/job";
 import { serviceTypeVariant, serviceTypeFromVariant } from "@homegentic/shared/serviceTypes";
 import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
-import { candidErrorMessage } from "./candid";
+import { canisterError } from "./candid";
 import type * as JobTypes from "@homegentic/shared/types/job";
 export { idlFactory };
 
@@ -111,7 +111,7 @@ export function isEditableRecord(job: Pick<Job, "verified" | "homeownerSigned" |
 
 function unwrapJob(result: any): Job {
   if ("ok" in result) return fromJob(result.ok);
-  throw new Error(candidErrorMessage(result.err));
+  throw canisterError(result.err);
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ function createJobService() {
   async function jobsForProperty(a: any, propertyId: string): Promise<Job[]> {
     const result = await a.getJobsForProperty(propertyId);
     if ("ok" in result) return markUnattested(a, propertyId, (result.ok as any[]).map(fromJob));
-    throw new Error(Object.keys(result.err)[0]);
+    throw canisterError(result.err);
   }
 
   async function jobsForProperties(propertyIds: string[]): Promise<Job[]> {
@@ -312,9 +312,7 @@ function createJobService() {
     const a = await getActor();
     const result = await a.createInviteToken(jobId, propertyAddress);
     if ("ok" in result) return result.ok as string;
-    const key = Object.keys(result.err)[0];
-    const val = (result.err as any)[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw canisterError(result.err);
   },
 
   async getJobByInviteToken(token: string): Promise<InvitePreview> {
@@ -335,9 +333,7 @@ function createJobService() {
         alreadySigned:   r.alreadySigned,
       };
     }
-    const key = Object.keys(result.err)[0];
-    const val = (result.err as any)[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw canisterError(result.err);
   },
 
   async redeemInviteToken(
@@ -360,7 +356,7 @@ function createJobService() {
     const a = await getActor();
     const result: any = await a.getReferralJobs();
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
     return (result.ok as any[]).map(fromJob);
   },
@@ -416,9 +412,7 @@ function createJobService() {
     const a = await getActor();
     const result = await a.rejectJobProposal(jobId);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const val = (result.err as any)[key];
-      throw new Error(typeof val === "string" ? val : key);
+      throw canisterError(result.err);
     }
   },
 

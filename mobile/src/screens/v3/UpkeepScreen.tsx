@@ -11,6 +11,7 @@ import {
 import { AddRow, Callout, Card, Chip, chipTone, EmptyRow, Kicker, PageHeader, Row, TabScroll } from "../../components/ui";
 import { NoProperty } from "./NoProperty";
 import { family, type, v3 } from "../../theme";
+import { errorMessage } from "@homegentic/shared/canisterError";
 
 /** "HVAC warranty expires in 12 days (−2 pts) and 1 task is overdue (−1 pt)." */
 export function atRiskSentence(risks: AtRiskItem[], overdue: number): string | null {
@@ -57,7 +58,7 @@ export default function UpkeepScreen() {
             else await completeScheduleEntry(item.id);
             await data.reload();
           } catch (e: any) {
-            Alert.alert("Couldn't save that", e?.message ?? "Try again in a moment.");
+            Alert.alert("Couldn't save that", errorMessage(e, "Try again in a moment."));
           }
         },
       },

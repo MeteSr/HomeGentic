@@ -16,6 +16,7 @@ import { computeScore } from "@/services/scoreService";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -146,7 +147,7 @@ export default function JobCreatePage() {
       }
       navigate(-1);
     } catch (err: any) {
-      toast.error(err.message || (editJob ? "Failed to update job" : "Failed to create job"));
+      toast.error(errorMessage(err, editJob ? "Failed to update job" : "Failed to create job"));
     } finally {
       setLoading(false);
     }

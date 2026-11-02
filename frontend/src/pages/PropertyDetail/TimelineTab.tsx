@@ -7,6 +7,7 @@ import { type Property } from "@/services/property";
 import { type Job, isEditableRecord } from "@/services/job";
 import toast from "react-hot-toast";
 import { Panel, Pill } from "@/components/hud";
+import { errorMessage, hasErrorCode } from "../../services/candid";
 
 const MONO = "'JetBrains Mono',monospace";
 const SERIF = "'Bricolage Grotesque',system-ui,sans-serif";
@@ -140,8 +141,7 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
       await photoService.upload(file, job.id, String(property.id), "Warranty", `Warranty|${job.serviceType}|${file.name}`);
       toast.success("Warranty document uploaded");
     } catch (err: any) {
-      const msg: string = err.message ?? "Upload failed";
-      toast.error(msg === "Duplicate" ? "Already uploaded" : msg);
+      toast.error(hasErrorCode(err, "Duplicate") ? "Already uploaded" : errorMessage(err, "Upload failed"));
     } finally {
       setWarrantyUploading(null);
     }

@@ -24,6 +24,7 @@ import {
 } from "../services/quoteFormService";
 import { SERVICE_TYPES } from "../services/jobFormService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
+import { errorMessage } from "@homegentic/shared/canisterError";
 
 type Props = NativeStackScreenProps<RootStackParamList, "QuoteRequest">;
 
@@ -66,7 +67,7 @@ export default function QuoteRequestScreen({ route, navigation }: Props) {
       await createQuoteRequest(buildQuotePayload(propertyId, form));
       navigation.replace("MyQuotes", { propertyId, propertyAddress });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong";
+      const msg = errorMessage(err, "Something went wrong");
       Alert.alert("Could not submit request", msg);
     } finally {
       setSubmitting(false);

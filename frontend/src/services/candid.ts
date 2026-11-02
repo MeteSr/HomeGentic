@@ -4,7 +4,7 @@
  *
  *   variant<Tier>("Pro")           → { Pro: null }
  *   variantKey(job.status)         → "Verified" | "Pending" | …
- *   candidErrorMessage(result.err) → the error's text payload, else its tag
+ *   canisterError(result.err)       → a CanisterError (tag, copy, retry policy) to throw
  */
 
 /** The tags of a variant type: `{ A: null } | { B: string }` → `"A" | "B"`. */
@@ -20,8 +20,10 @@ export function variantKey<V extends object>(value: V): VariantKey<V> {
   return Object.keys(value)[0] as VariantKey<V>;
 }
 
-/** The message for a canister `Error` variant: its text payload if it has one (`#InvalidInput("…")`), else its tag. */
-export function candidErrorMessage(err: object): string {
-  const [key, val] = Object.entries(err)[0] ?? ["UnknownError", null];
-  return typeof val === "string" ? val : key;
-}
+/**
+ * The person-facing message for a canister `Error` variant: its text payload
+ * if it has one (`#InvalidInput("…")`), else plain copy for its tag. Throw
+ * `canisterError(err)` rather than `new Error(candidErrorMessage(err))` so the
+ * catcher can still read the tag and retry policy.
+ */
+export { canisterErrorMessage as candidErrorMessage, canisterError, CanisterError, errorMessage, hasErrorCode, isRetryable } from "@homegentic/shared/canisterError";

@@ -9,6 +9,7 @@ import { type Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 const SERVICE_TYPES = SERVICE_TYPE_LABELS;
 
@@ -88,7 +89,7 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
       }
       onSuccess(req.id);
     } catch (err: any) {
-      toast.error(err.message || "Failed to send request");
+      toast.error(errorMessage(err, "Failed to send request"));
     } finally {
       setLoading(false);
     }

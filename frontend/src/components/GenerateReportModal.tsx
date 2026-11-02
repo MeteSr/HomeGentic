@@ -15,6 +15,7 @@ import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -136,7 +137,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       setPreviewStats({ score, grade, verifiedCount });
       toast.success("HomeGentic report created!");
     } catch (err: any) {
-      toast.error(err.message || "Failed to generate report");
+      toast.error(errorMessage(err, "Failed to generate report"));
     } finally {
       setGenerating(false);
     }
@@ -156,7 +157,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       setLinks((prev) => prev.map((l) => l.token === token ? { ...l, isActive: false } : l));
       toast.success("Link revoked");
     } catch (err: any) {
-      toast.error(err.message || "Failed to revoke link");
+      toast.error(errorMessage(err, "Failed to revoke link"));
     }
   };
 

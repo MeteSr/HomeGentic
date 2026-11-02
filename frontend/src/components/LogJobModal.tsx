@@ -7,6 +7,7 @@ import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 const SERVICE_TYPES = SERVICE_TYPE_LABELS;
 const PERMIT_SERVICE_TYPES = new Set(["HVAC", "Roofing", "Electrical", "Plumbing", "Foundation"]);
@@ -120,7 +121,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
       setStep(2);
       onSuccess();
     } catch (err: any) {
-      toast.error(err.message || "Failed to log job");
+      toast.error(errorMessage(err, "Failed to log job"));
     } finally {
       setLoading(false);
     }

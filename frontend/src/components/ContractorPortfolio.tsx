@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/Button";
 import { contractorService, type JobCredential, type PortfolioItem } from "@/services/contractor";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { errorMessage } from "@/services/candid";
 
 const MONO = V2_FONTS.body;
 export const MAX_PORTFOLIO_ENTRIES = 12;
@@ -100,7 +101,7 @@ export function PortfolioEditor({ contractorId, isPro }: { contractorId: string;
       await contractorService.setPortfolio(contractorId, entries);
       toast.success("Portfolio saved.");
     } catch (err: any) {
-      toast.error(err.message || "Couldn't save your portfolio");
+      toast.error(errorMessage(err, "Couldn't save your portfolio"));
     } finally {
       setSaving(false);
     }

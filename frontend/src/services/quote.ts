@@ -4,7 +4,7 @@ import { serviceTypeVariant, serviceTypeFromVariant } from "@homegentic/shared/s
 import { ibeEncryptAmount, ibeDecryptBids, sealedBidIdentity, type RevealedBid as SealedRevealedBid } from "./sealedBid";
 import type { UsageCategory, UsageSummary } from "./quoteUsage";
 import type { _SERVICE as QuoteCanister } from "@homegentic/shared/types/quote";
-import { candidErrorMessage, variant, type VariantKey } from "./candid";
+import { canisterError, variant, type VariantKey } from "./candid";
 import type * as QuoteTypes from "@homegentic/shared/types/quote";
 export { idlFactory };
 
@@ -78,7 +78,7 @@ function usageFromCanister(raw: QuoteTypes.UsageSummary): UsageSummary {
 
 function unwrapUnit(result: any): void {
   if ("err" in result) {
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   }
 }
 
@@ -145,7 +145,7 @@ function fromQuote(raw: QuoteTypes.Quote): Quote {
 
 function unwrapRequest(result: any): QuoteRequest {
   if ("ok" in result) return fromRequest(result.ok);
-  throw new Error(candidErrorMessage(result.err));
+  throw canisterError(result.err);
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────
@@ -228,7 +228,7 @@ function createQuoteService() {
       BigInt(validUntilMs * 1_000_000) // ms → ns
     );
     if ("ok" in result) return fromQuote(result.ok);
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   async getRequest(id: string): Promise<QuoteRequest | undefined> {
@@ -288,8 +288,7 @@ function createQuoteService() {
     const a = await getActor();
     const result = await a.acceptQuote(quoteId);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      throw new Error(key);
+      throw canisterError(result.err);
     }
   },
 
@@ -297,8 +296,7 @@ function createQuoteService() {
     const a = await getActor();
     const result = await a.closeQuoteRequest(requestId);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      throw new Error(key);
+      throw canisterError(result.err);
     }
   },
 
@@ -306,7 +304,7 @@ function createQuoteService() {
     const a = await getActor();
     const result = await a.cancelQuoteRequest(requestId);
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
   },
 
@@ -333,7 +331,7 @@ function createQuoteService() {
     const a = await getActor();
     const result = await a.getUsageSummary(requestId);
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
     const usage = result.ok[0];
     return usage ? usageFromCanister(usage) : null;
@@ -373,7 +371,7 @@ function createQuoteService() {
     const a = await getActor();
     const result = await a.submitSealedBid(requestId, Array.from(ciphertextBytes), BigInt(timelineDays));
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
     const b = result.ok;
     return {
@@ -403,7 +401,7 @@ function createQuoteService() {
     const a = await getActor();
     const result = await a.revealBidsEncrypted(requestId, Array.from(tpk));
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
 
     const pubKeyBytes      = await this.getIbePublicKey();

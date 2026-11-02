@@ -25,6 +25,7 @@ import {
   type ImageAsset,
 } from "../services/photoUploadService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
+import { errorMessage } from "@homegentic/shared/canisterError";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PhotoUpload">;
 
@@ -115,7 +116,7 @@ export default function PhotoUploadScreen({ route, navigation }: Props) {
         { text: "OK", onPress: () => navigation.goBack() },
       ]);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Upload failed";
+      const msg = errorMessage(err, "Upload failed");
       Alert.alert("Upload failed", msg);
     } finally {
       setUploading(false);

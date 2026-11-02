@@ -144,7 +144,7 @@ export const authIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
   });
   const Error = I.Variant({
     NotFound: I.Null, AlreadyExists: I.Null, NotAuthorized: I.Null,
-    Paused: I.Null, InvalidInput: I.Text,
+    Paused: I.Null, InvalidInput: I.Text, RateLimited: I.Null, Unavailable: I.Text,
   });
   const UserStats = I.Record({
     total: I.Nat, newToday: I.Nat, newThisWeek: I.Nat, activeThisWeek: I.Nat,
@@ -172,7 +172,7 @@ export const paymentIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     owner: I.Principal, tier: Tier, expiresAt: I.Int, createdAt: I.Int, cancelledAt: I.Opt(I.Int),
   });
   const Error = I.Variant({
-    NotFound: I.Null, NotAuthorized: I.Null, PaymentFailed: I.Text, RateLimited: I.Null, InvalidInput: I.Text,
+    NotFound: I.Null, NotAuthorized: I.Null, PaymentFailed: I.Text, RateLimited: I.Null, InvalidInput: I.Text, Paused: I.Null, Unavailable: I.Text,
   });
   const SubscriptionStats = I.Record({
     total: I.Nat, free: I.Nat, pro: I.Nat, contractorFree: I.Nat,
@@ -213,7 +213,7 @@ export const sensorIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     timestamp: I.Int, severity: Severity, jobId: I.Opt(I.Text),
   });
   const Error = I.Variant({
-    NotFound: I.Null, Unauthorized: I.Null, InvalidInput: I.Text, AlreadyExists: I.Null,
+    NotFound: I.Null, NotAuthorized: I.Null, InvalidInput: I.Text, AlreadyExists: I.Null, Paused: I.Null, RateLimited: I.Null, Unavailable: I.Text,
   });
   const Metrics = I.Record({
     totalDevices: I.Nat, activeDevices: I.Nat, totalEvents: I.Nat,
@@ -249,7 +249,7 @@ export const quoteIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     id: I.Text, requestId: I.Text, contractor: I.Principal,
     ciphertext: I.Vec(I.Nat8), timelineDays: I.Nat, submittedAt: I.Int,
   });
-  const Error = I.Variant({ NotFound: I.Null, Unauthorized: I.Null, InvalidInput: I.Text });
+  const Error = I.Variant({ NotFound: I.Null, NotAuthorized: I.Null, InvalidInput: I.Text, Paused: I.Null, RateLimited: I.Null, Unavailable: I.Text});
   const Metrics = I.Record({
     totalRequests: I.Nat, openRequests: I.Nat, acceptedRequests: I.Nat,
     totalQuotes: I.Nat, isPaused: I.Bool,
@@ -287,8 +287,8 @@ export const jobIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     createdAt: I.Int, sourceQuoteId: I.Opt(I.Text),
   });
   const Error = I.Variant({
-    NotFound: I.Null, Unauthorized: I.Null, InvalidInput: I.Text,
-    AlreadyVerified: I.Null, TierLimitReached: I.Text,
+    NotFound: I.Null, NotAuthorized: I.Null, InvalidInput: I.Text,
+    AlreadyVerified: I.Null, TierLimitReached: I.Text, Paused: I.Null, RateLimited: I.Null, Unavailable: I.Text,
   });
   const Metrics = I.Record({
     totalJobs: I.Nat, pendingJobs: I.Nat, completedJobs: I.Nat,
@@ -333,7 +333,7 @@ export const propertyIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
   });
   const Error = I.Variant({
     NotFound: I.Null, NotAuthorized: I.Null, Paused: I.Null, LimitReached: I.Null,
-    InvalidInput: I.Text, DuplicateAddress: I.Null, AddressConflict: I.Int,
+    InvalidInput: I.Text, DuplicateAddress: I.Null, AddressConflict: I.Int, RateLimited: I.Null, Unavailable: I.Text,
   });
   const Metrics = I.Record({
     totalProperties: I.Nat, verifiedProperties: I.Nat,
@@ -362,7 +362,7 @@ export const monitoringIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     resolved: I.Bool, createdAt: I.Int, resolvedAt: I.Opt(I.Int),
   });
   const Error = I.Variant({
-    NotFound: I.Null, NotAuthorized: I.Null, InvalidInput: I.Text,
+    NotFound: I.Null, NotAuthorized: I.Null, InvalidInput: I.Text, Paused: I.Null, RateLimited: I.Null, Unavailable: I.Text,
   });
   const Metrics = I.Record({
     totalCanisters: I.Nat, activeAlerts: I.Nat, criticalAlerts: I.Nat, isPaused: I.Bool,
@@ -405,8 +405,8 @@ export const contractorIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     rating: I.Nat, comment: I.Text, jobId: I.Text, createdAt: I.Int,
   });
   const Error = I.Variant({
-    NotFound: I.Null, AlreadyExists: I.Null, Unauthorized: I.Null,
-    Paused: I.Null, RateLimitExceeded: I.Null, InvalidInput: I.Text,
+    NotFound: I.Null, AlreadyExists: I.Null, NotAuthorized: I.Null,
+    Paused: I.Null, RateLimited: I.Null, InvalidInput: I.Text, Unavailable: I.Text,
   });
   const Metrics = I.Record({
     totalContractors: I.Nat, verifiedContractors: I.Nat,

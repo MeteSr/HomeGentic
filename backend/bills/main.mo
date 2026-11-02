@@ -40,6 +40,7 @@ import Index     "../shared/Index";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Bills {
 
@@ -130,10 +131,7 @@ persistent actor Bills {
     usageUnit   : ?Text;
   };
 
-  public type Error = {
-    #NotFound;
-    #NotAuthorized;
-    #InvalidInput : Text;
+  public type Error = Errors.Common or {
     #TierLimitReached : Text;
   };
 
@@ -205,7 +203,7 @@ persistent actor Bills {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     #ok(())
   };
 

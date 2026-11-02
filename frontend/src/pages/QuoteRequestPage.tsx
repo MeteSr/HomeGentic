@@ -17,6 +17,7 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { useAddPropertyStore } from "@/store/addPropertyStore";
 import toast from "react-hot-toast";
 import { BUTTON_RESET, V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -160,7 +161,7 @@ export default function QuoteRequestPage() {
       }
       navigate(`/quotes/${req.id}`);
     } catch (err: any) {
-      toast.error(err.message || "Failed to send request");
+      toast.error(errorMessage(err, "Failed to send request"));
     } finally {
       setLoading(false);
     }

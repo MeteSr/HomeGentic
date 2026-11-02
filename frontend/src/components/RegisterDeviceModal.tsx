@@ -6,6 +6,7 @@ import { gatewayConfigured, useOAuthDevicePicker, type OAuthPickedDevice } from 
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -159,7 +160,7 @@ export function RegisterDeviceModal({ isOpen, onClose, onSuccess, propertyId }: 
       oAuth.reset();
       onClose();
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to register device");
+      toast.error(errorMessage(err, "Failed to register device"));
     } finally {
       setLoading(false);
     }

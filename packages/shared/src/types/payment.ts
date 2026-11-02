@@ -4,11 +4,13 @@ import type { ActorMethod } from "@icp-sdk/core/agent";
 import type { Principal } from "@icp-sdk/core/principal";
 
 export type Error =
+  | { Paused: null }
   | { InvalidInput: string }
   | { PaymentFailed: string }
   | { NotFound: null }
   | { NotAuthorized: null }
-  | { RateLimited: null };
+  | { RateLimited: null }
+  | { Unavailable: string };
 
 export type Tier = { Pro: null } | { Free: null } | { ContractorPro: null } | { ContractorFree: null };
 

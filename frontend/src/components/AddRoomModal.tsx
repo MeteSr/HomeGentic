@@ -5,6 +5,7 @@ import { roomService, type Room, type CreateRoomArgs } from "@/services/room";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 const FLOOR_TYPES = [
   "Hardwood", "Tile", "Carpet", "Laminate", "Vinyl", "Concrete", "Stone", "Other",
@@ -74,7 +75,7 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, propertyId }: AddRoom
       onSuccess(room);
       onClose();
     } catch (err: any) {
-      toast.error(err.message ?? "Failed to create room");
+      toast.error(errorMessage(err, "Failed to create room"));
     } finally {
       setSaving(false);
     }

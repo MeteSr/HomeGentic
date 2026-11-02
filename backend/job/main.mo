@@ -31,6 +31,7 @@ import Admin "../shared/Admin";
 import Score "../shared/Score";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Job {
 
@@ -80,10 +81,7 @@ persistent actor Job {
     sourceQuoteId: ?Text;     // null = not sourced via a HomeGentic quote request; set = referral fee applies on verification
   };
 
-  public type Error = {
-    #NotFound;
-    #NotAuthorized;
-    #InvalidInput: Text;
+  public type Error = Errors.Common or {
     #AlreadyVerified;
     #TierLimitReached: Text;
   };
@@ -292,9 +290,9 @@ persistent actor Job {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
+      return #err(#RateLimited)
     };
     #ok(())
   };
@@ -913,7 +911,7 @@ persistent actor Job {
                 recordJobVerified : (Principal, Text, Text, Principal) -> async { #ok : (); #err : Any };
               };
               // Await with try/catch so canister traps or network errors don't
-              // propagate. #err results (e.g. #Unauthorized) are valid values
+              // propagate. #err results (e.g. #NotAuthorized) are valid values
               // and are simply discarded — job verification is already committed.
               try {
                 ignore await contrActor.recordJobVerified(con, jobId, svcText, existing2.homeowner);
@@ -1412,14 +1410,14 @@ persistent actor Job {
     // identity (bad format, contractor canister down) must not burn the
     // single-use invite token.
     if (Text.size(contrCanisterId) > 0) {
-      type ContrError = {
-        #NotFound; #AlreadyExists; #NotAuthorized;
-        #Paused; #RateLimitExceeded; #InvalidInput : Text;
-      };
+      type ContrError = Errors.Common or { #AlreadyExists };
       let contrActor = actor(contrCanisterId) : actor {
         createOrLinkGuestProfile : (Principal, Text, Text, Text, ?Text, Text, Text) -> async { #ok : (); #err : ContrError };
       };
       switch (await contrActor.createOrLinkGuestProfile(msg.caller, contractorName, phone, email, licenseNumber, svcText, job.id)) {
+        case (#err(#Paused))         { return #err(#Paused) };
+        case (#err(#RateLimited))    { return #err(#RateLimited) };
+        case (#err(#Unavailable(m))) { return #err(#Unavailable(m)) };
         case (#err(_)) { return #err(#InvalidInput("Could not verify contractor identity — check name/phone/email/license format")) };
         case (#ok(())) {};
       };
@@ -1508,10 +1506,7 @@ persistent actor Job {
     // mirrors verifyJob()'s cross-call exactly, same try/catch so a trap or
     // network error doesn't roll back the already-committed signature.
     if (bothSigned and Text.size(contrCanisterId) > 0) {
-      type ContrError2 = {
-        #NotFound; #AlreadyExists; #NotAuthorized;
-        #Paused; #RateLimitExceeded; #InvalidInput : Text;
-      };
+      type ContrError2 = Errors.Common or { #AlreadyExists };
       let contrActor2 = actor(contrCanisterId) : actor {
         recordJobVerified : (Principal, Text, Text, Principal) -> async { #ok : (); #err : ContrError2 };
       };
@@ -1864,7 +1859,7 @@ persistent actor Job {
   /// has too many open drafts or hit today's cap.
   public shared(msg) func relayAddEmailDraft(token : Text, input : EmailDraftInput) : async Result.Result<Text, Error> {
     if (not Admin.contains(inboxRelayEntries, msg.caller)) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     let owner = switch (inboxTokens.get(token)) { case (?o) o; case null return #err(#NotFound) };
     if (Index.count(draftsByOwner, owner.toText()) >= MAX_OPEN_DRAFTS) return #err(#InvalidInput("too many open drafts"));
     let day = Time.now() / 86_400_000_000_000;

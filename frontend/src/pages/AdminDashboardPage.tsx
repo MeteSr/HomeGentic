@@ -11,6 +11,7 @@ import { useAuthStore } from "@/store/authStore";
 import { Shield, CheckCircle, XCircle, RefreshCw, AlertTriangle, DollarSign } from "lucide-react";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -386,7 +387,7 @@ function TierManager() {
       toast.success(`Set ${principal.trim().slice(0, 12)}… to ${tier}`);
       setPrincipal("");
     } catch (err: any) {
-      toast.error(err.message ?? "Failed to set tier");
+      toast.error(errorMessage(err, "Failed to set tier"));
     } finally {
       setLoading(false);
     }
@@ -494,7 +495,7 @@ function ReferralPipeline() {
       setFees((prev) => prev?.map((x) => (x.id === updated.id ? updated : x)) ?? null);
       toast.success(`${f.id} waived`);
     } catch (e: any) {
-      toast.error(e?.message ?? "Couldn't waive the fee");
+      toast.error(errorMessage(e, "Couldn't waive the fee"));
     } finally {
       setWaiving(null);
     }
@@ -632,7 +633,7 @@ function ContractorVerificationTab() {
         prev.map((c) => c.id === principalText ? { ...c, isVerified: true } : c)
       );
     } catch (err: any) {
-      toast.error(err.message ?? "Verification failed");
+      toast.error(errorMessage(err, "Verification failed"));
     } finally {
       setVerifying(null);
     }

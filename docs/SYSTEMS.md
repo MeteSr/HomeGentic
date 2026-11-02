@@ -70,10 +70,14 @@ The payment canister is the single source of truth for subscription tiers. Canis
 
 ### Error Variants
 
-All canisters expose a `Result<T, Error>` return type. The `Error` variant always includes at minimum:
-- `#NotFound`
-- `#Unauthorized` / `#NotAuthorized`
-- `#InvalidInput(Text)` — carries a human-readable message
+All canisters expose a `Result<T, Error>` return type. Every `Error` is `Errors.Common or { … }` (`backend/shared/Errors.mo`), so it always includes:
+- `#NotAuthorized`, `#NotFound`
+- `#InvalidInput(Text)`: carries a human-readable message (also used for daily or per-property caps)
+- `#Paused`: an admin paused the canister
+- `#RateLimited`: the caller went over the per-minute update limit
+- `#Unavailable(Text)`: a canister this one depends on isn't wired or didn't answer
+
+The tables below list each canister's own cases on top of these.
 
 ---
 
@@ -91,7 +95,7 @@ Manages user profiles and role assignment. The single source of truth for who is
 | `UserProfile` | `principal, role, email, phone, createdAt, updatedAt, isActive, lastLoggedIn?, onboardingComplete?` |
 | `Metrics` | `totalUsers`, counts by role, `isPaused` |
 | `UserStats` | New today/week, active this week, counts by role |
-| `Error` | `#NotFound \| #AlreadyExists \| #NotAuthorized \| #Paused \| #InvalidInput(Text)` |
+| `Error` | Common cases \| `#AlreadyExists` |
 
 The `onboardingComplete` field is `?Bool` (null = false) for upgrade-safe backward compatibility.
 
@@ -145,7 +149,7 @@ Manages property registration, ownership verification, ownership transfers, dele
 | `PendingTransfer` | `propertyId, from, token, initiatedAt, expiresAt` |
 | `RoomRecord` | `id, propertyId, owner, name, floorName, floorType, paintColor, paintBrand, paintCode, notes, fixtures[], createdAt, updatedAt` |
 | `Fixture` | `id, brand, model, serialNumber, installedDate, warrantyExpiry, notes` |
-| `Error` | `#NotFound \| #NotAuthorized \| #Paused \| #LimitReached \| #InvalidInput(Text) \| #DuplicateAddress \| #AddressConflict(Int)` |
+| `Error` | Common cases \| `#LimitReached \| #DuplicateAddress \| #AddressConflict(Int)` |
 
 ### Property Lifecycle
 
@@ -252,7 +256,7 @@ The maintenance record canister. Every verified job contributes to a property's 
 | `Job` | `id, propertyId, homeowner, contractor?, title, serviceType, description, contractorName?, amount (cents), completedDate, permitNumber?, warrantyMonths?, isDiy, status, verified, homeownerSigned, contractorSigned, createdAt, sourceQuoteId?` |
 | `InviteToken` | `token, jobId, propertyAddress, createdAt, expiresAt (48h), usedAt?` |
 | `InvitePreview` | Subset of job+token: jobId, title, serviceType, description, amount, completedDate, propertyAddress, contractorName, expiresAt, alreadySigned |
-| `Error` | `#NotFound \| #Unauthorized \| #InvalidInput(Text) \| #AlreadyVerified \| #TierLimitReached(Text)` |
+| `Error` | Common cases \| `#AlreadyVerified \| #TierLimitReached(Text)` |
 
 ### Verification Model
 
@@ -335,7 +339,7 @@ Stores raw image bytes on-chain with SHA-256 deduplication and tier-based upload
 |------|-----------------|
 | `ConstructionPhase` | `PreConstruction \| Foundation \| Framing \| Electrical \| Plumbing \| HVAC \| Insulation \| Drywall \| Finishing \| PostConstruction \| Warranty \| Listing` |
 | `Photo` | `id, jobId, propertyId, owner, phase, description, hash (SHA-256 hex), data ([Nat8]), size, verified, approvals[], createdAt` |
-| `Error` | `#NotFound \| #Unauthorized \| #QuotaExceeded(Text) \| #Duplicate(Text) \| #InvalidInput(Text)` |
+| `Error` | Common cases \| `#QuotaExceeded(Text) \| #Duplicate(Text)` |
 
 **Synthetic job ID conventions** (enforced by frontend, not canister):
 - `"LISTING_<propertyId>"` — FSBO listing photos (publicly readable)
@@ -640,7 +644,7 @@ Generates and shares immutable property-history snapshots. The only canister tha
 | `RecurringServiceInput` | `serviceType, providerName, frequency, status, startDate, lastVisitDate?, totalVisits` |
 | `RoomInput` | `name, floorType, paintColor, paintBrand, paintCode, fixtureCount` |
 | `CertRecord` | `id (CERT-N), propertyId, payload (JSON Text), issuedAt` |
-| `Error` | `#NotFound \| #Expired \| #Revoked \| #Unauthorized \| #InvalidInput(Text) \| #UnverifiedProperty` |
+| `Error` | Common cases \| `#Expired \| #Revoked \| #UnverifiedProperty` |
 
 ### Report Lifecycle
 

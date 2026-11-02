@@ -26,6 +26,7 @@ import {
   type JobForm,
 } from "../services/jobFormService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
+import { errorMessage } from "@homegentic/shared/canisterError";
 
 type Props = NativeStackScreenProps<RootStackParamList, "LogJob">;
 
@@ -95,7 +96,7 @@ export default function LogJobScreen({ route, navigation }: Props) {
         } catch (err) {
           Alert.alert(
             "Job saved, photo not added",
-            `${err instanceof Error ? err.message : "The upload didn't finish."} Add the photo from the job history.`,
+            `${errorMessage(err, "The upload didn't finish.")} Add the photo from the job history.`,
           );
         }
       }
@@ -106,7 +107,7 @@ export default function LogJobScreen({ route, navigation }: Props) {
         await saveForLater(payload);
         return;
       }
-      const msg = err instanceof Error ? err.message : "Something went wrong";
+      const msg = errorMessage(err, "Something went wrong");
       Alert.alert("Could not save job", msg);
     } finally {
       setSubmitting(false);

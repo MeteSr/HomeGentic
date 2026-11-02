@@ -9,7 +9,8 @@ export type Error =
   | { NotFound: null }
   | { NotAuthorized: null }
   | { AlreadyExists: null }
-  | { RateLimitExceeded: null };
+  | { RateLimited: null }
+  | { Unavailable: string };
 
 export type ContractorProfile = {
   id: Principal;

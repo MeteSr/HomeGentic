@@ -7,6 +7,7 @@ import {
 } from "../../services/upkeepService";
 import { Kicker, Pill, PushedScroll } from "../../components/ui";
 import { family, type, v3 } from "../../theme";
+import { errorMessage } from "@homegentic/shared/canisterError";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddRecurring">;
 
@@ -66,7 +67,7 @@ export default function AddRecurringScreen({ route, navigation }: Props) {
       });
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert("Couldn't save the service", e?.message ?? "Try again in a moment.");
+      Alert.alert("Couldn't save the service", errorMessage(e, "Try again in a moment."));
     } finally {
       setSaving(false);
     }

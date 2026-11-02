@@ -1,6 +1,9 @@
-import { HttpAgent, Actor } from "@icp-sdk/core/agent";
+import type { HttpAgent } from "@icp-sdk/core/agent";
 import { idlFactory as jobIdlFactory } from "@homegentic/shared/declarations/job";
 import { getIcpAgent }      from "./icpAgent";
+import { actorFor } from "./canister";
+import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
+import { canisterError } from "@homegentic/shared/canisterError";
 
 export type SignRole = "homeowner" | "contractor";
 
@@ -45,14 +48,9 @@ const JOB_CANISTER_ID = process.env.EXPO_PUBLIC_JOB_CANISTER_ID ?? "";
 
 export async function signJob(jobId: string, agent?: HttpAgent): Promise<void> {
   const ag = agent ?? getIcpAgent();
-  const a = Actor.createActor(jobIdlFactory as any, {
-    agent: ag,
-    canisterId: JOB_CANISTER_ID,
-  });
-  const result = await (a as any).verifyJob(jobId);
+  const a = actorFor<JobCanister>(jobIdlFactory, JOB_CANISTER_ID, ag);
+  const result = await a.verifyJob(jobId);
   if ("err" in result) {
-    const key = Object.keys(result.err)[0];
-    const val = result.err[key];
-    throw new Error(typeof val === "string" ? val : key);
+    throw canisterError(result.err);
   }
 }

@@ -1,7 +1,7 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/sensor";
 import type { _SERVICE as SensorCanister } from "@homegentic/shared/types/sensor";
-import { candidErrorMessage, variant } from "./candid";
+import { canisterError, variant } from "./candid";
 import type * as SensorTypes from "@homegentic/shared/types/sensor";
 export { idlFactory };
 
@@ -94,13 +94,13 @@ function createSensorService() {
     const a = await getActor();
     const result = await a.registerDevice(propertyId, externalDeviceId, variant(source), name);
     if ("ok" in result) return fromDevice(result.ok);
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   async deactivateDevice(deviceId: string): Promise<void> {
     const a = await getActor();
     const result = await a.deactivateDevice(deviceId);
-    if ("err" in result) throw new Error(Object.keys(result.err)[0]);
+    if ("err" in result) throw canisterError(result.err);
   },
 
   async getDevicesForProperty(propertyId: string): Promise<SensorDevice[]> {
@@ -176,7 +176,7 @@ function createSensorService() {
       if (resolved.severity === "Critical" && criticalHandler) criticalHandler(resolved);
       return resolved;
     }
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   /** Ingest multiple readings in one call. */

@@ -39,6 +39,9 @@ export const idlFactory = ({ IDL }: any) => {
     NotFound:     IDL.Null,
     NotAuthorized: IDL.Null,
     InvalidInput: IDL.Text,
+    Paused: IDL.Null,
+    RateLimited: IDL.Null,
+    Unavailable: IDL.Text,
   });
   const ResultUnit = IDL.Variant({ ok: IDL.Null, err: Error });
   const AlertSeverity = IDL.Variant({ Critical: IDL.Null, Warning: IDL.Null, Info: IDL.Null });

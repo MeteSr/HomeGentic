@@ -16,6 +16,7 @@ import { propertyService, type AccessRole } from "@/services/property";
 import { billsPermissions } from "@/services/billsAccess";
 import { useAuthStore } from "@/store/authStore";
 import { BillsForecastPanel } from "./BillsForecastPanel";
+import { errorMessage } from "@/services/candid";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
 const BODY = "'Hanken Grotesk',sans-serif";
@@ -148,7 +149,7 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
       }
     } catch (err) {
       if (err instanceof TierLimitReachedError) {
-        toast.error(err.message, { duration: 8000, icon: "🔒" });
+        toast.error(errorMessage(err), { duration: 8000, icon: "🔒" });
       } else {
         toast.error("Failed to save bill.");
       }

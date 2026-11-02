@@ -21,6 +21,7 @@ import {
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
 import { formatCents } from "@/utils/format";
+import { errorMessage } from "@/services/candid";
 
 const UI = V2_COLORS;
 
@@ -64,7 +65,7 @@ export default function ListingDetailPage() {
       }
       listingService.getPlatformFee().then(setFeeCents).catch(() => {});
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to load listing");
+      toast.error(errorMessage(err, "Failed to load listing"));
     } finally {
       setLoading(false);
     }

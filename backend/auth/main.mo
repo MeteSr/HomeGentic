@@ -22,6 +22,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor class Auth(initDeployer : Principal) {
 
@@ -80,12 +81,8 @@ persistent actor class Auth(initDeployer : Principal) {
     builders: Nat;
   };
 
-  public type Error = {
-    #NotFound;
+  public type Error = Errors.Common or {
     #AlreadyExists;
-    #NotAuthorized;
-    #Paused;
-    #InvalidInput: Text;
   };
 
   // ─── Stable State (persists across upgrades) ─────────────────────────────────
@@ -162,7 +159,7 @@ persistent actor class Auth(initDeployer : Principal) {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
+      return #err(#RateLimited)
     };
     #ok(())
   };

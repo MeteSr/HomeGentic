@@ -11,6 +11,7 @@ import { Button } from "@/components/Button";
 import { agentService, type AgentProfile } from "@/services/agent";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
+import { errorMessage } from "@/services/candid";
 
 const UI = V2_COLORS;
 
@@ -73,7 +74,7 @@ export default function AgentVerifyPage() {
       setProfile(p);
       toast.success("Details on file — finish setting up your card to see listings.");
     } catch (err: any) {
-      toast.error(err?.message ?? "Registration failed");
+      toast.error(errorMessage(err, "Registration failed"));
     } finally {
       setSaving(false);
     }
@@ -86,7 +87,7 @@ export default function AgentVerifyPage() {
       setProfile((p) => (p ? { ...p, cardOnFile: true } : p));
       navigate("/agents/browse");
     } catch (err: any) {
-      toast.error(err?.message ?? "Could not finish setup");
+      toast.error(errorMessage(err, "Could not finish setup"));
     } finally {
       setSaving(false);
     }

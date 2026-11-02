@@ -218,7 +218,7 @@ describe.skipIf(!integrationReady)("Flow 2: Contractor dual-signature workflow",
     try {
       await registerContractor(contractorIdentity, "Flow 2 Contractor");
     } catch (e: any) {
-      if (!String(e?.message ?? e).includes("AlreadyExists")) throw e;
+      if (e?.code !== "AlreadyExists") throw e;
     }
     await asIdentity(seededIdentity(ADMIN_SEED), [contractorService], () =>
       contractorService.verifyContractor(contractorIdentity.getPrincipal().toText()));

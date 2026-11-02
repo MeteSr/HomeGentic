@@ -62,7 +62,7 @@ describe("quoteService usage", () => {
 
   it("getUsage throws NotAuthorized for callers the request isn't shown to", async () => {
     actor.getUsageSummary.mockResolvedValue({ err: { NotAuthorized: null } });
-    await expect(quoteService.getUsage("REQ_1")).rejects.toThrow("NotAuthorized");
+    await expect(quoteService.getUsage("REQ_1")).rejects.toMatchObject({ code: "NotAuthorized" });
   });
 
   it("removeUsage calls the canister", async () => {

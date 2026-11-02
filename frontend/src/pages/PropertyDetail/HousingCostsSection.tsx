@@ -8,6 +8,7 @@ import {
   type ExpenseCategory, type ExpenseFrequency, type RecurringExpense, type RecurringExpenseFields,
 } from "@/services/billService";
 import { FULL_BILLS_PERMISSIONS, type BillsPermissions } from "@/services/billsAccess";
+import { errorMessage } from "@/services/candid";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
 const BODY    = "'Hanken Grotesk',sans-serif";
@@ -122,7 +123,7 @@ export function HousingCostsSection({ propertyId, onExpensesChange, permissions 
       }
       close();
     } catch (err) {
-      if (err instanceof TierLimitReachedError) toast.error(err.message, { duration: 8000, icon: "🔒" });
+      if (err instanceof TierLimitReachedError) toast.error(errorMessage(err), { duration: 8000, icon: "🔒" });
       else toast.error("Failed to save housing cost.");
     } finally {
       setSaving(false);

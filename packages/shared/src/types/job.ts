@@ -6,11 +6,14 @@ import type { Principal } from "@icp-sdk/core/principal";
 export type UnitResult = { ok: null } | { err: Error };
 
 export type Error =
+  | { Paused: null }
   | { InvalidInput: string }
   | { NotFound: null }
   | { NotAuthorized: null }
   | { AlreadyVerified: null }
-  | { TierLimitReached: string };
+  | { RateLimited: null }
+  | { TierLimitReached: string }
+  | { Unavailable: string };
 
 export type Job = {
   id: string;

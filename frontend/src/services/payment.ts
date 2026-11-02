@@ -22,7 +22,7 @@ import type { PlanTier, BillingCycle, GiftMeta, Plan } from "./planConstants";
 export type { PlanTier, BillingCycle, GiftMeta } from "./planConstants";
 import { PLANS } from "./planConstants";
 import type { _SERVICE as PaymentCanister } from "@homegentic/shared/types/payment";
-import { variant } from "./candid";
+import { variant, canisterError } from "./candid";
 
 // ─── Actor ────────────────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ export const paymentService = {
       onStep?.("quoting");
       const quoteResult = await a.getPriceQuote(variant(tier));
       if ("err" in quoteResult) {
-        throw new Error(Object.keys(quoteResult.err)[0]);
+        throw canisterError(quoteResult.err);
       }
       const amountE8s: bigint = BigInt(quoteResult.ok.toString());
 
@@ -65,9 +65,7 @@ export const paymentService = {
 
     const result = await a.subscribe(variant(tier));
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      const detail = (result.err as any)[key];
-      throw new Error(typeof detail === "string" ? detail : key);
+      throw canisterError(result.err);
     }
   },
 
@@ -156,9 +154,7 @@ export const paymentService = {
     const a = await getActor();
     const result = await a.cancelSubscription();
     if ("err" in result) {
-      const key    = Object.keys(result.err)[0];
-      const detail = (result.err as any)[key];
-      throw new Error(typeof detail === "string" ? detail : key);
+      throw canisterError(result.err);
     }
     const expiresNs = Number(result.ok.expiresAt);
     return { expiresAt: expiresNs === 0 ? null : expiresNs / 1_000_000 };
@@ -170,9 +166,7 @@ export const paymentService = {
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const result = await a.grantSubscription(P.fromText(userPrincipal), variant(tier));
     if ("err" in result) {
-      const key    = Object.keys(result.err)[0];
-      const detail = (result.err as any)[key];
-      throw new Error(typeof detail === "string" ? detail : key);
+      throw canisterError(result.err);
     }
   },
 
@@ -277,9 +271,7 @@ export const paymentService = {
     const a = await getActor();
     const result = await a.redeemGift(giftToken);
     if ("err" in result) {
-      const key    = Object.keys(result.err)[0];
-      const detail = (result.err as any)[key];
-      throw new Error(typeof detail === "string" ? detail : key);
+      throw canisterError(result.err);
     }
   },
 

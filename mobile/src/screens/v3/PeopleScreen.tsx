@@ -12,6 +12,7 @@ import { HOMEGENTIC_WEB_URL } from "../../services/reportService";
 import { managerMeta, ROLE_CHIP } from "./AccountScreen";
 import { Callout, Card, Chip, EmptyRow, Kicker, Pill, PushedScroll, SectionLabel } from "../../components/ui";
 import { family, type, v3 } from "../../theme";
+import { errorMessage } from "@homegentic/shared/canisterError";
 
 type Props = NativeStackScreenProps<RootStackParamList, "People">;
 
@@ -72,7 +73,7 @@ export default function PeopleScreen({ navigation }: Props) {
   async function run(key: string, fn: () => Promise<unknown>, fail: string) {
     setBusy(key);
     try { await fn(); await data.reload(); }
-    catch (e: any) { Alert.alert(fail, e?.message ?? "Try again in a moment."); }
+    catch (e: any) { Alert.alert(fail, errorMessage(e, "Try again in a moment.")); }
     finally { setBusy(null); }
   }
 
@@ -111,7 +112,7 @@ export default function PeopleScreen({ navigation }: Props) {
       setInvName("");
       await data.reload();
     } catch (e: any) {
-      Alert.alert("Couldn't create the invite", e?.message ?? "Try again in a moment.");
+      Alert.alert("Couldn't create the invite", errorMessage(e, "Try again in a moment."));
     } finally {
       setBusy(null);
     }

@@ -16,6 +16,7 @@ import { jobService, type Job } from "@/services/job";
 import { contractorService, type ContractorProfile } from "@/services/contractor";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 interface ChaseSignatureModalProps {
   open:    boolean;
@@ -48,7 +49,7 @@ export function ChaseSignatureModal({ open, jobId, jobs, onClose, onSent }: Chas
       toast.success("Job marked verified.");
       onSent();
     } catch (err: any) {
-      toast.error(err.message ?? "Couldn't verify this job from here — it may need the contractor's signature.");
+      toast.error(errorMessage(err, "Couldn't verify this job from here — it may need the contractor's signature."));
     } finally {
       setVerifying(false);
     }

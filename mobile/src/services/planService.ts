@@ -6,6 +6,7 @@
 import { HttpAgent } from "@icp-sdk/core/agent";
 import { idlFactory } from "@homegentic/shared/declarations/payment";
 import { actorFor, nsToMs, tag } from "./canister";
+import type { _SERVICE as PaymentCanister } from "@homegentic/shared/types/payment";
 
 export type PlanTier = "Free" | "Pro" | "ContractorFree" | "ContractorPro";
 
@@ -100,7 +101,7 @@ const PAYMENT_CANISTER_ID = process.env.EXPO_PUBLIC_PAYMENT_CANISTER_ID ?? "";
 export async function getMySubscription(agent?: HttpAgent): Promise<Subscription> {
   const free: Subscription = { tier: "Free", expiresAt: 0, cancelled: false };
   if (!PAYMENT_CANISTER_ID) return free;
-  const result = await actorFor(idlFactory, PAYMENT_CANISTER_ID, agent).getMySubscription();
+  const result = await actorFor<PaymentCanister>(idlFactory, PAYMENT_CANISTER_ID, agent).getMySubscription();
   if (!("ok" in result)) return free;
   const sub = result.ok;
   const expiresAt = nsToMs(sub.expiresAt);

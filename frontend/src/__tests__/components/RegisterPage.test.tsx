@@ -53,6 +53,7 @@ vi.mock("react-router-dom", async (importOriginal) => {
 import RegisterPage from "@/pages/RegisterPage";
 import { authService } from "@/services/auth";
 import toast from "react-hot-toast";
+import { CanisterError } from "@homegentic/shared/canisterError";
 
 const MOCK_PROFILE = {
   principal: "local-dev", role: "Homeowner" as const,
@@ -234,9 +235,16 @@ describe("RegisterPage — step 3: confirm & submit", () => {
   });
 
   it("shows toast error when registration fails", async () => {
-    vi.mocked(authService.register).mockRejectedValue(new Error("AlreadyExists"));
+    vi.mocked(authService.register).mockRejectedValue(new CanisterError("AlreadyExists"));
     goToStep3();
     fireEvent.click(screen.getByRole("button", { name: /create account/i }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("AlreadyExists"));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("That already exists."));
+  });
+
+  it("never shows a raw error tag or agent text", async () => {
+    vi.mocked(authService.register).mockRejectedValue(new Error("Call failed: Reject code 5, canister trapped"));
+    goToStep3();
+    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Registration failed"));
   });
 });

@@ -34,7 +34,13 @@ export type BillRecord = {
 };
 
 export type Error =
-  { InvalidInput: string } | { NotFound: null } | { NotAuthorized: null } | { TierLimitReached: string };
+  | { Paused: null }
+  | { InvalidInput: string }
+  | { NotFound: null }
+  | { NotAuthorized: null }
+  | { RateLimited: null }
+  | { TierLimitReached: string }
+  | { Unavailable: string };
 
 export type RecurringExpenseFields = {
   provider: string;

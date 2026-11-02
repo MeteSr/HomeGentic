@@ -318,7 +318,7 @@ describe("paymentService.subscribe — error handling", () => {
   it("throws with key when subscribe canister returns a non-text error", async () => {
     mockGetPriceQuote.mockResolvedValueOnce({ ok: BigInt(1_000_000) });
     mockSubscribeActor.mockResolvedValueOnce({ err: { RateLimited: null } });
-    await expect(paymentService.subscribe("Pro")).rejects.toThrow("RateLimited");
+    await expect(paymentService.subscribe("Pro")).rejects.toMatchObject({ code: "RateLimited" });
   });
 
   it("throws with text payload when subscribe returns PaymentFailed error", async () => {
@@ -329,7 +329,7 @@ describe("paymentService.subscribe — error handling", () => {
 
   it("throws when getPriceQuote returns an error", async () => {
     mockGetPriceQuote.mockResolvedValueOnce({ err: { NotAuthorized: null } });
-    await expect(paymentService.subscribe("Pro")).rejects.toThrow("NotAuthorized");
+    await expect(paymentService.subscribe("Pro")).rejects.toMatchObject({ code: "NotAuthorized" });
   });
 });
 
@@ -350,7 +350,7 @@ describe("paymentService.grantSubscription", () => {
 
   it("surfaces the canister's error", async () => {
     mockGrantSubscription.mockResolvedValueOnce({ err: { NotAuthorized: null } });
-    await expect(paymentService.grantSubscription("2vxsx-fae", "Pro")).rejects.toThrow("NotAuthorized");
+    await expect(paymentService.grantSubscription("2vxsx-fae", "Pro")).rejects.toMatchObject({ code: "NotAuthorized" });
   });
 });
 
@@ -408,7 +408,7 @@ describe("paymentService.cancel", () => {
 
   it("throws with key when canister returns a non-text error", async () => {
     mockCancelSubscription.mockResolvedValueOnce({ err: { NotAuthorized: null } });
-    await expect(paymentService.cancel()).rejects.toThrow("NotAuthorized");
+    await expect(paymentService.cancel()).rejects.toMatchObject({ code: "NotAuthorized" });
   });
 
   it("throws with text message when canister returns InvalidInput", async () => {
@@ -541,7 +541,7 @@ describe("paymentService.redeemGift", () => {
 
   it("throws with key on non-text error", async () => {
     mockRedeemGift.mockResolvedValueOnce({ err: { NotFound: null } });
-    await expect(paymentService.redeemGift("bad-token")).rejects.toThrow("NotFound");
+    await expect(paymentService.redeemGift("bad-token")).rejects.toMatchObject({ code: "NotFound" });
   });
 
   it("throws with text message on text-payload error", async () => {

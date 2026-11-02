@@ -3,7 +3,7 @@ import { idlFactory } from "@homegentic/shared/declarations/contractor";
 import { serviceTypeVariant, serviceTypeFromVariant, serviceTypeLabel } from "@homegentic/shared/serviceTypes";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 import type { _SERVICE as ContractorCanister } from "@homegentic/shared/types/contractor";
-import { candidErrorMessage } from "./candid";
+import { canisterError } from "./candid";
 import type * as ContractorTypes from "@homegentic/shared/types/contractor";
 export { idlFactory };
 
@@ -177,7 +177,7 @@ function isMockMode(): boolean {
 
 function unwrap(result: any): ContractorProfile {
   if ("ok" in result) return fromProfile(result.ok);
-  throw new Error(candidErrorMessage(result.err));
+  throw canisterError(result.err);
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────
@@ -298,7 +298,7 @@ function createContractorService() {
     const result = await a.setProfilePrivacy(p);
     if ("ok" in result) return fromPrivacy(result.ok);
     if ("NotFound" in result.err) throw new Error("Create your contractor profile first");
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   /** Privacy settings for each contractor, keyed by principal text. */
@@ -319,7 +319,7 @@ function createContractorService() {
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const result = await a.submitReview(P.fromText(contractorPrincipalText), BigInt(rating), comment, jobId);
     if ("err" in result) {
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
   },
 
@@ -382,7 +382,7 @@ function createContractorService() {
     const a = await getActor();
     const res = await a.setPortfolio(entries.map((e) => ({ ...e, credentialId: BigInt(e.credentialId) })));
     if ("ok" in res) return (res.ok as any[]).map(fromPortfolioItem);
-    throw new Error(candidErrorMessage(res.err));
+    throw canisterError(res.err);
   },
 
   /** The last DBPR lookup of this contractor's current licence number, or null. */

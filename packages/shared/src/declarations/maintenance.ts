@@ -16,6 +16,9 @@ export const idlFactory = ({ IDL }: any) => {
     NotFound:     IDL.Null,
     NotAuthorized: IDL.Null,
     InvalidInput: IDL.Text,
+    Paused: IDL.Null,
+    RateLimited: IDL.Null,
+    Unavailable: IDL.Text,
   });
   return IDL.Service({
     deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),

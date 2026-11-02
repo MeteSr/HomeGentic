@@ -115,7 +115,7 @@ function errText(err: unknown): string {
   const errVariant = err as Record<string, unknown>;
   const errKey = Object.keys(errVariant)[0] ?? "Unknown";
   const errVal = errVariant[errKey];
-  return errKey === "InvalidInput" ? `InvalidInput: ${errVal}` : errKey;
+  return typeof errVal === "string" ? `${errKey}: ${errVal}` : errKey;
 }
 
 /**

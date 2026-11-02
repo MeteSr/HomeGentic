@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
 import type { PropertyType } from "@/services/property";
+import { errorMessage } from "@/services/candid";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const T = {
@@ -539,7 +540,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
       toast.success("Property saved!");
       setStep("saved");
     } catch (err: any) {
-      toast.error(err.message || "Registration failed");
+      toast.error(errorMessage(err, "Registration failed"));
     } finally {
       setRegistering(false);
     }
@@ -552,7 +553,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
       await photoService.upload(file, `baseline_${registeredId}`, registeredId, "PostConstruction", systemKey);
       setBaselineCompleted(prev => new Set(prev).add(systemKey));
     } catch (err: any) {
-      toast.error(err.message || "Upload failed");
+      toast.error(errorMessage(err, "Upload failed"));
     } finally {
       setUploadingBaseline(null);
     }
@@ -578,7 +579,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
       toast.success("Verification submitted — pending review");
       setStep("saved");
     } catch (err: any) {
-      toast.error(err.message || "Verification failed");
+      toast.error(errorMessage(err, "Verification failed"));
     } finally {
       setSubmittingVerify(false);
     }

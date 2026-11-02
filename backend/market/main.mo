@@ -32,6 +32,7 @@ import Score "../shared/Score";
 import Canisters "../shared/Canisters";
 import ThresholdCost "../shared/ThresholdCost";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor MarketIntelligence {
 
@@ -139,11 +140,7 @@ persistent actor MarketIntelligence {
     updatedAt:    Time.Time;
   };
 
-  public type Error = {
-    #NotFound;
-    #NotAuthorized;
-    #InvalidInput: Text;
-  };
+  public type Error = Errors.Common;
 
   public type Metrics = {
     marketSnapshotCount: Nat;
@@ -342,9 +339,9 @@ persistent actor MarketIntelligence {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
+      return #err(#RateLimited)
     };
     #ok(())
   };
@@ -774,7 +771,7 @@ persistent actor MarketIntelligence {
 
     // CD-2: never attach more cycles than the canister can spare.
     if (not ThresholdCost.affordable(Cycles.balance(), vetkdDeriveCycles()))
-      return #err(#InvalidInput("Encrypted scores are unavailable right now. Please try again later."));
+      return #err(#Unavailable("Encrypted scores are unavailable right now. Please try again later."));
 
     if (not isAdmin(caller)) {
       let now = Time.now();

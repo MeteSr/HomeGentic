@@ -1,8 +1,13 @@
-import { HttpAgent, Actor } from "@icp-sdk/core/agent";
+import type { HttpAgent } from "@icp-sdk/core/agent";
 import { idlFactory as quoteIdlFactory } from "@homegentic/shared/declarations/quote";
 import { idlFactory as contractorIdlFactory } from "@homegentic/shared/declarations/contractor";
 import { getIcpAgent }      from "./icpAgent";
 import type { Urgency }     from "./quoteFormService";
+import { actorFor, variant, unwrap } from "./canister";
+import type { _SERVICE as ContractorCanister } from "@homegentic/shared/types/contractor";
+import type { _SERVICE as QuoteCanister } from "@homegentic/shared/types/quote";
+import { serviceTypeVariant } from "@homegentic/shared/serviceTypes";
+import type * as QuoteTypes from "@homegentic/shared/types/quote";
 
 export type QuoteRequestStatus = "open" | "quoted" | "accepted" | "closed";
 
@@ -41,7 +46,6 @@ export interface CreateQuoteInput {
 
 const QUOTE_CANISTER_ID = process.env.EXPO_PUBLIC_QUOTE_CANISTER_ID ?? "";
 
-
 // ── Converters ────────────────────────────────────────────────────────────────
 
 const URGENCY_MAP: Record<string, Urgency> = {
@@ -64,18 +68,8 @@ function fromRaw(raw: any): QuoteRequest {
   };
 }
 
-function unwrap<T>(result: any): T {
-  if ("ok" in result) return result.ok as T;
-  const key = Object.keys(result.err)[0];
-  const val = result.err[key];
-  throw new Error(typeof val === "string" ? val : key);
-}
-
 function getActor(agent: HttpAgent) {
-  return Actor.createActor(quoteIdlFactory as any, {
-    agent,
-    canisterId: QUOTE_CANISTER_ID,
-  });
+  return actorFor<QuoteCanister>(quoteIdlFactory, QUOTE_CANISTER_ID, agent);
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -85,7 +79,7 @@ export async function getMyQuoteRequests(
   agent?: HttpAgent,
 ): Promise<QuoteRequest[]> {
   const a = getActor(agent ?? getIcpAgent());
-  const raw: any[] = await (a as any).getMyQuoteRequests();
+  const raw: any[] = await a.getMyQuoteRequests();
   return raw.map(fromRaw);
 }
 
@@ -96,11 +90,11 @@ export async function createQuoteRequest(
   const a = getActor(agent ?? getIcpAgent());
   // Canister urgency variant key is capitalised: "Low", "Medium", "High", "Emergency"
   const urgencyKey = input.urgency.charAt(0).toUpperCase() + input.urgency.slice(1);
-  const result = await (a as any).createQuoteRequest(
+  const result = await a.createQuoteRequest(
     input.propertyId,
-    { [input.serviceType]: null },
+    serviceTypeVariant(input.serviceType),
     input.description,
-    { [urgencyKey]: null },
+    variant<QuoteTypes.UrgencyLevel>(urgencyKey),
     [], [], [], [], [],           // zipCode, minTrustScore, minJobsCompleted, minReviews, maxBids
   );
   return fromRaw(unwrap(result));
@@ -111,9 +105,9 @@ const CONTRACTOR_CANISTER_ID = process.env.EXPO_PUBLIC_CONTRACTOR_CANISTER_ID ??
 /** Bids on a request, cheapest first, with each contractor's name and record. */
 export async function getBids(requestId: string, agent?: HttpAgent): Promise<Bid[]> {
   const ag = agent ?? getIcpAgent();
-  const raw: any[] = unwrap(await (getActor(ag) as any).getQuotesForRequest(requestId));
+  const raw: any[] = unwrap(await getActor(ag).getQuotesForRequest(requestId));
   const contractors = CONTRACTOR_CANISTER_ID
-    ? Actor.createActor(contractorIdlFactory, { agent: ag, canisterId: CONTRACTOR_CANISTER_ID }) as any
+    ? actorFor<ContractorCanister>(contractorIdlFactory, CONTRACTOR_CANISTER_ID, ag)
     : null;
   const profiles = await Promise.all(raw.map((q) =>
     contractors ? contractors.getContractor(q.contractor).then((r: any) => ("ok" in r ? r.ok : null)).catch(() => null) : null,

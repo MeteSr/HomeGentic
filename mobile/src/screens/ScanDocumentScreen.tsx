@@ -30,6 +30,7 @@ import {
 } from "../services/documentService";
 import { SERVICE_TYPES } from "../services/jobFormService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
+import { errorMessage } from "@homegentic/shared/canisterError";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ScanDocument">;
 
@@ -93,7 +94,7 @@ export default function ScanDocumentScreen({ route, navigation }: Props) {
       });
       setStep("confirm");
     } catch (err: unknown) {
-      Alert.alert("Extraction failed", err instanceof Error ? err.message : "Try again.");
+      Alert.alert("Extraction failed", errorMessage(err, "Try again."));
       setStep("pick");
     }
   }

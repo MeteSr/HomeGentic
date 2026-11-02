@@ -31,6 +31,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Sensor {
 
@@ -98,10 +99,7 @@ persistent actor Sensor {
     jobId       : ?Text;         // set when a job was auto-created
   };
 
-  public type Error = {
-    #NotFound;
-    #NotAuthorized;
-    #InvalidInput : Text;
+  public type Error = Errors.Common or {
     #AlreadyExists;
   };
 
@@ -359,9 +357,9 @@ persistent actor Sensor {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
+      return #err(#RateLimited)
     };
     #ok(())
   };

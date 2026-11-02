@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { photoService, type Photo } from "@/services/photo";
 import toast from "react-hot-toast";
 import { Panel, hudInputStyle } from "@/components/hud";
+import { errorMessage, hasErrorCode } from "../../services/candid";
 
 const MONO = "'JetBrains Mono',monospace";
 const SERIF = "'Bricolage Grotesque',system-ui,sans-serif";
@@ -104,7 +105,7 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
       toast.success("Permit uploaded");
       setPermitNumber(""); setPermitAuthority("");
     } catch (err: any) {
-      toast.error(err.message === "Duplicate" ? "Already uploaded" : (err.message ?? "Upload failed"));
+      toast.error(hasErrorCode(err, "Duplicate") ? "Already uploaded" : errorMessage(err, "Upload failed"));
     } finally {
       setPermitUploading(false);
     }
@@ -122,7 +123,7 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
       toast.success("Inspection report uploaded");
       setInspectorName("");
     } catch (err: any) {
-      toast.error(err.message === "Duplicate" ? "Already uploaded" : (err.message ?? "Upload failed"));
+      toast.error(hasErrorCode(err, "Duplicate") ? "Already uploaded" : errorMessage(err, "Upload failed"));
     } finally {
       setInspectionUploading(false);
     }
@@ -141,8 +142,8 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
         setDocs((prev) => [doc, ...prev]);
         setQueue((prev) => prev.map((q, idx) => idx === i ? { ...q, status: "done" } : q));
       } catch (err: any) {
-        const msg: string = err.message ?? "Upload failed";
-        const isDuplicate = msg === "Duplicate" || msg.startsWith("Duplicate");
+        const msg = errorMessage(err, "Upload failed");
+        const isDuplicate = hasErrorCode(err, "Duplicate");
         setQueue((prev) => prev.map((q, idx) => idx === i ? { ...q, status: isDuplicate ? "duplicate" : "error", error: isDuplicate ? "Already uploaded" : msg } : q));
       }
     }

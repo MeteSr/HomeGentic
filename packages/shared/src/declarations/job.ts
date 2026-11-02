@@ -37,6 +37,9 @@ export const idlFactory = ({ IDL }: any) => {
     InvalidInput:    IDL.Text,
     AlreadyVerified: IDL.Null,
     TierLimitReached: IDL.Text,
+    Paused: IDL.Null,
+    RateLimited: IDL.Null,
+    Unavailable: IDL.Text,
   });
   const EmailDraftInput = IDL.Record({
     fromAddress:    IDL.Text,

@@ -11,6 +11,7 @@ import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
 import { formatCents } from "@/utils/format";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 const UI = V2_COLORS;
 
@@ -47,7 +48,7 @@ export function ConfirmSelectionModal({ proposal, feeCents, onClose, onConfirmed
       (onConfirmed ?? onClose)();
     } catch (err: any) {
       // Invariant 04: a failed selection leaves the auction fully masked and live.
-      toast.error(err?.message ?? "Selection failed — the auction is still live and masked.");
+      toast.error(errorMessage(err, "Selection failed — the auction is still live and masked."));
       setSubmitting(false);
     }
   }

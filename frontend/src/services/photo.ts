@@ -3,7 +3,7 @@ import { idlFactory } from "@homegentic/shared/declarations/photo";
 import { uploadPhotoPreferOffChain, offChainPhotosEnabled, type OffChainDeps } from "@homegentic/shared/photoUpload";
 import { getAgentSessionToken, fetchWithAgentSession } from "./agentSession";
 import type { _SERVICE as PhotoCanister } from "@homegentic/shared/types/photo";
-import { candidErrorMessage } from "./candid";
+import { canisterError } from "./candid";
 import type * as PhotoTypes from "@homegentic/shared/types/photo";
 export { idlFactory };
 
@@ -237,7 +237,7 @@ function createPhotoService() {
       offChain,
     );
     if ("ok" in result) return fromPhoto(result.ok, bytes);
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   async getByJob(jobId: string): Promise<Photo[]> {
@@ -301,8 +301,7 @@ function createPhotoService() {
     const a = await getActor();
     const result = await a.deletePhoto(photoId);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      throw new Error(key);
+      throw canisterError(result.err);
     }
     // Drop off-chain bytes too; the Worker only allows this once the record
     // is gone. Best effort: a later sweep removes anything left behind.

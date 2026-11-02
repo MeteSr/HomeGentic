@@ -75,8 +75,9 @@ export const idlFactory = ({ IDL }: any) => {
     AlreadyExists:     IDL.Null,
     NotAuthorized:     IDL.Null,
     Paused:            IDL.Null,
-    RateLimitExceeded: IDL.Null,
+    RateLimited: IDL.Null,
     InvalidInput:      IDL.Text,
+    Unavailable: IDL.Text,
   });
   const LicenseCheckFields = {
     licenseNumber: IDL.Text,

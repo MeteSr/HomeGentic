@@ -13,6 +13,7 @@ import { agentService, type AgentProfile } from "@/services/agent";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
 import { formatCents } from "@/utils/format";
+import { errorMessage } from "@/services/candid";
 
 const UI = V2_COLORS;
 
@@ -86,7 +87,7 @@ export default function AgentBidFormPage() {
       toast.success("Sealed bid submitted.");
       navigate("/agents/bids");
     } catch (err: any) {
-      toast.error(err?.message ?? "Bid submission failed");
+      toast.error(errorMessage(err, "Bid submission failed"));
     } finally {
       setSubmitting(false);
     }
