@@ -56,11 +56,11 @@ export async function getAgent(): Promise<HttpAgent> {
       "DFX_IDENTITY_PEM is not set — cannot make authenticated canister calls",
     );
   }
-  const { host, local } = icHost();
+  const { host, rootKey } = icHost();
   let agent = agents.get(host);
   if (!agent) {
-    // Local replica uses a self-signed root key; mainnet has a hardcoded one.
-    agent = HttpAgent.create({ host, identity: identityFromPem(pem), shouldFetchRootKey: local });
+    // A local replica's root key comes from ICP_ROOT_KEY; mainnet's is built in.
+    agent = HttpAgent.create({ host, identity: identityFromPem(pem), rootKey });
     agents.set(host, agent);
   }
   return agent;

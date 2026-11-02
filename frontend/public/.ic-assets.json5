@@ -16,5 +16,15 @@
     // Hidden folders are skipped unless listed: serve /.well-known/security.txt (RFC 9116).
     "match": ".well-known",
     "ignore": false
+  },
+  {
+    // Internet Identity reads this from the derivation origin (this canister's
+    // own address) when a page on homegentic.app signs in, so it needs CORS.
+    "match": ".well-known/ii-alternative-origins",
+    "ignore": false,
+    "headers": {
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "application/json"
+    }
   }
 ]

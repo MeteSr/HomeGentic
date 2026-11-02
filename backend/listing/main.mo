@@ -493,22 +493,23 @@ persistent actor Listing {
   };
 
   /// Property-canister ownership: the property's registered owner only.
-  /// Fails closed when the property canister isn't wired.
-  private func isPropertyOwner(propertyId: Text, caller: Principal) : async Bool {
-    if (Text.size(propCanisterId) == 0) return false;
-    let propActor = Canisters.property(propCanisterId);
-    switch (await propActor.getPropertyOwner(propertyId)) {
-      case null    { false };
-      case (?owner) { owner == caller };
+  /// Fails closed when the property canister isn't wired; #Unavailable when
+  /// it didn't answer (M-4).
+  private func isPropertyOwner(propertyId: Text, caller: Principal) : async* Result.Result<(), Error> {
+    if (propCanisterId == "") return #err(#NotAuthorized);
+    switch (await* Canisters.ownerOf(propCanisterId, propertyId)) {
+      case (#err(e))     { #err(e) };
+      case (#ok(?owner)) { if (owner == caller) #ok(()) else #err(#NotAuthorized) };
+      case (#ok(null))   { #err(#NotAuthorized) };
     }
   };
 
   /// Owner or write-capable manager (co-owner / manager) of a property.
-  /// Fails closed when the property canister isn't wired.
-  private func canManageProperty(propertyId: Text, caller: Principal) : async Bool {
-    if (Text.size(propCanisterId) == 0) return false;
-    let propActor = Canisters.property(propCanisterId);
-    await propActor.isAuthorized(propertyId, caller, true)
+  /// Fails closed when the property canister isn't wired; #Unavailable when
+  /// it didn't answer (M-4).
+  private func canManageProperty(propertyId: Text, caller: Principal) : async* Result.Result<(), Error> {
+    if (propCanisterId == "") return #err(#NotAuthorized);
+    await* Canisters.authorize(propCanisterId, propertyId, caller, true)
   };
 
   /// Whether `photoId` was uploaded to the photo canister as a listing photo
@@ -559,7 +560,7 @@ persistent actor Listing {
 
     // M6: only the property's owner may put it up for Bid to List — no fake
     // listings for homes the caller doesn't own. Fails closed when unwired.
-    if (not (await isPropertyOwner(propertyId, msg.caller))) return #err(#NotAuthorized);
+    switch (await* isPropertyOwner(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
 
     let id = nextBidId();
     let (scrubbedNotes, _) = scrubText(notes);
@@ -656,24 +657,24 @@ persistent actor Listing {
 
   /// M7: review-state changes are limited to admins and the owner/manager of
   /// the property whose listing holds the photo.
-  private func canChangePhotoReview(photoId: Text, caller: Principal) : async Bool {
-    if (isAdmin(caller)) return true;
+  private func canChangePhotoReview(photoId: Text, caller: Principal) : async* Result.Result<(), Error> {
+    if (isAdmin(caller)) return #ok(());
     switch (photoPropertyOf(photoId)) {
-      case null    { false };
-      case (?pid)  { await canManageProperty(pid, caller) };
+      case null    { #err(#NotAuthorized) };
+      case (?pid)  { await* canManageProperty(pid, caller) };
     }
   };
 
   public shared(msg) func flagPhotoForReview(photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (not (await canChangePhotoReview(photoId, msg.caller))) return #err(#NotAuthorized);
+    switch (await* canChangePhotoReview(photoId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
     photoReviews.add(photoId, { flagged = true; reviewed = false });
     #ok(())
   };
 
   public shared(msg) func reviewPhoto(photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (not (await canChangePhotoReview(photoId, msg.caller))) return #err(#NotAuthorized);
+    switch (await* canChangePhotoReview(photoId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
     photoReviews.add(photoId, { flagged = true; reviewed = true });
     #ok(())
   };
@@ -715,7 +716,8 @@ persistent actor Listing {
         avgDaysOnMarket: Nat; listingsLast12Months: Nat;
       };
     };
-    let profile = switch (await agentActor.getProfile(msg.caller)) {
+    let found = try { await agentActor.getProfile(msg.caller) } catch (_) { return #err(#Unavailable(Canisters.unavailable("agent"))) };
+    let profile = switch (found) {
       case null { return #err(#NotAuthorized) };
       case (?p) { p };
     };
@@ -867,7 +869,8 @@ persistent actor Listing {
             let feeActor = actor(feeCanisterId) : actor {
               recordFeeOwed : (Text, Text, Principal, Principal, Nat) -> async Result.Result<{ id: Text }, Canisters.FeeError>;
             };
-            let result = await feeActor.recordFeeOwed(req.id, p.id, p.agentId, req.homeowner, platformFeeCents);
+            let result = try { await feeActor.recordFeeOwed(req.id, p.id, p.agentId, req.homeowner, platformFeeCents) }
+                         catch (_) { return #err(#Unavailable(Canisters.unavailable("fee"))) };
             switch (result) {
               case (#err(#NotFound))       { #err(#NotFound) };
               case (#err(#NotAuthorized))  { #err(#NotAuthorized) };
@@ -917,7 +920,8 @@ persistent actor Listing {
       amountCents: Nat; status: { #Owed; #Invoiced; #Paid; #Waived }; createdAt: Int; updatedAt: Int;
     };
     let feeActor = actor(feeCanisterId) : actor { getFeeForRequest : query (Text) -> async ?FeeRec };
-    let fee = switch (await feeActor.getFeeForRequest(requestId)) {
+    let feeRec = try { await feeActor.getFeeForRequest(requestId) } catch (_) { return #err(#Unavailable(Canisters.unavailable("fee"))) };
+    let fee = switch (feeRec) {
       case null { return #err(#InvalidInput("no fee record for this request")) };
       case (?f) { f };
     };
@@ -1142,7 +1146,7 @@ persistent actor Listing {
 
     // M7: authorise against the property canister (owner or write-capable
     // manager) instead of a first-come owner lock. State is read after the await.
-    if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (not isAdmin(msg.caller)) { switch (await* canManageProperty(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} } };
     if (not (await isListingPhotoOf(propertyId, photoId))) return #err(#InvalidInput("Not a listing photo of this property"));
     // A photo belongs to one listing, so another property can't claim it and
     // clear its review gate.
@@ -1171,7 +1175,7 @@ persistent actor Listing {
 
   public shared(msg) func removeListingPhoto(propertyId: Text, photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (not isAdmin(msg.caller)) { switch (await* canManageProperty(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} } };
     let existing : [Text] = switch (listingPhotos.get(propertyId)) { case null { return #err(#NotFound) }; case (?ids) { ids } };
     listingPhotos.add(propertyId, existing.filter(func(id) { id != photoId }));
     #ok(())
@@ -1179,7 +1183,7 @@ persistent actor Listing {
 
   public shared(msg) func reorderListingPhotos(propertyId: Text, photoIds: [Text]) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (not isAdmin(msg.caller)) { switch (await* canManageProperty(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} } };
     let existing : [Text] = switch (listingPhotos.get(propertyId)) { case null { return #err(#NotFound) }; case (?ids) { ids } };
     if (photoIds.size() != existing.size())
       return #err(#InvalidInput("Reorder list must contain the same number of photos"));
@@ -1208,7 +1212,7 @@ persistent actor Listing {
       return #err(#InvalidInput("field too long"));
 
     // M7: property-canister ownership instead of a first-come owner lock.
-    if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (not isAdmin(msg.caller)) { switch (await* canManageProperty(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} } };
     if (not (await isListingPhotoOf(propertyId, photoId))) return #err(#InvalidInput("Not a listing photo of this property"));
     switch (photoPropertyOf(photoId)) {
       case (?pid) { if (pid != propertyId) return #err(#InvalidInput("Photo belongs to another listing")) };
@@ -1235,7 +1239,7 @@ persistent actor Listing {
 
   public shared(msg) func removePanorama(propertyId: Text, roomLabel: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (not isAdmin(msg.caller)) { switch (await* canManageProperty(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} } };
     let existing : [PanoramaEntry] = switch (listingPanoramas.get(propertyId)) { case null { return #err(#NotFound) }; case (?entries) { entries } };
     if (not Option.isSome(existing.find(func(e) { e.roomLabel == roomLabel }))) return #err(#NotFound);
     listingPanoramas.add(propertyId, existing.filter(func(e) { e.roomLabel != roomLabel }));
@@ -1272,11 +1276,13 @@ persistent actor Listing {
       return #err(#Unavailable("Ownership checks are unavailable right now. Please try again later."));
     };
     let propActor = Canisters.property(propCanisterId);
-    switch (await propActor.getPropertyOwner(listing.propertyId)) {
-      case null    { return #err(#NotFound) };
-      case (?owner) { if (owner != msg.caller) return #err(#NotAuthorized) };
+    switch (await* Canisters.ownerOf(propCanisterId, listing.propertyId)) {
+      case (#err(e))      { return #err(e) };
+      case (#ok(null))    { return #err(#NotFound) };
+      case (#ok(?owner))  { if (owner != msg.caller) return #err(#NotAuthorized) };
     };
-    switch (await propActor.getVerificationLevel(listing.propertyId)) {
+    let level = try { await propActor.getVerificationLevel(listing.propertyId) } catch (_) { return #err(#Unavailable(Canisters.unavailable("property"))) };
+    switch (level) {
       case null     {};
       case (?level) { resolvedVerificationLevel := level };
     };
@@ -1285,19 +1291,19 @@ persistent actor Listing {
       let jobActor = actor(jobCanisterId) : actor {
         getCertificationData : query (Text) -> async { verifiedJobCount : Nat; verifiedKeySystems : [Text]; meetsStructural : Bool };
       };
-      let certData = await jobActor.getCertificationData(listing.propertyId);
+      let certData = try { await jobActor.getCertificationData(listing.propertyId) } catch (_) { return #err(#Unavailable(Canisters.unavailable("job"))) };
       resolvedVerifiedJobCount := certData.verifiedJobCount;
     };
 
     if (reportCanisterId != "") {
       let reportActor = actor(reportCanisterId) : actor { hasActivePublicShareLink : query (Text) -> async Bool };
-      resolvedHasPublicReport := await reportActor.hasActivePublicShareLink(listing.propertyId);
+      resolvedHasPublicReport := try { await reportActor.hasActivePublicShareLink(listing.propertyId) } catch (_) { return #err(#Unavailable(Canisters.unavailable("report"))) };
     };
 
     var resolvedScore : ?Nat = null;
     if (marketCanisterId != "" and fsboScoreHidden.get(listing.propertyId) == null) {
       let marketActor = actor(marketCanisterId) : actor { computePropertyScore : (Text) -> async ?Nat };
-      resolvedScore := await marketActor.computePropertyScore(listing.propertyId);
+      resolvedScore := try { await marketActor.computePropertyScore(listing.propertyId) } catch (_) { return #err(#Unavailable(Canisters.unavailable("market"))) };
     };
 
     // The seller may have hidden the score while we waited on the market canister.
@@ -1401,7 +1407,7 @@ persistent actor Listing {
       case (?d) { if (Text.size(d) > 5000) return #err(#InvalidInput("description exceeds 5000 characters")) };
       case null {};
     };
-    if (not isAdmin(msg.caller) and not (await isPropertyOwner(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (not isAdmin(msg.caller)) { switch (await* isPropertyOwner(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} } };
     if (fsboListings.get(propertyId) != null) return #err(#InvalidInput("This listing is already live; change the price with updateFsboPrice"));
     let now = Time.now();
     let draft : FsboDraft = {
@@ -1467,7 +1473,7 @@ persistent actor Listing {
     var score : ?Nat = null;
     if (marketCanisterId != "") {
       let marketActor = actor(marketCanisterId) : actor { computePropertyScore : (Text) -> async ?Nat };
-      score := await marketActor.computePropertyScore(propertyId);
+      score := try { await marketActor.computePropertyScore(propertyId) } catch (_) { return #err(#Unavailable(Canisters.unavailable("market"))) };
     };
     // The listing may have changed during the await, and a "hide" sent in the
     // same round may have landed meanwhile: it wins, so the score stays hidden.

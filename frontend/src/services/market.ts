@@ -5,7 +5,7 @@
  * already holds — no extra round-trips to job/property canisters.
  *
  * Neighbourhood score methods (4.3.4) call the market canister directly
- * and use @dfinity/vetkeys for score authentication.
+ * and use @icp-sdk/vetkeys for score authentication.
  */
 
 import { Actor } from "@icp-sdk/core/agent";

@@ -157,19 +157,29 @@ const icAssets = [
   },
 ];
 
-// ── Universal links (.well-known) ─────────────────────────────────────────────
-// The assets canister skips dot-folders unless told otherwise, and iOS wants
-// the association file served as JSON despite having no extension.
+// ── .well-known ───────────────────────────────────────────────────────────────
+// The assets canister skips dot-folders unless told otherwise, so the folder is
+// always listed: public/.well-known holds security.txt, ic-domains (custom
+// domain registration, custom-domains skill) and ii-alternative-origins.
+icAssets.push({ match: ".well-known", ignore: false });
+
+// Internet Identity fetches ii-alternative-origins from the derivation origin
+// (this canister's own address) while a page on homegentic.app signs in, so it
+// needs CORS and a JSON content type (internet-identity skill).
+icAssets.push({
+  match: ".well-known/ii-alternative-origins",
+  headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+});
+
+// Universal links: iOS wants the association file served as JSON despite
+// having no extension.
 const wellKnown = wellKnownFiles(env);
 if (Object.keys(wellKnown).length) {
   mkdirSync(resolve(DIST, ".well-known"), { recursive: true });
   for (const [name, body] of Object.entries(wellKnown)) {
     writeFileSync(resolve(DIST, ".well-known", name), JSON.stringify(body) + "\n");
+    icAssets.push({ match: `.well-known/${name}`, headers: { "Content-Type": "application/json" } });
   }
-  icAssets.push(
-    { match: ".well-known", ignore: false },
-    { match: ".well-known/*", headers: { "Content-Type": "application/json" } },
-  );
   console.log(`[gen-ic-assets] wrote .well-known/${Object.keys(wellKnown).join(", .well-known/")}`);
 }
 

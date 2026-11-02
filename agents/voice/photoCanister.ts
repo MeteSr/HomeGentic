@@ -32,10 +32,10 @@ const agents = new Map<string, Promise<HttpAgent>>();
 function getAgent(): Promise<HttpAgent> {
   const pem = process.env.DFX_IDENTITY_PEM;
   if (!pem) throw new Error("DFX_IDENTITY_PEM is not set — cannot call photoAccess");
-  const { host, local } = icHost();
+  const { host, rootKey } = icHost();
   let agent = agents.get(host);
   if (!agent) {
-    agent = HttpAgent.create({ host, identity: identityFromPem(pem), shouldFetchRootKey: local });
+    agent = HttpAgent.create({ host, identity: identityFromPem(pem), rootKey });
     agents.set(host, agent);
   }
   return agent;

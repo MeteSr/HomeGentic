@@ -120,7 +120,7 @@ docs/             ARCHITECTURE.md, API.md, SYSTEMS.md, FEATURES.md, DEPLOYMENT.m
 
 ### ICP Canister Map
 
-All 20 canisters use `persistent actor` (Motoko mo:core) — all variables are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed. `transient var` is used for in-memory structures that should reset on upgrade (e.g. rate-limit sliding-window maps). Each exports a `metrics()` query and `pause()`/`unpause()` admin capability.
+All 20 canisters use `persistent actor` (Motoko mo:core) — all variables are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed. `transient` is for in-memory structures that should reset on upgrade (caches such as the vetKD public keys). The existing per-minute rate-limit maps (`updateCallLimits` and friends) are plain stable `let`s, bounded by `RateLimit.sweep`; making one transient now drops a stable var, which is a stable break, so leave them. Admin-tunable stable vars (`maxUpdatesPerMin`, `platformFeeCents`, …) keep their first-install value: changing the default in code changes nothing on a deployed canister. Each exports a `metrics()` query and `pause()`/`unpause()` admin capability.
 
 | Canister | Responsibility |
 |---|---|
@@ -173,7 +173,7 @@ Because accounts are free to create, every Claude call also passes `agents/voice
 
 ### Frontend Service Layer
 
-`frontend/src/services/actor.ts` creates the ICP `HttpAgent`. In local dev it uses a fixed-seed Ed25519 identity to survive hot-reloads without re-authenticating. In production it uses `@icp-sdk/auth` (Internet Identity).
+`frontend/src/services/actor.ts` creates the ICP `HttpAgent`. In local dev it uses a fixed-seed Ed25519 identity to survive hot-reloads without re-authenticating. In production it uses `@icp-sdk/auth` (Internet Identity). Nothing calls `fetchRootKey()`: the browser reads the root key from the asset canister's `ic_env` cookie (or the local key vite injects in dev), and the agents take `ICP_ROOT_KEY` for a local host only (`packages/shared/src/rootKey.ts`). On a page served from an alternative origin, sign-in passes `derivationOrigin` (`II_DERIVATION_ORIGIN`, written by `scripts/deploy.sh`) so users keep the same principal.
 
 Each service file (e.g. `job.ts`, `property.ts`) imports its canister's IDL from `@homegentic/shared/declarations/<canister>` (`packages/shared/src/declarations/`) and follows a mock-fallback pattern:
 ```typescript
@@ -187,7 +187,7 @@ After updating declarations, run `npm run gen:declaration-types` (writes `packag
 
 **Typed actors.** Each generated file exports the declaration's named types and a `_SERVICE` interface with the methods it lists. Frontend services pass it to `lazyActor<_SERVICE>()` and mobile services to `actorFor<_SERVICE>()` (`mobile/src/services/canister.ts`), so every call's arguments and results are type-checked; without a type argument the actor has no methods. The types describe what the declaration decodes (which may omit fields the canister has), not the whole canister. Build variants with `variant<T>("Tag")`. Import a canister's types as a namespace (`import type * as JobTypes from "@homegentic/shared/types/job"`) so names like `Error` and `Job` don't collide with the service's own.
 
-**Errors.** Every canister's `Error` is `Errors.Common or { …its own cases }` (`backend/shared/Errors.mo`): `#NotAuthorized`, `#NotFound`, `#InvalidInput : Text`, `#Paused`, `#RateLimited` (per-minute limit only), `#Unavailable : Text` (a callee not wired or not answering). A daily or per-property cap is `#InvalidInput` with a message. Text payloads are written for people. Never return a paused or rate-limited state as `#InvalidInput` text. A new tag on a callee's `Error` must also go into each caller's declared callee type (`check-canister-calls.sh` fails otherwise) and into the declaration. Clients throw `canisterError(result.err)` (`packages/shared/src/canisterError.ts`, re-exported from `services/candid.ts`; mobile `unwrap()` does it) and show `errorMessage(err, fallback)`, never `err.message` or a bare tag; branch with `hasErrorCode(err, "Duplicate")` and `isRetryable(err)`.
+**Errors.** Every canister's `Error` is `Errors.Common or { …its own cases }` (`backend/shared/Errors.mo`): `#NotAuthorized`, `#NotFound`, `#InvalidInput : Text`, `#Paused`, `#RateLimited` (per-minute limit only), `#Unavailable : Text` (a callee not wired or not answering). A daily or per-property cap is `#InvalidInput` with a message. Text payloads are written for people. A call to another canister can be rejected (callee stopped for an upgrade, out of cycles, trapped): catch it and return `#Unavailable` (`Canisters.authorize` / `ownerOf` / `tierOf` do this for the common property and payment calls), never let it reach the client as an opaque reject. Never return a paused or rate-limited state as `#InvalidInput` text. A new tag on a callee's `Error` must also go into each caller's declared callee type (`check-canister-calls.sh` fails otherwise) and into the declaration. Clients throw `canisterError(result.err)` (`packages/shared/src/canisterError.ts`, re-exported from `services/candid.ts`; mobile `unwrap()` does it) and show `errorMessage(err, fallback)`, never `err.message` or a bare tag; branch with `hasErrorCode(err, "Duplicate")` and `isRetryable(err)`.
 
 ### State Management
 

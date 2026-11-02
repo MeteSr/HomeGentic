@@ -280,12 +280,12 @@ persistent actor Bills {
 
   /// Resolve the caller's subscription tier — live from the payment canister
   /// when wired, else from the local grant map (dev fallback).
-  private func resolveTier(caller: Principal) : async* SubscriptionTier {
+  /// #Unavailable when the payment canister didn't answer (M-4).
+  private func resolveTier(caller: Principal) : async* Result.Result<SubscriptionTier, Error> {
     if (payCanisterId != "") {
-      let payActor = Canisters.payment(payCanisterId);
-      await payActor.getTierForPrincipal(caller)
+      await* Canisters.tierOf(payCanisterId, caller)
     } else {
-      #Free  // payment canister not wired: no tier source, fail closed
+      #ok(#Free)  // payment canister not wired: no tier source, fail closed
     }
   };
 
@@ -296,12 +296,15 @@ persistent actor Bills {
   /// The caller's role on a property, from the property canister. null means the
   /// canister isn't wired or doesn't know the property — records are then
   /// visible only to their author, exactly as before sharing existed.
-  private func accessRole(propertyId: Text, caller: Principal) : async* ?AccessRole {
-    if (propCanisterId == "") return null;
+  /// #Unavailable when the property canister didn't answer (M-4): never null,
+  /// which would read as "not wired" and let the author write.
+  private func accessRole(propertyId: Text, caller: Principal) : async* Result.Result<?AccessRole, Error> {
+    if (propCanisterId == "") return #ok(null);
     let propActor = actor(propCanisterId) : actor {
       getAccessRole : shared query (Text, Principal) -> async ?AccessRole;
     };
-    await propActor.getAccessRole(propertyId, caller)
+    try { #ok(await propActor.getAccessRole(propertyId, caller)) }
+    catch (_) { #err(#Unavailable(Canisters.unavailable("property"))) }
   };
 
   private func canWrite(role: ?AccessRole) : Bool {
@@ -371,10 +374,12 @@ persistent actor Bills {
     if (Text.size(args.periodStart) == 0)   return #err(#InvalidInput("periodStart cannot be empty"));
     if (Text.size(args.periodEnd)   == 0)   return #err(#InvalidInput("periodEnd cannot be empty"));
 
-    if (not canWrite(await* accessRole(args.propertyId, msg.caller))) return #err(#NotAuthorized);
+    let role = switch (await* accessRole(args.propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(r)) r };
+
+    if (not canWrite(role)) return #err(#NotAuthorized);
 
     // ── Tier enforcement ──────────────────────────────────────────────────────
-    let callerTier = await* resolveTier(msg.caller);
+    let callerTier = switch (await* resolveTier(msg.caller)) { case (#err(e)) return #err(e); case (#ok(t)) t };
 
     if (callerTier == #Free) {
       return #err(#TierLimitReached(
@@ -432,7 +437,8 @@ persistent actor Bills {
   /// Return a property's bills: all of them for anyone with a role on the
   /// property (owner, co-owner, manager, viewer), otherwise only the caller's own.
   public shared(msg) func getBillsForProperty(propertyId: Text) : async Result.Result<[BillRecord], Error> {
-    let shared_ = seesProperty(await* accessRole(propertyId, msg.caller));
+    let role = switch (await* accessRole(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(r)) r };
+    let shared_ = seesProperty(role);
     let result = Index.records(billsByProperty, propertyId, bills).toArray().filter(
       func(b) {
         shared_ or Principal.equal(b.homeowner, msg.caller)
@@ -466,7 +472,8 @@ persistent actor Bills {
     billType   : BillType,
     months     : Nat,
   ) : async Result.Result<[UsagePeriod], Error> {
-    let shared_ = seesProperty(await* accessRole(propertyId, msg.caller));
+    let role = switch (await* accessRole(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(r)) r };
+    let shared_ = seesProperty(role);
     let cutoffNs : Int = Time.now() - (months * 30 * 24 * 3_600_000_000_000 : Nat);
     let periodsBuf = List.empty<UsagePeriod>();
 
@@ -513,7 +520,8 @@ persistent actor Bills {
         b.propertyId
       };
     };
-    if (not hasFullControl(await* accessRole(propertyId, msg.caller))) return #err(#NotAuthorized);
+    let role = switch (await* accessRole(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(r)) r };
+    if (not hasFullControl(role)) return #err(#NotAuthorized);
     // Re-check after the await: the bill may have been removed meanwhile.
     if (bills.get(id) == null) return #err(#NotFound);
     Index.delete(bills, billIndexes, id);
@@ -533,11 +541,13 @@ persistent actor Bills {
     if (Text.size(propertyId) > 200) return #err(#InvalidInput("propertyId exceeds 200 characters"));
     switch (validateRecurringFields(fields)) { case (?m) return #err(#InvalidInput(m)); case null {} };
 
-    let role = await* accessRole(propertyId, msg.caller);
+    let role = switch (await* accessRole(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(r)) r };
     if (not canWrite(role)) return #err(#NotAuthorized);
     if (isMortgage(fields.category) and not mortgageAllowed(role)) return #err(#NotAuthorized);
 
-    if ((await* resolveTier(msg.caller)) == #Free) {
+    let callerTier = switch (await* resolveTier(msg.caller)) { case (#err(e)) return #err(e); case (#ok(t)) t };
+
+    if (callerTier == #Free) {
       return #err(#TierLimitReached(
         "Bill tracking requires an active subscription. Subscribe to Pro ($59/year) to get started."
       ));
@@ -571,7 +581,7 @@ persistent actor Bills {
   /// role on the property sees them all except the mortgage, which only the
   /// owner and co-owners see; others see only entries they created.
   public shared(msg) func getRecurringExpensesForProperty(propertyId: Text) : async Result.Result<[RecurringExpense], Error> {
-    let role = await* accessRole(propertyId, msg.caller);
+    let role = switch (await* accessRole(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(r)) r };
     let visible = Index.records(expensesByProperty, propertyId, recurringExpenses).toArray().filter(
       func(e) {
         (
@@ -596,7 +606,7 @@ persistent actor Bills {
       case null { return #err(#NotFound) };
       case (?e) e.propertyId;
     };
-    let role = await* accessRole(propertyId, msg.caller);
+    let role = switch (await* accessRole(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(r)) r };
     // Re-read after the await so a concurrent edit or delete isn't clobbered.
     switch (recurringExpenses.get(id)) {
       case null { #err(#NotFound) };
@@ -635,7 +645,8 @@ persistent actor Bills {
         e.propertyId
       };
     };
-    if (not hasFullControl(await* accessRole(propertyId, msg.caller))) return #err(#NotAuthorized);
+    let role = switch (await* accessRole(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(r)) r };
+    if (not hasFullControl(role)) return #err(#NotAuthorized);
     if (recurringExpenses.get(id) == null) return #err(#NotFound);
     Index.delete(recurringExpenses, expenseIndexes, id);
     #ok(())

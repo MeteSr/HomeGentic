@@ -101,6 +101,7 @@ persistent actor Referrals {
       #markConverted : Any;
       #metrics : Any;
       #pause : Any;
+      #removeAdmin : Any;
       #setBootstrapNonce : Any;
       #setPaymentCanisterId : Any;
       #unpause : Any;
@@ -264,9 +265,12 @@ persistent actor Referrals {
 
   // ─── Admin ────────────────────────────────────────────────────────────────────
 
-  public shared(msg) func setPaymentCanisterId(id : Text) : async () {
-    assert isAdmin(msg.caller);
+  /// Admin only. Returns #NotAuthorized instead of an assert trap, so a
+  /// refused call says why (canister-security skill).
+  public shared(msg) func setPaymentCanisterId(id : Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     paymentCanisterId := id;
+    #ok(())
   };
 
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
@@ -287,6 +291,18 @@ persistent actor Referrals {
       adminList := adminList.concat([t]);
     };
     adminInitialized := true;
+    #ok(())
+  };
+
+  /// Removes an admin, so a leaked or departed admin key can be revoked
+  /// (canister-security pitfall 8). Refuses to remove the last admin, which
+  /// would leave the canister with no one to manage it.
+  public shared(msg) func removeAdmin(p : Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let t = p.toText();
+    let rest = adminList.filter(func(a) { a != t });
+    if (rest.size() == 0) return #err(#InvalidInput("Can't remove the last admin"));
+    adminList := rest;
     #ok(())
   };
 

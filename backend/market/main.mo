@@ -742,13 +742,22 @@ persistent actor MarketIntelligence {
   /// The frontend uses this to verify decrypted vetKeys via DerivedPublicKey.deserialize.
   /// vetkd_public_key requires no cycles.
   public func getNeighborhoodPublicKey() : async Blob {
+    switch (scorePublicKeyCache) {
+      case (?(name, key)) { if (name == vetkdKeyName) return key };
+      case null {};
+    };
+    let name = vetkdKeyName;
     let response = await managementCanister.vetkd_public_key({
       canister_id = null;
       context     = SCORE_CONTEXT;
-      key_id      = { curve = #bls12_381_g2; name = vetkdKeyName };
+      key_id      = { curve = #bls12_381_g2; name };
     });
+    scorePublicKeyCache := ?(name, response.public_key);
     response.public_key
   };
+
+  /// Fixed for a key name and context, so fetched once per key and upgrade.
+  private transient var scorePublicKeyCache : ?(Text, Blob) = null;
 
   /// Returns the caller's stored score encrypted to their transport public key
   /// via vetKeys key derivation. The encryptedKey allows the frontend to prove
@@ -837,6 +846,8 @@ persistent actor MarketIntelligence {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     if (name != "key_1" and name != "test_key_1" and name != "dfx_test_key")
       return #err(#InvalidInput("unknown vetKD key name"));
+    // Nothing is stored encrypted under this key: each getMyScoreEncrypted
+    // derives afresh, so switching keys (unlike quote's sealed bids) loses nothing.
     vetkdKeyName := name;
     #ok(())
   };

@@ -174,6 +174,14 @@ persistent actor Recurring {
     }
   };
 
+  /// checkPropertyAuth as a result, for methods that return one: a property
+  /// canister that didn't answer is #Unavailable, not "not authorized" (M-4).
+  private func authorize(propertyId: Text, fallbackOwner: Principal, caller: Principal, requireWrite: Bool) : async* Result.Result<(), Error> {
+    if (isAdmin(caller)) return #ok(());
+    if (propCanisterId == "") return if (caller == fallbackOwner) #ok(()) else #err(#NotAuthorized);
+    await* Canisters.authorize(propCanisterId, propertyId, caller, requireWrite)
+  };
+
   /// Bumped for every new service / visit id.
   private var idSeq : Nat = 0;
 
@@ -214,8 +222,7 @@ persistent actor Recurring {
     switch (notes)           { case (?v) { if (Text.size(v) > 2000) return #err(#InvalidInput("notes exceed 2000 characters"))          }; case null {} };
 
     // M8: only the property's owner or a write-capable manager may add services.
-    if (not (await checkPropertyAuth(propertyId, msg.caller, msg.caller, true)))
-      return #err(#NotAuthorized);
+    switch (await* authorize(propertyId, msg.caller, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
 
     let id  = nextId("REC_");
     let now = Time.now();
@@ -248,8 +255,7 @@ persistent actor Recurring {
     switch (services.get(serviceId)) {
       case null  { #err(#NotFound) };
       case (?s)  {
-        if (not (await checkPropertyAuth(s.propertyId, s.homeowner, msg.caller, false)))
-          return #err(#NotAuthorized);
+        switch (await* authorize(s.propertyId, s.homeowner, msg.caller, false)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         switch (services.get(serviceId)) {
           case null    { #err(#NotFound) };
           case (?cur)  { #ok(cur) };
@@ -325,8 +331,7 @@ persistent actor Recurring {
       case null { #err(#NotFound) };
       case (?first) {
         // M8: owner/manager of the property, checked live (former owners lose access).
-        if (not (await checkPropertyAuth(first.propertyId, first.homeowner, msg.caller, true)))
-          return #err(#NotAuthorized);
+        switch (await* authorize(first.propertyId, first.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         // Re-read after the await (TOCTOU).
         let existing = switch (services.get(serviceId)) {
           case null { return #err(#NotFound) };
@@ -373,8 +378,7 @@ persistent actor Recurring {
       case null { #err(#NotFound) };
       case (?first) {
         // M8: owner/manager of the property, checked live (former owners lose access).
-        if (not (await checkPropertyAuth(first.propertyId, first.homeowner, msg.caller, true)))
-          return #err(#NotAuthorized);
+        switch (await* authorize(first.propertyId, first.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         // Re-read after the await (TOCTOU).
         let existing = switch (services.get(serviceId)) {
           case null { return #err(#NotFound) };
@@ -421,8 +425,7 @@ persistent actor Recurring {
       case null { #err(#NotFound) };
       case (?first) {
         // M8: owner/manager of the property, checked live (former owners lose access).
-        if (not (await checkPropertyAuth(first.propertyId, first.homeowner, msg.caller, true)))
-          return #err(#NotAuthorized);
+        switch (await* authorize(first.propertyId, first.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         let id  = nextId("VISIT_");
         // Re-read after the await (TOCTOU).
         let svc = switch (services.get(serviceId)) {

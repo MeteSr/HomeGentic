@@ -826,18 +826,27 @@ persistent actor Property {
       case null {};
     };
     inFlightRegistrations.add(callerKey, true);
+    // Released in `finally`, which runs on every return, on a rejected
+    // payment or randomness call, and when a callback traps
+    // (canister-security skill, CallerGuard).
+    try {
+      await* registerLocked(caller, args, key)
+    } catch (_) {
+      #err(#Unavailable("Registration is briefly unavailable. Please try again."))
+    } finally {
+      inFlightRegistrations.remove(callerKey);
+    }
+  };
+
+  /// registerProperty's body, run while the caller's in-flight lock is held.
+  private func registerLocked(caller : Principal, args : RegisterPropertyArgs, key : Text) : async* Result.Result<Property, Error> {
 
     // ── Tier limit check ────────────────────────────────────────────────────
     // When payment canister is wired, tier comes from getTierForPrincipal();
     // otherwise falls back to the local admin-grant map.
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = Canisters.payment(payCanisterId);
-      // A rejected call must not leave the in-flight lock set, or the
-      // caller could never register again.
-      try { await payActor.getTierForPrincipal(caller) } catch (e) {
-        inFlightRegistrations.remove(callerKey);
-        throw e;
-      }
+      await payActor.getTierForPrincipal(caller)
     } else {
       #Free  // payment canister not wired: no tier source, fail closed
     };
@@ -859,24 +868,19 @@ persistent actor Property {
         case (#Free)  " Subscribe to Pro ($59/year) for 20 properties.";
         case _        "";
       };
-      inFlightRegistrations.remove(callerKey);
       return #err(#InvalidInput(
         tierName # " plan limit of " # limit.toText() # " propert" #
         (if (limit == 1) "y" else "ies") # " reached." # upgradeMsg
       ));
     };
 
-    let id  = try { await nextPropertyId() } catch (e) {
-      inFlightRegistrations.remove(callerKey);
-      throw e;
-    };
+    let id  = await nextPropertyId();
     let now = Time.now();
 
     // M-8: re-check after the awaits — another registration of this address
     // may have landed while this call was suspended.
     switch (addressConflict(key, caller)) {
       case (?e) {
-        inFlightRegistrations.remove(callerKey);
         countError("registerProperty");
         return #err(e);
       };
@@ -925,7 +929,6 @@ persistent actor Property {
     };
     if (not indexedVerified) { addressIdx.add(key, id) };
     addressClaimSince.add(key, since);
-    inFlightRegistrations.remove(callerKey);
     #ok(prop)
   };
 

@@ -23,10 +23,10 @@ export interface InvitePreview {
 
 const agents = new Map<string, Promise<HttpAgent>>();
 function agentFor(): Promise<HttpAgent> {
-  const { host, local } = icHost();
+  const { host, rootKey } = icHost();
   let agent = agents.get(host);
   if (!agent) {
-    agent = HttpAgent.create({ host, shouldFetchRootKey: local });
+    agent = HttpAgent.create({ host, rootKey });
     agents.set(host, agent);
   }
   return agent;

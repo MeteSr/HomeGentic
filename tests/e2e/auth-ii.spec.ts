@@ -32,7 +32,7 @@
 import { testWithII } from "@dfinity/internet-identity-playwright";
 import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
-import { injectSubscription } from "./helpers/testData";
+import { injectSubscription, injectTestProperties } from "./helpers/testData";
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -104,6 +104,11 @@ test.describe("Internet Identity — logout flow", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectSubscription(page);
+    // Without injected properties the dashboard asks the (absent) property
+    // canister and shows a "Failed to load properties" toast over the account
+    // menu. Mock mode no longer waits 2 s on a root-key fetch first, so the
+    // toast now lands before the click.
+    await injectTestProperties(page);
   });
 
   // II.2

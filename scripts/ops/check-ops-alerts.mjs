@@ -17,6 +17,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
 import { idlFactory } from "../../packages/shared/src/declarations/monitoring.ts";
+import { rootKeyFor } from "../../packages/shared/src/rootKey.ts";
 import { identityFromPem } from "./identity.mjs";
 import { evaluate } from "./opsAlerts.mjs";
 
@@ -62,11 +63,12 @@ async function main() {
     problems.push({ kind: "config", text: "IDENTITY_PEM is not set, so monitoring could not be read" });
   } else {
     const host = process.env.IC_HOST || "https://icp-api.io";
-    const local = /localhost|127\.0\.0\.1/.test(host);
+    // Never fetched at runtime (canister-security skill): a local network's
+    // root key comes from ICP_ROOT_KEY, mainnet's is built into the agent.
     const agent = await HttpAgent.create({
       host,
       identity: identityFromPem(process.env.IDENTITY_PEM),
-      shouldFetchRootKey: local,
+      rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY),
     });
     const monitoring = Actor.createActor(idlFactory, { agent, canisterId });
     try {

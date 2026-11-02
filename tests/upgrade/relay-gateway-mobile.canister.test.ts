@@ -24,8 +24,9 @@ import type { Identity } from "@icp-sdk/core/agent";
 import { Principal } from "@icp-sdk/core/principal";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { randomBytes } from "crypto";
+import { existsSync } from "fs";
 import { resolve } from "path";
-import { createPic, wasmPath, CONTROLLER } from "./__helpers__/setup";
+import { createPic, wasmPath, CONTROLLER, gatewayRootKeyHex } from "./__helpers__/setup";
 import { serviceFromWasm } from "./__helpers__/candid";
 import * as relay from "../../agents/notifications/icp";
 import * as gateway from "../../agents/iot-gateway/icp";
@@ -38,8 +39,13 @@ function ok<T>(r: R<T>): T {
 
 const CANISTERS = ["auth", "property", "payment", "job", "quote", "contractor", "report", "sensor"] as const;
 type Name = typeof CANISTERS[number];
-// The mobile app's @icp-sdk/core (version 6, as the app ships), from the frontend's install.
-const CORE6 = resolve(__dirname, "../../frontend/node_modules/@icp-sdk/core/lib/esm");
+// The mobile app's @icp-sdk/core (version 6, as the app ships), from the frontend's
+// install: npm puts it under frontend/ or hoists it to the root, depending on what
+// else in the workspace depends on it.
+const CORE6 = [
+  resolve(__dirname, "../../frontend/node_modules/@icp-sdk/core/lib/esm"),
+  resolve(__dirname, "../../node_modules/@icp-sdk/core/lib/esm"),
+].find((dir) => existsSync(`${dir}/agent/index.js`))!;
 
 describe("relay, gateway and mobile clients on real canisters", () => {
   let pic: PocketIc;
@@ -112,7 +118,7 @@ describe("relay, gateway and mobile clients on real canisters", () => {
 
     host = `http://localhost:${await pic.makeLive()}`;
     Object.assign(process.env, {
-      IC_HOST: host, ICP_HOST: host, NODE_ENV: "test",
+      IC_HOST: host, ICP_HOST: host, NODE_ENV: "test", ICP_ROOT_KEY: await gatewayRootKeyHex(host),
       RELAY_IDENTITY_SEED: relaySeed, GATEWAY_IDENTITY_SEED: gatewaySeed,
       SENSOR_CANISTER_ID: ids.sensor.toText(),
       CANISTER_ID_AUTH: ids.auth.toText(), CANISTER_ID_PROPERTY: ids.property.toText(),

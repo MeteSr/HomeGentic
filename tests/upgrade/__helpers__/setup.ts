@@ -17,6 +17,7 @@
 
 import { PocketIc, PocketIcServer, createIdentity, type CreateInstanceOptions } from "@dfinity/pic";
 import { IDL }      from "@icp-sdk/core/candid";
+import { HttpAgent } from "@icp-sdk/core/agent";
 import type { Principal } from "@icp-sdk/core/principal";
 import { copyFileSync, existsSync, rmSync } from "fs";
 import { tmpdir }     from "os";
@@ -462,4 +463,14 @@ export async function sameRound(
     pending.push(await a[c.method](...c.args));
   }
   return Promise.all(pending.map((wait) => wait()));
+}
+
+/**
+ * The root key of a live PocketIC gateway, as hex, for the code under test to
+ * receive via ICP_ROOT_KEY / LOCAL_IC_ROOT_KEY. Only the test harness fetches
+ * it: production code never fetches a root key (canister-security skill).
+ */
+export async function gatewayRootKeyHex(host: string): Promise<string> {
+  const agent = await HttpAgent.create({ host, shouldFetchRootKey: true });
+  return Buffer.from(new Uint8Array(agent.rootKey as ArrayLike<number>)).toString("hex");
 }

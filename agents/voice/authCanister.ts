@@ -1,14 +1,16 @@
 /**
  * Minimal client for the auth canister's voice-agent session lookup.
  *
- * resolveAgentSession is a public query (the token is the secret), so this
- * uses an anonymous agent — no admin identity needed. Env is read at call
+ * resolveAgentSession is public (the token is the secret), so this uses an
+ * anonymous agent — no admin identity needed. It is sent as a replicated,
+ * certified call (sessionLookup.ts), not a single-replica query. Env is read at call
  * time because the Cloudflare Worker copies its bindings into process.env
  * per request, after this module is imported.
  */
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
+import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import type { Principal } from "@icp-sdk/core/principal";
-import { idlFactory } from "../../packages/shared/src/declarations/auth";
+import { sessionLookupIdl } from "../../packages/shared/src/sessionLookup";
 import { icHost } from "./icHost";
 
 type AuthActor = { resolveAgentSession(token: string): Promise<[] | [Principal]> };
@@ -16,10 +18,13 @@ type AuthActor = { resolveAgentSession(token: string): Promise<[] | [Principal]>
 const agents = new Map<string, Promise<HttpAgent>>();
 
 function agentFor(): Promise<HttpAgent> {
-  const { host, local } = icHost();
+  const { host, rootKey } = icHost();
   let agent = agents.get(host);
   if (!agent) {
-    agent = HttpAgent.create({ host, shouldFetchRootKey: local });
+    // auth's inspect refuses anonymous ingress (cycle-drain CD-5), and the
+    // lookup is an update call, so sign it with a throwaway identity. The
+    // method is public: the identity grants nothing.
+    agent = HttpAgent.create({ host, rootKey, identity: Ed25519KeyIdentity.generate() });
     agents.set(host, agent);
   }
   return agent;
@@ -29,7 +34,7 @@ function agentFor(): Promise<HttpAgent> {
 export async function resolveAgentSessionOwner(token: string): Promise<string | null> {
   const canisterId = process.env.CANISTER_ID_AUTH;
   if (!canisterId) throw new Error("CANISTER_ID_AUTH is not set — cannot resolve agent sessions");
-  const actor = Actor.createActor(idlFactory, {
+  const actor = Actor.createActor(sessionLookupIdl, {
     agent: await agentFor(),
     canisterId,
   }) as unknown as AuthActor;

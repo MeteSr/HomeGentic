@@ -32,6 +32,35 @@ module {
 
   public func property(id : Text) : Property = actor (id);
 
+  /// The `#Unavailable` text for a callee that rejected the call (stopped for an
+  /// upgrade, out of cycles, trapped). Callers retry, so it says so.
+  public func unavailable(service : Text) : Text {
+    "The " # service # " service didn't answer. Please try again in a minute."
+  };
+
+  /// `property.isAuthorized` as a result: `#NotAuthorized` when the property
+  /// canister says no, `#Unavailable` when it didn't answer (a rejected call
+  /// would otherwise reach the client as an opaque reject; multi-canister
+  /// skill, pitfall 7).
+  public func authorize(propCanisterId : Text, propertyId : Text, caller : Principal, requireWrite : Bool) : async* { #ok : (); #err : Errors.Common } {
+    try {
+      if (await property(propCanisterId).isAuthorized(propertyId, caller, requireWrite)) #ok(()) else #err(#NotAuthorized)
+    } catch _ { #err(#Unavailable(unavailable("property"))) }
+  };
+
+  /// `property.getPropertyOwner`, with a rejected call as `#Unavailable`.
+  public func ownerOf(propCanisterId : Text, propertyId : Text) : async* { #ok : ?Principal; #err : Errors.Common } {
+    try { #ok(await property(propCanisterId).getPropertyOwner(propertyId)) }
+    catch _ { #err(#Unavailable(unavailable("property"))) }
+  };
+
+  /// `payment.getTierForPrincipal`, with a rejected call as `#Unavailable`.
+  /// Callers decide the not-wired case themselves (most fail closed to Free).
+  public func tierOf(payCanisterId : Text, p : Principal) : async* { #ok : Tier; #err : Errors.Common } {
+    try { #ok(await payment(payCanisterId).getTierForPrincipal(p)) }
+    catch _ { #err(#Unavailable(unavailable("payment"))) }
+  };
+
   /// True for any role on the property, as `property.isAuthorized(_, _, false)` decides.
   public func hasRole(role : ?AccessRole) : Bool {
     switch role { case (?#Owner or ?#CoOwner or ?#Manager or ?#Viewer) true; case _ false }

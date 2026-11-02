@@ -393,7 +393,7 @@ function createQuoteService() {
   async revealBidsDecrypted(
     requestId:      string,
   ): Promise<SealedRevealedBid[]> {
-    const { TransportSecretKey } = await import("@dfinity/vetkeys");
+    const { TransportSecretKey } = await import("@icp-sdk/vetkeys");
 
     const tsk = TransportSecretKey.random();
     const tpk = tsk.publicKeyBytes();

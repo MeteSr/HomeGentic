@@ -8,7 +8,7 @@
  *   - "Decryption": JSON.parse(atob(ciphertext)).a
  *   - All state lives in JS maps; reset() clears everything.
  *
- * Production (canister + @dfinity/vetkeys):
+ * Production (canister + @icp-sdk/vetkeys):
  *   - Contractor: IBE-encrypt amountCents with canister public key → Uint8Array ciphertext
  *   - Canister: stores ciphertext; vetkd_derive_key derives homeowner's IBE key after closeAt
  *   - Homeowner: receives encryptedKey + raw ciphertexts, decrypts locally with vetkeys SDK
@@ -50,7 +50,7 @@ export interface RevealedBid {
 }
 
 // ─── Mock IBE crypto ──────────────────────────────────────────────────────────
-// In production: use @dfinity/vetkeys IBE encrypt/decrypt with canister public key.
+// In production: use @icp-sdk/vetkeys IBE encrypt/decrypt with canister public key.
 
 function mockIbeEncrypt(amountCents: number, requestId: string): string {
   // Mix in requestId so same amount → different ciphertext for different requests
@@ -110,7 +110,7 @@ function createSealedBidService() {
      * Submit an encrypted (sealed) bid for a request.
      * Throws "BidWindowClosed" if the window has already closed.
      * In mock mode the ciphertext is base64(JSON({a, r})); in production it would
-     * be the IBE ciphertext produced by @dfinity/vetkeys.
+     * be the IBE ciphertext produced by @icp-sdk/vetkeys.
      */
     submitSealedBid(
       requestId:    string,
@@ -209,7 +209,7 @@ function createSealedBidService() {
 export const sealedBidService = createSealedBidService();
 
 // ─── Real IBE crypto utilities (production) ───────────────────────────────────
-// These functions use @dfinity/vetkeys and are called by quoteService methods
+// These functions use @icp-sdk/vetkeys and are called by quoteService methods
 // when a real canister is available.  Unit tests use the mock service above.
 
 /** Encode amountCents as a 4-byte little-endian Uint8Array. */
@@ -251,7 +251,7 @@ export async function ibeEncryptAmount(
   amountCents:             number,
 ): Promise<Uint8Array> {
   const { DerivedPublicKey, IbeIdentity, IbeCiphertext, IbeSeed } =
-    await import("@dfinity/vetkeys");
+    await import("@icp-sdk/vetkeys");
   const dpk      = DerivedPublicKey.deserialize(pubKeyBytes);
   const identity = IbeIdentity.fromBytes(homeownerPrincipalBytes);
   const plaintext = encodeAmountCents(amountCents);
@@ -273,7 +273,7 @@ export async function ibeDecryptBids(
   encryptedKeyBytes:  Uint8Array,
   pubKeyBytes:        Uint8Array,
   myPrincipalBytes:   Uint8Array,
-  tsk:                import("@dfinity/vetkeys").TransportSecretKey,
+  tsk:                import("@icp-sdk/vetkeys").TransportSecretKey,
   rawBids: Array<{
     id:           string;
     requestId:    string;
@@ -284,7 +284,7 @@ export async function ibeDecryptBids(
   }>,
 ): Promise<RevealedBid[]> {
   const { DerivedPublicKey, EncryptedVetKey, IbeCiphertext } =
-    await import("@dfinity/vetkeys");
+    await import("@icp-sdk/vetkeys");
 
   const dpk         = DerivedPublicKey.deserialize(pubKeyBytes);
   const encVetKey   = EncryptedVetKey.deserialize(encryptedKeyBytes);

@@ -71,8 +71,7 @@ describe("inspect: argument size caps", () => {
     const bytes = new Uint8Array(1_200 * KIB).fill(7);
     // Reaches the method (which stops because this lone photo canister isn't
     // wired to property), so inspect let the 1.2 MB argument through.
-    await expect(photo.uploadPhoto("JOB_1", "PROP_1", { Finishing: null }, "", "a".repeat(64), bytes)).rejects.toThrow(
-      /propCanisterId not configured/,
-    );
+    const r = await photo.uploadPhoto("JOB_1", "PROP_1", { Finishing: null }, "", "a".repeat(64), bytes);
+    expect(JSON.stringify(r)).toMatch(/Photo access checks are unavailable/);
   });
 });

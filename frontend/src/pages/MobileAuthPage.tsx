@@ -8,7 +8,7 @@ import type { DerEncodedPublicKey } from "@icp-sdk/core/agent";
 import { Signer } from "@icp-sdk/signer";
 import { PostMessageTransport } from "@icp-sdk/signer/web";
 import { PageHead } from "@/components/PageHead";
-import { II_URL } from "@/services/actor";
+import { II_URL, iiDerivationOrigin } from "@/services/actor";
 import { mobileRedirectUrl, parseMobileAuthRequest } from "@/services/mobileAuth";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { Main } from "@/components/MainLandmark";
@@ -32,7 +32,10 @@ export default function MobileAuthPage() {
     if (!request) return;
     setPhase({ kind: "working" });
     // The Internet Identity window has to open straight from the click.
-    const signer = new Signer({ transport: new PostMessageTransport({ url: II_URL }) });
+    const signer = new Signer({
+      transport: new PostMessageTransport({ url: II_URL }),
+      derivationOrigin: iiDerivationOrigin(),
+    });
     try {
       await signer.openChannel();
       const chain = await signer.requestDelegation({
