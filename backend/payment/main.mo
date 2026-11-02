@@ -712,13 +712,26 @@ persistent actor Payment {
       return #err(#RateLimited);
     };
     activeSubscribers.add(callerKey, true);
+    // The lock is released in `finally`, which runs even when the ledger or
+    // XRC call is rejected or the callback traps (canister-security skill,
+    // CallerGuard). A manual release on each return path missed the rejected
+    // icrc2_transfer_from, leaving the caller locked out until an upgrade.
+    try {
+      await* subscribeLocked(msg.caller, tier)
+    } catch (_) {
+      #err(#PaymentFailed("The payment couldn't be completed. Please try again."))
+    } finally {
+      activeSubscribers.remove(callerKey);
+    }
+  };
 
+  /// subscribe's body, run while the caller's lock is held.
+  private func subscribeLocked(caller : Principal, tier : Tier) : async* Result.Result<Subscription, Error> {
     let usdPrice = priceUsd(tier);
     if (usdPrice > 0) {
       // Rate at subscription time (cached up to 5 minutes; the quote carries a 5% buffer)
       let priceE8s = switch (await* icpUsdRate()) {
         case (#err(m)) {
-          activeSubscribers.remove(callerKey);
           return #err(#PaymentFailed(m));
         };
         case (#ok((rate, decimals))) { computeE8s(usdPrice, rate, decimals) };
@@ -726,7 +739,7 @@ persistent actor Payment {
 
       let transferResult = await icpLedger.icrc2_transfer_from({
         spender_subaccount = null;
-        from               = { owner = msg.caller; subaccount = null };
+        from               = { owner = caller; subaccount = null };
         to                 = { owner = Principal.fromActor(Payment); subaccount = null };
         amount             = priceE8s;
         fee                = ?ICP_FEE;
@@ -751,7 +764,6 @@ persistent actor Payment {
             };
             case _ { "Payment transfer failed" };
           };
-          activeSubscribers.remove(callerKey);
           return #err(#PaymentFailed(errMsg));
         };
         case (#Ok(_)) {};
@@ -765,14 +777,13 @@ persistent actor Payment {
     };
     let now = Time.now();
     let sub: Subscription = {
-      owner       = msg.caller;
+      owner       = caller;
       tier;
       expiresAt   = if (durationNs == 0) 0 else now + durationNs;
       createdAt   = now;
       cancelledAt = null;
     };
-    subscriptions.add(msg.caller, sub);
-    activeSubscribers.remove(callerKey);  // release lock before cross-canister calls
+    subscriptions.add(caller, sub);
     #ok(sub)
   };
 

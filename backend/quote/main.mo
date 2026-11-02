@@ -1359,13 +1359,23 @@ persistent actor Quote {
   /// Contractors call this before encrypting bid amounts with @dfinity/vetkeys.
   /// vetkd_public_key requires no cycles.
   public func getIbePublicKey() : async Blob {
+    switch (ibePublicKeyCache) {
+      case (?(name, key)) { if (name == vetkdKeyName) return key };
+      case null {};
+    };
+    let name = vetkdKeyName;
     let response = await managementCanister.vetkd_public_key({
       canister_id = null;
       context     = IBE_CONTEXT;
-      key_id      = { curve = #bls12_381_g2; name = vetkdKeyName };
+      key_id      = { curve = #bls12_381_g2; name };
     });
+    ibePublicKeyCache := ?(name, response.public_key);
     response.public_key
   };
+
+  /// The public key is fixed for a key name and context, so it is fetched once
+  /// per key and upgrade instead of one management call per request.
+  private transient var ibePublicKeyCache : ?(Text, Blob) = null;
 
   /// Derive the homeowner's IBE private key (encrypted to their transport public key)
   /// and return it together with all sealed bids for a request.
@@ -1692,6 +1702,12 @@ persistent actor Quote {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     if (name != "key_1" and name != "test_key_1" and name != "dfx_test_key")
       return #err(#InvalidInput("unknown vetKD key name"));
+    // Sealed bids are encrypted to the key in use when they were placed; a
+    // different key derives a different decryption key and those bids could
+    // never be revealed (vetkeys skill: the key name is fixed for the life of
+    // the data). deploy.sh sets key_1 before the first bid exists.
+    if (name != vetkdKeyName and sealedBids.size() > 0)
+      return #err(#InvalidInput("The vetKD key can't change once sealed bids exist"));
     vetkdKeyName := name;
     #ok(())
   };
