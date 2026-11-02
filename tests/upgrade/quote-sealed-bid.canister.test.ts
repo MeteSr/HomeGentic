@@ -15,7 +15,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PocketIc, createIdentity, SubnetStateType } from "@dfinity/pic";
 import { IDL } from "@icp-sdk/core/candid";
 import type { Identity } from "@icp-sdk/core/agent";
-import { TransportSecretKey } from "@dfinity/vetkeys";
+import { TransportSecretKey } from "@icp-sdk/vetkeys";
 import { createPic, wasmPath, CONTROLLER } from "./__helpers__/setup";
 import { serviceFromWasm } from "./__helpers__/candid";
 import { ibeEncryptAmount, ibeDecryptBids, sealedBidIdentity } from "../../frontend/src/services/sealedBid";

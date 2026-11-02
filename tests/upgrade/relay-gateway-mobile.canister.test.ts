@@ -24,6 +24,7 @@ import type { Identity } from "@icp-sdk/core/agent";
 import { Principal } from "@icp-sdk/core/principal";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { randomBytes } from "crypto";
+import { existsSync } from "fs";
 import { resolve } from "path";
 import { createPic, wasmPath, CONTROLLER, gatewayRootKeyHex } from "./__helpers__/setup";
 import { serviceFromWasm } from "./__helpers__/candid";
@@ -38,8 +39,13 @@ function ok<T>(r: R<T>): T {
 
 const CANISTERS = ["auth", "property", "payment", "job", "quote", "contractor", "report", "sensor"] as const;
 type Name = typeof CANISTERS[number];
-// The mobile app's @icp-sdk/core (version 6, as the app ships), from the frontend's install.
-const CORE6 = resolve(__dirname, "../../frontend/node_modules/@icp-sdk/core/lib/esm");
+// The mobile app's @icp-sdk/core (version 6, as the app ships), from the frontend's
+// install: npm puts it under frontend/ or hoists it to the root, depending on what
+// else in the workspace depends on it.
+const CORE6 = [
+  resolve(__dirname, "../../frontend/node_modules/@icp-sdk/core/lib/esm"),
+  resolve(__dirname, "../../node_modules/@icp-sdk/core/lib/esm"),
+].find((dir) => existsSync(`${dir}/agent/index.js`))!;
 
 describe("relay, gateway and mobile clients on real canisters", () => {
   let pic: PocketIc;
