@@ -1239,7 +1239,7 @@ persistent actor Report {
     for (id in snapIds.values()) {
       for (t in Index.ids(linksBySnapshot, id)) { tokenSet.add(t, ()) };
     };
-    let linkTokens = Iter.toArray(tokenSet.keys());
+    let linkTokens = tokenSet.keys().toArray();
 
     var removed = 0;
     for (t in linkTokens.values()) {

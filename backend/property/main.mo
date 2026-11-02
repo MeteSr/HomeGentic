@@ -2135,7 +2135,7 @@ persistent actor Property {
   /// bills and recurring answer "records for all my properties" with one
   /// cross-canister call instead of one per property.
   public query func getAccessRoles(propertyIds : [Text], principal : Principal) : async [?AccessRole] {
-    Array.tabulate<?AccessRole>(propertyIds.size(), func(i) {
+    Array.tabulate(propertyIds.size(), func(i) {
       if (i < MAX_ROLE_BATCH) accessRoleOf(propertyIds[i], principal) else null
     })
   };

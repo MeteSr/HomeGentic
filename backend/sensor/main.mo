@@ -932,7 +932,7 @@ persistent actor Sensor {
     if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
     let caller = msg.caller;
 
-    let mine = Iter.toArray(devices.values().filter(func(d) = d.homeowner == caller));
+    let mine = devices.values().filter(func(d) = d.homeowner == caller).toArray();
     let deviceSet = Set.empty<Text>();
     for (d in mine.values()) { deviceSet.add(d.id) };
     let isMine = func(e : SensorEvent) : Bool { e.homeowner == caller or deviceSet.contains(e.deviceId) };
@@ -948,7 +948,7 @@ persistent actor Sensor {
     if (mine.size() == 0) return #ok(0);
 
     // Events (current log + legacy store).
-    let seqs = Iter.toArray(eventLog.entries().filter(func((_, e)) = isMine(e)).map(func((s, _)) = s));
+    let seqs = eventLog.entries().filter(func((_, e)) = isMine(e)).map(func((s, _)) = s).toArray();
     for (seq in seqs.values()) {
       switch (eventLog.get(seq)) {
         case (?e) {
@@ -965,7 +965,7 @@ persistent actor Sensor {
         case null {};
       };
     };
-    let legacy = Iter.toArray(events.entries().filter(func((_, e)) = isMine(e)).map(func((id, _)) = id));
+    let legacy = events.entries().filter(func((_, e)) = isMine(e)).map(func((id, _)) = id).toArray();
     for (id in legacy.values()) { events.remove(id); removed += 1 };
 
     // Devices and every map keyed to them.
@@ -979,7 +979,7 @@ persistent actor Sensor {
     };
     // Any index entry still pointing at a deleted device.
     for (ix in [externalIdIdx, verifiedIdx].values()) {
-      let stale = Iter.toArray(ix.entries().filter(func((_, id)) = deviceSet.contains(id)).map(func((k, _)) = k));
+      let stale = ix.entries().filter(func((_, id)) = deviceSet.contains(id)).map(func((k, _)) = k).toArray();
       for (k in stale.values()) { ix.remove(k) };
     };
     #ok(removed)

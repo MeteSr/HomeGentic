@@ -711,7 +711,7 @@ persistent actor Quote {
       let amounts = Index.records(ix, priceKey(svc, z, digits), quotes)
         .map(func(q : Quote) : Nat { q.amount })
         .toArray()
-        .sort(Nat.compare);
+        .sort();
       let n = amounts.size();
       if (n >= MIN_PRICE_SAMPLES) {
         return ?{

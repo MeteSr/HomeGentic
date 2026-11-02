@@ -520,7 +520,7 @@ persistent actor class Auth(initDeployer : Principal) {
     if (not isNotifier(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
     let cap = if (limit == 0 or limit > 200) 200 else limit;
     let iter = switch (after) {
-      case (?a) Map.entriesFrom(users, Principal.compare, a);
+      case (?a) users.entriesFrom(a);
       case null users.entries();
     };
     let out = List.empty<{ principal : Principal; email : Text }>();
