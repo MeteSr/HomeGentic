@@ -677,6 +677,31 @@ else
   echo "DFX_NETWORK=${ENV}" >> .env
 fi
 
+# Internet Identity derivation origin: the frontend canister's own address.
+# II gives each origin its own principals; pinning them to the canister address
+# means homegentic.app (listed in public/.well-known/ii-alternative-origins)
+# signs users into the same accounts, and a domain change never orphans them
+# (internet-identity skill). The frontend needs it at build time, so create the
+# frontend canister now if this is its first deploy.
+if [ "$ENV" != "local" ]; then
+  FRONTEND_ID_FOR_II=$(icp canister status frontend -e "$ENV" --id-only 2>/dev/null || echo "")
+  if [ -z "$FRONTEND_ID_FOR_II" ]; then
+    icp canister create frontend -e "$ENV" >/dev/null 2>&1 || true
+    FRONTEND_ID_FOR_II=$(icp canister status frontend -e "$ENV" --id-only 2>/dev/null || echo "")
+  fi
+  if [ -z "$FRONTEND_ID_FOR_II" ]; then
+    echo "❌ Could not resolve the frontend canister id for II_DERIVATION_ORIGIN"
+    exit 1
+  fi
+  II_ORIGIN="https://${FRONTEND_ID_FOR_II}.icp0.io"
+  if grep -q "^II_DERIVATION_ORIGIN=" .env 2>/dev/null; then
+    sed -i "s|^II_DERIVATION_ORIGIN=.*|II_DERIVATION_ORIGIN=${II_ORIGIN}|" .env
+  else
+    echo "II_DERIVATION_ORIGIN=${II_ORIGIN}" >> .env
+  fi
+  echo "  ✓ II_DERIVATION_ORIGIN=${II_ORIGIN}"
+fi
+
 # Post-deploy cycles check + auto top-up — see scripts/lib/cycles-balance-check.sh.
 # Split out so it can be tested directly (with a stubbed `icp`) instead of via
 # static text-proximity checks against this file.

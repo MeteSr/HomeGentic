@@ -21,6 +21,22 @@ export const II_URL = IS_LOCAL
 // II's backend canister id, the same on mainnet and on a local network.
 const II_CANISTER_ID = "rdmx6-jaaaa-aaaaa-aaadq-cai";
 
+// II gives each origin its own principals, so the app pins them to one
+// origin: the frontend canister's own address (a custom domain can change,
+// the canister address can't). deploy.sh sets II_DERIVATION_ORIGIN to
+// https://<frontend canister id>.icp0.io. That origin serves
+// /.well-known/ii-alternative-origins listing homegentic.app, and only a page
+// on an alternative origin passes derivationOrigin (internet-identity skill,
+// "Serving an app at more than one origin").
+const DERIVATION_ORIGIN: string = (process.env as any).II_DERIVATION_ORIGIN || "";
+
+/** The derivationOrigin to send from this page, or undefined on the primary origin. */
+export function iiDerivationOrigin(pageOrigin?: string): string | undefined {
+  if (!DERIVATION_ORIGIN) return undefined;
+  const here = pageOrigin ?? (typeof window !== "undefined" ? window.location.origin : "");
+  return here && here !== DERIVATION_ORIGIN ? DERIVATION_ORIGIN : undefined;
+}
+
 let _authClient: AuthClient | null = null;
 let _agent: HttpAgent | null = null;
 
@@ -33,6 +49,7 @@ export async function getAuthClient(): Promise<AuthClient> {
     // (a plain URL string throws).
     _authClient ??= new AuthClient({
       identityProvider: { authorizeUrl: II_URL, canisterId: II_CANISTER_ID },
+      derivationOrigin: iiDerivationOrigin(),
     });
   }
   return _authClient;

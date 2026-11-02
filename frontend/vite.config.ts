@@ -90,6 +90,7 @@ export default defineConfig(({ mode, command }) => {
       // dfx outputs CANISTER_ID_<NAME>; map to the names services expect
       "process.env.DFX_NETWORK": JSON.stringify(env.DFX_NETWORK || "local"),
       "process.env.LOCAL_IC_HOST": JSON.stringify(env.LOCAL_IC_HOST || ""),
+      "process.env.II_DERIVATION_ORIGIN": JSON.stringify(env.II_DERIVATION_ORIGIN || ""),
       "process.env.AUTH_CANISTER_ID": JSON.stringify(env.CANISTER_ID_AUTH || env.AUTH_CANISTER_ID || ""),
       "process.env.PROPERTY_CANISTER_ID": JSON.stringify(env.CANISTER_ID_PROPERTY || env.PROPERTY_CANISTER_ID || ""),
       "process.env.JOB_CANISTER_ID": JSON.stringify(env.CANISTER_ID_JOB || env.JOB_CANISTER_ID || ""),
