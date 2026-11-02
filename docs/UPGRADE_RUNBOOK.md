@@ -6,7 +6,9 @@ This document describes how HomeGentic canisters are upgraded safely and the sch
 
 ## How upgrades preserve state
 
-Every canister is a `persistent actor` using Motoko's **enhanced orthogonal persistence (EOP)**. All `var`s are stable by default and survive upgrades as-is — there are no `preupgrade`/`postupgrade` hooks and no serialisation step. `transient` declarations reset on every upgrade (rate-limit windows, install-time constants).
+Every canister is a `persistent actor` using Motoko's **enhanced orthogonal persistence (EOP)**. All `var`s are stable by default and survive upgrades as-is — there are no `preupgrade`/`postupgrade` hooks and no serialisation step. `transient` declarations reset on every upgrade (caches, install-time constants). The per-minute rate-limit maps are stable, not transient; turning one transient would drop a stable var, so they stay as they are.
+
+**Inline initializers run once.** A stable var's initializer (`var maxUpdatesPerMin = 30`, `platformFeeCents`, `lowCycleThresholdT`, the vetKD key names, …) runs at the first install only. Changing the default in code does nothing on a deployed canister: change the value with its admin setter, or move the value into a new stable var with a one-time, idempotent copy. The canisters don't use a migration chain (see CLAUDE.md), so there is no other place a new default would be applied.
 
 EOP checks compatibility when the new Wasm is installed: if the new stable types can't accept the old data (a new non-optional field on a record stored in a `Map`, a changed field type, a narrowed variant), the upgrade is **rejected** with `RTS error: Memory-incompatible program upgrade` and the canister keeps running the old version. The only way past that is a reinstall, which wipes the canister's data.
 

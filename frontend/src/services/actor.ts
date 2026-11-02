@@ -138,6 +138,10 @@ export async function login(): Promise<void> {
   // establishes ICRC-29 heartbeat, then requests delegation via ICRC-34.
   // Throws if the popup can't establish the channel (wrong URL, old II, etc.)
   try {
+    // App policy, kept on purpose: an II session here ends after 8 hours, a
+    // shorter bound than II's own (7 days idle, 30 days total). This is the
+    // session at II, not the delegation key, which the client keeps rotating
+    // (internet-identity skill, pitfall 4).
     await client.signIn({ maxTimeToLive: BigInt(8 * 60 * 60 * 1_000_000_000) });
   } catch (err) {
     console.error("[actor] signIn failed:", err);
