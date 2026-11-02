@@ -11,7 +11,7 @@
     "@icp-sdk/core": "6.1.1"
   },
   "devDependencies": {
-    "@icp-sdk/icp-cli": "1.7.0"
+    "@icp-sdk/icp-cli": "1.8.0"
   },
   "scripts": {
     "test": "node --test test/*.test.mjs"
