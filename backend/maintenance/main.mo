@@ -186,10 +186,17 @@ persistent actor Maintenance {
   private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
     if (Text.size(propCanisterId) > 0) {
       let propActor = Canisters.property(propCanisterId);
-      await propActor.isAuthorized(propertyId, caller, requireWrite)
+      try { await propActor.isAuthorized(propertyId, caller, requireWrite) } catch (_) { false }
     } else {
       caller == owner
     }
+  };
+
+  /// checkPropertyAuth as a result, for methods that return one: a property
+  /// canister that didn't answer is #Unavailable, not an opaque reject (M-4).
+  private func authorize(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async* Result.Result<(), Error> {
+    if (propCanisterId == "") return if (caller == owner) #ok(()) else #err(#NotAuthorized);
+    await* Canisters.authorize(propCanisterId, propertyId, caller, requireWrite)
   };
 
   private func currentYear() : Nat {
@@ -316,8 +323,7 @@ persistent actor Maintenance {
     // M8: only the property's owner or a write-capable manager (or an admin)
     // may add schedule entries to a property.
     if (not isAdmin(msg.caller)) {
-      let authOk = await checkPropertyAuth(propertyId, msg.caller, msg.caller, true);
-      if (not authOk) return #err(#NotAuthorized);
+      switch (await* authorize(propertyId, msg.caller, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
     };
 
     scheduleCounter += 1;
@@ -363,8 +369,7 @@ persistent actor Maintenance {
       case null { #err(#NotFound) };
       case (?first) {
         if (not isAdmin(msg.caller)) {
-          let authOk = await checkPropertyAuth(first.propertyId, first.createdBy, msg.caller, true);
-          if (not authOk) return #err(#NotAuthorized);
+          switch (await* authorize(first.propertyId, first.createdBy, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         };
         // Re-read after the await (TOCTOU).
         let entry = switch (schedule.get(entryId)) {

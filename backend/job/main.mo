@@ -302,10 +302,17 @@ persistent actor Job {
   private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
     if (Text.size(propCanisterId) > 0) {
       let propActor = Canisters.property(propCanisterId);
-      await propActor.isAuthorized(propertyId, caller, requireWrite)
+      try { await propActor.isAuthorized(propertyId, caller, requireWrite) } catch (_) { false }
     } else {
       caller == owner
     }
+  };
+
+  /// checkPropertyAuth as a result, for methods that return one: a property
+  /// canister that didn't answer is #Unavailable, not an opaque reject (M-4).
+  private func authorize(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async* Result.Result<(), Error> {
+    if (propCanisterId == "") return if (caller == owner) #ok(()) else #err(#NotAuthorized);
+    await* Canisters.authorize(propCanisterId, propertyId, caller, requireWrite)
   };
 
   /// New job ID: a random RFC 4122 v4 UUID (owner requirement — IDs must not
@@ -317,11 +324,21 @@ persistent actor Job {
 
   /// True when `p` has any role (owner / co-owner / manager / viewer) on the
   /// property. Used to stop a homeowner from also acting as the contractor
-  /// (M-2). Returns false when the property canister is not wired (local dev).
-  private func isPropertyParty(propertyId: Text, p: Principal) : async Bool {
-    if (Text.size(propCanisterId) == 0) return false;
-    let propActor = Canisters.property(propCanisterId);
-    await propActor.isAuthorized(propertyId, p, false)
+  /// (M-2). Returns false when the property canister is not wired (local dev),
+  /// and #Unavailable when it didn't answer (M-4).
+  private func isPropertyParty(propertyId: Text, p: Principal) : async* Result.Result<Bool, Error> {
+    if (propCanisterId == "") return #ok(false);
+    try { #ok(await Canisters.property(propCanisterId).isAuthorized(propertyId, p, false)) }
+    catch (_) { #err(#Unavailable(Canisters.unavailable("property"))) }
+  };
+
+  /// The property's current owner, or #NotFound / #Unavailable (M-4).
+  private func propertyOwner(propertyId: Text) : async* Result.Result<Principal, Error> {
+    switch (await* Canisters.ownerOf(propCanisterId, propertyId)) {
+      case (#ok(?owner)) #ok(owner);
+      case (#ok(null))   #err(#NotFound);
+      case (#err(e))     #err(e);
+    }
   };
 
   /// D-1/H-5: who may read a full Job record through the public queries.
@@ -444,8 +461,7 @@ persistent actor Job {
     // property. checkPropertyAuth falls back to "allowed" only when the
     // property canister is not wired (local dev / isolated tests).
     if (not isAdmin(msg.caller)) {
-      let ok = await checkPropertyAuth(propertyId, msg.caller, msg.caller, true);
-      if (not ok) return #err(#NotAuthorized);
+      switch (await* authorize(propertyId, msg.caller, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
     };
 
     let id  = await newJobId();
@@ -520,8 +536,7 @@ persistent actor Job {
 
     let before = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
     if (not isAdmin(msg.caller)) {
-      let ok = await checkPropertyAuth(before.propertyId, before.homeowner, msg.caller, true);
-      if (not ok) return #err(#NotAuthorized);
+      switch (await* authorize(before.propertyId, before.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
     };
 
     // State checks after the await (TOCTOU): the record may have been signed meanwhile.
@@ -563,8 +578,11 @@ persistent actor Job {
   /// Caller must be the property owner, an admin, or a trusted canister.
   public shared(msg) func getJobsForProperty(propertyId: Text) : async Result.Result<[Job], Error> {
     if (not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) {
-      let authorized = await checkPropertyAuth(propertyId, msg.caller, msg.caller, false);
-      if (not authorized) return #ok([]);  // return empty rather than error for UX
+      switch (await* authorize(propertyId, msg.caller, msg.caller, false)) {
+        case (#err(#Unavailable(m))) return #err(#Unavailable(m));
+        case (#err(_)) return #ok([]);  // return empty rather than error for UX
+        case (#ok(_)) {};
+      };
     };
     let matches = Index.records(jobsByProperty, propertyId, jobs).toArray(
       
@@ -581,7 +599,7 @@ persistent actor Job {
     let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
     let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller) or Text.size(propCanisterId) == 0;
     let roles : [?Canisters.AccessRole] =
-      if (open) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
+      if (open) [] else await* Canisters.accessRoles(propCanisterId, ids, msg.caller);
     let out = List.empty<Job>();
     for (i in ids.keys()) {
       if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
@@ -661,8 +679,7 @@ persistent actor Job {
       case (?existing) {
         if (existing.verified) return #err(#AlreadyVerified);
         if (not isAdmin(msg.caller)) {
-          let ok = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
-          if (not ok) return #err(#NotAuthorized);
+          switch (await* authorize(existing.propertyId, existing.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         };
 
         // Re-read fresh after the await above — a concurrent call (verifyJob,
@@ -717,10 +734,12 @@ persistent actor Job {
         if (contractorPrincipal.isAnonymous() or contractorPrincipal == msg.caller
             or contractorPrincipal == existing.homeowner)
           return #err(#InvalidInput("The contractor must be a different person from the homeowner"));
-        let authOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
-        if (not authOk) return #err(#NotAuthorized);
-        if (await isPropertyParty(existing.propertyId, contractorPrincipal))
-          return #err(#InvalidInput("The contractor must be a different person from the homeowner"));
+        switch (await* authorize(existing.propertyId, existing.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
+        switch (await* isPropertyParty(existing.propertyId, contractorPrincipal)) {
+          case (#err(e))    return #err(e);
+          case (#ok(true))  return #err(#InvalidInput("The contractor must be a different person from the homeowner"));
+          case (#ok(false)) {};
+        };
         // R2: only principals with a contractor profile can be linked (fails
         // closed if the contractor canister errors; skipped only when it is
         // not wired, i.e. local dev).
@@ -793,7 +812,11 @@ persistent actor Job {
           case (?con)  { caller == con };
         };
         let isHomeowner = if (isContractor) false else {
-          await checkPropertyAuth(existing.propertyId, existing.homeowner, caller, true)
+          switch (await* authorize(existing.propertyId, existing.homeowner, caller, true)) {
+            case (#ok(_)) true;
+            case (#err(#Unavailable(m))) return #err(#Unavailable(m));
+            case (#err(_)) false;
+          }
         };
 
         if (not isHomeowner and not isContractor) {
@@ -949,10 +972,10 @@ persistent actor Job {
     // 14.2.1 — verify that the sensor device's stored homeowner actually owns
     // the property before creating a job on their behalf.
     if (Text.size(propCanisterId) > 0) {
-      let propActor = Canisters.property(propCanisterId);
-      switch (await propActor.getPropertyOwner(propertyId)) {
-        case null     { return #err("Property not found") };
-        case (?owner) {
+      switch (await* Canisters.ownerOf(propCanisterId, propertyId)) {
+        case (#err(_))    { return #err("The property service didn't answer. Please try again in a minute.") };
+        case (#ok(null))  { return #err("Property not found") };
+        case (#ok(?owner)) {
           if (owner != homeowner)
             return #err("Sensor homeowner does not match property owner");
         };
@@ -1217,10 +1240,9 @@ persistent actor Job {
 
     // Attribute the job to the property's current owner so they can read it.
     let homeowner : Principal = if (Text.size(propCanisterId) > 0) {
-      let propActor = Canisters.property(propCanisterId);
-      switch (await propActor.getPropertyOwner(propertyId)) {
-        case null     { return #err(#NotFound) };
-        case (?owner) { owner };
+      switch (await* propertyOwner(propertyId)) {
+        case (#err(e))    { return #err(e) };
+        case (#ok(owner)) { owner };
       };
     } else { msg.caller };
 
@@ -1286,14 +1308,15 @@ persistent actor Job {
       case (?j)    { j };
     };
 
-    let invOk = await checkPropertyAuth(job.propertyId, job.homeowner, msg.caller, true);
-    if (not invOk) return #err(#NotAuthorized);
+    switch (await* authorize(job.propertyId, job.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
     if (job.isDiy)                   return #err(#InvalidInput("DIY jobs do not require contractor signature"));
     if (job.contractorSigned)        return #err(#InvalidInput("Contractor has already signed this job"));
 
     let propertyAddress : Text = if (Text.size(propCanisterId) > 0) {
       let propActor : actor { getPropertyAddress : shared query Text -> async ?Text } = actor (propCanisterId);
-      switch (await propActor.getPropertyAddress(job.propertyId)) {
+      let found = try { await propActor.getPropertyAddress(job.propertyId) }
+                  catch (_) { return #err(#Unavailable(Canisters.unavailable("property"))) };
+      switch (found) {
         case (?a) { a };
         case null { return #err(#NotFound) };
       }
@@ -1402,7 +1425,11 @@ persistent actor Job {
       case (?linked) { if (msg.caller != linked) return #err(#NotAuthorized) };
       case null {};
     };
-    if (await isPropertyParty(job.propertyId, msg.caller)) return #err(#NotAuthorized);
+    switch (await* isPropertyParty(job.propertyId, msg.caller)) {
+      case (#err(e))    return #err(e);
+      case (#ok(true))  return #err(#NotAuthorized);
+      case (#ok(false)) {};
+    };
 
     let svcText = serviceTypeText(job.serviceType);
 
@@ -1414,7 +1441,9 @@ persistent actor Job {
       let contrActor = actor(contrCanisterId) : actor {
         createOrLinkGuestProfile : (Principal, Text, Text, Text, ?Text, Text, Text) -> async { #ok : (); #err : ContrError };
       };
-      switch (await contrActor.createOrLinkGuestProfile(msg.caller, contractorName, phone, email, licenseNumber, svcText, job.id)) {
+      let linked = try { await contrActor.createOrLinkGuestProfile(msg.caller, contractorName, phone, email, licenseNumber, svcText, job.id) }
+                   catch (_) { return #err(#Unavailable(Canisters.unavailable("contractor"))) };
+      switch (linked) {
         case (#err(#Paused))         { return #err(#Paused) };
         case (#err(#RateLimited))    { return #err(#RateLimited) };
         case (#err(#Unavailable(m))) { return #err(#Unavailable(m)) };
@@ -1588,10 +1617,10 @@ persistent actor Job {
     // Look up the property owner via cross-canister call (if property canister is wired).
     // Falls back to anonymous when not wired — useful in tests without a full deploy.
     let homeowner : Principal = if (Text.size(propCanisterId) > 0) {
-      let propActor = Canisters.property(propCanisterId);
-      switch (await propActor.getPropertyOwner(propertyId)) {
-        case null     { return #err(#InvalidInput("Property not found")) };
-        case (?owner) { owner };
+      switch (await* Canisters.ownerOf(propCanisterId, propertyId)) {
+        case (#err(e))     { return #err(e) };
+        case (#ok(null))   { return #err(#InvalidInput("Property not found")) };
+        case (#ok(?owner)) { owner };
       };
     } else {
       // Property canister not wired — for testability only.
@@ -1603,8 +1632,10 @@ persistent actor Job {
     if (homeowner == msg.caller) {
       return #err(#InvalidInput("You cannot propose a job on a property you own"))
     };
-    if (await isPropertyParty(propertyId, msg.caller)) {
-      return #err(#InvalidInput("You cannot propose a job on a property you own"))
+    switch (await* isPropertyParty(propertyId, msg.caller)) {
+      case (#err(e))    return #err(e);
+      case (#ok(true))  return #err(#InvalidInput("You cannot propose a job on a property you own"));
+      case (#ok(false)) {};
     };
 
     let id  = await newJobId();
@@ -1673,8 +1704,7 @@ persistent actor Job {
       case (?j)    { j };
     };
 
-    let approveOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
-    if (not approveOk) return #err(#NotAuthorized);
+    switch (await* authorize(existing.propertyId, existing.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
     // Re-read after the await (TOCTOU): the proposal may have been rejected meanwhile.
     let existing2 = switch (jobs.get(jobId)) {
       case null    { return #err(#NotFound) };
@@ -1717,8 +1747,7 @@ persistent actor Job {
       case (?j)    { j };
     };
 
-    let rejectOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
-    if (not rejectOk) return #err(#NotAuthorized);
+    switch (await* authorize(existing.propertyId, existing.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
     switch (jobs.get(jobId)) {
       case null    { return #err(#NotFound) };
       case (?j)    { if (j.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval")) };

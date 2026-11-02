@@ -923,8 +923,9 @@ persistent actor Report {
       case (?p) { p };
     };
     if (prop.owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    let level = levelText(prop.verificationLevel);
-    if (level == "Unverified" or level == "PendingReview") return #err(#UnverifiedProperty);
+    // Allow-list the verified levels (reviewing-motoko T1): a level added
+    // later stays unsigned until it is listed here.
+    switch (prop.verificationLevel) { case (#Basic or #Premium) {}; case _ { return #err(#UnverifiedProperty) } };
 
     // ── Authoritative job list ──────────────────────────────────────────────
     let onChainJobs : [JobInput] = switch (await fetchJobs(propertyId)) {
@@ -1715,8 +1716,9 @@ persistent actor Report {
     };
     if (prop.owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
     // M-3: like generateReport, only verified homes get a signed certificate.
-    let level = levelText(prop.verificationLevel);
-    if (level == "Unverified" or level == "PendingReview") return #err(#UnverifiedProperty);
+    // Allow-list the verified levels (reviewing-motoko T1): a level added
+    // later stays unsigned until it is listed here.
+    switch (prop.verificationLevel) { case (#Basic or #Premium) {}; case _ { return #err(#UnverifiedProperty) } };
 
     if (Text.size(riskJobCanisterId) == 0) return #err(#Unavailable("Certificates are unavailable right now. Please try again later."));
     if (Text.size(marketCanisterId) == 0) return #err(#Unavailable("Certificates are unavailable right now. Please try again later."));

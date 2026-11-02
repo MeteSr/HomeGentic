@@ -15,7 +15,6 @@ import Nat       "mo:core/Nat";
 import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
-import Runtime   "mo:core/Runtime";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Index     "../shared/Index";
@@ -331,14 +330,13 @@ persistent actor Photo {
     #ok(())
   };
 
-  /// Delegate property-ownership check to the property canister.
-  /// Traps if propCanisterId is unset — auth must never silently degrade.
-  private func checkPropertyAuth(propertyId: Text, _owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
-    if (Text.size(propCanisterId) == 0) {
-      Runtime.trap("photo: propCanisterId not configured — call setPropertyCanisterId first");
-    };
-    let propActor = Canisters.property(propCanisterId);
-    await propActor.isAuthorized(propertyId, caller, requireWrite)
+  /// Delegate property-ownership check to the property canister. Fails closed
+  /// with #Unavailable when propCanisterId is unset (auth must never silently
+  /// degrade) or the property canister didn't answer, rather than trapping
+  /// (reviewing-motoko M3, M-4).
+  private func checkPropertyAuth(propertyId: Text, _owner: Principal, caller: Principal, requireWrite: Bool) : async* Result.Result<(), Error> {
+    if (propCanisterId == "") return #err(#Unavailable("Photo access checks are unavailable right now. Please try again later."));
+    await* Canisters.authorize(propCanisterId, propertyId, caller, requireWrite)
   };
 
   private func nextPhotoId() : Text {
@@ -469,15 +467,17 @@ persistent actor Photo {
     // When the caller is a delegated manager, use the property owner's tier
     // so managers don't need their own paid subscription.
     let effectivePrincipal : Principal = if (propCanisterId != "") {
-      let propActor = Canisters.property(propCanisterId);
-      switch (await propActor.getPropertyOwner(propertyId)) {
-        case (?owner) { if (owner != caller) { owner } else { caller } };
-        case null     { caller };
+      switch (await* Canisters.ownerOf(propCanisterId, propertyId)) {
+        case (#err(e))     { return ?e };
+        case (#ok(?owner)) { owner };
+        case (#ok(null))   { caller };
       }
     } else { caller };
     let callerTierRaw : SubscriptionTier = if (payCanisterId != "") {
-      let payActor = Canisters.payment(payCanisterId);
-      await payActor.getTierForPrincipal(effectivePrincipal)
+      switch (await* Canisters.tierOf(payCanisterId, effectivePrincipal)) {
+        case (#err(e)) { return ?e };
+        case (#ok(t))  { t };
+      }
     } else {
       #Free  // payment canister not wired: no tier source, fail closed
     };
@@ -494,8 +494,10 @@ persistent actor Photo {
 
     // H-11: Verify caller is authorized for this property before storing the photo.
     if (not isAdmin(caller)) {
-      let authorized = await checkPropertyAuth(propertyId, effectivePrincipal, caller, true);
-      if (not authorized) return ?#NotAuthorized;
+      switch (await* checkPropertyAuth(propertyId, effectivePrincipal, caller, true)) {
+        case (#err(e)) return ?e;
+        case (#ok(_)) {};
+      };
     };
 
     if (quota.maxPerJob > 0 and countByJob(jobId, propertyId) >= quota.maxPerJob) {
@@ -662,8 +664,7 @@ persistent actor Photo {
       case null  { #err(#NotFound) };
       case (?p)  {
         if (not isAdmin(msg.caller)) {
-          let authOk = await checkPropertyAuth(p.propertyId, p.owner, msg.caller, false);
-          if (not authOk) return #err(#NotAuthorized);
+          switch (await* checkPropertyAuth(p.propertyId, p.owner, msg.caller, false)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         };
         #ok(p)
       };
@@ -678,8 +679,7 @@ persistent actor Photo {
       case null  { #err(#NotFound) };
       case (?p)  {
         if (not isAdmin(msg.caller)) {
-          let authOk = await checkPropertyAuth(p.propertyId, p.owner, msg.caller, false);
-          if (not authOk) return #err(#NotAuthorized);
+          switch (await* checkPropertyAuth(p.propertyId, p.owner, msg.caller, false)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         };
         #ok(p.data)
       };
@@ -719,7 +719,7 @@ persistent actor Photo {
               case null {
                 if (authCalls >= MAX_BATCH_AUTH_CALLS) { false } else {
                   authCalls += 1;
-                  let res = await checkPropertyAuth(p.propertyId, p.owner, msg.caller, false);
+                  let res = switch (await* checkPropertyAuth(p.propertyId, p.owner, msg.caller, false)) { case (#ok(_)) true; case (#err(_)) false };
                   allowed.add(p.propertyId, res);
                   res
                 }
@@ -831,8 +831,7 @@ persistent actor Photo {
       case null { #err(#NotFound) };
       case (?existing) {
         if (not isAdmin(msg.caller)) {
-          let authOk = await checkPropertyAuth(existing.propertyId, existing.owner, msg.caller, true);
-          if (not authOk) return #err(#NotAuthorized);
+          switch (await* checkPropertyAuth(existing.propertyId, existing.owner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         };
 
         let alreadyApproved = Option.isSome(
@@ -860,8 +859,7 @@ persistent actor Photo {
       case null { #err(#NotFound) };
       case (?existing) {
         if (not isAdmin(msg.caller)) {
-          let authOk = await checkPropertyAuth(existing.propertyId, existing.owner, msg.caller, true);
-          if (not authOk) return #err(#NotAuthorized);
+          switch (await* checkPropertyAuth(existing.propertyId, existing.owner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         };
         deletePhotoRecord(existing);
         dropHash(existing);

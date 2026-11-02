@@ -369,11 +369,13 @@ persistent actor Quote {
   };
 
   /// Registered-contractor stats from the contractor canister (null = not a contractor).
-  private func contractorStats(p: Principal) : async ?ContractorStats {
+  /// #Unavailable when the contractor canister didn't answer (M-4).
+  private func contractorStats(p: Principal) : async* Result.Result<?ContractorStats, Error> {
     let contrActor = actor(contrCanisterId) : actor {
       getContractorStats : shared query (Principal) -> async ?ContractorStats;
     };
-    await contrActor.getContractorStats(p)
+    try { #ok(await contrActor.getContractorStats(p)) }
+    catch (_) { #err(#Unavailable(Canisters.unavailable("contractor"))) }
   };
 
   /// Whether a request is visible to a contractor: service-zip match, then the
@@ -412,10 +414,17 @@ persistent actor Quote {
   private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
     if (Text.size(propCanisterId) > 0) {
       let propActor = Canisters.property(propCanisterId);
-      await propActor.isAuthorized(propertyId, caller, requireWrite)
+      try { await propActor.isAuthorized(propertyId, caller, requireWrite) } catch (_) { false }
     } else {
       caller == owner
     }
+  };
+
+  /// checkPropertyAuth as a result, for methods that return one: a property
+  /// canister that didn't answer is #Unavailable, not an opaque reject (M-4).
+  private func authorize(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async* Result.Result<(), Error> {
+    if (propCanisterId == "") return if (caller == owner) #ok(()) else #err(#NotAuthorized);
+    await* Canisters.authorize(propCanisterId, propertyId, caller, requireWrite)
   };
 
   /// L8/H1: strangers (contractors browsing leads) don't get the homeowner
@@ -431,22 +440,38 @@ persistent actor Quote {
   /// M1: the caller must own or manage (write access) the property before a
   /// request is created against it. Without the property canister (local dev
   /// only — deploy.sh always wires it) there is nothing to check against.
-  private func canCreateFor(propertyId: Text, caller: Principal) : async Bool {
-    if (Text.size(propCanisterId) == 0) return true;
-    let propActor = Canisters.property(propCanisterId);
-    await propActor.isAuthorized(propertyId, caller, true)
+  private func canCreateFor(propertyId: Text, caller: Principal) : async* Result.Result<(), Error> {
+    if (propCanisterId == "") return #ok(());
+    await* Canisters.authorize(propCanisterId, propertyId, caller, true)
   };
 
   /// M2: only registered contractors the request is visible to (zip + quality
   /// thresholds) may bid. Without the contractor canister (local dev only —
   /// deploy.sh always wires it) the gate can't be evaluated.
-  private func canBidOn(r: QuoteRequest, caller: Principal) : async Bool {
-    if (caller == r.homeowner) return false;
-    if (Text.size(contrCanisterId) == 0) return true;
-    switch (await contractorStats(caller)) {
-      case null    { false };
-      case (?st)   { contractorMatches(r, st) };
+  private func canBidOn(r: QuoteRequest, caller: Principal) : async* Result.Result<(), Error> {
+    if (caller == r.homeowner) return #err(#NotAuthorized);
+    if (contrCanisterId == "") return #ok(());
+    switch (await* contractorStats(caller)) {
+      case (#err(e))     { #err(e) };
+      case (#ok(null))   { #err(#NotAuthorized) };
+      case (#ok(?st))    { if (contractorMatches(r, st)) #ok(()) else #err(#NotAuthorized) };
     }
+  };
+
+  /// The tier that limits a request on `propertyId`: the property owner's when
+  /// a manager creates it, so managers don't need their own paid plan. Free
+  /// when payment isn't wired (fail closed); #Unavailable when a callee
+  /// didn't answer (M-4).
+  private func requestTier(propertyId: Text, caller: Principal) : async* Result.Result<SubscriptionTier, Error> {
+    let effective : Principal = if (propCanisterId != "") {
+      switch (await* Canisters.ownerOf(propCanisterId, propertyId)) {
+        case (#err(e))     { return #err(e) };
+        case (#ok(?owner)) { owner };
+        case (#ok(null))   { caller };
+      }
+    } else { caller };
+    if (payCanisterId == "") return #ok(#Free);
+    await* Canisters.tierOf(payCanisterId, effective)
   };
 
   private func nextReqId() : Text {
@@ -559,25 +584,16 @@ persistent actor Quote {
 
     // M1: caller must own or manage the property — no requests (and no lead
     // notifications) against other people's homes, no borrowing their tier.
-    if (not (await canCreateFor(propertyId, msg.caller))) return #err(#NotAuthorized);
+    switch (await* canCreateFor(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
 
     // When payment canister is wired, tier comes from getTierForPrincipal();
     // otherwise falls back to the local admin-grant map.
     // When the caller is a delegated manager (authorisation checked above),
     // use the property owner's tier so managers don't need their own paid
     // subscription.
-    let effectivePrincipal : Principal = if (propCanisterId != "") {
-      let propActor = Canisters.property(propCanisterId);
-      switch (await propActor.getPropertyOwner(propertyId)) {
-        case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
-        case null     { msg.caller };
-      }
-    } else { msg.caller };
-    let callerTier : SubscriptionTier = if (payCanisterId != "") {
-      let payActor = Canisters.payment(payCanisterId);
-      await payActor.getTierForPrincipal(effectivePrincipal)
-    } else {
-      #Free  // payment canister not wired: no tier source, fail closed
+    let callerTier : SubscriptionTier = switch (await* requestTier(propertyId, msg.caller)) {
+      case (#err(e)) { return #err(e) };
+      case (#ok(t))  { t };
     };
     let limit = tierOpenLimit(callerTier);
     if (countOpenRequests(msg.caller) >= limit) {
@@ -643,7 +659,10 @@ persistent actor Quote {
 
     if (Text.size(contrCanisterId) == 0) return allOpen;
 
-    let stats = await contractorStats(msg.caller);
+    let stats = switch (await* contractorStats(msg.caller)) {
+      case (#ok(st)) st;
+      case (#err(_)) return [];  // contractor canister didn't answer: show nothing rather than unfiltered leads
+    };
 
     switch (stats) {
       case null {
@@ -729,10 +748,15 @@ persistent actor Quote {
   private func referralGate(caller: Principal) : async* Result.Result<Bool, Error> {
     if (feeCanisterId == "") return #ok(false);
     let tier : SubscriptionTier = if (payCanisterId != "") {
-      await Canisters.payment(payCanisterId).getTierForPrincipal(caller)
+      switch (await* Canisters.tierOf(payCanisterId, caller)) {
+        case (#err(e)) { return #err(e) };
+        case (#ok(t))  { t };
+      }
     } else { #ContractorFree };
     if (tier == #ContractorPro) return #ok(false);
-    switch (await Canisters.fee(feeCanisterId).referralBidAllowed(caller)) {
+    let allowed = try { await Canisters.fee(feeCanisterId).referralBidAllowed(caller) }
+                  catch (_) { return #err(#Unavailable(Canisters.unavailable("fee"))) };
+    switch (allowed) {
       case (#ok)        { #ok(true) };
       case (#needsCard) { #err(#InvalidInput("Save a card for the 3% referral fee before you bid (Settings, Subscription on the HomeGentic website).")) };
       case (#overdue)   { #err(#InvalidInput("A referral fee invoice is more than 30 days overdue. Pay it (Settings, Subscription) to bid again.")) };
@@ -767,7 +791,7 @@ persistent actor Quote {
     // M2: registered contractor the request is visible to (never the homeowner).
     switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
-      case (?r0) { if (not (await canBidOn(r0, msg.caller))) return #err(#NotAuthorized) };
+      case (?r0) { switch (await* canBidOn(r0, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} } };
     };
     let carriesFee = switch (await* referralGate(msg.caller)) {
       case (#err(e)) { return #err(e) };
@@ -886,8 +910,7 @@ persistent actor Quote {
         switch (requests.get(q.requestId)) {
           case null { return #err(#NotFound) };
           case (?req) {
-            let acceptOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
-            if (not acceptOk) return #err(#NotAuthorized);
+            switch (await* authorize(req.propertyId, req.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
 
             // Re-read both maps fresh after the await above: a concurrent
             // acceptQuote/closeQuoteRequest/cancelQuoteRequest call could
@@ -990,8 +1013,7 @@ persistent actor Quote {
     switch (requests.get(requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
-        let closeOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
-        if (not closeOk) return #err(#NotAuthorized);
+        switch (await* authorize(req.propertyId, req.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
 
         // Re-read fresh after the await above — a concurrent call could have
         // already accepted/closed/cancelled this request while this call was
@@ -1038,8 +1060,7 @@ persistent actor Quote {
     switch (requests.get(requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
-        let cancelOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
-        if (not cancelOk) return #err(#NotAuthorized);
+        switch (await* authorize(req.propertyId, req.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
 
         // Re-read fresh after the await above — a concurrent call could have
         // already accepted/closed/cancelled this request while this call was
@@ -1107,20 +1128,11 @@ persistent actor Quote {
     switch (zipCode) { case (?z) { if (Text.size(z) > 20) return #err(#InvalidInput("zipCode too long")) }; case null {} };
 
     // M1: caller must own or manage the property.
-    if (not (await canCreateFor(propertyId, msg.caller))) return #err(#NotAuthorized);
+    switch (await* canCreateFor(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
 
-    let effectivePrincipalSB : Principal = if (propCanisterId != "") {
-      let propActor = Canisters.property(propCanisterId);
-      switch (await propActor.getPropertyOwner(propertyId)) {
-        case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
-        case null     { msg.caller };
-      }
-    } else { msg.caller };
-    let callerTier : SubscriptionTier = if (payCanisterId != "") {
-      let payActor = Canisters.payment(payCanisterId);
-      await payActor.getTierForPrincipal(effectivePrincipalSB)
-    } else {
-      #Free  // payment canister not wired: no tier source, fail closed
+    let callerTier : SubscriptionTier = switch (await* requestTier(propertyId, msg.caller)) {
+      case (#err(e)) { return #err(e) };
+      case (#ok(t))  { t };
     };
     if (callerTier == #Free) return #err(#InvalidInput("Quote requests require an active subscription."));
     let limit = tierOpenLimit(callerTier);
@@ -1167,7 +1179,7 @@ persistent actor Quote {
     // M2: registered contractor the request is visible to (never the homeowner).
     switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
-      case (?r0) { if (not (await canBidOn(r0, msg.caller))) return #err(#NotAuthorized) };
+      case (?r0) { switch (await* canBidOn(r0, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} } };
     };
     // Sealed amounts stay encrypted, so no fee is recorded for them, but the
     // same card and overdue rules apply before a contractor can bid.
@@ -1271,8 +1283,7 @@ persistent actor Quote {
     switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {
-        let revealOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
-        if (not revealOk) return #err(#NotAuthorized);
+        switch (await* authorize(req.propertyId, req.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
 
         // Enforce: window must be closed before reveal
         switch (req.closeAt) {
@@ -1396,8 +1407,7 @@ persistent actor Quote {
     switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {
-        let authOk = await checkPropertyAuth(req.propertyId, req.homeowner, caller, true);
-        if (not authOk) return #err(#NotAuthorized);
+        switch (await* authorize(req.propertyId, req.homeowner, caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
 
         // Bid window must be closed before reveal
         switch (req.closeAt) {
@@ -1571,9 +1581,10 @@ persistent actor Quote {
     if (r.homeowner != msg.caller and not isAdmin(msg.caller) and not quoted) {
       if (r.status != #Open and r.status != #Quoted) return #err(#NotAuthorized);
       if (Text.size(contrCanisterId) == 0) return #err(#NotAuthorized);   // can't verify — fail closed
-      switch (await contractorStats(msg.caller)) {
-        case null { return #err(#NotAuthorized) };
-        case (?st) { if (not contractorMatches(r, st)) return #err(#NotAuthorized) };
+      switch (await* contractorStats(msg.caller)) {
+        case (#err(e))   { return #err(e) };
+        case (#ok(null)) { return #err(#NotAuthorized) };
+        case (#ok(?st))  { if (not contractorMatches(r, st)) return #err(#NotAuthorized) };
       };
     };
     // Re-read after the await: the homeowner may have removed it meanwhile.

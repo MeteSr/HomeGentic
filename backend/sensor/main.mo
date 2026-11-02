@@ -497,9 +497,10 @@ persistent actor Sensor {
     // H-15: verify caller owns the property before registering a device
     if (not isAdmin(msg.caller)) {
       if (Text.size(propCanisterId) > 0) {
-        let propActor = Canisters.property(propCanisterId);
-        let authorized = await propActor.isAuthorized(propertyId, msg.caller, true);
-        if (not authorized) return #err(#NotAuthorized);
+        switch (await* Canisters.authorize(propCanisterId, propertyId, msg.caller, true)) {
+          case (#err(e)) return #err(e);
+          case (#ok(_)) {};
+        };
       };
       // If propCanisterId is not set, allow (dev/local environment)
     };

@@ -63,6 +63,6 @@ describe("photo: on-chain upload switch", () => {
     expect(await as(admin).setOnChainUploadsEnabled(true)).toHaveProperty("ok");
     // This lone canister isn't wired to property, so the upload now stops
     // there instead: past the switch.
-    await expect(upload(user)).rejects.toThrow(/propCanisterId not configured/);
+    expect(JSON.stringify(await upload(user))).toMatch(/Photo access checks are unavailable/);
   });
 });
