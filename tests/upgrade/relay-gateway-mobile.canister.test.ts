@@ -25,7 +25,7 @@ import { Principal } from "@icp-sdk/core/principal";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { randomBytes } from "crypto";
 import { resolve } from "path";
-import { createPic, wasmPath, CONTROLLER } from "./__helpers__/setup";
+import { createPic, wasmPath, CONTROLLER, gatewayRootKeyHex } from "./__helpers__/setup";
 import { serviceFromWasm } from "./__helpers__/candid";
 import * as relay from "../../agents/notifications/icp";
 import * as gateway from "../../agents/iot-gateway/icp";
@@ -112,7 +112,7 @@ describe("relay, gateway and mobile clients on real canisters", () => {
 
     host = `http://localhost:${await pic.makeLive()}`;
     Object.assign(process.env, {
-      IC_HOST: host, ICP_HOST: host, NODE_ENV: "test",
+      IC_HOST: host, ICP_HOST: host, NODE_ENV: "test", ICP_ROOT_KEY: await gatewayRootKeyHex(host),
       RELAY_IDENTITY_SEED: relaySeed, GATEWAY_IDENTITY_SEED: gatewaySeed,
       SENSOR_CANISTER_ID: ids.sensor.toText(),
       CANISTER_ID_AUTH: ids.auth.toText(), CANISTER_ID_PROPERTY: ids.property.toText(),

@@ -16,6 +16,7 @@ import type { DeviceSourceName, SensorEventType, SensorReading } from "./types";
 import { logger } from "../../packages/shared/src/logger";
 import { idlFactory as sensorIdlFactory } from "../../packages/shared/src/declarations/sensor";
 import { idlFactory as authIdlFactory } from "../../packages/shared/src/declarations/auth";
+import { rootKeyFor } from "../../packages/shared/src/rootKey";
 
 // ── Actor interface ───────────────────────────────────────────────────────────
 
@@ -75,11 +76,14 @@ export async function getSensorActor(): Promise<ActorSubclass<SensorActor>> {
 
   const host = process.env.ICP_HOST ?? "http://localhost:4943";
   const identity = buildIdentity();
-  // 14.4.7 — migrated to 3.x async HttpAgent.create() factory (was synchronous constructor in 1.x)
+  // The root key is never fetched at runtime (canister-security skill): a local
+  // network's comes from ICP_ROOT_KEY, mainnet's is built into the agent. It was
+  // fetched whenever NODE_ENV wasn't "production", so a missing NODE_ENV on Fly
+  // would have trusted whatever key the host returned.
   const agent = await HttpAgent.create({
     identity,
     host,
-    shouldFetchRootKey: process.env.NODE_ENV !== "production",
+    rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY),
   });
 
   _actor = Actor.createActor<SensorActor>(sensorIdlFactory, {
@@ -217,10 +221,8 @@ export async function resolveAgentSession(token: string): Promise<string | null>
   if (!_authActor) {
     const canisterId = process.env.CANISTER_ID_AUTH;
     if (!canisterId) throw new Error("CANISTER_ID_AUTH environment variable is not set");
-    const agent = await HttpAgent.create({
-      host: process.env.ICP_HOST ?? "http://localhost:4943",
-      shouldFetchRootKey: process.env.NODE_ENV !== "production",
-    });
+    const host = process.env.ICP_HOST ?? "http://localhost:4943";
+    const agent = await HttpAgent.create({ host, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY) });
     _authActor = Actor.createActor(authIdlFactory, { agent, canisterId });
   }
   const res = await _authActor.resolveAgentSession(token);

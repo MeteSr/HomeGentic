@@ -2,6 +2,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { execFileSync } from "child_process";
 
 // Canisters the frontend calls; each maps to a process.env.<NAME>_CANISTER_ID below.
 const REQUIRED_CANISTERS = [
@@ -10,9 +11,33 @@ const REQUIRED_CANISTERS = [
   "BILLS", "REFERRALS", "RECURRING",
 ];
 
+/**
+ * Local network root key (hex), so the browser never calls fetchRootKey()
+ * (canister-security skill, pitfall 7). LOCAL_IC_ROOT_KEY in the environment
+ * wins (the live browser tests set it for PocketIC); otherwise the dev server
+ * asks `icp network status --json`. Mainnet and testnet builds get nothing:
+ * the page reads the root key from the asset canister's ic_env cookie, and on
+ * mainnet that is the key the agent already has.
+ */
+function localRootKey(env: Record<string, string>): string {
+  if (env.LOCAL_IC_ROOT_KEY) return env.LOCAL_IC_ROOT_KEY;
+  try {
+    const out = execFileSync("icp", ["network", "status", "--json"], {
+      cwd: path.resolve(__dirname, ".."), encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 5000,
+    });
+    return String(JSON.parse(out).root_key || "");
+  } catch {
+    return ""; // no local network: services run on mock data
+  }
+}
+
 export default defineConfig(({ mode, command }) => {
   // Load .env from project root (where dfx outputs canister IDs after deploy)
   const env = loadEnv(mode, path.resolve(__dirname, ".."), "");
+  // A production build that forgets DFX_NETWORK must not come out as a local
+  // build (localhost host + local root key), so `vite build` defaults to ic.
+  const network = env.DFX_NETWORK || (command === "build" ? "ic" : "local");
+  const rootKeyHex = network === "local" && mode !== "test" ? localRootKey(env) : "";
 
   // deploy.sh sets REQUIRE_CANISTER_IDS for testnet/mainnet builds. A missing
   // ID would make that service fall back to mock or empty data in production,
@@ -40,7 +65,7 @@ export default defineConfig(({ mode, command }) => {
         const extra = env.LOCAL_IC_HOST ? new URL(env.LOCAL_IC_HOST).origin : "";
         return extra ? html.replace(/http:\/\/localhost:4943/g, `http://localhost:4943 ${extra}`) : html;
       }
-      if ((env.DFX_NETWORK || "local") !== "ic") return html; // local/testnet — keep localhost
+      if (network !== "ic") return html; // local/testnet — keep localhost
       return html
         .replace(/\s*http:\/\/localhost:\d+/g, "")
         .replace(/\s*ws:\/\/localhost:\*/g, "");
@@ -88,7 +113,8 @@ export default defineConfig(({ mode, command }) => {
     },
     define: {
       // dfx outputs CANISTER_ID_<NAME>; map to the names services expect
-      "process.env.DFX_NETWORK": JSON.stringify(env.DFX_NETWORK || "local"),
+      "process.env.DFX_NETWORK": JSON.stringify(network),
+      "process.env.LOCAL_IC_ROOT_KEY": JSON.stringify(rootKeyHex),
       "process.env.LOCAL_IC_HOST": JSON.stringify(env.LOCAL_IC_HOST || ""),
       "process.env.II_DERIVATION_ORIGIN": JSON.stringify(env.II_DERIVATION_ORIGIN || ""),
       "process.env.AUTH_CANISTER_ID": JSON.stringify(env.CANISTER_ID_AUTH || env.AUTH_CANISTER_ID || ""),

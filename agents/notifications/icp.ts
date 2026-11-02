@@ -18,6 +18,7 @@ import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
 import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, PulseJob, PulseProperty, PulseRecipient } from "./types";
 import type { ScoreJob } from "../../packages/shared/src/score";
+import { rootKeyFor } from "../../packages/shared/src/rootKey";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
 import { idlFactory as contractorIdl } from "../../packages/shared/src/declarations/contractor";
 import { idlFactory as authIdl } from "../../packages/shared/src/declarations/auth";
@@ -29,7 +30,6 @@ import { idlFactory as monitoringIdl } from "../../packages/shared/src/declarati
 import { serviceTypeFromVariant } from "../../packages/shared/src/serviceTypes";
 
 const IC_HOST = () => process.env.IC_HOST ?? "https://icp-api.io";
-const isLocalHost = (host: string) => /localhost|127\.0\.0\.1/.test(host);
 
 // ── Outbox IDL (every canister with a notification outbox exposes it) ────────────────────────────────────────────────────────────────────────
 
@@ -67,7 +67,9 @@ let anonAgent:  Promise<HttpAgent> | null = null;
 
 async function makeAgent(identity?: Ed25519KeyIdentity): Promise<HttpAgent> {
   const host = IC_HOST();
-  return HttpAgent.create({ host, identity, shouldFetchRootKey: isLocalHost(host) });
+  // A local network's root key comes from ICP_ROOT_KEY, never fetched at
+  // runtime (canister-security skill); mainnet's is built into the agent.
+  return HttpAgent.create({ host, identity, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY) });
 }
 
 /** The relay's own identity. Throws when RELAY_IDENTITY_SEED is missing or malformed. */

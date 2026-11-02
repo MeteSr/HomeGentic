@@ -9,7 +9,7 @@ import { generateKeyPairSync } from "crypto";
 import { createServer, type Server } from "http";
 import { execFile } from "child_process";
 import { resolve } from "path";
-import { createPic, wasmPath, CONTROLLER } from "./__helpers__/setup";
+import { createPic, wasmPath, CONTROLLER, gatewayRootKeyHex } from "./__helpers__/setup";
 import { serviceFromWasm } from "./__helpers__/candid";
 import { evaluate } from "../../scripts/ops/opsAlerts.mjs";
 import { identityFromPem } from "../../scripts/ops/identity.mjs";
@@ -135,6 +135,7 @@ describe("ops alert rules", () => {
 describe("check-ops-alerts.mjs against the monitoring canister", () => {
   let pic: PocketIc;
   let host = "";
+  let rootKeyHex = "";
   let canisterId = "";
   let mon: any;
   let relay: Server;
@@ -161,6 +162,7 @@ describe("check-ops-alerts.mjs against the monitoring canister", () => {
     mon.setIdentity(admin as any);
     expect(await mon.addAdmin(admin.getPrincipal(), "n")).toEqual({ ok: null });
     host = `http://localhost:${await pic.makeLive()}`;
+    rootKeyHex = await gatewayRootKeyHex(host);
 
     let healthy = true;
     relay = createServer((_req, res) => {
@@ -182,6 +184,7 @@ describe("check-ops-alerts.mjs against the monitoring canister", () => {
 
   const env = (pem: string) => ({
     IC_HOST: host,
+    ICP_ROOT_KEY: rootKeyHex,
     CANISTER_ID_MONITORING: canisterId,
     IDENTITY_PEM: pem,
     NOTIFICATIONS_URL: relayUrl,

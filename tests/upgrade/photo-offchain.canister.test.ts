@@ -15,7 +15,7 @@ import { PocketIc, createIdentity } from "@dfinity/pic";
 import { IDL } from "@icp-sdk/core/candid";
 import type { Identity } from "@icp-sdk/core/agent";
 import { createHash, generateKeyPairSync } from "crypto";
-import { createPic, wasmPath, CONTROLLER } from "./__helpers__/setup";
+import { createPic, wasmPath, CONTROLLER, gatewayRootKeyHex } from "./__helpers__/setup";
 import { serviceFromWasm } from "./__helpers__/candid";
 import * as payment from "../../agents/voice/paymentCanister";
 import worker from "../../agents/voice/src/index";
@@ -128,6 +128,7 @@ describe("off-chain photos through the Worker and the photo canister", () => {
     const port = await pic.makeLive();
     const vars = {
       IC_HOST: `http://localhost:${port}`,
+      ICP_ROOT_KEY: await gatewayRootKeyHex(`http://localhost:${port}`),
       DFX_NETWORK: "local",
       DFX_IDENTITY_PEM: pem,
       CANISTER_ID_AUTH: ids.auth.toText(),
@@ -141,7 +142,7 @@ describe("off-chain photos through the Worker and the photo canister", () => {
   }, 180_000);
 
   afterAll(async () => {
-    for (const k of ["IC_HOST", "DFX_NETWORK", "DFX_IDENTITY_PEM", "CANISTER_ID_AUTH", "CANISTER_ID_PHOTO", "CANISTER_ID_PROPERTY", "CANISTER_ID_PAYMENT"]) delete process.env[k];
+    for (const k of ["IC_HOST", "ICP_ROOT_KEY", "DFX_NETWORK", "DFX_IDENTITY_PEM", "CANISTER_ID_AUTH", "CANISTER_ID_PHOTO", "CANISTER_ID_PROPERTY", "CANISTER_ID_PAYMENT"]) delete process.env[k];
     await pic?.stopLive().catch(() => {});
     await pic?.tearDown();
   });

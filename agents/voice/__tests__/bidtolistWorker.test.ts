@@ -63,7 +63,7 @@ jest.mock("@icp-sdk/core/agent", () => {
   const byId: Record<string, unknown> = { "listing-id": listing, "agent-id": agent, "fee-id": fee };
   class FakeHttpAgent {
     static async create() { return new FakeHttpAgent(); }
-    async fetchRootKey() {}
+    static createSync() { return new FakeHttpAgent(); }
   }
   return {
     ...actual,

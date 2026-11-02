@@ -16,6 +16,7 @@ import {
   HttpError, readJsonBody, readBodyBytes, escapeHtml, subjectText,
   PRINCIPAL_RE, EMAIL_RE, MAX_WEBHOOK_BYTES,
 } from "./security";
+import { rootKeyFor } from "../../../packages/shared/src/rootKey";
 import { hitCounter, beginOnce, finishOnce, abortOnce } from "./rateLimiter";
 import type { CounterNamespace } from "./rateLimiterDO";
 
@@ -126,16 +127,14 @@ function makeIdentity(seed: string): Ed25519KeyIdentity {
 async function createListingActor(env: BidtolistEnv) {
   if (!env.BIDTOLIST_LISTING_CANISTER_ID || !env.BIDTOLIST_IDENTITY_SEED) return null;
   const host  = env.BIDTOLIST_ICP_HOST ?? "https://ic0.app";
-  const agent = await HttpAgent.create({ identity: makeIdentity(env.BIDTOLIST_IDENTITY_SEED), host });
-  if (host.includes("localhost")) await agent.fetchRootKey().catch(() => {});
+  const agent = await HttpAgent.create({ identity: makeIdentity(env.BIDTOLIST_IDENTITY_SEED), host, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY) });
   return Actor.createActor(listingIdlFactory, { agent, canisterId: env.BIDTOLIST_LISTING_CANISTER_ID });
 }
 
 async function createAgentActor(env: BidtolistEnv) {
   if (!env.BIDTOLIST_AGENT_CANISTER_ID || !env.BIDTOLIST_IDENTITY_SEED) return null;
   const host  = env.BIDTOLIST_ICP_HOST ?? "https://ic0.app";
-  const agent = await HttpAgent.create({ identity: makeIdentity(env.BIDTOLIST_IDENTITY_SEED), host });
-  if (host.includes("localhost")) await agent.fetchRootKey().catch(() => {});
+  const agent = await HttpAgent.create({ identity: makeIdentity(env.BIDTOLIST_IDENTITY_SEED), host, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY) });
   return Actor.createActor(agentIdlFactory, { agent, canisterId: env.BIDTOLIST_AGENT_CANISTER_ID });
 }
 
@@ -143,8 +142,7 @@ function createFeeActor(env: BidtolistEnv) {
   if (!env.BIDTOLIST_FEE_CANISTER_ID || !env.BIDTOLIST_IDENTITY_SEED) return null;
   const host     = env.BIDTOLIST_ICP_HOST ?? "https://ic0.app";
   const identity = makeIdentity(env.BIDTOLIST_IDENTITY_SEED);
-  const agent    = new HttpAgent({ identity, host });
-  if (host.includes("localhost")) agent.fetchRootKey().catch(() => {});
+  const agent    = HttpAgent.createSync({ identity, host, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY) });
   return Actor.createActor(feeIdlFactory, { agent, canisterId: env.BIDTOLIST_FEE_CANISTER_ID });
 }
 
@@ -152,8 +150,7 @@ function createHomegenticActor(env: BidtolistEnv) {
   if (!env.HOMEGENTIC_CANISTER_ID || !env.BIDTOLIST_IDENTITY_SEED) return null;
   const host     = env.HOMEGENTIC_ICP_HOST ?? "https://ic0.app";
   const identity = makeIdentity(env.BIDTOLIST_IDENTITY_SEED);
-  const agent    = new HttpAgent({ identity, host });
-  if (host.includes("localhost")) agent.fetchRootKey().catch(() => {});
+  const agent    = HttpAgent.createSync({ identity, host, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY) });
   return Actor.createActor(homegenticIdlFactory, { agent, canisterId: env.HOMEGENTIC_CANISTER_ID });
 }
 

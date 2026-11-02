@@ -17,10 +17,10 @@ async function getActor(): Promise<any> {
   const pem = process.env.DFX_IDENTITY_PEM;
   const canisterId = process.env.CANISTER_ID_MONITORING;
   if (!pem || !canisterId) return null;
-  const { host, local } = icHost();
+  const { host, rootKey } = icHost();
   let agent = agents.get(host);
   if (!agent) {
-    agent = HttpAgent.create({ host, identity: identityFromPem(pem), shouldFetchRootKey: local });
+    agent = HttpAgent.create({ host, identity: identityFromPem(pem), rootKey });
     agents.set(host, agent);
   }
   return Actor.createActor(idlFactory, { agent: await agent, canisterId });

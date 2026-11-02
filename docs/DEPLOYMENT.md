@@ -238,6 +238,7 @@ variables below as Fly secrets.
 | `NOTIFICATIONS_DATA_FILE` | Path of the JSON file holding device tokens, browser subscriptions, notification preferences, confirmed SMS numbers and outbox cursors (e.g. `/var/lib/homegentic/notifications.json`). Put it on persistent storage. |
 | `RELAY_IDENTITY_SEED` | 32-byte hex seed for the relay's own ICP identity (`openssl rand -hex 32`). Keep secret and stable — its principal is allowlisted on the canisters. |
 | `IC_HOST` | ICP API host (default `https://icp-api.io`; `http://localhost:4943` locally) |
+| `ICP_ROOT_KEY` | Local only: the local network's root key in hex (`icp network status --json` → `root_key`). Never set it against mainnet or testnet: the agent never fetches a root key from the network it talks to |
 | `CANISTER_ID_AUTH` | Auth canister — resolves the session tokens clients register with, and users' email addresses |
 | `CANISTER_ID_JOB` | Job canister — outbox for job signatures, verified jobs and sensor alerts |
 | `CANISTER_ID_QUOTE` | Quote canister — outbox for bid outcomes, quotes received and new leads |

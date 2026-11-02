@@ -1,5 +1,6 @@
 import type { AuthClient } from "@icp-sdk/auth/client";
 import { HttpAgent } from "@icp-sdk/core/agent";
+import { safeGetCanisterEnv } from "@icp-sdk/core/agent/canister-env";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 
 const DFX_NETWORK = (process.env as any).DFX_NETWORK || "local";
@@ -50,9 +51,30 @@ export async function getAuthClient(): Promise<AuthClient> {
     _authClient ??= new AuthClient({
       identityProvider: { authorizeUrl: II_URL, canisterId: II_CANISTER_ID },
       derivationOrigin: iiDerivationOrigin(),
+      // A local II mints delegations through an agent that otherwise verifies
+      // against the mainnet root key (internet-identity skill, pitfall 18).
+      agentOptions: IS_LOCAL ? { host: LOCAL_HOST, rootKey: networkRootKey() } : undefined,
     });
   }
   return _authClient;
+}
+
+/**
+ * The network's root key, never fetched at runtime (canister-security skill,
+ * pitfall 7): the asset canister's ic_env cookie carries it on deployed
+ * frontends (on mainnet it is the key the agent already has), and a local
+ * dev build gets it injected by vite.config.ts. Without either, a local agent
+ * can't verify responses and services stay on their mock data.
+ */
+export function networkRootKey(): Uint8Array | undefined {
+  const fromCookie = safeGetCanisterEnv()?.IC_ROOT_KEY;
+  if (fromCookie && fromCookie.length > 0) return fromCookie;
+  if (!IS_LOCAL) return undefined;
+  const hex: string = (process.env as any).LOCAL_IC_ROOT_KEY || "";
+  if (!/^[0-9a-fA-F]+$/.test(hex) || hex.length % 2 !== 0) return undefined;
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
 }
 
 export async function getAgent(): Promise<HttpAgent> {
@@ -60,24 +82,11 @@ export async function getAgent(): Promise<HttpAgent> {
     const client = await getAuthClient();
     // getIdentity() is async
     const identity = await client.getIdentity();
-    // Do NOT pass shouldFetchRootKey to HttpAgent.create() — on @icp-sdk/core/agent
-    // that flag triggers an eager synchronous root-key fetch that hangs when no
-    // replica is reachable (e.g. E2E mock mode, CI without dfx).  Instead, fetch
-    // explicitly with a timeout, matching the pattern in loginWithLocalIdentity().
     _agent = await HttpAgent.create({
       identity,
       host: IS_LOCAL ? LOCAL_HOST : "https://ic0.app",
+      rootKey: networkRootKey(),
     });
-    if (IS_LOCAL) {
-      await Promise.race([
-        _agent.fetchRootKey(),
-        new Promise<void>((_, reject) =>
-          setTimeout(() => reject(new Error("fetchRootKey timeout")), 2000)
-        ),
-      ]).catch((err: unknown) => {
-        console.warn("[actor] getAgent fetchRootKey failed — running in mock mode:", err);
-      });
-    }
   }
   return _agent;
 }
@@ -115,17 +124,9 @@ export async function loginWithLocalIdentity(): Promise<string> {
   const override = typeof window !== "undefined" ? (window as any).__e2e_local_seed : undefined;
   seed[0] = typeof override === "number" ? override : 42;
   const identity = Ed25519KeyIdentity.generate(seed);
-  _agent = await HttpAgent.create({ identity, host: LOCAL_HOST });
-  // Fetch the local replica's root key so canister calls can be verified.
-  // When no replica is running (e.g. mock-mode E2E without deploy), this fails
-  // gracefully — all service calls will fall back to their mock implementations.
-  // 2-second timeout prevents hanging when port 4943 is firewalled (common in CI).
-  await Promise.race([
-    _agent.fetchRootKey(),
-    new Promise<void>((_, reject) => setTimeout(() => reject(new Error("fetchRootKey timeout")), 2000)),
-  ]).catch((err: unknown) => {
-    console.warn("[actor] fetchRootKey failed — running in mock mode (no replica):", err);
-  });
+  // The local root key comes from vite.config.ts (no fetchRootKey); without
+  // one, calls fail verification and services fall back to mock data.
+  _agent = await HttpAgent.create({ identity, host: LOCAL_HOST, rootKey: networkRootKey() });
   return identity.getPrincipal().toText();
 }
 

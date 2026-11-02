@@ -9,7 +9,7 @@
 import { spawn, type ChildProcess } from "child_process";
 import { resolve } from "path";
 import { createIdentity, PocketIc } from "@dfinity/pic";
-import { createPic } from "./setup";
+import { createPic, gatewayRootKeyHex } from "./setup";
 import { deployAll, ALL_CANISTERS, type Deployment } from "./deployAll";
 
 const ROOT = resolve(__dirname, "../../..");
@@ -50,6 +50,7 @@ export async function startLiveApp(port = 3123): Promise<LiveApp> {
     ...(process.env as Record<string, string>),
     DFX_NETWORK: "local",
     LOCAL_IC_HOST: gatewayUrl,
+    LOCAL_IC_ROOT_KEY: await gatewayRootKeyHex(gatewayUrl),
     // No voice agent or Stripe in these tests.
     VITE_VOICE_AGENT_URL: "",
   };

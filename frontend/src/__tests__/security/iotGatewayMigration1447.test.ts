@@ -4,7 +4,7 @@
  * The iot-gateway used @dfinity/* at ^1.0.1. This migration:
  *  1. Replaces individual @dfinity/* sub-packages with unified @icp-sdk/core at ^6.x
  *  2. Replaces `new HttpAgent({...})` (1.x) with `await HttpAgent.create({...})` (3.x+)
- *  3. Uses shouldFetchRootKey in the create() options instead of agent.fetchRootKey()
+ *  3. Never fetches the root key: passes rootKey (local key from ICP_ROOT_KEY)
  *  4. Imports from @icp-sdk/core/* path exports (not @dfinity/*)
  */
 
@@ -46,14 +46,10 @@ describe("14.4.7: iot-gateway icp.ts uses 3.x+ HttpAgent API", () => {
     expect(icp).not.toMatch(/new HttpAgent\s*\(/);
   });
 
-  it("uses shouldFetchRootKey in create() options (not agent.fetchRootKey())", () => {
-    expect(icp).toMatch(/shouldFetchRootKey/);
-    // agent.fetchRootKey() should no longer be called as a separate step
-    expect(icp).not.toMatch(/agent\.fetchRootKey\s*\(\)/);
-  });
-
-  it("shouldFetchRootKey is gated on non-production environment", () => {
-    expect(icp).toMatch(/shouldFetchRootKey\s*:\s*process\.env\.NODE_ENV\s*!==\s*["']production["']/);
+  it("passes rootKey instead of fetching it", () => {
+    expect(icp).toMatch(/rootKey:\s*rootKeyFor\(host, process\.env\.ICP_ROOT_KEY\)/);
+    expect(icp).not.toMatch(/shouldFetchRootKey/);
+    expect(icp).not.toMatch(/fetchRootKey\s*\(/);
   });
 
   it("imports are from @icp-sdk/core/* (not legacy @dfinity/* packages)", () => {
