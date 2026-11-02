@@ -137,13 +137,10 @@ Add `--env testnet` for the testnet Worker. Worker secrets are not rolled back.
 
 ---
 
-## Incident checklist
+## Incidents
 
-1. **Contain.** Pause the affected canister so it stops taking writes: `icp canister call <canister> pause '(null)' -e ic` (`unpause` when fixed). For the voice Worker, roll it back as above.
-2. **Tell affected users** by email. There is no status page yet.
-3. **Roll back** with Option A or B above, or fix forward and redeploy.
-4. **Check** that the Cycle Watchdog run after the fix is green (it checks the frontend, the Worker's `/health` and every canister's cycles).
-5. **Write down** what happened and what changes, in the PR that fixes it.
+See `docs/INCIDENT_RUNBOOK.md`: severity, containment, telling users,
+restoring from the off-chain backups, key rotation and data-breach notices.
 
 ---
 

@@ -141,7 +141,7 @@ deadline reminders.
 | `OPENPERMIT_API_KEY` | Permit imports |
 | `LOCAL_BROKER_EMAIL` | Recipient of broker-lead emails |
 | `GOOGLE_PLACES_API_KEY` | Optional — Add Property address suggestions (`/api/address/suggest`, `/api/address/place`). Create a key in Google Cloud with only **Places API (New)** enabled and restrict it to that API. Each user gets 40 calls/minute (then a 1, 2, 4 … 60-minute lockout), 300 suggestion and 50 address calls/day; var `ADDRESS_DAILY_BUDGET` caps all users together (default 5000/day). Unset, the field is plain text |
-| `CANISTER_ID_MONITORING` | Optional — monitoring canister, for frontend-error and cycle-alert routes |
+| `CANISTER_ID_MONITORING` | Monitoring canister — frontend-error and cycle-alert routes, and server-side failures (Stripe webhook handler errors, Resend refusals, 5xx responses) that the hourly Cycle Watchdog emails about. Without it those failures are only in the Worker log. The Worker's identity must be added with `monitoring.addReporter` (`scripts/deploy.sh` does it) |
 | `BIDTOLIST_*` | Optional — Bid to List Stripe/Resend keys and canister IDs (see the comment block in `wrangler.toml`) |
 
 `INBOX_DOMAIN` (a `[vars]` entry, not a secret) is the domain of homeowners'
@@ -244,6 +244,7 @@ variables below as Fly secrets.
 | `CANISTER_ID_LISTING` | Listing canister — outbox for FSBO showing requests (push and email to the seller). The relay must be on its notifier list: `scripts/deploy.sh` grants `addNotifier` when `NOTIFIER_PRINCIPAL` is set |
 | `CANISTER_ID_CONTRACTOR` | Contractor canister — profiles for new-lead matching and contractors' notification email |
 | `CANISTER_ID_PAYMENT` | Payment canister — contractor tiers: ContractorPro gets new-lead alerts at once and Free 30 minutes later, and review requests go out only for ContractorPro. Without it every contractor is treated as Free |
+| `CANISTER_ID_MONITORING` | Monitoring canister — failed email, SMS and push sends and unreadable outboxes are reported here for the hourly Cycle Watchdog. The relay identity must be on its reporter list: `scripts/deploy.sh` grants `addReporter` when `NOTIFIER_PRINCIPAL` is set. Without it failures are only in the relay log |
 | `POLL_INTERVAL_MS` | How often to read the outboxes (default `30000`) |
 | `APNS_KEY_ID` | Apple APNs Auth Key ID (for iOS push) |
 | `APNS_TEAM_ID` | Apple Team ID |
@@ -395,6 +396,7 @@ fly secrets set --app homegentic-notifications-testnet --stage \
   VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… VAPID_SUBJECT=… \
   CANISTER_ID_AUTH=… CANISTER_ID_JOB=… CANISTER_ID_QUOTE=… CANISTER_ID_LISTING=… \
   CANISTER_ID_PROPERTY=… CANISTER_ID_REPORT=… CANISTER_ID_CONTRACTOR=… CANISTER_ID_PAYMENT=… \
+  CANISTER_ID_MONITORING=… \
   RESEND_API_KEY=… NOTIFICATIONS_PUBLIC_URL=https://homegentic-notifications-testnet.fly.dev
 # Gateway:
 fly secrets set --app homegentic-iot-gateway-testnet --stage \

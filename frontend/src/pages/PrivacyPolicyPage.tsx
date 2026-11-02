@@ -20,7 +20,7 @@ const F = {
   mono:    "'JetBrains Mono', monospace",
 };
 
-const EFFECTIVE_DATE = "October 31, 2026";
+const EFFECTIVE_DATE = "November 2, 2026";
 
 interface Section {
   id: string;
@@ -155,6 +155,7 @@ const SECTIONS: Section[] = [
         <p><strong>Deleting your account.</strong> You can delete your account yourself in Settings → Privacy (on the web; the mobile app links there). This stops your subscription from renewing and removes your profile, properties, jobs, photos, documents, bills, reports and share links, quote requests, smart-home devices, listings and contractor or agent profile from our canisters straight away. You can also ask us by emailing <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a>; we will respond within 30 days.</p>
         <p><strong>What we keep.</strong> Payment, gift, credit, platform-fee and referral records, and our log of administrative actions, which we need for tax, accounting and fraud prevention. Jobs a contractor logged on someone else's home stay on that home's record. Photos, bills and schedule entries that someone you invited added to your home are tied to their account, so they stay until that person deletes them. Confirmations you gave on other people's records (such as photo approvals) stay with them. Stripe, Anthropic and the other services listed above keep data under their own retention policies; Stripe keeps identity-check images under its policy.</p>
         <p><strong>Logs.</strong> Service logs are kept for up to 90 days.</p>
+        <p><strong>Backups.</strong> We keep encrypted backups of our canisters for up to 35 days, plus one copy taken just before each software update, which the next update replaces. Data you delete stays in those copies until they expire. We use them only to recover from a failure.</p>
       </>
     ),
   },

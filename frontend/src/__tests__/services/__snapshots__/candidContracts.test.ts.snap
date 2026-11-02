@@ -216,10 +216,13 @@ getCriticalCycleAlerts(0) -> (1) [query]
 getFrontendErrors(2) -> (1) [query]
 getFrontendErrorStats(0) -> (1) [query]
 getMetrics(0) -> (1) [query]
+getServiceErrors(2) -> (1) [query]
 getTrackedCanisters(0) -> (1) [query]
 recordFrontendError(1) -> (0)
+recordServiceError(1) -> (0)
 registerCanister(2) -> (1)
 resolveFrontendError(1) -> (1)
+resolveServiceError(1) -> (1)
 setLowCycleThreshold(1) -> (1)
 unregisterCanister(1) -> (1)"
 `;

@@ -130,17 +130,17 @@ All 20 canisters use `persistent actor` (Motoko mo:core) — all variables are i
 | **contractor** | Profiles, trust scores, rate-limited reviews (10/day/user, composite key deduplication) |
 | **quote** | Quote requests & contractor bids, tier-enforced open-request limits; vetKD-sealed bids |
 | **payment** | Subscription tier management & expiry; also owns pricing table queries — `getPricing(tier)` / `getAllPricing()` (merged from old `price` canister) |
-| **photo** | Photo bytes stored on-chain, SHA-256 deduplication, tier-based quotas, multi-approval for sensitive records |
+| **photo** | Photo records and access checks, SHA-256 deduplication, tier-based quotas, multi-approval for sensitive records; bytes in Cloudflare R2 via the voice Worker (on-chain bytes for older photos and as a fallback) |
 | **report** | Immutable report snapshots, share links with visibility levels & revocation |
 | **market** | ROI-ranked project recommendations (2024 Remodeling Magazine data); HomeGentic score (returned vetKD-encrypted to the owner) |
 | **maintenance** | Predictive scheduling, system lifespan estimates, seasonal task generation |
 | **sensor** | IoT device registry (12 device types: Nest, Ecobee, Moen Flo, Ring Alarm, Honeywell Home, Rheem EcoNet, Sense, Emporia Vue, Rachio, SmartThings, Home Assistant, Manual); auto-creates pending jobs for Critical events |
-| **monitoring** | Cycles usage, cost metrics, profitability (ARPU/LTV/CAC), alerting |
+| **monitoring** | Cycles usage, cost metrics, profitability (ARPU/LTV/CAC), alerts, frontend and service errors (read hourly by `scripts/ops/check-ops-alerts.mjs`) |
 | **listing** | FSBO listing lifecycle, sealed-bid offers, agent matching |
 | **agent** | Realtor profiles, reviews, HomeGentic transaction count |
 | **recurring** | Recurring service contracts (HVAC, pest, landscaping) and visit logs |
 | **bills** | Utility bill storage per property; 3-month rolling anomaly detection (>20% spike flagged); feeds Activity feed bell drawer |
-| **ai_proxy** | IC HTTP outcalls: permit imports (ArcGIS / OpenPermit), property-record lookups, and transactional email (Resend) |
+| **ai_proxy** | Price benchmarks and instant forecasts; its outcall and email methods are retired stubs (permits, property lookups and email moved to the voice Worker) |
 | **fee** | Bid to List platform-fee ledger (Owed → Invoiced → Paid / Waived); identities are released only after the fee settles |
 | **referrals** | Retired 2026-10-26: neighbour referral credits were removed from the app and payment no longer calls it; still deployed with its data |
 | **audit** | Append-only log of privileged (admin) actions, written fire-and-forget by the other canisters |

@@ -115,6 +115,10 @@ export const idlFactory = ({ IDL }: any) => {
     // Used by the voice Worker (cron alerts, frontend error reports).
     getCriticalCycleAlerts: IDL.Func([], [IDL.Vec(Alert)], ["query"]),
     recordFrontendError:    IDL.Func([ErrorSummaryInput], [], []),
+    // Server-side failures (Stripe webhook, email, relays); read by the ops watchdog.
+    recordServiceError:     IDL.Func([ErrorSummaryInput], [], []),
+    getServiceErrors:       IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(ErrorSummary)], ["query"]),
+    resolveServiceError:    IDL.Func([IDL.Text], [ResultUnit], []),
     getAllCanisterMetrics:  IDL.Func([], [IDL.Vec(CanisterMetrics)], ["query"]),
     getMetrics:            IDL.Func([], [Metrics],                  ["query"]),
     checkCycleLevels:      IDL.Func([], [IDL.Vec(CycleLevelResult)], []),

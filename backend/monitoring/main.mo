@@ -317,6 +317,7 @@ persistent actor Monitoring {
 
   private transient let MAX_ERROR_SUMMARIES : Nat = 500;
   private let frontendErrors = Map.empty<Text, ErrorSummary>();
+  private let serviceErrors  = Map.empty<Text, ErrorSummary>();
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
@@ -906,11 +907,11 @@ persistent actor Monitoring {
     switch (r) { case (?t) ?strTrunc(t, MAX_RELEASE_LEN); case null null }
   };
 
-  private func evictOldestError() {
+  private func evictOldestError(errors: Map.Map<Text, ErrorSummary>) {
     var oldestKey : ?Text = null;
     var oldestTs  : Int   = 0;
     var first             = true;
-    for (summary in frontendErrors.values()) {
+    for (summary in errors.values()) {
       if (first or summary.lastSeen < oldestTs) {
         oldestKey := ?summary.fingerprint;
         oldestTs  := summary.lastSeen;
@@ -918,19 +919,28 @@ persistent actor Monitoring {
       };
     };
     switch (oldestKey) {
-      case (?oldestFingerprint) { frontendErrors.remove(oldestFingerprint) };
+      case (?oldestFingerprint) { errors.remove(oldestFingerprint) };
       case null  {};
     };
   };
 
-  /// Record or merge a frontend error summary from the voice server.
-  /// M10: admins and registered reporters only (the voice Worker identity).
-  /// Cap: 500 entries with LRU eviction; release and tierCounts are bounded.
-  public shared(msg) func recordFrontendError(input: ErrorSummaryInput) : async () {
-    if (not canWrite(msg.caller)) return;
+  /// The Privacy Policy keeps service logs at most 90 days, and an error
+  /// message can carry whatever the page was showing.
+  private transient let ERROR_RETENTION_NS : Int = 90 * 24 * 60 * 60 * 1_000_000_000;
+
+  private func pruneOldErrors(errors: Map.Map<Text, ErrorSummary>) {
+    let cutoff = Time.now() - ERROR_RETENTION_NS;
+    let old = errors.entries().filter(func((_, e) : (Text, ErrorSummary)) : Bool { e.lastSeen < cutoff }).toArray();
+    for ((fp, _) in old.values()) { errors.remove(fp) };
+  };
+
+  /// Merge one error summary into `errors`. An error seen again after it was
+  /// resolved is reopened (a regression), so the ops watchdog alerts on it.
+  private func upsertError(errors: Map.Map<Text, ErrorSummary>, input: ErrorSummaryInput) {
+    pruneOldErrors(errors);
     let normalizedFingerprint = strTrunc(input.fingerprint, 64);
     if (Text.size(normalizedFingerprint) == 0) return;
-    switch (frontendErrors.get(normalizedFingerprint)) {
+    switch (errors.get(normalizedFingerprint)) {
       case (?existing) {
         let updated : ErrorSummary = {
           fingerprint = existing.fingerprint;
@@ -941,12 +951,12 @@ persistent actor Monitoring {
           count       = existing.count + input.count;
           tierCounts  = mergeTierCounts(existing.tierCounts, input.tierCounts);
           release     = switch (existing.release) { case null { truncRelease(input.release) }; case r { truncRelease(r) } };
-          resolved    = existing.resolved;
+          resolved    = existing.resolved and input.lastSeen <= existing.lastSeen;
         };
-        frontendErrors.add(normalizedFingerprint, updated);
+        errors.add(normalizedFingerprint, updated);
       };
       case null {
-        if (frontendErrors.size() >= MAX_ERROR_SUMMARIES) { evictOldestError() };
+        if (errors.size() >= MAX_ERROR_SUMMARIES) { evictOldestError(errors) };
         let summary : ErrorSummary = {
           fingerprint = normalizedFingerprint;
           message     = strTrunc(input.message,   120);
@@ -958,35 +968,28 @@ persistent actor Monitoring {
           release     = truncRelease(input.release);
           resolved    = false;
         };
-        frontendErrors.add(normalizedFingerprint, summary);
+        errors.add(normalizedFingerprint, summary);
       };
     };
   };
 
-  public query(msg) func getFrontendErrors(from: Nat, limit: Nat) : async [ErrorSummary] {
-    if (not isAdmin(msg.caller)) return [];
-    let all = frontendErrors.values().toArray().sort(
+  /// Newest first (by lastSeen).
+  private func pageErrors(errors: Map.Map<Text, ErrorSummary>, from: Nat, limit: Nat) : [ErrorSummary] {
+    let all = errors.values().toArray().sort(
       func(lhs: ErrorSummary, rhs: ErrorSummary) : { #less; #equal; #greater } {
         if      (lhs.lastSeen > rhs.lastSeen) #less
         else if (lhs.lastSeen < rhs.lastSeen) #greater
         else                                  #equal
       }
     );
-    var slice : [ErrorSummary] = [];
-    var index = 0;
-    for (item in all.values()) {
-      if (index >= from and index < from + limit) { slice := slice.concat([item]) };
-      index += 1;
-    };
-    slice
+    all.values().drop(from).take(limit).toArray()
   };
 
-  public shared(msg) func resolveFrontendError(fingerprint: Text) : async Result.Result<(), Error> {
-    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    switch (frontendErrors.get(fingerprint)) {
+  private func resolveError(errors: Map.Map<Text, ErrorSummary>, fingerprint: Text) : Result.Result<(), Error> {
+    switch (errors.get(fingerprint)) {
       case null { #err(#NotFound) };
       case (?existing) {
-        frontendErrors.add(fingerprint, {
+        errors.add(fingerprint, {
           fingerprint = existing.fingerprint;
           message     = existing.message;
           errorType   = existing.errorType;
@@ -1000,6 +1003,47 @@ persistent actor Monitoring {
         #ok(())
       };
     }
+  };
+
+  /// Record or merge a frontend error summary from the voice server.
+  /// M10: admins and registered reporters only (the voice Worker identity).
+  /// Cap: 500 entries with LRU eviction; release and tierCounts are bounded.
+  public shared(msg) func recordFrontendError(input: ErrorSummaryInput) : async () {
+    if (not canWrite(msg.caller)) return;
+    upsertError(frontendErrors, input);
+  };
+
+  public query(msg) func getFrontendErrors(from: Nat, limit: Nat) : async [ErrorSummary] {
+    if (not isAdmin(msg.caller)) return [];
+    pageErrors(frontendErrors, from, limit)
+  };
+
+  public shared(msg) func resolveFrontendError(fingerprint: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    resolveError(frontendErrors, fingerprint)
+  };
+
+  // ─── Service errors ──────────────────────────────────────────────────────────
+  // Server-side failures the user may never see: a Stripe webhook the Worker
+  // could not apply, a transactional email Resend refused, a relay that could
+  // not deliver. Reported by the Worker and relays (reporters), read hourly by
+  // scripts/ops/check-ops-alerts.mjs from the Cycle Watchdog, which emails on any
+  // unresolved one seen since its last run. errorType is the source
+  // ("stripe-webhook", "email", "notifications-relay", ...).
+
+  public shared(msg) func recordServiceError(input: ErrorSummaryInput) : async () {
+    if (not canWrite(msg.caller)) return;
+    upsertError(serviceErrors, input);
+  };
+
+  public query(msg) func getServiceErrors(from: Nat, limit: Nat) : async [ErrorSummary] {
+    if (not isAdmin(msg.caller)) return [];
+    pageErrors(serviceErrors, from, limit)
+  };
+
+  public shared(msg) func resolveServiceError(fingerprint: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    resolveError(serviceErrors, fingerprint)
   };
 
   public query(msg) func getFrontendErrorStats() : async FrontendErrorStats {

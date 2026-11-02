@@ -18,6 +18,17 @@ updates:
         dependency-type: "production"
         update-types: ["minor", "patch"]
 
+  # Ops scripts run by the watchdog and backup workflows (controller identity in scope)
+  - package-ecosystem: "npm"
+    directory: "/scripts/ops"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ops"
+
   - package-ecosystem: "npm"
     directory: "/agents/voice"
     schedule:

@@ -19,6 +19,7 @@ jest.mock("../paymentCanister", () => ({
   fetchSubscriptionTier: jest.fn(),
 }));
 jest.mock("../monitoringCanister", () => ({
+  recordServiceError:     jest.fn().mockResolvedValue(undefined),
   getCriticalCycleAlerts: jest.fn(),
   checkCycleLevels: jest.fn(),
 }));

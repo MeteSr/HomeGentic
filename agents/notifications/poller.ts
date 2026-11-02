@@ -24,6 +24,7 @@ import { emailConfigured, sendEmail } from "./email";
 import { sendSms, smsConfigured } from "./sms";
 import { PUSH_KINDS } from "./channels";
 import type { ContractorInfo, NotificationEvent, OutboxPage, PushPayload, QuoteRequestInfo } from "./types";
+import { reportFailure, errorCode } from "./opsReport";
 
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 30_000;
 const PAGE_SIZE = 200; // the canister's MAX_PAGE
@@ -126,6 +127,7 @@ async function deliver(
       }
     } catch (err) {
       console.error(`[poller] email for ${eventKey} failed:`, err instanceof Error ? err.message : err);
+      void reportFailure("email", `notification email failed: ${errorCode(err)}`);
     }
   }
   const phone = deps.smsEnabled() ? deps.smsPhoneFor(n.principal, n.type) : null;
@@ -135,6 +137,7 @@ async function deliver(
       count += 1;
     } catch (err) {
       console.error(`[poller] SMS for ${eventKey} failed:`, err instanceof Error ? err.message : err);
+      void reportFailure("sms", `notification SMS failed: ${errorCode(err)}`);
     }
   }
   return count;
@@ -231,6 +234,7 @@ export async function pollOnce(deps: PollerDeps = defaultDeps): Promise<void> {
         if (sent > 0) console.log(`[poller] ${envVar}: sent ${sent} notification(s)`);
       } catch (err) {
         console.error(`[poller] ${envVar} (${canisterId}):`, err instanceof Error ? err.message : err);
+        void reportFailure("outbox", `could not read ${envVar} outbox`);
       }
     }
   } finally {

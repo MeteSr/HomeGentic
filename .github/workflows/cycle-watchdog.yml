@@ -1,8 +1,11 @@
 name: Cycle Watchdog
 
 # Every hour: checks that the app answers (frontend canister + voice Worker
-# /health), reads every canister's cycle balance, tops up the ones near their
-# freezing threshold, and emails OPS_ALERT_EMAIL when anything is wrong.
+# /health), checks the monitoring canister for new critical alerts, service
+# errors (Stripe webhook, email, 5xx, relay sends) and new frontend errors,
+# checks the Fly relays' /health (scripts/ops/check-ops-alerts.mjs), reads
+# every canister's cycle balance, tops up the ones near their freezing
+# threshold, and emails OPS_ALERT_EMAIL when anything is wrong.
 # Thresholds live in scripts/lib/cycles.sh. Issue #55.
 #
 # Scheduled runs check mainnet (`ic`). Run it by hand with env=testnet to
@@ -111,6 +114,18 @@ jobs:
         env:
           VOICE_URL: ${{ secrets.VITE_VOICE_AGENT_URL }}
 
+      - name: Check ops alerts (monitoring canister + relays)
+        id: ops
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm ci --prefix scripts/ops --no-audit --no-fund >/dev/null
+          node --experimental-strip-types --no-warnings scripts/ops/check-ops-alerts.mjs 2>&1 | tee ops-alerts.log
+        env:
+          IDENTITY_PEM: ${{ inputs.env == 'testnet' && secrets.DFX_IDENTITY_PEM || secrets.MAINNET_IDENTITY_PEM }}
+          NOTIFICATIONS_URL: ${{ secrets.VITE_NOTIFICATIONS_URL }}
+          IOT_GATEWAY_URL: ${{ vars.VITE_IOT_GATEWAY_URL || secrets.VITE_IOT_GATEWAY_URL }}
+
       - name: Check cycle balances
         id: health
         continue-on-error: true
@@ -135,6 +150,7 @@ jobs:
         with:
           name: cycle-health-${{ github.run_id }}
           path: |
+            ops-alerts.log
             cycle-health.log
             top-up.log
           retention-days: 14
@@ -144,8 +160,9 @@ jobs:
         run: |
           {
             echo "## Cycle Watchdog ($ICP_ENV)"
-            echo "Uptime: ${{ steps.uptime.outcome }} · Cycles: ${{ steps.health.outcome }} · Top-up: ${{ steps.topup.outcome }}"
+            echo "Uptime: ${{ steps.uptime.outcome }} · Ops alerts: ${{ steps.ops.outcome }} · Cycles: ${{ steps.health.outcome }} · Top-up: ${{ steps.topup.outcome }}"
             echo '```'
+            cat ops-alerts.log 2>/dev/null || true
             cat cycle-health.log 2>/dev/null || true
             cat top-up.log 2>/dev/null || true
             echo '```'
@@ -153,14 +170,14 @@ jobs:
 
       - name: Email alert
         if: >-
-          (steps.uptime.outcome == 'failure' || steps.health.outcome == 'failure' || steps.topup.outcome == 'failure') &&
+          (steps.uptime.outcome == 'failure' || steps.ops.outcome == 'failure' || steps.health.outcome == 'failure' || steps.topup.outcome == 'failure') &&
           env.RESEND_API_KEY != '' && env.ALERT_EMAIL != ''
         env:
           RESEND_FROM: ${{ vars.RESEND_FROM_ADDRESS || 'noreply@homegentic.app' }}
         run: |
-          SUMMARY=$( (cat cycle-health.log top-up.log 2>/dev/null || true) | tail -40)
-          BODY=$(printf 'HomeGentic watchdog (%s) found a problem.\n\nUptime: %s\nCycles: %s\nTop-up: %s\n\n%s\n\nRun: %s/%s/actions/runs/%s\n' \
-            "$ICP_ENV" "${{ steps.uptime.outcome }}" "${{ steps.health.outcome }}" "${{ steps.topup.outcome }}" \
+          SUMMARY=$( (cat ops-alerts.log cycle-health.log top-up.log 2>/dev/null || true) | tail -60)
+          BODY=$(printf 'HomeGentic watchdog (%s) found a problem.\n\nUptime: %s\nOps alerts: %s\nCycles: %s\nTop-up: %s\n\n%s\n\nRunbook: docs/INCIDENT_RUNBOOK.md\nRun: %s/%s/actions/runs/%s\n' \
+            "$ICP_ENV" "${{ steps.uptime.outcome }}" "${{ steps.ops.outcome }}" "${{ steps.health.outcome }}" "${{ steps.topup.outcome }}" \
             "$SUMMARY" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
           curl -sf -X POST https://api.resend.com/emails \
             -H "Authorization: Bearer $RESEND_API_KEY" \
@@ -173,7 +190,7 @@ jobs:
       - name: Fail the run when anything is wrong
         # A failed scheduled run also shows up in GitHub's own notifications,
         # which is the fallback when OPS_ALERT_EMAIL or RESEND_API_KEY is unset.
-        if: steps.uptime.outcome == 'failure' || steps.health.outcome == 'failure' || steps.topup.outcome == 'failure'
+        if: steps.uptime.outcome == 'failure' || steps.ops.outcome == 'failure' || steps.health.outcome == 'failure' || steps.topup.outcome == 'failure'
         run: |
-          echo "::error::Watchdog: uptime=${{ steps.uptime.outcome }} cycles=${{ steps.health.outcome }} top-up=${{ steps.topup.outcome }}"
+          echo "::error::Watchdog: uptime=${{ steps.uptime.outcome }} ops=${{ steps.ops.outcome }} cycles=${{ steps.health.outcome }} top-up=${{ steps.topup.outcome }}"
           exit 1

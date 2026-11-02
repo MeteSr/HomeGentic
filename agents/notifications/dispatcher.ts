@@ -7,6 +7,7 @@ import { sendApns } from "./apns";
 import { sendFcm  } from "./fcm";
 import { dispatchWebPush } from "./vapidDispatcher";
 import type { PushPayload } from "./types";
+import { reportFailure, errorCode } from "./opsReport";
 
 export async function dispatchToUser(principal: string, payload: PushPayload): Promise<void> {
   await Promise.all([dispatchToDevices(principal, payload), dispatchWebPush(principal, payload)]);
@@ -32,6 +33,7 @@ async function dispatchToDevices(principal: string, payload: PushPayload): Promi
           removeToken(token);
         } else {
           console.error(`[dispatcher] push failed for ${token.slice(0, 8)}… : ${msg}`);
+          void reportFailure("push", `${platform === "ios" ? "APNs" : "FCM"} push failed: ${errorCode(err)}`);
         }
       }
     })

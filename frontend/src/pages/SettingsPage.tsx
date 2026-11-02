@@ -19,8 +19,6 @@ import {
   type NotificationPrefs, type PrefsChanges, type PrefsState, type PushPrefKind, type EmailPrefKey,
 } from "@/services/notificationPrefs";
 import { useAuthStore } from "@/store/authStore";
-import { usePropertyStore } from "@/store/propertyStore";
-import { useJobStore } from "@/store/jobStore";
 import toast from "react-hot-toast";
 import UpgradeModal from "@/components/UpgradeModal";
 import ContractorBillingPanel from "@/components/ContractorBillingPanel";
@@ -792,10 +790,54 @@ function PrivacyLoadError() {
   );
 }
 
+/**
+ * Everything the account holds (services/dataExport.ts): a ZIP of data.json
+ * and the photo files. Shared by the homeowner and contractor Privacy tabs.
+ */
+function ExportDataSection() {
+  const [step, setStep] = useState<string | null>(null);
+
+  const handleExport = async () => {
+    setStep("starting");
+    try {
+      const { buildExportZip } = await import("@/services/dataExport");
+      const { zip, failed } = await buildExportZip((s) => setStep(s));
+      const url = URL.createObjectURL(new Blob([zip as BlobPart], { type: "application/zip" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `homegentic-export-${new Date().toISOString().slice(0, 10)}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      if (failed.length) toast.error(`Downloaded, but these parts couldn't be read: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? "…" : ""}. Try again later.`);
+      else toast.success("Export downloaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? `Export failed: ${err.message}` : "Export failed");
+    } finally {
+      setStep(null);
+    }
+  };
+
+  return (
+    <>
+      <SectionHeading>Export Your Data</SectionHeading>
+      <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
+        Download everything your account holds as a ZIP file: your profile and plan, your homes and everything recorded on them (jobs, rooms, schedule, bills, recurring services, smart-home devices, report links), your photos, quotes, listings, and contractor or agent profile. You can export it at any time, whatever plan you're on.
+      </p>
+      <Button loading={step !== null} onClick={handleExport} icon={<Download size={13} />} variant="outline">
+        Download My Data (ZIP)
+      </Button>
+      {step && (
+        <p role="status" style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, marginTop: "0.5rem" }}>
+          Reading {step}…
+        </p>
+      )}
+    </>
+  );
+}
+
 function ContractorPrivacyTab() {
   const [privacy,    setPrivacy]    = useState<ProfilePrivacy | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [exporting,  setExporting]  = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -820,18 +862,7 @@ function ContractorPrivacyTab() {
     }
   };
 
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const payload = { exportedAt: new Date().toISOString(), note: "Bid history, credentials and reviews are stored on HomeGentic's canisters on the Internet Computer." };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href = url; a.download = `homegentic-contractor-export-${new Date().toISOString().slice(0, 10)}.json`; a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Export downloaded");
-    } catch { toast.error("Export failed"); } finally { setExporting(false); }
-  };
+
 
   const p = privacy ?? DEFAULT_PROFILE_PRIVACY;
   const rows = [
@@ -848,13 +879,7 @@ function ContractorPrivacyTab() {
       {loadFailed && <PrivacyLoadError />}
 
       <SectionDivider />
-      <SectionHeading>Export Your Data</SectionHeading>
-      <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
-        Download your contractor record as JSON. You can export it at any time, whatever plan you're on.
-      </p>
-      <Button loading={exporting} onClick={handleExport} icon={<Download size={13} />} variant="outline">
-        Download My Data (JSON)
-      </Button>
+      <ExportDataSection />
 
       <SectionDivider />
       <DeleteAccountSection />
@@ -865,7 +890,6 @@ function ContractorPrivacyTab() {
 function PrivacyTab() {
   const [publicReport, setPublicReport] = useState<boolean | null>(null);
   const [loadFailed,   setLoadFailed]   = useState(false);
-  const [exporting,    setExporting]    = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -886,36 +910,7 @@ function PrivacyTab() {
       toast.error(err instanceof Error ? err.message : "Couldn't save privacy settings");
     }
   }
-  const { properties } = usePropertyStore();
-  const { jobs }       = useJobStore();
 
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const payload = {
-        exportedAt: new Date().toISOString(),
-        properties: properties.map((p) => ({
-          id: String(p.id), address: p.address, city: p.city, state: p.state,
-          zipCode: p.zipCode, propertyType: p.propertyType, yearBuilt: String(p.yearBuilt),
-          squareFeet: String(p.squareFeet), verificationLevel: p.verificationLevel,
-          tier: p.tier, createdAt: new Date(Number(p.createdAt) / 1_000_000).toISOString(),
-        })),
-        jobs: jobs.map((j) => ({
-          id: j.id, propertyId: j.propertyId, serviceType: j.serviceType,
-          description: j.description, contractorName: j.contractorName,
-          amountUsd: (j.amount / 100).toFixed(2), date: j.date, status: j.status,
-          verified: j.verified, isDiy: j.isDiy, permitNumber: j.permitNumber ?? null,
-          warrantyMonths: j.warrantyMonths,
-        })),
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href = url; a.download = `homegentic-export-${new Date().toISOString().slice(0, 10)}.json`; a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Export downloaded");
-    } catch { toast.error("Export failed"); } finally { setExporting(false); }
-  };
 
   return (
     <div>
@@ -932,16 +927,7 @@ function PrivacyTab() {
       {loadFailed && <PrivacyLoadError />}
 
       <SectionDivider />
-      <SectionHeading>Export Your Data</SectionHeading>
-      <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
-        Download all your property and job records as JSON. Your data is yours, and you can export it at any time.
-      </p>
-      <Button loading={exporting} onClick={handleExport} icon={<Download size={13} />} variant="outline">
-        Download My Data (JSON)
-      </Button>
-      <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, marginTop: "0.5rem" }}>
-        Includes {properties.length} propert{properties.length !== 1 ? "ies" : "y"} and {jobs.length} job record{jobs.length !== 1 ? "s" : ""}.
-      </p>
+      <ExportDataSection />
 
       <SectionDivider />
       <DeleteAccountSection />

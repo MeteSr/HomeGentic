@@ -25,6 +25,7 @@ import { idlFactory as propertyIdl } from "../../packages/shared/src/declaration
 import { idlFactory as jobIdl } from "../../packages/shared/src/declarations/job";
 import { idlFactory as paymentIdl } from "../../packages/shared/src/declarations/payment";
 import { idlFactory as reportIdl } from "../../packages/shared/src/declarations/report";
+import { idlFactory as monitoringIdl } from "../../packages/shared/src/declarations/monitoring";
 import { serviceTypeFromVariant } from "../../packages/shared/src/serviceTypes";
 
 const IC_HOST = () => process.env.IC_HOST ?? "https://icp-api.io";
@@ -276,4 +277,27 @@ export async function findPublicReport(address: string): Promise<{ token: string
   }) as any;
   const res: any[] = await report.findPublicReport(address);
   return res.length > 0 ? res[0] : null;
+}
+
+/**
+ * Report a relay failure to the monitoring canister (needs addReporter on
+ * monitoring for the relay identity; scripts/deploy.sh grants it). No-op
+ * without CANISTER_ID_MONITORING.
+ */
+export async function recordServiceError(input: {
+  fingerprint: string; message: string; errorType: string; count: number; firstSeenMs: number; lastSeenMs: number;
+}): Promise<void> {
+  const canisterId = process.env.CANISTER_ID_MONITORING;
+  if (!canisterId) return;
+  const monitoring = Actor.createActor(monitoringIdl, { agent: await getRelayAgent(), canisterId }) as any;
+  await monitoring.recordServiceError({
+    fingerprint: input.fingerprint,
+    message:     input.message,
+    errorType:   input.errorType,
+    count:       BigInt(input.count),
+    firstSeen:   BigInt(input.firstSeenMs) * 1_000_000n,
+    lastSeen:    BigInt(input.lastSeenMs) * 1_000_000n,
+    tierCounts:  [],
+    release:     [],
+  });
 }

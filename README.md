@@ -1,6 +1,6 @@
 # HomeGentic
 
-![Coverage](https://img.shields.io/badge/coverage-74%25_lines_minimum-brightgreen) ![CI](https://img.shields.io/badge/CI-passing-brightgreen)
+[![CI](https://github.com/MeteSr/homegentic/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MeteSr/homegentic/actions/workflows/ci.yml)
 
 **The Carfax for Homes** — Blockchain-verified home maintenance history on the Internet Computer Protocol (ICP).
 
@@ -17,8 +17,10 @@ HomeGentic gives homeowners an immutable, tamper-proof record of every repair, u
 | Auth | ICP Internet Identity |
 | Frontend | React + TypeScript + Vite |
 | AI Agent | Claude API (Anthropic) via a Cloudflare Worker — voice / AI proxy |
-| Email | Resend (transactional, rate-limited to free tier: 100/day, 3,000/month) |
-| Admin Dashboard | Standalone React SPA querying canisters via `@dfinity/agent` |
+| Email | Resend, sent from the voice Worker and the notification relay; inbound invoice email through Cloudflare Email Routing |
+| Photos | Cloudflare R2 behind the voice Worker (records and access checks stay in the `photo` canister) |
+| Notifications | Notification relay and IoT gateway on Fly.io (push, email, SMS, smart-home webhooks) |
+| Admin Dashboard | Standalone React SPA querying canisters via `@icp-sdk/core` |
 
 For a picture of how these pieces connect, see the
 [system diagram](docs/ARCHITECTURE.md#system-diagram).
@@ -35,7 +37,7 @@ For a picture of how these pieces connect, see the
 | `contractor` | Contractor profiles, specialties, trust scores, rate-limited reviews (10/day/user) |
 | `quote` | Quote requests & contractor bids, tier-enforced open-request limits, vetKD-sealed bids |
 | `payment` | Subscription tier management and expiry tracking; also owns pricing table queries (merged from old `price` canister) |
-| `photo` | On-chain job photo storage with SHA-256 deduplication and tier-based quota enforcement |
+| `photo` | Photo records, access checks, SHA-256 deduplication and tier quotas; the bytes live in R2 (older photos and a fallback path on-chain) |
 | `report` | Immutable report snapshots, share links with visibility levels and revocation |
 | `market` | ROI-ranked project recommendations and competitive analysis (2024 Remodeling Magazine data) |
 | `maintenance` | Predictive scheduling engine, system lifespan estimates, seasonal task generation |
@@ -45,9 +47,9 @@ For a picture of how these pieces connect, see the
 | `agent` | Realtor profiles, reviews, HomeGentic transaction count |
 | `recurring` | Recurring service contracts (HVAC, pest, landscaping) and visit logs |
 | `bills` | Utility bill storage per property; 3-month rolling anomaly detection (>20% spike flagged); feeds the Activity feed bell drawer |
-| `ai_proxy` | IC HTTP outcalls: permit imports (ArcGIS / OpenPermit), property-record lookups, and transactional email (Resend) |
-| `fee` | Bid to List platform-fee ledger (Owed → Invoiced → Paid / Waived) |
-| `referrals` | Referral codes and $10 two-sided credits |
+| `ai_proxy` | Price benchmarks and instant forecasts (pure computation). Its outcall and email methods are retired: permits, property lookups and email moved to the voice Worker |
+| `fee` | Bid to List platform-fee ledger (Owed → Invoiced → Paid / Waived) and the Contractor Free referral fee |
+| `referrals` | Retired 2026-10-26 (referral credits were removed from the app); still deployed with its data |
 | `audit` | Append-only log of privileged (admin) actions |
 
 ---
@@ -143,8 +145,8 @@ User speaks
 | Variable | Default | Description |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — | Required. Your Anthropic API key. |
-| `RESEND_API_KEY` | — | Required for email. Free key at resend.com. |
-| `RESEND_FROM_EMAIL` | `noreply@homegentic.app` | Sender address for transactional email. |
+| `RESEND_API_KEY` | — | Required for email (a Worker secret in production). Free key at resend.com. |
+| `RESEND_FROM` | `HomeGentic <noreply@homegentic.app>` | Sender address for transactional email, on a Resend-verified domain. |
 | `FRONTEND_ORIGIN` | `http://localhost:3000` | CORS allowed origin. |
 | `VITE_VOICE_AGENT_URL` | `http://localhost:8787` | Voice Worker URL used by the frontend (`wrangler dev` serves :8787). |
 
@@ -156,7 +158,7 @@ User speaks
 homegentic/
 ├── icp.yaml                      # icp-cli project config (20 backend canisters + frontend)
 ├── dfx.json                      # Legacy config, still used by `dfx generate` and the PocketIC upgrade tests
-├── mops.toml                     # Motoko package manager config (core = "2.3.1")
+├── mops.toml                     # Motoko package manager config (moc 1.16.1, core 2.6.1)
 ├── package.json                  # Root scripts (test, deploy, upgrade, etc.)
 ├── Makefile                      # make dev / deploy / test / upgrade / clean
 ├── .env.example                  # Environment variable template
@@ -178,27 +180,25 @@ homegentic/
 │   ├── agent/main.mo
 │   ├── recurring/main.mo
 │   ├── bills/main.mo             # Utility bills per property; anomaly detection; feeds Activity feed
-│   ├── ai_proxy/main.mo          # IC HTTP outcalls: permit imports, transactional email (Resend)
-│   ├── fee/main.mo               # Bid to List platform fees
-│   ├── referrals/main.mo         # Referral codes and credits
+│   ├── ai_proxy/main.mo          # Price benchmarks, instant forecasts (outcall/email methods retired)
+│   ├── fee/main.mo               # Bid to List platform fees, Contractor Free referral fees
+│   ├── referrals/main.mo         # Retired referral credits (still deployed)
 │   ├── audit/main.mo             # Append-only admin-action log
-│   └── shared/ServiceType.mo     # ServiceType shared by job / quote / contractor
-│
-├── candid/                       # Hand-maintained Candid IDL snapshots (all canisters)
+│   └── shared/                   # Modules shared by the canisters (Admin, RateLimit, Inspect, ThresholdCost, ServiceType, …)
 │
 ├── agents/                       # Off-chain services
 │   ├── email/                    # Lead-form email relay (Cloudflare Worker → Resend)
-│   ├── notifications/            # Push relay: APNs / FCM / VAPID web push
-│   ├── iot-gateway/              # Smart-home webhook ingestion → sensor canister
+│   ├── notifications/            # Notification relay (Fly.io): push (APNs / FCM / VAPID), email, SMS, Home Pulse
+│   ├── iot-gateway/              # Smart-home webhook ingestion → sensor canister (Fly.io)
 │   └── voice/                    # Claude voice / AI proxy
 │       ├── src/index.ts          # Cloudflare Worker entry (production)
 │       ├── prompts.ts            # Dynamic system prompt builder
 │       ├── tools.ts              # Claude tool definitions (server-side)
+│       ├── src/offchainOutcalls.ts # Permits, property lookups and email (Resend)
+│       ├── src/photos.ts         # Off-chain photo routes (R2)
+│       ├── src/aiGuard.ts        # Human check, free-tier budget, backoff for paid calls
 │       ├── provider.ts           # AIProvider interface
 │       ├── anthropicProvider.ts  # Concrete Anthropic SDK implementation
-│       ├── emailProvider.ts      # EmailProvider interface
-│       ├── resendEmailProvider.ts # Resend SDK impl + rate limiter (100/day, 3k/month)
-│       ├── forecast.ts           # Instant forecast endpoint logic
 │       └── types.ts
 │
 ├── frontend/                     # React + Vite SPA (port 3000)
@@ -211,11 +211,11 @@ homegentic/
 │       └── contexts/AuthContext.tsx
 │
 ├── dashboard/                    # Admin metrics SPA (port 3002)
-│   └── src/pages/MonitoringDashboard.tsx  # Live canister queries via @dfinity/agent
+│   └── src/pages/MonitoringDashboard.tsx  # Live canister queries via @icp-sdk/core
 │
 ├── tests/
 │   ├── e2e/                      # Playwright end-to-end tests
-│   ├── upgrade/                  # PocketIC canister upgrade persistence tests (WSL only)
+│   ├── upgrade/                  # PocketIC tests on real canisters: upgrades, authz, races, clients (Linux/WSL)
 │   └── k6/                       # k6 load tests
 │
 ├── mobile/                       # Expo React Native app
@@ -229,7 +229,11 @@ homegentic/
 │   ├── SECURITY.md
 │   ├── AI_RATE_LIMITS.md
 │   ├── PERFORMANCE.md
-│   └── UPGRADE_RUNBOOK.md
+│   ├── UPGRADE_RUNBOOK.md
+│   ├── INCIDENT_RUNBOOK.md       # Severity, containment, restores, breach notices
+│   ├── RELEASING.md              # Versions and release paths
+│   ├── DATA_RETENTION.md         # Where personal data lives and for how long
+│   └── SLO.md                    # Service-level targets
 │
 └── scripts/
     ├── deploy.sh                 # Deploy all canisters sequentially, write IDs to .env
@@ -240,7 +244,8 @@ homegentic/
     ├── test-backend.sh           # Run all canister bash test suites
     ├── test-cross-canister.sh    # Cross-canister integration scenarios
     ├── load-test.sh
-    ├── ci/check-stable-compat.sh # CI gate: stable-memory compatibility vs. the PR base
+    ├── ci/                       # CI gates (stable compat, declarations, canister calls, warnings)
+    ├── ops/                      # Ops alerts, off-chain backups, restore drill, release manifest, changelog
     └── cleanup.sh                # Reset local ICP network state
 ```
 
@@ -253,7 +258,7 @@ homegentic/
 | Free | 1 | 5 | 3 | $0 |
 | Pro | 20 | 30 | Unlimited | $59/year (annual only) |
 | ContractorFree | 0 | 5 | Unlimited | $0 + 3% referral fee per winning bid, $20 min |
-| ContractorPro | 0 | 50 | Unlimited | $40/mo (or yearly) |
+| ContractorPro | Unlimited | 50 | Unlimited | $40/mo (or yearly) |
 
 A principal with no subscription is Free. Limits are enforced server-side in the `property`, `photo`, `quote` and `bills` canisters, which read the caller's tier live from `payment`. Realtors don't subscribe: the winning agent in a Bid to List auction pays a one-time platform fee ($399 default).
 
@@ -280,10 +285,12 @@ npm run test:visual:update      # after an intentional design change
 npm run test:canister           # all canister test suites
 bash scripts/test-cross-canister.sh  # cross-canister integration scenarios
 
-# Canister upgrade persistence tests (PocketIC — WSL only)
-bash scripts/setup-pocketic.sh  # first time: install pocket-ic binary
-dfx build auth payment          # compile Wasm (the tests read .dfx/local/canisters/)
+# PocketIC tests on real canisters (Linux or WSL): upgrades, authz, races, clients
+bash scripts/ci/build-upgrade-wasms.sh   # compile every canister's Wasm into .dfx/local/canisters/
 npm run test:upgrade
+
+# Ops scripts (backup / restore drill, against a stand-in icp-cli; needs age)
+npm test --prefix scripts/ops
 ```
 
 See [TESTING.md](TESTING.md) for full details and the test gap backlog.
@@ -337,10 +344,6 @@ vetKD is already in use: the `market` canister returns each owner's score encryp
 - **Encrypted job records** — homeowners encrypt maintenance records on-chain; only authorized principals obtain the decryption key from the canister
 - **Buyer disclosure packages** — share a time-limited, scoped view of verified history without exposing raw cost or contractor data
 - **Contractor-gated access** — contractors can only read the job records they are linked to
-
-### ICP Blob Storage Subnet
-
-ICP storage costs are currently paid in cycles (stable memory at ~$5/GB/year). A dedicated ICP blob storage subnet (analogous to S3) is in development. When it ships, the admin dashboard will track it as a separate expense line automatically.
 
 ---
 

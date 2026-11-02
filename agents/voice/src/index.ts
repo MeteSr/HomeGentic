@@ -57,6 +57,7 @@ import { handleShowingRequest, fileShowingInCanister } from "./showings";
 import { r2PhotoStore } from "./photoStore";
 import { fetchPhotoAccess } from "../photoCanister";
 import { markIdentityCleared } from "./propertyCanister";
+import { reportServiceError, routeKey } from "./serviceErrors";
 import {
   gateAiCall, gatePaidCall, verifyHuman, strike, blockedSeconds, slowDownBody, isFreeTier, recordFreeUsage,
   newAccountAuxLimit, allowedHumanCheckRedirect, humanCheckPage, humanCheckPageHeaders,
@@ -406,6 +407,7 @@ export default {
       logger.info("inbox", "inbound mail", { outcome });
     } catch (err) {
       logger.error("inbox", "inbound mail failed", { error: (err as Error)?.message });
+      await reportServiceError("inbox", "inbound mail failed");
     }
   },
 
@@ -517,6 +519,11 @@ export default {
       const p = resolvedPrincipals.get(request);
       const keys = [`ip:${clientIp}`, ...(p && p !== "anon" ? [`p:${p}`] : [])];
       ctx.waitUntil(strike(env, keys).catch(() => {}));
+    }
+
+    // 5xx = our failure, not the caller's: count it for the ops watchdog.
+    if (response.status >= 500) {
+      ctx.waitUntil(reportServiceError("worker-5xx", `${response.status} ${request.method} ${routeKey(path)}`));
     }
 
     // Attach request-id / trace-id to every response
@@ -1772,6 +1779,9 @@ Rules:
       }
     } catch (err) {
       logger.error("stripe-webhook", "handler error", { type: event.type, error: (err as Error).message });
+      // A webhook that keeps failing leaves a payer on the wrong plan; Stripe
+      // retries for 3 days, the watchdog makes sure someone looks sooner.
+      await reportServiceError("stripe-webhook", `handler error on ${event.type}`);
       await abortOnce(env, seenKey);
       return json({ error: "Internal webhook handler error" }, 500, cors);   // Stripe retries
     }

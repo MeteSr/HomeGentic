@@ -91,6 +91,7 @@
       "recordCallCycles?",
       "recordCanisterMetrics?",
       "recordFrontendError?",
+      "recordServiceError?",
       "resolveAlert?",
       "setBootstrapNonce?"
     ],
