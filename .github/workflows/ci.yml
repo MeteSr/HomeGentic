@@ -148,6 +148,7 @@ jobs:
           npm ci
           (cd agents/voice && npm ci)
           (cd agents/notifications && npm ci)
+          npm ci --prefix scripts/ops
           (cd agents/iot-gateway && npm ci)
           (cd dashboard && npm ci)
 

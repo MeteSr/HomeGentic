@@ -32,6 +32,7 @@ import { emailUnsubscribeId, unsubscribeTokenFor } from "./unsubscribe";
 import { SYSTEM_LIFESPANS, REPLACEMENT_MIN_CENTS, scoreBreakdown, type ScoreJob } from "../../packages/shared/src/score";
 import { climateService, type Season } from "../../packages/shared/src/climate";
 import type { PulseJob, PulseProperty, PulseRecipient } from "./types";
+import { reportFailure, errorCode } from "./opsReport";
 
 export const PULSE_PREF = "weekly_pulse";
 
@@ -393,6 +394,7 @@ export async function runPulse(nowMs = Date.now(), deps: PulseDeps = defaultDeps
             }
           } catch (err) {
             console.error(`[pulse] ${r.principal.slice(0, 12)}…:`, err instanceof Error ? err.message : err);
+            void reportFailure("pulse", `Home Pulse email failed: ${errorCode(err)}`);
           }
         }
         after = r.principal;
@@ -404,6 +406,7 @@ export async function runPulse(nowMs = Date.now(), deps: PulseDeps = defaultDeps
     console.log(`[pulse] ${week}: sent ${sent} email(s)`);
   } catch (err) {
     console.error(`[pulse] ${week} stopped:`, err instanceof Error ? err.message : err);
+    void reportFailure("pulse", "Home Pulse run stopped");
   } finally {
     running = false;
   }

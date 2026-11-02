@@ -92,3 +92,19 @@ export async function recordFrontendError(input: ErrorSummaryInput): Promise<voi
   };
   await actor.recordFrontendError(candid);
 }
+
+/** Server-side failure (Stripe webhook, email, 5xx); same shape as a frontend error. */
+export async function recordServiceError(input: ErrorSummaryInput): Promise<void> {
+  const actor = await getActor();
+  if (!actor) return;
+  await actor.recordServiceError({
+    fingerprint : input.fingerprint,
+    message     : input.message,
+    errorType   : input.errorType,
+    count       : BigInt(input.count),
+    firstSeen   : input.firstSeen,
+    lastSeen    : input.lastSeen,
+    tierCounts  : [],
+    release     : input.release ? [input.release] : [],
+  });
+}

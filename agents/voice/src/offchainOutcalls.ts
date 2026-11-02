@@ -18,6 +18,7 @@
 import { EMAIL_RE, escapeHtml, subjectText } from "./security";
 import type { InvitePreview } from "./jobCanister";
 import { hitCounter } from "./rateLimiter";
+import { reportServiceError } from "./serviceErrors";
 
 export interface OutcallEnv {
   RATE_LIMIT:           KVNamespace;
@@ -282,19 +283,26 @@ async function sendViaResend(
   msg: { to: string; subject: string; html: string; text: string; replyTo?: string; idempotencyKey: string },
   fetchImpl: typeof fetch,
 ): Promise<boolean> {
-  const resp = await fetchImpl("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type":    "application/json",
-      Authorization:     `Bearer ${env.RESEND_API_KEY}`,
-      "Idempotency-Key": msg.idempotencyKey,
-    },
-    body: JSON.stringify({
-      from: env.RESEND_FROM || DEFAULT_FROM,
-      to: msg.to, subject: msg.subject, html: msg.html, text: msg.text,
-      ...(msg.replyTo ? { reply_to: msg.replyTo } : {}),
-    }),
-  });
+  let resp: Response;
+  try {
+    resp = await fetchImpl("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type":    "application/json",
+        Authorization:     `Bearer ${env.RESEND_API_KEY}`,
+        "Idempotency-Key": msg.idempotencyKey,
+      },
+      body: JSON.stringify({
+        from: env.RESEND_FROM || DEFAULT_FROM,
+        to: msg.to, subject: msg.subject, html: msg.html, text: msg.text,
+        ...(msg.replyTo ? { reply_to: msg.replyTo } : {}),
+      }),
+    });
+  } catch {
+    await reportServiceError("email", "Resend unreachable");
+    return false;
+  }
+  if (!resp.ok) await reportServiceError("email", `Resend refused: HTTP ${resp.status}`);
   return resp.ok;
 }
 

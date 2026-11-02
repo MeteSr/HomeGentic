@@ -24,7 +24,7 @@ import { serviceFromWasm } from "./__helpers__/candid";
 import * as payment from "../../agents/voice/paymentCanister";
 import { resolveAgentSessionOwner } from "../../agents/voice/authCanister";
 import { fetchPhotoAccess } from "../../agents/voice/photoCanister";
-import { recordFrontendError, getCriticalCycleAlerts } from "../../agents/voice/monitoringCanister";
+import { recordFrontendError, recordServiceError, getCriticalCycleAlerts } from "../../agents/voice/monitoringCanister";
 import { markIdentityCleared } from "../../agents/voice/src/propertyCanister";
 import { getInvitePreview } from "../../agents/voice/src/jobCanister";
 
@@ -206,6 +206,27 @@ describe("voice Worker canister clients on real canisters", () => {
       const stored = (await as("monitoring", admin).getFrontendErrors(0n, 10n)) as any[];
       expect(stored.map((e) => [e.fingerprint, e.count])).toEqual([["fp-1", 3n]]);
       expect(await getCriticalCycleAlerts()).toEqual([]);
+    });
+
+    it("stores service errors for the ops watchdog and reopens one that recurs after it was resolved", async () => {
+      const t0 = BigInt(Date.now()) * 1_000_000n;
+      const input = {
+        fingerprint: "stripe-webhook:handler error on invoice.paid", message: "handler error on invoice.paid",
+        errorType: "stripe-webhook", count: 1, firstSeen: t0, lastSeen: t0, tierCounts: [] as [string, number][],
+      };
+      await recordServiceError(input);
+      const mon = as("monitoring", admin);
+      let stored = (await mon.getServiceErrors(0n, 10n)) as any[];
+      expect(stored.map((e) => [e.errorType, e.count, e.resolved])).toEqual([["stripe-webhook", 1n, false]]);
+      expect(await mon.getFrontendErrors(0n, 10n)).toHaveLength(1);   // kept apart from frontend errors
+
+      expect(await mon.resolveServiceError(input.fingerprint)).toEqual({ ok: null });
+      await recordServiceError({ ...input, lastSeen: t0 });            // a late copy of the same report
+      stored = (await mon.getServiceErrors(0n, 10n)) as any[];
+      expect(stored[0].resolved).toBe(true);
+      await recordServiceError({ ...input, lastSeen: t0 + 60_000_000_000n });
+      stored = (await mon.getServiceErrors(0n, 10n)) as any[];
+      expect([stored[0].resolved, stored[0].count]).toEqual([false, 3n]);
     });
   });
 });

@@ -855,6 +855,7 @@ if [ -n "${NOTIFIER_PRINCIPAL:-}" ]; then
   for c in auth property job quote listing contractor; do
     grant "$c" addNotifier "$NOTIFIER_PRINCIPAL" "Allowlisting notification relay"
   done
+  grant monitoring addReporter "$NOTIFIER_PRINCIPAL" "Letting the notification relay report failed sends"
 fi
 if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
   # A Stripe relay can only activate paid subscriptions and grant credits, not

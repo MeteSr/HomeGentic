@@ -18,6 +18,7 @@ import crypto from "crypto";
 import * as icp from "./icp";
 import { loadSection, saveSection } from "./persist";
 import { appUrl, emailConfigured, escapeHtml, sendRawEmail, type EmailMessage } from "./email";
+import { reportFailure, errorCode } from "./opsReport";
 
 export interface ReportAlert {
   id:        string;
@@ -138,6 +139,7 @@ export async function runReportAlerts(nowMs = Date.now(), deps: ReportAlertDeps 
         match = await deps.find(address);
       } catch (err) {
         console.error("[report-alerts] lookup failed:", err instanceof Error ? err.message : err);
+        void reportFailure("report-alerts", "report lookup failed");
         continue;
       }
       if (!match) continue;
@@ -149,6 +151,7 @@ export async function runReportAlerts(nowMs = Date.now(), deps: ReportAlertDeps 
           save();
         } catch (err) {
           console.error("[report-alerts] send failed:", err instanceof Error ? err.message : err);
+          void reportFailure("report-alerts", `report alert email failed: ${errorCode(err)}`);
         }
       }
     }

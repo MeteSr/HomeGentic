@@ -1,0 +1,13 @@
+{
+  "name": "homegentic-ops-scripts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Operational scripts run by GitHub Actions (ops alerts, backups). Install with `npm ci --prefix scripts/ops`.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "dependencies": {
+    "@icp-sdk/core": "6.1.1"
+  }
+}
