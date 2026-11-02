@@ -3,6 +3,8 @@
 /// Used to store bearer tokens hashed (auth's agent sessions); it is not on a
 /// hot path, so clarity wins over speed.
 import Blob "mo:core/Blob";
+import Char "mo:core/Char";
+import Nat "mo:core/Nat";
 import Nat8 "mo:core/Nat8";
 import Nat32 "mo:core/Nat32";
 import Nat64 "mo:core/Nat64";
@@ -21,12 +23,12 @@ module {
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
   ];
 
-  func n32(b : Nat8) : Nat32 { Nat32.fromNat(Nat8.toNat(b)) };
-  func byteOf(x : Nat32) : Nat8 { Nat8.fromNat(Nat32.toNat(x & 0xff)) };
+  func n32(b : Nat8) : Nat32 { b.toNat().toNat32() };
+  func byteOf(x : Nat32) : Nat8 { (x & 0xff).toNat().toNat8() };
 
   /// The 32-byte SHA-256 digest of `data`.
   public func digest(data : Blob) : Blob {
-    let msg = Blob.toArray(data);
+    let msg = data.toArray();
     let len = msg.size();
     // Message + 0x80 + zero padding + 64-bit length, rounded up to 64 bytes.
     let total = ((len + 8) / 64 + 1) * 64;
@@ -34,12 +36,12 @@ module {
     var i = 0;
     while (i < len) { buf[i] := msg[i]; i += 1 };
     buf[len] := 0x80;
-    let bitLen : Nat64 = Nat64.fromNat(len) *% 8;
+    let bitLen : Nat64 = len.toNat64() *% 8;
     var shift : Nat64 = 56;
     let lenAt = ((len + 8) / 64) * 64 + 56; // the last 8 bytes of buf
     var j = 0;
     while (j < 8) {
-      buf[lenAt + j] := Nat8.fromNat(Nat64.toNat((bitLen >> shift) & 0xff));
+      buf[lenAt + j] := ((bitLen >> shift) & 0xff).toNat().toNat8();
       shift -%= 8;
       j += 1;
     };
@@ -119,16 +121,16 @@ module {
       out[k + 3] := byteOf(word);
       k += 4;
     };
-    Blob.fromVarArray(out)
+    out.toBlob()
   };
 
   /// Lowercase hex of the SHA-256 of `t`'s UTF-8 bytes.
   public func hexOfText(t : Text) : Text {
     let hex = "0123456789abcdef".toArray();
     var s = "";
-    for (byte in Blob.toArray(digest(Text.encodeUtf8(t))).values()) {
-      let n = Nat8.toNat(byte);
-      s := s # Text.fromChar(hex[n / 16]) # Text.fromChar(hex[n % 16]);
+    for (byte in digest(t.encodeUtf8()).toArray().values()) {
+      let n = byte.toNat();
+      s := s # hex[n / 16].toText() # hex[n % 16].toText();
     };
     s
   };

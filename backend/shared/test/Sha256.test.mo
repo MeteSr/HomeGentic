@@ -25,4 +25,4 @@ assert Sha256.hexOfText(rep("a", 1000)) == "41edece42d63e8d9bf515a9ba6932e1c20cb
 assert Sha256.hexOfText("hgs_" # rep("0f", 32)) == "89a5369c4d1d473c0c8b70b084ca3be62f3f796670e1a39b2401756639b59a5f";
 assert Sha256.hexOfText("héllo ✓") == "5657cdef8a85a584e0e961e6f8247cf5d3f8ed21496ed6fdbcfd43a761e94245";
 
-assert Sha256.digest(Text.encodeUtf8("abc")).size() == 32;
+assert Sha256.digest("abc".encodeUtf8()).size() == 32;
