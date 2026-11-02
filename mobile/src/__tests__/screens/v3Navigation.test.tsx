@@ -8,7 +8,7 @@
  * NAV.5  plan card opens the web hand-off screen
  */
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -127,14 +127,14 @@ function renderApp() {
 }
 
 async function tab(label: string) {
-  await act(async () => { fireEvent.press(screen.getByRole("tab", { name: label })); });
+  await fireEvent.press(screen.getByRole("tab", { name: label }));
 }
 
 beforeEach(() => { mockRole = "Homeowner"; mockTier = "Free"; });
 
 describe("homeowner tabs", () => {
   it("NAV.1 renders every tab with live data", async () => {
-    renderApp();
+    await renderApp();
     await waitFor(() => expect(screen.getAllByText("412 Grandview Ave").length).toBeGreaterThan(0));
     expect(screen.getByText(/GOOD (MORNING|AFTERNOON|EVENING), DANA/)).toBeTruthy();
     expect(screen.getByText("HOMEGENTIC SCORE")).toBeTruthy();
@@ -161,13 +161,13 @@ describe("homeowner tabs", () => {
   });
 
   it("NAV.2 Free gets the shared-access gate; Pro sees managers and activity", async () => {
-    renderApp();
+    await renderApp();
     await tab("Account");
     expect(await screen.findByText("PART OF PRO")).toBeTruthy();
 
     mockTier = "Pro";
-    screen.unmount();
-    renderApp();
+    await screen.unmount();
+    await renderApp();
     expect(await screen.findByText(/WHILE YOU WERE OUT/)).toBeTruthy();
     expect(screen.getByText("Marcus Dean moved gutter cleaning to Aug 21.")).toBeTruthy();
     await tab("Account");
@@ -176,17 +176,17 @@ describe("homeowner tabs", () => {
   });
 
   it("NAV.4 the assistant button opens role-specific prompts", async () => {
-    renderApp();
+    await renderApp();
     await waitFor(() => expect(screen.getAllByText("412 Grandview Ave").length).toBeGreaterThan(0));
-    await act(async () => { fireEvent.press(screen.getByLabelText("Ask the assistant")); });
+    await fireEvent.press(screen.getByLabelText("Ask the assistant"));
     expect(await screen.findByText("Ask about 412 Grandview Ave.")).toBeTruthy();
     expect(screen.getByText("What's dragging my score down?")).toBeTruthy();
     expect(screen.getByText("10 AI CALLS A WEEK ON FREE · 6 LEFT")).toBeTruthy();
   });
 
   it("NAV.5 the plan card opens the web hand-off", async () => {
-    renderApp();
-    await act(async () => { fireEvent.press(await screen.findByLabelText("Upgrade plan")); });
+    await renderApp();
+    await fireEvent.press(await screen.findByLabelText("Upgrade plan"));
     expect(await screen.findByText("Pro is $59 a year.")).toBeTruthy();
     expect(screen.getByText("Opens your browser. Nothing is charged in the app.")).toBeTruthy();
   });
@@ -196,7 +196,7 @@ describe("contractor tabs", () => {
   beforeEach(() => { mockRole = "Contractor"; mockTier = "ContractorFree"; });
 
   it("NAV.3 renders Leads, Sign, Earnings and Account", async () => {
-    renderApp();
+    await renderApp();
     expect(await screen.findByText("LEADS · GUTTERS, ROOFING")).toBeTruthy();
     expect(await screen.findByText("1 open for you")).toBeTruthy();
     expect(screen.getByText("POSTED 2H AGO")).toBeTruthy();
@@ -216,7 +216,7 @@ describe("contractor tabs", () => {
 
   it("NAV.3b Contractor Pro pays no referral fees", async () => {
     mockTier = "ContractorPro";
-    renderApp();
+    await renderApp();
     await tab("Earnings");
     expect(await screen.findByText("NO FEE · CONTRACTOR PRO")).toBeTruthy();
     expect(screen.getByText("$0.00")).toBeTruthy();

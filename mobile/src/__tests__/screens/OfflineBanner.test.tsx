@@ -11,18 +11,18 @@ const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top:
 const inSafeArea = (ui: React.ReactElement) => <SafeAreaProvider initialMetrics={metrics}>{ui}</SafeAreaProvider>;
 
 describe("OfflineBanner", () => {
-  it("is visible when offline=true", () => {
-    render(inSafeArea(<OfflineBanner offline={true} />));
+  it("is visible when offline=true", async () => {
+    await render(inSafeArea(<OfflineBanner offline={true} />));
     expect(screen.getByText(/offline/i)).toBeTruthy();
   });
 
-  it("only promises to hold jobs, the one write the app queues", () => {
-    render(inSafeArea(<OfflineBanner offline={true} />));
+  it("only promises to hold jobs, the one write the app queues", async () => {
+    await render(inSafeArea(<OfflineBanner offline={true} />));
     expect(screen.getByText(/jobs you log are saved on this phone/i)).toBeTruthy();
   });
 
-  it("renders nothing when offline=false", () => {
-    render(inSafeArea(<OfflineBanner offline={false} />));
+  it("renders nothing when offline=false", async () => {
+    await render(inSafeArea(<OfflineBanner offline={false} />));
     expect(screen.queryByText(/offline/i)).toBeNull();
   });
 });
