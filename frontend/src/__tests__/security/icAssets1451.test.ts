@@ -5,7 +5,7 @@
  * ICP.2  npm run build wires gen-ic-assets.mjs (it runs after vite build)
  * ICP.3  gen-ic-assets.mjs fails fast when VITE_VOICE_AGENT_URL is unset
  *        and DFX_NETWORK=ic (production guard)
- * ICP.4  gen-ic-assets.mjs writes a .ic-assets.json5 with the required security
+ * ICP.4  gen-ic-assets.mjs writes a _headers file with the required security
  *        headers (HSTS, X-Frame-Options, X-Content-Type-Options, CSP)
  * ICP.5  generated CSP connect-src contains the injected voice agent origin,
  *        not a hardcoded localhost or an unreplaced placeholder
@@ -83,7 +83,7 @@ describe("ICP.3 — generator fails fast when VITE_VOICE_AGENT_URL unset in prod
 
 // ── ICP.4 ─────────────────────────────────────────────────────────────────────
 
-describe("ICP.4 — generated .ic-assets.json5 contains required security headers", () => {
+describe("ICP.4 — generated _headers contains required security headers", () => {
   it("HSTS header is present with max-age ≥ 1 year", () => {
     // Static check — verify the source emits HSTS rather than running a full build
     const src = read("frontend/scripts/gen-ic-assets.mjs");
@@ -110,9 +110,15 @@ describe("ICP.4 — generated .ic-assets.json5 contains required security header
     expect(src).toMatch(/Content-Security-Policy/);
   });
 
-  it("match pattern covers all files (/**/*)", () => {
+  it("the security headers block covers every file (/*)", () => {
     const src = read("frontend/scripts/gen-ic-assets.mjs");
-    expect(src).toMatch(/\*\*\/\*/);
+    expect(src).toMatch(/block\("\/\*", \{\s*\/\/[^\n]*\n\s*"Strict-Transport-Security"/);
+  });
+
+  it("writes dist/_headers, which the static-site canister reads", () => {
+    const src = read("frontend/scripts/gen-ic-assets.mjs");
+    expect(src).toMatch(/resolve\(DIST, "_headers"\)/);
+    expect(existsSync(resolve(ROOT, "frontend/public/.ic-assets.json5"))).toBe(false);
   });
 });
 

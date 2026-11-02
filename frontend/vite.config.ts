@@ -55,7 +55,7 @@ export default defineConfig(({ mode, command }) => {
   // Only strip on IC mainnet builds (DFX_NETWORK=ic). Local and testnet builds
   // keep localhost so the asset canister can still reach the local replica at
   // localhost:4943. On mainnet the assets canister serves a stricter HTTP-header
-  // CSP (.ic-assets.json5) that already excludes localhost.
+  // CSP (dist/_headers) that already excludes localhost.
   const stripDevCsp = {
     name: "strip-dev-csp",
     transformIndexHtml(html: string, ctx: { server?: unknown }): string {

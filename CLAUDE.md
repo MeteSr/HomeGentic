@@ -93,7 +93,7 @@ bash scripts/init-test-data.sh   # Seed test users and properties
 
 ### Frontend build
 ```bash
-cd frontend && npm run build    # Outputs to frontend/dist/ (served by assets canister)
+cd frontend && npm run build    # Outputs to frontend/dist/ (served by the static-site frontend canister)
 bash scripts/ci/check-declarations.sh   # Check packages/shared declarations against the canisters (needs moc)
 bash scripts/ci/check-canister-calls.sh # Check every canister-to-canister actor type against the callee's Candid (needs moc)
 ```
@@ -173,7 +173,7 @@ Because accounts are free to create, every Claude call also passes `agents/voice
 
 ### Frontend Service Layer
 
-`frontend/src/services/actor.ts` creates the ICP `HttpAgent`. In local dev it uses a fixed-seed Ed25519 identity to survive hot-reloads without re-authenticating. In production it uses `@icp-sdk/auth` (Internet Identity). Nothing calls `fetchRootKey()`: the browser reads the root key from the asset canister's `ic_env` cookie (or the local key vite injects in dev), and the agents take `ICP_ROOT_KEY` for a local host only (`packages/shared/src/rootKey.ts`). On a page served from an alternative origin, sign-in passes `derivationOrigin` (`II_DERIVATION_ORIGIN`, written by `scripts/deploy.sh`) so users keep the same principal.
+`frontend/src/services/actor.ts` creates the ICP `HttpAgent`. In local dev it uses a fixed-seed Ed25519 identity to survive hot-reloads without re-authenticating. In production it uses `@icp-sdk/auth` (Internet Identity). Nothing calls `fetchRootKey()`: the browser reads the root key from the frontend canister's `ic_env` cookie (or the local key vite injects in dev), and the agents take `ICP_ROOT_KEY` for a local host only (`packages/shared/src/rootKey.ts`). On a page served from an alternative origin, sign-in passes `derivationOrigin` (`II_DERIVATION_ORIGIN`, written by `scripts/deploy.sh`) so users keep the same principal.
 
 Each service file (e.g. `job.ts`, `property.ts`) imports its canister's IDL from `@homegentic/shared/declarations/<canister>` (`packages/shared/src/declarations/`) and follows a mock-fallback pattern:
 ```typescript
