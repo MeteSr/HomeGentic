@@ -288,6 +288,7 @@ export const propertyService = {
     if (typeof window !== "undefined" && (window as any).__e2e_properties) {
       return (window as any).__e2e_properties as Property[];
     }
+    if (!PROPERTY_CANISTER_ID) return []; // canister not deployed (mock mode)
     const a = await getActor();
     const props = await a.getMyProperties();
     return (props as any[]).map(fromProperty);
