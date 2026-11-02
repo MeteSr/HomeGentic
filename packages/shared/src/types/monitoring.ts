@@ -133,10 +133,13 @@ export interface _SERVICE {
   getFrontendErrorStats: ActorMethod<[], FrontendErrorStats>;
   getFrontendErrors: ActorMethod<[bigint, bigint], ErrorSummary[]>;
   getMetrics: ActorMethod<[], Metrics>;
+  getServiceErrors: ActorMethod<[bigint, bigint], ErrorSummary[]>;
   getTrackedCanisters: ActorMethod<[], TrackedCanister[]>;
   recordFrontendError: ActorMethod<[ErrorSummaryInput], undefined>;
+  recordServiceError: ActorMethod<[ErrorSummaryInput], undefined>;
   registerCanister: ActorMethod<[Principal, string], ResultUnit>;
   resolveFrontendError: ActorMethod<[string], ResultUnit>;
+  resolveServiceError: ActorMethod<[string], ResultUnit>;
   setLowCycleThreshold: ActorMethod<[bigint], ResultUnit>;
   unregisterCanister: ActorMethod<[Principal], ResultUnit>;
 }

@@ -148,12 +148,18 @@ jobs:
           npm ci
           (cd agents/voice && npm ci)
           (cd agents/notifications && npm ci)
+          npm ci --prefix scripts/ops
           (cd agents/iot-gateway && npm ci)
           (cd dashboard && npm ci)
 
       - name: Install Chromium for the browser test against real canisters (browser-flow.live.test.ts)
         # After the root npm ci, so the browser matches the pinned Playwright.
         run: npx playwright install --with-deps chromium
+
+      - name: Ops script tests (backup / restore drill)
+        run: |
+          sudo apt-get install -y age >/dev/null
+          npm test --prefix scripts/ops
 
       - name: Run upgrade tests
         run: cd tests/upgrade && npm test

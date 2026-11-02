@@ -18,6 +18,7 @@ jest.mock("../paymentCanister", () => ({
   getAgent:                  jest.fn(),
 }));
 jest.mock("../monitoringCanister", () => ({
+  recordServiceError:     jest.fn().mockResolvedValue(undefined),
   getCriticalCycleAlerts: jest.fn().mockResolvedValue([]),
   checkCycleLevels:       jest.fn().mockResolvedValue([]),
   recordFrontendError:    jest.fn(),

@@ -1,0 +1,105 @@
+name: Off-chain Backup
+
+# Daily: snapshots every data canister (a few seconds of downtime each),
+# downloads the snapshots and the Fly relays' data files, encrypts them to
+# BACKUP_AGE_RECIPIENT with age and copies them to the R2 backup bucket,
+# keeping 35 days (scripts/ops/backup-canisters.sh). The private key that
+# decrypts them is kept offline, never in GitHub. Restore with
+# scripts/ops/restore-drill.sh (docs/INCIDENT_RUNBOOK.md).
+#
+# Needs, in the production / testnet environment:
+#   vars    BACKUP_DEST (s3://homegentic-backups), BACKUP_S3_ENDPOINT
+#           (https://<account>.r2.cloudflarestorage.com), BACKUP_AGE_RECIPIENT (age1…)
+#   secrets BACKUP_S3_ACCESS_KEY_ID, BACKUP_S3_SECRET_ACCESS_KEY (an R2 token
+#           for the backup bucket only), FLY_API_TOKEN (optional, for relay data)
+# and emails OPS_ALERT_EMAIL when a run fails, like the Cycle Watchdog.
+
+on:
+  schedule:
+    - cron: '23 8 * * *'   # daily, 08:23 UTC (early morning in the US)
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Canister environment to back up'
+        required: false
+        default: 'ic'
+        type: choice
+        options: [ic, testnet]
+
+permissions:
+  contents: read
+
+# Shares the deploy workflows' group, so a backup never stops a canister
+# while a deploy is upgrading it (deploy.sh also stops and snapshots).
+concurrency:
+  group: ${{ inputs.env == 'testnet' && 'deploy-testnet' || 'deploy-mainnet' }}
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: ${{ inputs.env == 'testnet' && 'testnet' || 'production' }}
+    # Holds a controller identity: only ever from main (as the watchdog).
+    if: github.ref == 'refs/heads/main'
+    env:
+      ICP_ENV: ${{ inputs.env || 'ic' }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      ALERT_EMAIL: ${{ vars.OPS_ALERT_EMAIL }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install tools (pinned icp-cli from scripts/ops, age)
+        run: |
+          npm ci --prefix scripts/ops --no-audit --no-fund
+          echo "$PWD/scripts/ops/node_modules/.bin" >> "$GITHUB_PATH"
+          sudo apt-get install -y age >/dev/null
+
+      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+
+      - name: Load the controller identity
+        run: |
+          IDENTITY_FILE=$(mktemp /tmp/icp-identity-XXXXXX.pem)
+          trap 'rm -f "$IDENTITY_FILE"' EXIT
+          printf '%s' "$IDENTITY_PEM" > "$IDENTITY_FILE"
+          icp identity import ci-backup --from-pem "$IDENTITY_FILE" --storage plaintext
+          icp identity default ci-backup
+          echo "Identity: $(icp identity principal)"
+        env:
+          IDENTITY_PEM: ${{ inputs.env == 'testnet' && secrets.DFX_IDENTITY_PEM || secrets.MAINNET_IDENTITY_PEM }}
+
+      - name: Back up
+        id: backup
+        run: |
+          set -o pipefail
+          bash scripts/ops/backup-canisters.sh 2>&1 | tee backup.log
+        env:
+          BACKUP_DEST: ${{ vars.BACKUP_DEST }}
+          BACKUP_S3_ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Post summary
+        if: always()
+        run: |
+          { echo "## Off-chain backup ($ICP_ENV)"; echo '```'; cat backup.log 2>/dev/null || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Email alert
+        if: failure() && env.RESEND_API_KEY != '' && env.ALERT_EMAIL != ''
+        env:
+          RESEND_FROM: ${{ vars.RESEND_FROM_ADDRESS || 'noreply@homegentic.app' }}
+        run: |
+          BODY=$(printf 'HomeGentic off-chain backup (%s) failed.\n\n%s\n\nCheck that every canister is running.\nRun: %s/%s/actions/runs/%s\n' \
+            "$ICP_ENV" "$(tail -40 backup.log 2>/dev/null)" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+          curl -sf -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer $RESEND_API_KEY" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg from "$RESEND_FROM" --arg to "$ALERT_EMAIL" \
+                  --arg subject "🔴 HomeGentic ($ICP_ENV): backup failed" --arg body "$BODY" \
+                  '{from: $from, to: [$to], subject: $subject, text: $body}')"

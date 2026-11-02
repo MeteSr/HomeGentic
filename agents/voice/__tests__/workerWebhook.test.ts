@@ -41,6 +41,7 @@ jest.mock("../paymentCanister", () => {
   };
 });
 jest.mock("../monitoringCanister", () => ({
+  recordServiceError:     jest.fn().mockResolvedValue(undefined),
   getCriticalCycleAlerts: jest.fn().mockResolvedValue([]),
   checkCycleLevels:       jest.fn().mockResolvedValue([]),
   recordFrontendError:    jest.fn().mockResolvedValue(undefined),
@@ -291,5 +292,17 @@ describe("WH.5 — delivery", () => {
     expect((await deliver(event, env)).status).toBe(500);
     expect((await deliver(event, env)).status).toBe(200);
     expect(activateInCanister).toHaveBeenCalledTimes(2);
+  });
+
+  it("a handler error is reported to monitoring for the ops watchdog", async () => {
+    const { recordServiceError } = jest.requireMock("../monitoringCanister");
+    (recordServiceError as jest.Mock).mockClear();
+    require("../src/serviceErrors")._reset();
+    (activateInCanister as jest.Mock).mockRejectedValueOnce(new Error("canister down"));
+    expect((await deliver(event, makeEnv())).status).toBe(500);
+    const reported = (recordServiceError as jest.Mock).mock.calls.map(([i]) => i);
+    expect(reported).toEqual(expect.arrayContaining([
+      expect.objectContaining({ errorType: "stripe-webhook", message: `handler error on ${event.type}` }),
+    ]));
   });
 });

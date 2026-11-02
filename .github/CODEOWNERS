@@ -1,0 +1,11 @@
+# Reviewers GitHub requests automatically. With "Require review from Code
+# Owners" on in the main ruleset, changes to these paths need their approval.
+* @MeteSr
+
+# Paths that hold or touch production credentials, money or user data.
+/.github/workflows/   @MeteSr
+/scripts/deploy.sh    @MeteSr
+/scripts/ops/         @MeteSr
+/backend/payment/     @MeteSr
+/backend/fee/         @MeteSr
+/agents/voice/src/index.ts @MeteSr

@@ -25,7 +25,7 @@ Derived from the HomeGentic product vision. Items are grouped by domain, tagged 
 | 1.3.3 | Anomaly detection engine | ⬜ Missing | L | Statistical threshold alerts (>15% deviation); wire into `sensor` canister alert model |
 | 1.3.4 | Anomaly → pending job auto-creation | 🟡 Partial | M | `sensor` canister already auto-creates pending jobs for Critical IoT events; extend to utility anomalies |
 | 1.3.5 | Utility dashboard UI | ⬜ Missing | M | New page or tab showing usage trends, baselines, anomaly events |
-| 1.3.6 | Smart meter direct integration (IoT) | ⬜ Missing | XL | `agents/iot-gateway` scaffolded but not implemented; extend for utility meters |
+| 1.3.6 | Smart meter direct integration (IoT) | ⬜ Missing | XL | `agents/iot-gateway` runs on Fly.io (vendor OAuth + pollers + webhooks into the sensor canister); utility meters (Sense, Emporia Vue) still need a meter-reading path into bills |
 
 ## 2. Service Provider Network — Trust Infrastructure
 
@@ -294,7 +294,7 @@ Pre-existing TypeScript compilation failures that must be resolved before CI can
 |---|------|--------|------|-------|
 | DEV.1 | Fix voice agent `tsconfig.json` rootDir | ✅ Exists | S | Widened `rootDir` to `".."` and updated `include` to cover `../maintenance/*.ts`. |
 | DEV.2 | Add missing type devDependencies to voice agent | ✅ Exists | S | `npm install` in `agents/voice/` resolved all missing modules; removed deprecated `@types/express-rate-limit` stub (express-rate-limit bundles its own types). |
-| DEV.3 | Fix implicit `any` params in `agents/voice/server.ts` | ✅ Exists | S | Resolved automatically once `@types/express` was installed — TypeScript infers `req`/`res`/`next` types from the express callback context. |
+| DEV.3 | Fix implicit `any` params in `agents/voice/server.ts` | ✅ Exists | S | Moot: the Express server was deleted in PR #599; the voice agent is the Cloudflare Worker `src/index.ts`. |
 
 ### Mobile (`mobile/`)
 
@@ -307,7 +307,7 @@ Pre-existing TypeScript compilation failures that must be resolved before CI can
 
 ## EPIC: ICP Mainnet Production Readiness
 
-Items identified during ICP production-readiness audit (2026-04-06). Grouped by severity. All blockers must be resolved before any `--network ic` deploy.
+Items identified during ICP production-readiness audit (2026-04-06). The rest of this epic shipped (PRs #608, #664, #667); the launch order lives in the launch checklist. Remaining:
 
 ### Blockers — will cause silent failure on first mainnet deploy
 

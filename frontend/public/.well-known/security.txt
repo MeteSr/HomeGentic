@@ -1,0 +1,6 @@
+# Security contact for HomeGentic (RFC 9116). Disclosure policy: SECURITY.md in the
+# repository. Renew the Expires date at least once a year.
+Contact: mailto:security@homegentic.app
+Expires: 2027-11-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://homegentic.app/.well-known/security.txt
