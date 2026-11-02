@@ -17,6 +17,7 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { PocketIc, createIdentity } from "@dfinity/pic";
+import { IDL } from "@icp-sdk/core/candid";
 import type { Identity } from "@icp-sdk/core/agent";
 import { readFileSync } from "fs";
 import { createPic, wasmPath, baseWasmPath, tearDownLeftovers } from "./__helpers__/setup";
@@ -30,10 +31,13 @@ const haveBase = CANISTERS.every((c) => baseWasmPath(c) !== null);
 if (!haveBase) console.warn("No base Wasm in .dfx/base/: installing this branch's build, so no version change is tested.");
 
 /** Installs `name` from the base branch; `upgrade()` moves it to this branch. */
-async function fromBase(name: string, idl: any) {
+async function fromBase(name: string, idl: any, initArg?: (ctl: Identity) => Uint8Array) {
   const pic: PocketIc = await createPic();
   const ctl = createIdentity("ctl");
-  const f = await pic.setupCanister({ idlFactory: idl, wasm: baseWasmPath(name) ?? wasmPath(name), sender: ctl.getPrincipal() });
+  const f = await pic.setupCanister({
+    idlFactory: idl, wasm: baseWasmPath(name) ?? wasmPath(name), sender: ctl.getPrincipal(),
+    ...(initArg ? { arg: initArg(ctl) } : {}),
+  });
   const as = (id: Identity) => { const a = pic.createActor<any>(idl, f.canisterId); a.setIdentity(id); return a; };
   const upgrade = () => pic.upgradeCanister({ canisterId: f.canisterId, wasm: readFileSync(wasmPath(name)) });
   /** Makes `admin` an admin: only a controller may open the bootstrap (setBootstrapNonce). */
@@ -127,7 +131,8 @@ describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this b
 
   // ── auth: agent sessions move from raw-token keys to hashed keys ─────────
   it("auth: sessions issued before the upgrade still resolve, and stay revocable", async () => {
-    const t = await fromBase("auth", authIdl);
+    // Auth is `actor class Auth(initDeployer : Principal)`.
+    const t = await fromBase("auth", authIdl, (ctl) => IDL.encode([IDL.Principal], [ctl.getPrincipal()]));
     const A = createIdentity("A"), B = createIdentity("B");
     const a = t.as(A), b = t.as(B);
     for (const [x, email] of [[a, "a@example.com"], [b, "b@example.com"]] as const) {
