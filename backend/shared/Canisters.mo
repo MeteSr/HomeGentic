@@ -8,6 +8,7 @@
 import Debug     "mo:core/Debug";
 import Principal "mo:core/Principal";
 import Runtime   "mo:core/Runtime";
+import Text      "mo:core/Text";
 import Errors "Errors";
 
 module {
@@ -19,15 +20,24 @@ module {
   /// canister not in this environment) the stored ID, set by the setter
   /// methods, stays as it is.
   public func envId<system>(name : Text, current : Text) : Text {
-    switch (Runtime.envVar<system>("PUBLIC_CANISTER_ID:" # name)) {
+    switch (canisterIdVar<system>(name)) {
       case (?id) { if (id.size() > 0) id else current };
       case null current;
     }
   };
 
+  /// The `PUBLIC_CANISTER_ID:<name>` variable. `#` builds a rope, and the
+  /// env_var system calls need one flat UTF-8 buffer (a rope reaches them as
+  /// "not a valid UTF-8 string"), so the key goes through a Blob first.
+  func canisterIdVar<system>(name : Text) : ?Text {
+    let key = "PUBLIC_CANISTER_ID:" # name;
+    let flat = switch (Text.decodeUtf8(key.encodeUtf8())) { case (?t) t; case null key };
+    Runtime.envVar<system>(flat)
+  };
+
   /// `envId` for IDs held as a principal.
   public func envPrincipal<system>(name : Text, current : ?Principal) : ?Principal {
-    switch (Runtime.envVar<system>("PUBLIC_CANISTER_ID:" # name)) {
+    switch (canisterIdVar<system>(name)) {
       case (?id) { if (id.size() > 0) ?Principal.fromText(id) else current };
       case null current;
     }
