@@ -40,7 +40,10 @@ jobs:
         run: npm install -g ic-mops@3.5.1
 
       - name: Install Motoko dependencies
-        run: mops install
+        run: |
+          mops install
+          # TEMPORARY: print the generated lock so it can be committed.
+          if ! git ls-files --error-unmatch mops.lock >/dev/null 2>&1; then echo "----- mops.lock -----"; cat mops.lock; echo "----- end mops.lock -----"; fi
 
       - name: Initialize mops toolchain (downloads moc)
         run: mops toolchain use moc 1.16.1
