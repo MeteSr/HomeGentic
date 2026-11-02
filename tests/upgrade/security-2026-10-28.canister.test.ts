@@ -94,6 +94,7 @@ describe("2026-10-28 security fixes", () => {
           err: I.Variant({
             NotFound: I.Null, Expired: I.Null, Revoked: I.Null, NotAuthorized: I.Null,
             InvalidInput: I.Text, UnverifiedProperty: I.Null,
+            Paused: I.Null, RateLimited: I.Null, Unavailable: I.Text,
           }),
         })], []),
       })) as any,
