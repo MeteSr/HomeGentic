@@ -8,6 +8,7 @@
  * per request, after this module is imported.
  */
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
+import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import type { Principal } from "@icp-sdk/core/principal";
 import { sessionLookupIdl } from "../../packages/shared/src/sessionLookup";
 import { icHost } from "./icHost";
@@ -20,7 +21,10 @@ function agentFor(): Promise<HttpAgent> {
   const { host, rootKey } = icHost();
   let agent = agents.get(host);
   if (!agent) {
-    agent = HttpAgent.create({ host, rootKey });
+    // auth's inspect refuses anonymous ingress (cycle-drain CD-5), and the
+    // lookup is an update call, so sign it with a throwaway identity. The
+    // method is public: the identity grants nothing.
+    agent = HttpAgent.create({ host, rootKey, identity: Ed25519KeyIdentity.generate() });
     agents.set(host, agent);
   }
   return agent;

@@ -222,8 +222,12 @@ export async function resolveAgentSession(token: string): Promise<string | null>
     const canisterId = process.env.CANISTER_ID_AUTH;
     if (!canisterId) throw new Error("CANISTER_ID_AUTH environment variable is not set");
     const host = process.env.ICP_HOST ?? "http://localhost:4943";
-    const agent = await HttpAgent.create({ host, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY) });
     // Replicated, certified call, not a single-replica query (sessionLookup.ts).
+    // auth's inspect refuses anonymous ingress (cycle-drain CD-5), so it is
+    // signed with a throwaway identity; the method is public.
+    const agent = await HttpAgent.create({
+      host, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY), identity: Ed25519KeyIdentity.generate(),
+    });
     _authActor = Actor.createActor(sessionLookupIdl, { agent, canisterId });
   }
   const res = await _authActor.resolveAgentSession(token);

@@ -172,11 +172,16 @@ export async function isContractorPro(principal: string): Promise<boolean> {
   return "ContractorPro" in tier;
 }
 
+let _lookupAgent: Promise<HttpAgent> | undefined;
+
 /** The principal an agent session token belongs to, or null if it's unknown or expired. */
 export async function resolveAgentSession(token: string): Promise<string | null> {
   // Replicated, certified call, not a single-replica query (sessionLookup.ts).
+  // auth's inspect refuses anonymous ingress (cycle-drain CD-5), so the
+  // update call is signed with a throwaway identity; the method is public.
+  _lookupAgent ??= makeAgent(Ed25519KeyIdentity.generate());
   const actor = Actor.createActor(sessionLookupIdl, {
-    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_AUTH"),
+    agent: await _lookupAgent, canisterId: requireId("CANISTER_ID_AUTH"),
   }) as any;
   const res: [] | [Principal] = await actor.resolveAgentSession(token);
   return res[0] ? res[0].toText() : null;
