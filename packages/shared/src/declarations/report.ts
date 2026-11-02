@@ -86,6 +86,9 @@ export const idlFactory = ({ IDL }: any) => {
     NotAuthorized:       IDL.Null,
     InvalidInput:        IDL.Text,
     UnverifiedProperty:  IDL.Null,
+    Paused: IDL.Null,
+    RateLimited: IDL.Null,
+    Unavailable: IDL.Text,
   });
 
   const SensorSummary = IDL.Record({

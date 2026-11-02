@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { isValidEmail, isValidPhone } from "@/utils/validators";
+import { errorMessage } from "@/services/candid";
 
 const ROLES: { value: UserRole; label: string; icon: React.ReactNode; desc: string }[] = [
   {
@@ -64,7 +65,7 @@ export default function RegisterPage() {
         navigate(profile.role === "Contractor" ? "/contractor-dashboard" : "/dashboard");
       }
     } catch (err: any) {
-      toast.error(err.message || "Registration failed");
+      toast.error(errorMessage(err, "Registration failed"));
     } finally {
       setLoading(false);
     }

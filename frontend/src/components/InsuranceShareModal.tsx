@@ -6,6 +6,7 @@ import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -53,7 +54,7 @@ export function InsuranceShareModal({ property, onClose }: InsuranceShareModalPr
       const p = await reportService.generateRiskProfile(propertyId, verificationLevel, expiryDays);
       setProfile(p);
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to generate risk profile");
+      toast.error(errorMessage(err, "Failed to generate risk profile"));
     } finally {
       setGenerating(false);
     }

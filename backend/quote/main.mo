@@ -29,6 +29,7 @@ import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import ThresholdCost "../shared/ThresholdCost";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Quote {
 
@@ -116,11 +117,7 @@ persistent actor Quote {
     createdAt: Time.Time;
   };
 
-  public type Error = {
-    #NotFound;
-    #NotAuthorized;
-    #InvalidInput: Text;
-  };
+  public type Error = Errors.Common;
 
   /// Returned by revealBidsEncrypted — homeowner's IBE private key (encrypted to
   /// their transport public key) plus the raw sealed bids.
@@ -356,9 +353,9 @@ persistent actor Quote {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
+      return #err(#RateLimited)
     };
     #ok(())
   };
@@ -1407,7 +1404,7 @@ persistent actor Quote {
         // Checked after the auth await, so a stranger can't use up a
         // homeowner's reveals; nothing below awaits before the derive.
         if (not ThresholdCost.affordable(Cycles.balance(), vetkdDeriveCycles()))
-          return #err(#InvalidInput("Revealing bids is unavailable right now. Please try again later."));
+          return #err(#Unavailable("Revealing bids is unavailable right now. Please try again later."));
         let now = Time.now();
         let nextCount : (Nat, Int) = switch (revealsByRequest.get(requestId)) {
           case (?(n, start)) {

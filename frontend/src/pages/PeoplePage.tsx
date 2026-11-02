@@ -16,6 +16,7 @@ import {
 } from "@/services/people";
 import { Panel, Pill, hudInputStyle, type PillTone } from "@/components/hud";
 import { formatCents } from "@/utils/format";
+import { errorMessage } from "@/services/candid";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
 const BODY = "'Hanken Grotesk',sans-serif";
@@ -142,7 +143,7 @@ function PeopleScreen({ propertyId, property, onInvite }: { propertyId: string; 
   const load = () => {
     peopleService.getPeople(propertyId)
       .then(setPeople)
-      .catch((e) => { toast.error(e.message || 'Failed to load people'); setPeople([]); });
+      .catch((e) => { toast.error(errorMessage(e, 'Failed to load people')); setPeople([]); });
   };
   useEffect(load, [propertyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -164,7 +165,7 @@ function PeopleScreen({ propertyId, property, onInvite }: { propertyId: string; 
       setOpenId(null);
       load();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to revoke access');
+      toast.error(errorMessage(e, 'Failed to revoke access'));
     }
   };
 
@@ -175,7 +176,7 @@ function PeopleScreen({ propertyId, property, onInvite }: { propertyId: string; 
       setEditing(null);
       load();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to update');
+      toast.error(errorMessage(e, 'Failed to update'));
     }
   };
 
@@ -321,7 +322,7 @@ function InviteScreen({ propertyId, onSent }: { propertyId: string; onSent: () =
       const invite = await peopleService.invite(propertyId, role, displayName.trim(), isManager ? limit : null);
       setLink(`${window.location.origin}/manage/claim/${invite.token}`);
     } catch (e: any) {
-      toast.error(e.message || 'Failed to create invite');
+      toast.error(errorMessage(e, 'Failed to create invite'));
     } finally {
       setSending(false);
     }
@@ -517,7 +518,7 @@ function ActivityScreen({ propertyId, approvalsHint }: { propertyId: string; app
     try {
       await peopleService.respondToApproval(propertyId, approvalId, approve);
     } catch (e: any) {
-      toast.error(e.message || 'Failed to respond');
+      toast.error(errorMessage(e, 'Failed to respond'));
     }
   };
 

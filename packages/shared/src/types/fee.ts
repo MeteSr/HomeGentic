@@ -3,7 +3,14 @@
 import type { ActorMethod } from "@icp-sdk/core/agent";
 import type { Principal } from "@icp-sdk/core/principal";
 
-export type Error = { InvalidInput: string } | { NotFound: null } | { NotAuthorized: null } | { AlreadyExists: null };
+export type Error =
+  | { Paused: null }
+  | { InvalidInput: string }
+  | { NotFound: null }
+  | { NotAuthorized: null }
+  | { AlreadyExists: null }
+  | { RateLimited: null }
+  | { Unavailable: string };
 
 export type FeeRecord = {
   id: string;

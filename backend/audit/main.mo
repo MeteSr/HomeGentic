@@ -8,6 +8,7 @@ import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Admin "../shared/Admin";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 /// Append-only privileged-action audit log.
 ///
@@ -28,10 +29,7 @@ persistent actor Audit {
     detail    : Text;      // free-form context string
   };
 
-  type Error = {
-    #NotAuthorized;
-    #InvalidInput : Text;
-  };
+  type Error = Errors.Common;
 
   // ── State (all vars implicitly stable via persistent actor) ───────────────
 
@@ -180,7 +178,7 @@ persistent actor Audit {
       return #err(#NotAuthorized);
     };
     if (Text.size(action) == 0) return #err(#InvalidInput("action required"));
-    if (not tryConsumeWrite(msg.caller)) return #err(#InvalidInput("audit write rate exceeded"));
+    if (not tryConsumeWrite(msg.caller)) return #err(#RateLimited);
     // L7: the source name comes from the caller's registration, not the argument.
     // A trusted canister without a registered name is recorded by principal;
     // an admin writing directly is recorded as "admin:<claimed name>".

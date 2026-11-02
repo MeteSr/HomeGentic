@@ -10,7 +10,9 @@ export type Error =
   | { NotFound: null }
   | { NotAuthorized: null }
   | { LimitReached: null }
-  | { DuplicateAddress: null };
+  | { RateLimited: null }
+  | { DuplicateAddress: null }
+  | { Unavailable: string };
 
 export type ManagerRole = { CoOwner: null } | { Viewer: null } | { Manager: null };
 

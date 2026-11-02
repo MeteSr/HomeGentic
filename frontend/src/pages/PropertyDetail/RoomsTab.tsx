@@ -7,6 +7,7 @@ import { Panel, hudInputStyle } from "@/components/hud";
 import { extractDocument, fileToBase64 } from "@/services/documentOcr";
 import { systemAgesService, type SystemName } from "@/services/systemAges";
 import toast from "react-hot-toast";
+import { errorMessage } from "@/services/candid";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
 const BODY = "'Hanken Grotesk',sans-serif";
@@ -184,7 +185,7 @@ function EditRoomDrawer({
   const handleSave = async () => {
     setSaving(true);
     try { await onSave(room.id, form); onClose(); }
-    catch (err: any) { toast.error(err.message ?? "Failed to save"); }
+    catch (err: any) { toast.error(errorMessage(err, "Failed to save")); }
     finally { setSaving(false); }
   };
   const dialog = useDialog(true, onClose, { label: `Edit ${room.name}` });
@@ -276,7 +277,7 @@ function AddFixtureDrawer({ propertyId, roomId, onSave, onClose }: { propertyId:
       }
       toast.success("Label read. Check the details before saving.");
     } catch (err: any) {
-      toast.error(err.message ?? "Couldn't read the label");
+      toast.error(errorMessage(err, "Couldn't read the label"));
     } finally {
       setScanning(false);
     }
@@ -297,7 +298,7 @@ function AddFixtureDrawer({ propertyId, roomId, onSave, onClose }: { propertyId:
       }
       onClose();
     }
-    catch (err: any) { toast.error(err.message ?? "Failed to add"); }
+    catch (err: any) { toast.error(errorMessage(err, "Failed to add")); }
     finally { setSaving(false); }
   };
   const dialog = useDialog(true, onClose, { label: "Add Appliance / Fixture" });
@@ -397,7 +398,7 @@ export function RoomsTab({
       await roomService.deleteRoom(id);
       onRoomsChange(rooms.filter(r => r.id !== id));
     } catch (err: any) {
-      toast.error(err.message ?? "Failed to delete room");
+      toast.error(errorMessage(err, "Failed to delete room"));
     }
   };
 

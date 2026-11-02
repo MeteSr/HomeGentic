@@ -166,12 +166,12 @@ describe("propertyService", () => {
 
     it("throws NotFound error when canister returns err NotFound", async () => {
       mockActor.getProperty.mockResolvedValue({ err: { NotFound: null } });
-      await expect(propertyService.getProperty("999")).rejects.toThrow("NotFound");
+      await expect(propertyService.getProperty("999")).rejects.toMatchObject({ code: "NotFound" });
     });
 
     it("throws NotAuthorized error", async () => {
       mockActor.getProperty.mockResolvedValue({ err: { NotAuthorized: null } });
-      await expect(propertyService.getProperty("1")).rejects.toThrow("NotAuthorized");
+      await expect(propertyService.getProperty("1")).rejects.toMatchObject({ code: "NotAuthorized" });
     });
 
     it("throws with text payload for InvalidInput errors", async () => {
@@ -211,7 +211,7 @@ describe("propertyService", () => {
     it("throws LimitReached for quota errors", async () => {
       mockActor.registerProperty.mockResolvedValue({ err: { LimitReached: null } });
       await expect(propertyService.registerProperty(validArgs))
-        .rejects.toThrow("LimitReached");
+        .rejects.toMatchObject({ code: "LimitReached" });
     });
 
     it("returns a mapped property on success", async () => {
@@ -234,7 +234,7 @@ describe("propertyService", () => {
     it("throws on error", async () => {
       mockActor.submitVerification.mockResolvedValue({ err: { NotFound: null } });
       await expect(propertyService.submitVerification("1", "UtilityBill", "abc"))
-        .rejects.toThrow("NotFound");
+        .rejects.toMatchObject({ code: "NotFound" });
     });
   });
 
@@ -256,7 +256,7 @@ describe("propertyService", () => {
 
     it("throws when the canister refuses (caller is not an admin)", async () => {
       mockActor.getPendingVerifications.mockResolvedValue({ err: { NotAuthorized: null } });
-      await expect(propertyService.getPendingVerifications()).rejects.toThrow("NotAuthorized");
+      await expect(propertyService.getPendingVerifications()).rejects.toMatchObject({ code: "NotAuthorized" });
     });
   });
 
@@ -305,7 +305,7 @@ describe("propertyService", () => {
 
     it("throws with error key when canister returns err", async () => {
       mockActor.initiateTransfer.mockResolvedValue({ err: { NotFound: null } });
-      await expect(propertyService.initiateTransfer("99")).rejects.toThrow("NotFound");
+      await expect(propertyService.initiateTransfer("99")).rejects.toMatchObject({ code: "NotFound" });
     });
 
     it("throws with string payload for InvalidInput error", async () => {
@@ -327,7 +327,7 @@ describe("propertyService", () => {
 
     it("throws on canister error", async () => {
       mockActor.claimTransfer.mockResolvedValue({ err: { NotFound: null } });
-      await expect(propertyService.claimTransfer("bad-token")).rejects.toThrow("NotFound");
+      await expect(propertyService.claimTransfer("bad-token")).rejects.toMatchObject({ code: "NotFound" });
     });
   });
 
@@ -340,7 +340,7 @@ describe("propertyService", () => {
 
     it("throws on canister error", async () => {
       mockActor.cancelTransfer.mockResolvedValue({ err: { NotFound: null } });
-      await expect(propertyService.cancelTransfer("1")).rejects.toThrow("NotFound");
+      await expect(propertyService.cancelTransfer("1")).rejects.toMatchObject({ code: "NotFound" });
     });
   });
 
@@ -459,7 +459,7 @@ describe("propertyService", () => {
 
     it("throws with error key on canister error", async () => {
       mockActor.inviteManager.mockResolvedValue({ err: { NotAuthorized: null } });
-      await expect(propertyService.inviteManager("1", "Viewer", "x")).rejects.toThrow("NotAuthorized");
+      await expect(propertyService.inviteManager("1", "Viewer", "x")).rejects.toMatchObject({ code: "NotAuthorized" });
     });
 
     it("throws with text payload for InvalidInput", async () => {
@@ -481,7 +481,7 @@ describe("propertyService", () => {
 
     it("throws on canister error", async () => {
       mockActor.claimManagerRole.mockResolvedValue({ err: { NotFound: null } });
-      await expect(propertyService.claimManagerRole("bad-token")).rejects.toThrow("NotFound");
+      await expect(propertyService.claimManagerRole("bad-token")).rejects.toMatchObject({ code: "NotFound" });
     });
   });
 
@@ -500,7 +500,7 @@ describe("propertyService", () => {
       vi.doMock("@icp-sdk/core/principal", () => ({
         Principal: { fromText: vi.fn().mockReturnValue("p") },
       }));
-      await expect(propertyService.updateManagerRole("1", "manager-p", "Viewer")).rejects.toThrow("NotAuthorized");
+      await expect(propertyService.updateManagerRole("1", "manager-p", "Viewer")).rejects.toMatchObject({ code: "NotAuthorized" });
     });
   });
 
@@ -519,7 +519,7 @@ describe("propertyService", () => {
       vi.doMock("@icp-sdk/core/principal", () => ({
         Principal: { fromText: vi.fn().mockReturnValue("p") },
       }));
-      await expect(propertyService.removeManager("1", "manager-p")).rejects.toThrow("NotFound");
+      await expect(propertyService.removeManager("1", "manager-p")).rejects.toMatchObject({ code: "NotFound" });
     });
   });
 
@@ -532,7 +532,7 @@ describe("propertyService", () => {
 
     it("throws on canister error", async () => {
       mockActor.resignAsManager.mockResolvedValue({ err: { NotAuthorized: null } });
-      await expect(propertyService.resignAsManager("1")).rejects.toThrow("NotAuthorized");
+      await expect(propertyService.resignAsManager("1")).rejects.toMatchObject({ code: "NotAuthorized" });
     });
   });
 
@@ -573,7 +573,7 @@ describe("propertyService", () => {
 
     it("throws on canister error", async () => {
       mockActor.getPropertyManagers.mockResolvedValue({ err: { NotFound: null } });
-      await expect(propertyService.getPropertyManagers("1")).rejects.toThrow("NotFound");
+      await expect(propertyService.getPropertyManagers("1")).rejects.toMatchObject({ code: "NotFound" });
     });
   });
 
@@ -614,7 +614,7 @@ describe("propertyService", () => {
 
     it("throws on canister error", async () => {
       mockActor.cancelManagerInvite.mockResolvedValue({ err: { NotFound: null } });
-      await expect(propertyService.cancelManagerInvite("1", "bad-token")).rejects.toThrow("NotFound");
+      await expect(propertyService.cancelManagerInvite("1", "bad-token")).rejects.toMatchObject({ code: "NotFound" });
     });
   });
 
@@ -643,7 +643,7 @@ describe("propertyService", () => {
 
     it("throws on canister error", async () => {
       mockActor.getPendingInvitesForProperty.mockResolvedValue({ err: { NotAuthorized: null } });
-      await expect(propertyService.getPendingInvitesForProperty("1")).rejects.toThrow("NotAuthorized");
+      await expect(propertyService.getPendingInvitesForProperty("1")).rejects.toMatchObject({ code: "NotAuthorized" });
     });
   });
 
@@ -657,7 +657,7 @@ describe("propertyService", () => {
 
     it("requestApproval throws on canister error", async () => {
       mockActor.requestApproval.mockResolvedValue({ err: { NotAuthorized: null } });
-      await expect(propertyService.requestApproval("1", "x", 100)).rejects.toThrow("NotAuthorized");
+      await expect(propertyService.requestApproval("1", "x", 100)).rejects.toMatchObject({ code: "NotAuthorized" });
     });
 
     it("respondToApproval resolves without error on success", async () => {
@@ -667,7 +667,7 @@ describe("propertyService", () => {
 
     it("respondToApproval throws on canister error", async () => {
       mockActor.respondToApproval.mockResolvedValue({ err: { NotFound: null } });
-      await expect(propertyService.respondToApproval("1", 999, false)).rejects.toThrow("NotFound");
+      await expect(propertyService.respondToApproval("1", 999, false)).rejects.toMatchObject({ code: "NotFound" });
     });
 
     it("getApprovals returns mapped approval requests", async () => {
@@ -694,7 +694,7 @@ describe("propertyService", () => {
 
     it("getApprovals throws on canister error", async () => {
       mockActor.getApprovals.mockResolvedValue({ err: { NotAuthorized: null } });
-      await expect(propertyService.getApprovals("1")).rejects.toThrow("NotAuthorized");
+      await expect(propertyService.getApprovals("1")).rejects.toMatchObject({ code: "NotAuthorized" });
     });
   });
 
@@ -707,7 +707,7 @@ describe("propertyService", () => {
 
     it("throws on canister error", async () => {
       mockActor.recordManagerActivity.mockResolvedValue({ err: { NotAuthorized: null } });
-      await expect(propertyService.recordManagerActivity("1", "x")).rejects.toThrow("NotAuthorized");
+      await expect(propertyService.recordManagerActivity("1", "x")).rejects.toMatchObject({ code: "NotAuthorized" });
     });
   });
 
@@ -729,7 +729,7 @@ describe("propertyService", () => {
 
     it("throws on canister error", async () => {
       mockActor.dismissNotifications.mockResolvedValue({ err: { NotAuthorized: null } });
-      await expect(propertyService.dismissNotifications("1")).rejects.toThrow("NotAuthorized");
+      await expect(propertyService.dismissNotifications("1")).rejects.toMatchObject({ code: "NotAuthorized" });
     });
   });
 

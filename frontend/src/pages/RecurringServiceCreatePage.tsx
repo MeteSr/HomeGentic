@@ -8,6 +8,7 @@ import { usePropertyStore } from "@/store/propertyStore";
 import toast from "react-hot-toast";
 import { isValidPhone } from "@/utils/validators";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -78,7 +79,7 @@ export default function RecurringServiceCreatePage() {
       setCreatedName(SERVICE_TYPE_LABELS[form.serviceType]);
       setSubmitted(true);
     } catch (err: any) {
-      toast.error(err.message || "Failed to create recurring service");
+      toast.error(errorMessage(err, "Failed to create recurring service"));
     } finally {
       setLoading(false);
     }

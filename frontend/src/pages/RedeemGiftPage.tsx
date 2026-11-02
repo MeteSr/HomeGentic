@@ -15,6 +15,7 @@ import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useAuthStore } from "@/store/authStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { paymentService } from "@/services/payment";
+import { hasErrorCode } from "@/services/candid";
 
 type State = "idle" | "redeeming" | "done" | "error";
 
@@ -47,7 +48,7 @@ export default function RedeemGiftPage() {
     } catch (e: any) {
       const msg = String(e?.message ?? "");
       setErrorMsg(
-        msg === "NotFound" ? "We couldn't find this gift. Check that you opened the full link from your email."
+        hasErrorCode(e, "NotFound") ? "We couldn't find this gift. Check that you opened the full link from your email."
         : /already redeemed/i.test(msg) ? "This gift has already been redeemed."
         : "The gift couldn't be redeemed. Please try again, or contact support.",
       );

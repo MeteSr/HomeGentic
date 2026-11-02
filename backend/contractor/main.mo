@@ -24,6 +24,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Contractor {
 
@@ -173,13 +174,8 @@ persistent actor Contractor {
     isVerified:    Bool;
   };
 
-  public type Error = {
-    #NotFound;
+  public type Error = Errors.Common or {
     #AlreadyExists;
-    #NotAuthorized;
-    #Paused;
-    #RateLimitExceeded;
-    #InvalidInput: Text;
   };
 
   public type Metrics = {
@@ -312,7 +308,7 @@ persistent actor Contractor {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#RateLimitExceeded)
+      return #err(#RateLimited)
     };
     #ok(())
   };
@@ -466,7 +462,7 @@ persistent actor Contractor {
         };
       };
       let jobResult = try { await jobActor.getJob(jobId) } catch (_) {
-        return #err(#InvalidInput("could not verify jobId"))
+        return #err(#Unavailable("Could not check that job right now. Please try again later."))
       };
       switch (jobResult) {
         case (#err _) { return #err(#InvalidInput("jobId does not exist or is not accessible")) };

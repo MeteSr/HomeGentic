@@ -1,7 +1,7 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/job";
 import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
-import { candidErrorMessage } from "./candid";
+import { canisterError } from "./candid";
 import type * as JobTypes from "@homegentic/shared/types/job";
 
 /**
@@ -38,7 +38,7 @@ function e2e(): { domain?: string; token?: string; drafts?: EmailDraft[] } | nul
 
 function unwrap<T>(r: any): T {
   if ("ok" in r) return r.ok as T;
-  throw new Error(candidErrorMessage(r.err));
+  throw canisterError(r.err);
 }
 
 function fromDraft(d: JobTypes.EmailDraft): EmailDraft {

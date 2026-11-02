@@ -311,7 +311,7 @@ describe("contractorService", () => {
       mockActor.register.mockResolvedValue({ err: { AlreadyExists: null } });
       await expect(contractorService.register({
         name: "Dup", specialties: ["HVAC"], email: "d@e.com", phone: "555-0002",
-      })).rejects.toThrow("AlreadyExists");
+      })).rejects.toMatchObject({ code: "AlreadyExists" });
     });
 
     it("throws with InvalidInput text payload", async () => {
@@ -331,25 +331,25 @@ describe("contractorService", () => {
       ).resolves.toBeUndefined();
     });
 
-    it("throws when canister returns RateLimitExceeded", async () => {
-      mockActor.submitReview.mockResolvedValue({ err: { RateLimitExceeded: null } });
+    it("throws when canister returns RateLimited", async () => {
+      mockActor.submitReview.mockResolvedValue({ err: { RateLimited: null } });
       await expect(
         contractorService.submitReview("contractor-principal", 4, "Good", "job-2")
-      ).rejects.toThrow("RateLimitExceeded");
+      ).rejects.toMatchObject({ code: "RateLimited", retry: "afterAMinute" });
     });
 
     it("throws when canister returns DuplicateReview (composite key dedup)", async () => {
       mockActor.submitReview.mockResolvedValue({ err: { DuplicateReview: null } });
       await expect(
         contractorService.submitReview("contractor-principal", 3, "Dup", "job-3")
-      ).rejects.toThrow("DuplicateReview");
+      ).rejects.toMatchObject({ code: "DuplicateReview" });
     });
 
     it("throws when canister returns NotFound", async () => {
       mockActor.submitReview.mockResolvedValue({ err: { NotFound: null } });
       await expect(
         contractorService.submitReview("unknown-principal", 5, "?", "job-4")
-      ).rejects.toThrow("NotFound");
+      ).rejects.toMatchObject({ code: "NotFound" });
     });
 
     it("throws with message text for InvalidInput variant", async () => {

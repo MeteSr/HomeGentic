@@ -19,6 +19,7 @@ import Canisters "../shared/Canisters";
 import ThresholdCost "../shared/ThresholdCost";
 import Cycles    "mo:core/Cycles";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Payment {
 
@@ -32,7 +33,7 @@ persistent actor Payment {
     cancelledAt: ?Int;   // set when user requests cancellation; access remains until expiresAt
   };
 
-  public type Error = { #NotFound; #NotAuthorized; #PaymentFailed: Text; #RateLimited; #InvalidInput: Text };
+  public type Error = Errors.Common or { #PaymentFailed : Text };
 
   public type BillingPeriod = { #Monthly; #Yearly };
 
@@ -352,7 +353,7 @@ persistent actor Payment {
   /// per-principal update rate limit.
   private func _requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) return #err(#RateLimited);
     #ok(())
   };

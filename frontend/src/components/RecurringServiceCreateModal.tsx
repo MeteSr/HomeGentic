@@ -7,6 +7,7 @@ import { isValidPhone } from "@/utils/validators";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -107,7 +108,7 @@ export default function RecurringServiceCreateModal({
       setSubmitted(true);
       onSuccess?.(svc.id);
     } catch (err: any) {
-      toast.error(err.message || "Failed to create recurring service");
+      toast.error(errorMessage(err, "Failed to create recurring service"));
     } finally {
       setLoading(false);
     }

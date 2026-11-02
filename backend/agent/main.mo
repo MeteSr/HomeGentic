@@ -20,6 +20,7 @@ import Index     "../shared/Index";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Agent {
 
@@ -76,12 +77,9 @@ persistent actor Agent {
     transactionId: Text;
   };
 
-  public type Error = {
-    #NotFound;
-    #NotAuthorized;
+  public type Error = Errors.Common or {
     #AlreadyExists;
     #DuplicateReview;
-    #InvalidInput: Text;
   };
 
   public type Metrics = {
@@ -151,9 +149,9 @@ persistent actor Agent {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
+      return #err(#RateLimited)
     };
     #ok(())
   };
@@ -402,7 +400,7 @@ persistent actor Agent {
     // M4: the transaction must be a real, fee-paid Bid to List award by this
     // agent, and the caller must be that listing's homeowner. Fails closed
     // when the listing canister isn't wired.
-    if (Text.size(listingCanisterId) == 0) return #err(#InvalidInput("Listing canister not configured — cannot verify transaction"));
+    if (Text.size(listingCanisterId) == 0) return #err(#Unavailable("Transaction checks are unavailable right now. Please try again later."));
     let listingActor = actor(listingCanisterId) : actor {
       getReviewEligibility : query (Text) -> async ?{ agentId: Principal; homeowner: Principal; awarded: Bool };
     };

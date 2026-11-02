@@ -16,7 +16,13 @@ export type ScheduleEntry = {
   systemName: string;
 };
 
-export type Error = { InvalidInput: string } | { NotFound: null } | { NotAuthorized: null };
+export type Error =
+  | { Paused: null }
+  | { InvalidInput: string }
+  | { NotFound: null }
+  | { NotAuthorized: null }
+  | { RateLimited: null }
+  | { Unavailable: string };
 
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {

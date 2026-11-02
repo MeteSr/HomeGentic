@@ -27,6 +27,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Listing {
 
@@ -37,10 +38,7 @@ persistent actor Listing {
   public type WindowDays       = { #Three; #Seven; #Fourteen };
   public type MessageRole      = { #seller; #agent };
 
-  public type Error = {
-    #NotFound;
-    #NotAuthorized;
-    #InvalidInput: Text;
+  public type Error = Errors.Common or {
     #AlreadyCancelled;
     #DeadlinePassed;
     #SlotsFull;
@@ -420,9 +418,9 @@ persistent actor Listing {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
+      return #err(#RateLimited)
     };
     #ok(())
   };
@@ -710,7 +708,7 @@ persistent actor Listing {
     if (listTooBig(marketingCommitments))      return #err(#InvalidInput("too many or too long marketingCommitments"));
     if (listTooBig(includedServices))          return #err(#InvalidInput("too many or too long includedServices"));
 
-    if (Text.size(agentCanisterId) == 0) return #err(#InvalidInput("Agent canister not configured — cannot verify licence"));
+    if (Text.size(agentCanisterId) == 0) return #err(#Unavailable("Licence checks are unavailable right now. Please try again later."));
     let agentActor = actor(agentCanisterId) : actor {
       getProfile: query (Principal) -> async ?{
         name: Text; email: Text; brokerage: Text; isVerified: Bool;
@@ -844,7 +842,7 @@ persistent actor Listing {
   /// invariant 04.
   public shared(msg) func acceptProposal(proposalId: Text) : async Result.Result<Text, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    if (Text.size(feeCanisterId) == 0) return #err(#InvalidInput("Fee canister not configured"));
+    if (Text.size(feeCanisterId) == 0) return #err(#Unavailable("Platform fees are unavailable right now. Please try again later."));
     switch (proposals.get(proposalId)) {
       case null { #err(#NotFound) };
       case (?p) {
@@ -866,9 +864,8 @@ persistent actor Listing {
               case _ { return #err(#NotFound) };
             };
 
-            type FeeError = { #NotFound; #NotAuthorized; #AlreadyExists; #InvalidInput: Text };
             let feeActor = actor(feeCanisterId) : actor {
-              recordFeeOwed : (Text, Text, Principal, Principal, Nat) -> async Result.Result<{ id: Text }, FeeError>;
+              recordFeeOwed : (Text, Text, Principal, Principal, Nat) -> async Result.Result<{ id: Text }, Canisters.FeeError>;
             };
             let result = await feeActor.recordFeeOwed(req.id, p.id, p.agentId, req.homeowner, platformFeeCents);
             switch (result) {
@@ -876,6 +873,9 @@ persistent actor Listing {
               case (#err(#NotAuthorized))  { #err(#NotAuthorized) };
               case (#err(#AlreadyExists))  { #err(#InvalidInput("This listing has already been awarded")) };
               case (#err(#InvalidInput m)) { #err(#InvalidInput(m)) };
+              case (#err(#Paused))         { #err(#Paused) };
+              case (#err(#RateLimited))    { #err(#RateLimited) };
+              case (#err(#Unavailable m))  { #err(#Unavailable(m)) };
               case (#ok(fee))              { #ok(fee.id) };
             }
           };
@@ -911,7 +911,7 @@ persistent actor Listing {
         };
       };
     };
-    if (Text.size(feeCanisterId) == 0) return #err(#InvalidInput("Fee canister not configured"));
+    if (Text.size(feeCanisterId) == 0) return #err(#Unavailable("Platform fees are unavailable right now. Please try again later."));
     type FeeRec = {
       id: Text; requestId: Text; proposalId: Text; agentId: Principal; homeownerId: Principal;
       amountCents: Nat; status: { #Owed; #Invoiced; #Paid; #Waived }; createdAt: Int; updatedAt: Int;
@@ -1269,7 +1269,7 @@ persistent actor Listing {
     var resolvedHasPublicReport   : Bool = false;
 
     if (Text.size(propCanisterId) == 0) {
-      return #err(#InvalidInput("Property canister not configured — cannot verify ownership"));
+      return #err(#Unavailable("Ownership checks are unavailable right now. Please try again later."));
     };
     let propActor = Canisters.property(propCanisterId);
     switch (await propActor.getPropertyOwner(listing.propertyId)) {
@@ -1561,7 +1561,7 @@ persistent actor Listing {
   /// signed-out visitor; it keys the per-buyer limit.
   public shared(msg) func relayRequestShowing(propertyId: Text, requester: Principal, name: Text, contact: Text, preferredTime: Text) : async Result.Result<ShowingRequest, Error> {
     if (not Admin.contains(showingRelayEntries, msg.caller)) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (requester.isAnonymous()) return #err(#InvalidInput("requester required"));
     await* fileShowing(requester, propertyId, name, contact, preferredTime)
   };

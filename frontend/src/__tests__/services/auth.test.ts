@@ -83,7 +83,7 @@ describe("register", () => {
   it("throws the error key on AlreadyExists", async () => {
     mockActor.register.mockResolvedValue({ err: { AlreadyExists: null } });
     await expect(authService.register({ role: "Homeowner", email: "x@x.com", phone: "" }))
-      .rejects.toThrow("AlreadyExists");
+      .rejects.toMatchObject({ code: "AlreadyExists" });
   });
 
   it("throws the message on InvalidInput", async () => {
@@ -105,12 +105,12 @@ describe("getProfile", () => {
 
   it("throws NotFound on err", async () => {
     mockActor.getProfile.mockResolvedValue({ err: { NotFound: null } });
-    await expect(authService.getProfile()).rejects.toThrow("NotFound");
+    await expect(authService.getProfile()).rejects.toMatchObject({ code: "NotFound" });
   });
 
   it("throws Paused when canister is paused", async () => {
     mockActor.getProfile.mockResolvedValue({ err: { Paused: null } });
-    await expect(authService.getProfile()).rejects.toThrow("Paused");
+    await expect(authService.getProfile()).rejects.toMatchObject({ code: "Paused" });
   });
 });
 
@@ -127,7 +127,7 @@ describe("updateProfile", () => {
 
   it("throws NotAuthorized on err", async () => {
     mockActor.updateProfile.mockResolvedValue({ err: { NotAuthorized: null } });
-    await expect(authService.updateProfile({ email: "", phone: "" })).rejects.toThrow("NotAuthorized");
+    await expect(authService.updateProfile({ email: "", phone: "" })).rejects.toMatchObject({ code: "NotAuthorized" });
   });
 });
 
@@ -209,7 +209,7 @@ describe("issueAgentSession", () => {
 
   it("throws the error variant name (e.g. NotFound for an unregistered caller)", async () => {
     mockActor.issueAgentSession.mockResolvedValue({ err: { NotFound: null } });
-    await expect(authService.issueAgentSession()).rejects.toThrow("NotFound");
+    await expect(authService.issueAgentSession()).rejects.toMatchObject({ code: "NotFound" });
   });
 });
 

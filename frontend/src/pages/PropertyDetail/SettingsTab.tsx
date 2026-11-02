@@ -5,6 +5,7 @@ import { UpgradeGate } from "@/components/UpgradeGate";
 import { useSubscription } from "@/hooks/useSubscription";
 import toast from "react-hot-toast";
 import { Panel, hudInputStyle } from "@/components/hud";
+import { errorMessage } from "@/services/candid";
 
 const MONO = "'JetBrains Mono',monospace";
 
@@ -256,7 +257,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                     setTransferStep("idle");
                     toast.success("Transfer link cancelled.");
                   } catch (e: any) {
-                    toast.error(e.message ?? "Could not cancel transfer.");
+                    toast.error(errorMessage(e, "Could not cancel transfer."));
                   } finally {
                     setCancelLoading(false);
                   }
@@ -335,7 +336,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                         await propertyService.removeManager(property.id, m.principal);
                         setManagers((prev) => prev.filter((x) => x.principal !== m.principal));
                       } catch (e: any) {
-                        toast.error(e.message ?? "Could not remove manager.");
+                        toast.error(errorMessage(e, "Could not remove manager."));
                       } finally {
                         setRemovingManager(null);
                       }

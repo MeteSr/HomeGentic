@@ -4,11 +4,14 @@ import type { ActorMethod } from "@icp-sdk/core/agent";
 import type { Principal } from "@icp-sdk/core/principal";
 
 export type Error =
+  | { Paused: null }
   | { InvalidInput: string }
   | { NotFound: null }
   | { NotAuthorized: null }
   | { DuplicateReview: null }
-  | { AlreadyExists: null };
+  | { AlreadyExists: null }
+  | { RateLimited: null }
+  | { Unavailable: string };
 
 export type AddReviewArgs = {
   agentId: Principal;

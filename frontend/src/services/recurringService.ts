@@ -1,7 +1,7 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/recurring";
 import type { _SERVICE as RecurringCanister } from "@homegentic/shared/types/recurring";
-import { candidErrorMessage, variant } from "./candid";
+import { canisterError, variant } from "./candid";
 import type * as RecurringTypes from "@homegentic/shared/types/recurring";
 export { idlFactory };
 
@@ -122,12 +122,12 @@ function fromVisitLog(raw: RecurringTypes.VisitLog): VisitLog {
 
 function unwrapService(result: any): RecurringService {
   if ("ok" in result) return fromService(result.ok);
-  throw new Error(candidErrorMessage(result.err));
+  throw canisterError(result.err);
 }
 
 function unwrapVisit(result: any): VisitLog {
   if ("ok" in result) return fromVisitLog(result.ok);
-  throw new Error(candidErrorMessage(result.err));
+  throw canisterError(result.err);
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@ import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
 import toast from "react-hot-toast";
 import { formatCents } from "@/utils/format";
+import { errorMessage } from "@/services/candid";
 
 const UI = V2_COLORS;
 
@@ -41,7 +42,7 @@ export function BidDetailDrawer({ proposal, onClose, onChoose }: BidDetailDrawer
       setThread((t) => [...t, msg]);
       setDraft("");
     } catch (err: any) {
-      toast.error(err?.message ?? "Message failed to send");
+      toast.error(errorMessage(err, "Message failed to send"));
     } finally {
       setSending(false);
     }

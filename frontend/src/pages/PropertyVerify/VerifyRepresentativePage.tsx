@@ -6,6 +6,7 @@ import { useVerifyContext } from "./VerifyLayout";
 import { DocumentUploadZone } from "./components/DocumentUploadZone";
 import { propertyService } from "@/services/property";
 import toast from "react-hot-toast";
+import { errorMessage } from "@/services/candid";
 
 type Relationship = "llc_officer" | "trustee" | "poa" | "executor";
 
@@ -42,7 +43,7 @@ export default function VerifyRepresentativePage() {
       toast.success("Sent for manual review. The result will show on your property's verification page.");
       navigate(`/properties/${id}/verify/status`);
     } catch (err: any) {
-      toast.error(err?.message ?? "Submission failed. Please try again.");
+      toast.error(errorMessage(err, "Submission failed. Please try again."));
     } finally {
       setSubmitting(false);
     }

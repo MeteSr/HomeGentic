@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 import { quoteService, type Quote, type QuoteRequest } from "@/services/quote";
 import { BUTTON_RESET, V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 interface AwardBidModalProps {
   open:       boolean;
@@ -34,7 +35,7 @@ export function AwardBidModal({ open, requestId, onClose, onAwarded }: AwardBidM
     setLoading(true);
     Promise.all([quoteService.getRequest(requestId), quoteService.getQuotesForRequest(requestId)])
       .then(([req, qs]) => { setRequest(req ?? null); setQuotes(qs); })
-      .catch((e) => toast.error(e.message ?? "Failed to load bids"))
+      .catch((e) => toast.error(errorMessage(e, "Failed to load bids")))
       .finally(() => setLoading(false));
   }, [open, requestId]);
 
@@ -50,7 +51,7 @@ export function AwardBidModal({ open, requestId, onClose, onAwarded }: AwardBidM
       toast.success("Bid awarded. The other bids on this job are closed.");
       onAwarded();
     } catch (err: any) {
-      toast.error(err.message ?? "Failed to award the bid");
+      toast.error(errorMessage(err, "Failed to award the bid"));
     } finally {
       setAwarding(false);
     }

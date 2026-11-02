@@ -20,6 +20,7 @@ import { ResponsiveGrid } from "@/components/ResponsiveGrid";
 import { EarningsView } from "@/components/EarningsView";
 import { feeService } from "@/services/fee";
 import { paymentService } from "@/services/payment";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -95,7 +96,7 @@ function SubmitQuoteModal({ request, onSubmit, onClose }: SubmitModalProps) {
       await onSubmit(request.id, amountCents, days, validUntilMs);
       onClose();
     } catch (err: any) {
-      toast.error(err.message || "Failed to submit quote");
+      toast.error(errorMessage(err, "Failed to submit quote"));
     } finally {
       setLoading(false);
     }
@@ -390,7 +391,7 @@ export default function ContractorDashboardPage() {
       setVerifiedAnim(true);
       setTimeout(() => setVerifiedAnim(false), 2800);
     } catch (err: any) {
-      toast.error(err.message || "Failed to sign job");
+      toast.error(errorMessage(err, "Failed to sign job"));
     } finally {
       setSigningJobId(null);
     }

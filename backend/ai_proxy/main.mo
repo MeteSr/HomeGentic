@@ -34,17 +34,13 @@ import Time      "mo:core/Time";
 import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor AiProxy {
 
   // ── Types ──────────────────────────────────────────────────────────────────
 
-  public type Error = {
-    #NotAuthorized;
-    #NotFound;
-    #InvalidInput : Text;
-    #RateLimited;
-    #Paused;
+  public type Error = Errors.Common or {
     #HttpError : Text;
     #KeyNotConfigured;
   };

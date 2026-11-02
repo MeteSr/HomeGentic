@@ -1,7 +1,7 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/auth";
 import type { _SERVICE as AuthCanister } from "@homegentic/shared/types/auth";
-import { candidErrorMessage, variant } from "./candid";
+import { canisterError, variant } from "./candid";
 import type * as AuthTypes from "@homegentic/shared/types/auth";
 export { idlFactory };
 
@@ -52,7 +52,7 @@ function fromProfile(raw: AuthTypes.UserProfile): UserProfile {
 
 function unwrap(result: any): UserProfile {
   if ("ok" in result) return fromProfile(result.ok);
-  throw new Error(candidErrorMessage(result.err));
+  throw canisterError(result.err);
 }
 
 export const authService = {
@@ -109,7 +109,7 @@ export const authService = {
     if ("ok" in result) {
       return { token: result.ok.token, expiresAtMs: Number(result.ok.expiresAt / 1_000_000n) };
     }
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   async revokeAgentSession(): Promise<void> {

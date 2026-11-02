@@ -3,6 +3,7 @@ import { voiceAgentFetch } from "./voiceAgentHeaders";
 import { idlFactory } from "@homegentic/shared/declarations/fee";
 import type { _SERVICE as FeeCanister } from "@homegentic/shared/types/fee";
 import type * as FeeTypes from "@homegentic/shared/types/fee";
+import { canisterError } from "./candid";
 export { idlFactory };
 
 const FEE_CANISTER_ID = (process.env as any).FEE_CANISTER_ID || "";
@@ -137,7 +138,7 @@ function createFeeService() {
     async getAllReferralFees(): Promise<ReferralFee[]> {
       if (!FEE_CANISTER_ID) return e2e().__e2e_referral_fees ?? [];
       const res = await (await getActor()).getAllReferralFees();
-      if ("err" in res) throw new Error(Object.keys(res.err)[0]);
+      if ("err" in res) throw canisterError(res.err);
       return res.ok.map(fromRawReferralFee);
     },
 

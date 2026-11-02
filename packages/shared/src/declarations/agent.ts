@@ -52,6 +52,9 @@ export const idlFactory = ({ IDL }: any) => {
   const Error = IDL.Variant({
     NotFound: IDL.Null, NotAuthorized: IDL.Null, AlreadyExists: IDL.Null,
     DuplicateReview: IDL.Null, InvalidInput: IDL.Text,
+    Paused: IDL.Null,
+    RateLimited: IDL.Null,
+    Unavailable: IDL.Text,
   });
 
   return IDL.Service({

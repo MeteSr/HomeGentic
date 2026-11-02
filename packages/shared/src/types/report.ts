@@ -5,9 +5,12 @@ import type { Principal } from "@icp-sdk/core/principal";
 
 export type Error =
   | { UnverifiedProperty: null }
+  | { Paused: null }
   | { InvalidInput: string }
   | { NotFound: null }
   | { NotAuthorized: null }
+  | { RateLimited: null }
+  | { Unavailable: string }
   | { Revoked: null }
   | { Expired: null };
 

@@ -29,6 +29,8 @@ export const idlFactory = ({ IDL }: any) => {
     NotAuthorized: IDL.Null,
     Paused:        IDL.Null,
     InvalidInput:  IDL.Text,
+    RateLimited: IDL.Null,
+    Unavailable: IDL.Text,
   });
   const Result    = IDL.Variant({ ok: UserProfile, err: Error });
   const UserStats = IDL.Record({

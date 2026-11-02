@@ -203,8 +203,8 @@ describe("2026-10-28 security fixes", () => {
       report.setIdentity(alice);
       // Past the gate it needs the job and market canisters, which this test doesn't wire.
       const r = await report.issueCert(homeA, "{}");
-      expect(errKey(r)).toBe("InvalidInput");
-      expect(JSON.stringify(r.err)).toMatch(/not configured/);
+      expect(errKey(r)).toBe("Unavailable");
+      expect(JSON.stringify(r.err)).toMatch(/unavailable right now/);
     });
   });
 

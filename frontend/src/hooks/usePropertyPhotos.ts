@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { photoService, type Photo } from "@/services/photo";
 import toast from "react-hot-toast";
+import { errorMessage } from "@/services/candid";
 
 export interface PropertyPhotos {
   photosByJob: Record<string, Photo[]>;
@@ -27,7 +28,7 @@ export function usePropertyPhotos(propertyId: string | undefined): PropertyPhoto
       const photo = await photoService.upload(file, jobId, propId, "PostConstruction", "Job photo");
       setPhotosByJob((prev) => ({ ...prev, [jobId]: [...(prev[jobId] ?? []), photo] }));
     } catch (err: any) {
-      toast.error(err.message ?? "Photo upload failed");
+      toast.error(errorMessage(err, "Photo upload failed"));
     }
   }
 
@@ -37,7 +38,7 @@ export function usePropertyPhotos(propertyId: string | undefined): PropertyPhoto
       const key = `ROOM_${roomId}`;
       setPhotosByJob((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), photo] }));
     } catch (err: any) {
-      toast.error(err.message ?? "Photo upload failed");
+      toast.error(errorMessage(err, "Photo upload failed"));
     }
   }
 

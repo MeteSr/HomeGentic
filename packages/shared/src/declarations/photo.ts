@@ -27,6 +27,9 @@ export const idlFactory = ({ IDL }: any) => {
     QuotaExceeded: IDL.Text,
     Duplicate:     IDL.Text,
     InvalidInput:  IDL.Text,
+    Paused: IDL.Null,
+    RateLimited: IDL.Null,
+    Unavailable: IDL.Text,
   });
   const PhotoAccess = IDL.Record({
     owner:    IDL.Principal,

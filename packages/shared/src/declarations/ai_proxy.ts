@@ -8,6 +8,7 @@ export const idlFactory = ({ IDL }: any) => {
     Paused:           IDL.Null,
     HttpError:        IDL.Text,
     KeyNotConfigured: IDL.Null,
+    Unavailable: IDL.Text,
   });
   const ResultTextText = IDL.Variant({ ok: IDL.Text, err: IDL.Text });
   const ResultOkError  = IDL.Variant({ ok: IDL.Null, err: Error });

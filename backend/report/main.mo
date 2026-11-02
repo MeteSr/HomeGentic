@@ -39,6 +39,7 @@ import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import ThresholdCost "../shared/ThresholdCost";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Report {
 
@@ -177,12 +178,9 @@ persistent actor Report {
     hideDescriptions: ?Bool;
   };
 
-  public type Error = {
-    #NotFound;
+  public type Error = Errors.Common or {
     #Expired;
     #Revoked;
-    #NotAuthorized;
-    #InvalidInput      : Text;
     /// Caller attempted to share a report for an unverified property.
     /// The property must reach #Basic or #Premium before a share link
     /// can be issued.
@@ -354,9 +352,9 @@ persistent actor Report {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
+      return #err(#RateLimited)
     };
     #ok(())
   };
@@ -930,7 +928,7 @@ persistent actor Report {
 
     // ── Authoritative job list ──────────────────────────────────────────────
     let onChainJobs : [JobInput] = switch (await fetchJobs(propertyId)) {
-      case null { return #err(#InvalidInput("Could not load job history; try again later")) };
+      case null { return #err(#Unavailable("Could not load job history; try again later")) };
       case (?js) { jobsToInputs(js) };
     };
 
@@ -1720,21 +1718,21 @@ persistent actor Report {
     let level = levelText(prop.verificationLevel);
     if (level == "Unverified" or level == "PendingReview") return #err(#UnverifiedProperty);
 
-    if (Text.size(riskJobCanisterId) == 0) return #err(#InvalidInput("Job canister not configured"));
-    if (Text.size(marketCanisterId) == 0) return #err(#InvalidInput("Score service not configured"));
+    if (Text.size(riskJobCanisterId) == 0) return #err(#Unavailable("Certificates are unavailable right now. Please try again later."));
+    if (Text.size(marketCanisterId) == 0) return #err(#Unavailable("Certificates are unavailable right now. Please try again later."));
     let jobActor = actor(riskJobCanisterId) : actor {
       getCertificationData : query (Text) -> async {
         verifiedJobCount : Nat; verifiedKeySystems : [Text]; meetsStructural : Bool;
       };
     };
     let cert = try { await jobActor.getCertificationData(propertyId) } catch (_) {
-      return #err(#InvalidInput("Could not load job history; try again later"))
+      return #err(#Unavailable("Could not load job history; try again later"))
     };
     let marketActor = actor(marketCanisterId) : actor {
       computePropertyScore : (Text) -> async ?Nat;
     };
     let score : ?Nat = try { await marketActor.computePropertyScore(propertyId) } catch (_) {
-      return #err(#InvalidInput("Could not compute the score; try again later"))
+      return #err(#Unavailable("Could not compute the score; try again later"))
     };
 
     let certId = Uuid.fromBlob(await Random.blob());
@@ -1834,7 +1832,7 @@ persistent actor Report {
   /// Fetch and cache the current key's public key. Admin only (deploy.sh).
   public shared(msg) func refreshAttestationKey() : async Result.Result<Blob, Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { #ok(await* attestPublicKey(attestKeyName)) } catch (e) { #err(#InvalidInput(e.message())) }
+    try { #ok(await* attestPublicKey(attestKeyName)) } catch (e) { #err(#Unavailable(e.message())) }
   };
 
   /// Select the threshold signing key ("key_1" on mainnet). Admin only.

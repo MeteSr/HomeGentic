@@ -7,6 +7,7 @@
 
 import Debug     "mo:core/Debug";
 import Principal "mo:core/Principal";
+import Errors "Errors";
 
 module {
   /// Subscription tier, as `payment` returns it.
@@ -36,7 +37,7 @@ module {
     switch role { case (?#Owner or ?#CoOwner or ?#Manager or ?#Viewer) true; case _ false }
   };
 
-  public type FeeError = { #NotFound; #NotAuthorized; #AlreadyExists; #InvalidInput : Text };
+  public type FeeError = Errors.Common or { #AlreadyExists };
 
   /// A bid that carries the Contractor Free referral fee, as `fee` records it.
   public type ReferralBid = {
@@ -62,7 +63,7 @@ module {
   public func fee(id : Text) : Fee = actor (id);
 
   public type Audit = actor {
-    log : shared (Text, Text, ?Principal, Text) -> async { #ok : Nat; #err : { #NotAuthorized; #InvalidInput : Text } };
+    log : shared (Text, Text, ?Principal, Text) -> async { #ok : Nat; #err : Errors.Common };
   };
 
   /// Writes one entry to the audit canister, fire-and-forget: does nothing when

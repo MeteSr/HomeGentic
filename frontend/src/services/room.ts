@@ -1,5 +1,6 @@
 import { Actor } from "@icp-sdk/core/agent";
 import { getAgent } from "./actor";
+import { canisterError } from "./candid";
 
 const ROOM_CANISTER_ID = (process.env as any).PROPERTY_CANISTER_ID || "";
 
@@ -188,9 +189,7 @@ async function getActor() {
 
 function unwrap<T>(result: any): T {
   if ("ok" in result) return result.ok;
-  const errKey = Object.keys(result.err)[0];
-  const errVal = result.err[errKey];
-  throw new Error(errVal ?? errKey);
+  throw canisterError(result.err);
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────

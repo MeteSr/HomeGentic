@@ -18,6 +18,7 @@
  */
 
 import type { CertPayload } from "@/services/scoreService";
+import { canisterError } from "./candid";
 
 const REPORT_CANISTER_ID = (import.meta as any).env?.VITE_CANISTER_ID_REPORT as string | undefined;
 
@@ -187,12 +188,10 @@ function createCertService() {
       const result = await (a as any).issueCert(propertyId, JSON.stringify(payload)) as
         { ok: string } | { err: Record<string, unknown> };
       if ("err" in result) {
-        const key = Object.keys(result.err)[0];
-        const val = result.err[key];
-        if (key === "UnverifiedProperty") {
+        if ("UnverifiedProperty" in result.err) {
           throw new Error("Verify your home's ownership before issuing a certificate.");
         }
-        throw new Error(typeof val === "string" ? val : key);
+        throw canisterError(result.err);
       }
       const certId = result.ok;
       return { certId, token: certId };

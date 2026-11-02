@@ -25,6 +25,7 @@ import ContractorBillingPanel from "@/components/ContractorBillingPanel";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { isValidEmail, isValidPhone } from "@/utils/validators";
+import { errorMessage } from "@/services/candid";
 
 type Tab = "account" | "subscription" | "notifications" | "privacy";
 
@@ -137,7 +138,7 @@ function AccountTab({ profile, setProfile }: { profile: any; setProfile: any }) 
       setProfile(updated);
       toast.success("Profile updated!");
     } catch (err: any) {
-      toast.error(err.message || "Update failed");
+      toast.error(errorMessage(err, "Update failed"));
     } finally {
       setLoading(false);
     }
@@ -218,7 +219,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
       setCancelledAt(accessEndsAt);
       setCancelStep("done");
     } catch (err: any) {
-      toast.error(err.message || "Cancellation failed");
+      toast.error(errorMessage(err, "Cancellation failed"));
       setCancelStep("confirm");
     }
   };

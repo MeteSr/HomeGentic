@@ -13,7 +13,13 @@ export type VisitLog = {
 };
 
 export type Error =
-  { InvalidInput: string } | { NotFound: null } | { NotAuthorized: null } | { AlreadyCancelled: null };
+  | { Paused: null }
+  | { InvalidInput: string }
+  | { NotFound: null }
+  | { NotAuthorized: null }
+  | { AlreadyCancelled: null }
+  | { RateLimited: null }
+  | { Unavailable: string };
 
 export type RecurringService = {
   id: string;

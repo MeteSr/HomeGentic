@@ -30,12 +30,15 @@ export type FsboCounter = {
 };
 
 export type Error =
+  | { Paused: null }
   | { InvalidInput: string }
   | { DeadlinePassed: null }
   | { SlotsFull: null }
   | { NotFound: null }
   | { NotAuthorized: null }
-  | { AlreadyCancelled: null };
+  | { AlreadyCancelled: null }
+  | { RateLimited: null }
+  | { Unavailable: string };
 
 export type PublicFsboListing = {
   propertyType: string;

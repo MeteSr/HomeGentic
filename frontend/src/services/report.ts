@@ -11,7 +11,7 @@ import type { RecurringServiceSummary } from "./recurringService";
 import type { Room } from "./room";
 import { idlFactory } from "@homegentic/shared/declarations/report";
 import type { _SERVICE as ReportCanister } from "@homegentic/shared/types/report";
-import { candidErrorMessage, variant, variantKey } from "./candid";
+import { canisterError, variant, variantKey } from "./candid";
 import type * as Report from "@homegentic/shared/types/report";
 export { idlFactory };
 
@@ -427,7 +427,7 @@ function createReportService() {
     );
     if ("ok" in result) return fromShareLink(result.ok);
     if ("UnverifiedProperty" in result.err) throw new Error("Property must be verified (Basic or Premium) before generating a shareable report.");
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   async getReport(token: string): Promise<{ link: ShareLink; snapshot: ReportSnapshot }> {
@@ -442,7 +442,7 @@ function createReportService() {
       if (key === "Revoked")  throw new Error("This report link has been revoked");
       if (key === "NotFound") throw new Error("Report not found");
       if (key === "NotAuthorized") throw new Error("Sign in to view this report");
-      throw new Error(candidErrorMessage(result.err));
+      throw canisterError(result.err);
     }
     // ok value is a tuple: [ShareLink, ReportSnapshot]
     const [rawLink, rawSnapshot] = result.ok as [any, any];
@@ -484,7 +484,7 @@ function createReportService() {
     if (!REPORT_CANISTER_ID || (typeof window !== "undefined" && (window as any).__e2e_properties)) { mockAllowPublic = allow; return; }
     const a = await getActor();
     const result = await a.setAllowPublicReports(allow);
-    if ("err" in result) throw new Error(Object.keys(result.err)[0]);
+    if ("err" in result) throw canisterError(result.err);
   },
 
   async listShareLinks(propertyId: string): Promise<ShareLink[]> {
@@ -496,8 +496,7 @@ function createReportService() {
     const a = await getActor();
     const result = await a.revokeShareLink(token);
     if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      throw new Error(key);
+      throw canisterError(result.err);
     }
   },
 
@@ -530,7 +529,7 @@ function createReportService() {
       verificationLevel
     );
     if ("ok" in result) return fromRiskProfile(result.ok);
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   async getRiskProfile(token: string): Promise<RiskProfile> {
@@ -540,7 +539,7 @@ function createReportService() {
     const key = variantKey(result.err);
     if (key === "Expired")  throw new Error("This risk profile has expired");
     if (key === "NotFound") throw new Error("Risk profile not found");
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   riskProfileUrl(token: string): string {

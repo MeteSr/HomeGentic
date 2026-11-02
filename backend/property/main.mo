@@ -50,6 +50,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Property {
 
@@ -188,12 +189,8 @@ persistent actor Property {
     failed    : [BulkImportError];
   };
 
-  public type Error = {
-    #NotFound;
-    #NotAuthorized;
-    #Paused;
+  public type Error = Errors.Common or {
     #LimitReached;
-    #InvalidInput    : Text;
     /// Address is already registered AND verified by another owner.
     #DuplicateAddress;
     /// Address is registered by another user who still has time to verify.
@@ -625,7 +622,7 @@ persistent actor Property {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
+      return #err(#RateLimited)
     };
     #ok(())
   };
@@ -2334,7 +2331,7 @@ persistent actor Property {
     let caller = msg.caller;
     // A registration suspended at an await would write a property after us.
     if (inFlightRegistrations.get(caller.toText()) != null)
-      return #err(#InvalidInput("A property registration is in progress; try again shortly"));
+      return #err(#Unavailable("A property registration is in progress; try again shortly"));
 
     var removed = 0;
     let owned = ownedBy(caller).toArray();

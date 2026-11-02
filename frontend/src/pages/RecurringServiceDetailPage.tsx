@@ -7,6 +7,7 @@ import { photoService } from "@/services/photo";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { formatIsoDate } from "@/utils/format";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -61,7 +62,7 @@ export default function RecurringServiceDetailPage() {
       setVisitNote("");
       toast.success("Visit logged");
     } catch (err: any) {
-      toast.error(err.message || "Failed to log visit");
+      toast.error(errorMessage(err, "Failed to log visit"));
     } finally {
       setVisitSubmitting(false);
     }
@@ -75,7 +76,7 @@ export default function RecurringServiceDetailPage() {
       setSvc(updated);
       toast.success(`Service ${status.toLowerCase()}`);
     } catch (err: any) {
-      toast.error(err.message || "Failed to update status");
+      toast.error(errorMessage(err, "Failed to update status"));
     } finally {
       setStatusLoading(false);
     }
@@ -97,7 +98,7 @@ export default function RecurringServiceDetailPage() {
       setSvc(updated);
       toast.success("Contract document attached");
     } catch (err: any) {
-      toast.error(err.message || "Failed to upload document");
+      toast.error(errorMessage(err, "Failed to upload document"));
     } finally {
       setDocUploading(false);
       e.target.value = "";

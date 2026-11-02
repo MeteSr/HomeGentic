@@ -8,7 +8,7 @@ import { lazyActor } from "./lazyActor";
 import type { Job } from "./job";
 import { idlFactory } from "@homegentic/shared/declarations/maintenance";
 import type { _SERVICE as MaintenanceCanister } from "@homegentic/shared/types/maintenance";
-import { candidErrorMessage } from "./candid";
+import { canisterError } from "./candid";
 import type * as MaintenanceTypes from "@homegentic/shared/types/maintenance";
 export { idlFactory };
 
@@ -418,7 +418,7 @@ function createMaintenanceService() {
       estimatedCostCents ? [BigInt(estimatedCostCents)] : []
     );
     if ("ok" in result) return fromEntry(result.ok);
-    throw new Error(candidErrorMessage(result.err));
+    throw canisterError(result.err);
   },
 
   async getScheduleByProperty(propertyId: string): Promise<ScheduleEntry[]> {

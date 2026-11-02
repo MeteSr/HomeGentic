@@ -80,7 +80,7 @@ describe("certService", () => {
     });
 
     it("throws when the canister rejects the caller", async () => {
-      await expect(certService.issueCert("not-mine", makePayload())).rejects.toThrow("NotAuthorized");
+      await expect(certService.issueCert("not-mine", makePayload())).rejects.toMatchObject({ code: "NotAuthorized" });
     });
 
     it("each call produces a unique certId", async () => {

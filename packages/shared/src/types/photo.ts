@@ -4,10 +4,13 @@ import type { ActorMethod } from "@icp-sdk/core/agent";
 import type { Principal } from "@icp-sdk/core/principal";
 
 export type Error =
+  | { Paused: null }
   | { InvalidInput: string }
   | { Duplicate: string }
   | { NotFound: null }
   | { NotAuthorized: null }
+  | { RateLimited: null }
+  | { Unavailable: string }
   | { QuotaExceeded: string };
 
 export type ConstructionPhase =

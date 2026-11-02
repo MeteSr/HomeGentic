@@ -123,6 +123,9 @@ export const idlFactory = ({ IDL }: any) => {
   const Error = IDL.Variant({
     NotFound: IDL.Null, NotAuthorized: IDL.Null, InvalidInput: IDL.Text,
     AlreadyCancelled: IDL.Null, DeadlinePassed: IDL.Null, SlotsFull: IDL.Null,
+    Paused: IDL.Null,
+    RateLimited: IDL.Null,
+    Unavailable: IDL.Text,
   });
 
   const PanoramaEntry = IDL.Record({ roomLabel: IDL.Text, photoId: IDL.Text });

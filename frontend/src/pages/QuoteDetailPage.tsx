@@ -14,6 +14,7 @@ import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -100,7 +101,7 @@ export default function QuoteDetailPage() {
       setQuotes((prev) => prev.map((q) => q.id === pendingAccept.id ? { ...q, status: "accepted" } : { ...q, status: q.status === "pending" ? "rejected" : q.status }));
       toast.success("Quote accepted — contractor has been notified.");
     } catch (err: any) {
-      toast.error(err.message || "Failed to accept quote");
+      toast.error(errorMessage(err, "Failed to accept quote"));
       setPendingAccept(null);
     } finally {
       setAccepting(null);
@@ -116,7 +117,7 @@ export default function QuoteDetailPage() {
       setShowCancelModal(false);
       toast.success("Request cancelled — contractors who bid have been notified.");
     } catch (err: any) {
-      toast.error(err.message || "Failed to cancel request");
+      toast.error(errorMessage(err, "Failed to cancel request"));
     } finally {
       setCancelling(false);
     }
@@ -143,7 +144,7 @@ export default function QuoteDetailPage() {
       setUsage(null);
       toast.success("Contractors can no longer see your usage");
     } catch (err: any) {
-      toast.error(err.message || "Failed to stop sharing");
+      toast.error(errorMessage(err, "Failed to stop sharing"));
     } finally {
       setStoppingUsage(false);
     }

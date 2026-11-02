@@ -16,7 +16,13 @@ export type Quote = {
 
 export type QuoteStatus = { Rejected: null } | { Accepted: null } | { Expired: null } | { Pending: null };
 
-export type Error = { InvalidInput: string } | { NotFound: null } | { NotAuthorized: null };
+export type Error =
+  | { Paused: null }
+  | { InvalidInput: string }
+  | { NotFound: null }
+  | { NotAuthorized: null }
+  | { RateLimited: null }
+  | { Unavailable: string };
 
 export type UsageSummary = {
   asOf: string;

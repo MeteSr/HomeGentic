@@ -78,6 +78,8 @@ export const idlFactory = ({ IDL }: any) => {
     InvalidInput: IDL.Text,
     DuplicateAddress: IDL.Null,
     AddressConflict: IDL.Int,
+    RateLimited: IDL.Null,
+    Unavailable: IDL.Text,
   });
   const TransferRecord = IDL.Record({
     propertyId : IDL.Text,

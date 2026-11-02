@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { isValidEmail, isValidPhone } from "@/utils/validators";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -109,7 +110,7 @@ export default function ContractorProfilePage() {
     try {
       setLicenseCheck(await contractorService.checkMyLicense(existing.id));
     } catch (err: any) {
-      toast.error(err.message || "Couldn't check your licence just now.");
+      toast.error(errorMessage(err, "Couldn't check your licence just now."));
     } finally {
       setChecking(false);
     }
@@ -149,7 +150,7 @@ export default function ContractorProfilePage() {
       }
       navigate("/contractor-dashboard");
     } catch (err: any) {
-      toast.error(err.message || "Failed to save profile");
+      toast.error(errorMessage(err, "Failed to save profile"));
     } finally {
       setSaving(false);
     }

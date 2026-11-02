@@ -41,6 +41,9 @@ export const idlFactory = ({ IDL }: any) => {
     NotAuthorized:    IDL.Null,
     InvalidInput:     IDL.Text,
     TierLimitReached: IDL.Text,
+    Paused: IDL.Null,
+    RateLimited: IDL.Null,
+    Unavailable: IDL.Text,
   });
 
   const UsagePeriod = IDL.Record({

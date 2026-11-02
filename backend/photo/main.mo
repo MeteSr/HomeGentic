@@ -23,6 +23,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
+import Errors "../shared/Errors";
 
 persistent actor Photo {
 
@@ -104,12 +105,9 @@ persistent actor Photo {
     createdAt: Time.Time;
   };
 
-  public type Error = {
-    #NotFound;
-    #NotAuthorized;
+  public type Error = Errors.Common or {
     #QuotaExceeded: Text;
     #Duplicate: Text;     // payload is the existing photo ID
-    #InvalidInput: Text;
   };
 
   public type Metrics = {
@@ -326,9 +324,9 @@ persistent actor Photo {
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
-    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#InvalidInput("Canister is paused"));
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # maxUpdatesPerMin.toText() # " update calls per minute per principal."))
+      return #err(#RateLimited)
     };
     #ok(())
   };

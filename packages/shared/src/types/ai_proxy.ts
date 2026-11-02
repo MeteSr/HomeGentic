@@ -12,6 +12,7 @@ export type Error =
   | { NotAuthorized: null }
   | { RateLimited: null }
   | { KeyNotConfigured: null }
+  | { Unavailable: string }
   | { HttpError: string };
 
 export type KeyStatus = {

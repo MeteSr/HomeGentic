@@ -63,6 +63,9 @@ export const idlFactory = ({ IDL }: any) => {
     NotFound:     IDL.Null,
     NotAuthorized: IDL.Null,
     InvalidInput: IDL.Text,
+    Paused: IDL.Null,
+    RateLimited: IDL.Null,
+    Unavailable: IDL.Text,
   });
   const UsageCategory = IDL.Variant({ Electric: IDL.Null, Gas: IDL.Null, Water: IDL.Null });
   const UsageMonth = IDL.Record({
