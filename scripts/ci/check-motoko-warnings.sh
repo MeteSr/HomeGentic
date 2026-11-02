@@ -24,7 +24,8 @@ fail=0
 for main in backend/*/main.mo; do
   c=$(basename "$(dirname "$main")")
   # shellcheck disable=SC2086  # PKGS is a list of flags
-  out=$("$MOC" --check $PKGS --actor-idl did/ "$main" 2>&1 || true)
+  # Same warning set as mops.toml [moc] args.
+  out=$("$MOC" --check $PKGS --actor-idl did/ -W=M0223,M0236,M0237 "$main" 2>&1 || true)
   while IFS= read -r line; do
     code=$(grep -oE '\[M[0-9]+\]' <<<"$line" | tr -d '[]')
     # The identifier: M0244 names it in plain text, the others in backquotes.

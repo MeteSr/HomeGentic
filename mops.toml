@@ -7,3 +7,69 @@ moc = "1.16.1"
 
 [dependencies]
 core = "2.6.1"
+
+[moc]
+# --actor-idl: Candid files for `import "canister:<name>"`.
+# -W: also warn on redundant type instantiation (M0223), missed dot notation
+# (M0236) and redundant explicit arguments (M0237), as the mops-cli skill sets.
+args = ["--actor-idl", "did/", "-W=M0223,M0236,M0237"]
+
+[canisters.ai_proxy]
+main = "backend/ai_proxy/main.mo"
+
+[canisters.auth]
+main = "backend/auth/main.mo"
+
+[canisters.property]
+main = "backend/property/main.mo"
+
+[canisters.job]
+main = "backend/job/main.mo"
+
+[canisters.contractor]
+main = "backend/contractor/main.mo"
+
+[canisters.quote]
+main = "backend/quote/main.mo"
+
+[canisters.payment]
+main = "backend/payment/main.mo"
+
+[canisters.photo]
+main = "backend/photo/main.mo"
+
+[canisters.monitoring]
+main = "backend/monitoring/main.mo"
+
+[canisters.market]
+main = "backend/market/main.mo"
+
+[canisters.report]
+main = "backend/report/main.mo"
+
+[canisters.maintenance]
+main = "backend/maintenance/main.mo"
+
+[canisters.sensor]
+main = "backend/sensor/main.mo"
+
+[canisters.listing]
+main = "backend/listing/main.mo"
+
+[canisters.agent]
+main = "backend/agent/main.mo"
+
+[canisters.fee]
+main = "backend/fee/main.mo"
+
+[canisters.bills]
+main = "backend/bills/main.mo"
+
+[canisters.recurring]
+main = "backend/recurring/main.mo"
+
+[canisters.audit]
+main = "backend/audit/main.mo"
+
+[canisters.referrals]
+main = "backend/referrals/main.mo"
