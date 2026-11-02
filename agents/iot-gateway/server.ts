@@ -1068,6 +1068,8 @@ app.post("/oauth/device/register", deviceOAuthLimiter, async (req: Request, res:
   }
   const status = result.error === "NotAuthorized" ? 403
     : result.error === "AlreadyExists" ? 409
+    : result.error === "RateLimited" ? 429
+    : result.error === "Paused" || result.error.startsWith("Unavailable") ? 503
     : result.error.startsWith("InvalidInput") ? 400 : 502;
   logger.warn("oauth-device", "verified link refused", { reqId, error: result.error });
   res.status(status).json({ error: result.error });

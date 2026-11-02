@@ -9,13 +9,7 @@
  */
 
 /** Canister error tags every canister shares (backend/shared/Errors.mo). */
-export type CommonErrorTag =
-  | "NotAuthorized"
-  | "NotFound"
-  | "InvalidInput"
-  | "Paused"
-  | "RateLimited"
-  | "Unavailable";
+export type CommonErrorTag = "NotAuthorized" | "NotFound" | "InvalidInput" | "Paused" | "RateLimited" | "Unavailable";
 
 /** How a caller should treat the failure. */
 export type RetryPolicy =
