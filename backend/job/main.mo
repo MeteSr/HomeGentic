@@ -297,19 +297,9 @@ persistent actor Job {
     #ok(())
   };
 
-  /// Delegate property-ownership check to the property canister.
-  /// Falls back to direct principal comparison when propCanisterId is unset (local dev).
-  private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
-    if (Text.size(propCanisterId) > 0) {
-      let propActor = Canisters.property(propCanisterId);
-      try { await propActor.isAuthorized(propertyId, caller, requireWrite) } catch (_) { false }
-    } else {
-      caller == owner
-    }
-  };
-
-  /// checkPropertyAuth as a result, for methods that return one: a property
-  /// canister that didn't answer is #Unavailable, not an opaque reject (M-4).
+  /// Property-ownership check against the property canister (caller == owner
+  /// when it is not wired, local dev). A property canister
+  /// that didn't answer is #Unavailable, not an opaque reject (M-4).
   private func authorize(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async* Result.Result<(), Error> {
     if (propCanisterId == "") return if (caller == owner) #ok(()) else #err(#NotAuthorized);
     await* Canisters.authorize(propCanisterId, propertyId, caller, requireWrite)
@@ -458,7 +448,7 @@ persistent actor Job {
     if (optTooLong(sourceQuoteId, 100))            return #err(#InvalidInput("sourceQuoteId exceeds 100 characters"));
 
     // M-1: caller must have write access (owner / co-owner / manager) to the
-    // property. checkPropertyAuth falls back to "allowed" only when the
+    // property. authorize falls back to "allowed" only when the
     // property canister is not wired (local dev / isolated tests).
     if (not isAdmin(msg.caller)) {
       switch (await* authorize(propertyId, msg.caller, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
@@ -684,7 +674,7 @@ persistent actor Job {
 
         // Re-read fresh after the await above — a concurrent call (verifyJob,
         // linkContractor, another updateJobStatus) could have already mutated
-        // this job while this call was suspended waiting on checkPropertyAuth.
+        // this job while this call was suspended waiting on authorize.
         switch (jobs.get(jobId)) {
           case null { return #err(#NotFound) };
           case (?fresh) {
@@ -750,7 +740,7 @@ persistent actor Job {
 
         // Re-read fresh after the await above — a concurrent call could have
         // already verified or otherwise mutated this job while this call was
-        // suspended waiting on checkPropertyAuth.
+        // suspended waiting on authorize.
         switch (jobs.get(jobId)) {
           case null { return #err(#NotFound) };
           case (?fresh) {

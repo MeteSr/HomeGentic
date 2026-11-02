@@ -409,19 +409,9 @@ persistent actor Quote {
     true
   };
 
-  /// Delegate property-ownership check to the property canister.
-  /// Falls back to direct principal comparison when propCanisterId is unset (local dev).
-  private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
-    if (Text.size(propCanisterId) > 0) {
-      let propActor = Canisters.property(propCanisterId);
-      try { await propActor.isAuthorized(propertyId, caller, requireWrite) } catch (_) { false }
-    } else {
-      caller == owner
-    }
-  };
-
-  /// checkPropertyAuth as a result, for methods that return one: a property
-  /// canister that didn't answer is #Unavailable, not an opaque reject (M-4).
+  /// Property-ownership check against the property canister (caller == owner
+  /// when it is not wired, local dev). A property canister
+  /// that didn't answer is #Unavailable, not an opaque reject (M-4).
   private func authorize(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async* Result.Result<(), Error> {
     if (propCanisterId == "") return if (caller == owner) #ok(()) else #err(#NotAuthorized);
     await* Canisters.authorize(propCanisterId, propertyId, caller, requireWrite)
@@ -915,7 +905,7 @@ persistent actor Quote {
             // Re-read both maps fresh after the await above: a concurrent
             // acceptQuote/closeQuoteRequest/cancelQuoteRequest call could
             // have already mutated this request or quote while this call
-            // was suspended waiting on checkPropertyAuth. Validating against
+            // was suspended waiting on authorize. Validating against
             // the pre-await `req`/`q` snapshot would let two concurrent
             // accepts on the same request both pass.
             switch (requests.get(q.requestId)) {
@@ -1017,7 +1007,7 @@ persistent actor Quote {
 
         // Re-read fresh after the await above — a concurrent call could have
         // already accepted/closed/cancelled this request while this call was
-        // suspended waiting on checkPropertyAuth.
+        // suspended waiting on authorize.
         switch (requests.get(requestId)) {
           case null { return #err(#NotFound) };
           case (?freshReq) {
@@ -1064,7 +1054,7 @@ persistent actor Quote {
 
         // Re-read fresh after the await above — a concurrent call could have
         // already accepted/closed/cancelled this request while this call was
-        // suspended waiting on checkPropertyAuth.
+        // suspended waiting on authorize.
         switch (requests.get(requestId)) {
           case null { return #err(#NotFound) };
           case (?freshReq) {
