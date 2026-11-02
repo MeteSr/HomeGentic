@@ -97,13 +97,19 @@ module {
 
   /// Writes one entry to the audit canister, fire-and-forget: does nothing when
   /// `audit` isn't wired, and a failed call is printed, never thrown, so an
-  /// audit outage can't block the admin action being logged.
+  /// audit outage can't block the admin action being logged. The call is a
+  /// bounded wait (AUDIT_TIMEOUT_SECONDS): a stalled audit canister can't hold
+  /// the caller open, which would stop it from being stopped for an upgrade
+  /// (canister-security pitfall 12). A timed-out entry is lost, like any other
+  /// failed fire-and-forget write.
+  public let AUDIT_TIMEOUT_SECONDS : Nat32 = 60;
+
   public func auditLog(audit : ?Principal, source : Text, action : Text, subject : ?Principal, detail : Text) : async* () {
     switch (audit) {
       case null {};
       case (?id) {
         let a : Audit = actor (id.toText());
-        try { ignore await a.log(source, action, subject, detail) } catch _ { Debug.print("[" # source # "] fire-and-forget call failed") };
+        try { ignore await (with timeout = AUDIT_TIMEOUT_SECONDS) a.log(source, action, subject, detail) } catch _ { Debug.print("[" # source # "] fire-and-forget call failed") };
       };
     };
   };
