@@ -1863,4 +1863,17 @@ persistent actor Report {
       isPaused;
     }
   };
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    auditCanisterId := Canisters.envPrincipal<system>("audit", auditCanisterId);
+    propCanisterId := Canisters.envId<system>("property", propCanisterId);
+    sensorCanisterId := Canisters.envId<system>("sensor", sensorCanisterId);
+    riskJobCanisterId := Canisters.envId<system>("job", riskJobCanisterId);
+    marketCanisterId := Canisters.envId<system>("market", marketCanisterId);
+  };
+  syncCanisterIds<system>();
 }

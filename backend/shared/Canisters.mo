@@ -7,9 +7,32 @@
 
 import Debug     "mo:core/Debug";
 import Principal "mo:core/Principal";
+import Runtime   "mo:core/Runtime";
 import Errors "Errors";
 
 module {
+  /// M-5 (icp-cli pitfall 22): `icp deploy` stamps every canister's ID into
+  /// every canister's settings as `PUBLIC_CANISTER_ID:<name>`, refreshed on
+  /// each deploy. Each canister re-reads its siblings' IDs from these when it
+  /// is installed or upgraded, so a reinstall or a missed setter call heals on
+  /// the next deploy. When the variable is absent (dfx, PocketIC tests, or a
+  /// canister not in this environment) the stored ID, set by the setter
+  /// methods, stays as it is.
+  public func envId<system>(name : Text, current : Text) : Text {
+    switch (Runtime.envVar<system>("PUBLIC_CANISTER_ID:" # name)) {
+      case (?id) { if (id.size() > 0) id else current };
+      case null current;
+    }
+  };
+
+  /// `envId` for IDs held as a principal.
+  public func envPrincipal<system>(name : Text, current : ?Principal) : ?Principal {
+    switch (Runtime.envVar<system>("PUBLIC_CANISTER_ID:" # name)) {
+      case (?id) { if (id.size() > 0) ?Principal.fromText(id) else current };
+      case null current;
+    }
+  };
+
   /// Subscription tier, as `payment` returns it.
   public type Tier = { #Free; #Pro; #ContractorFree; #ContractorPro };
 

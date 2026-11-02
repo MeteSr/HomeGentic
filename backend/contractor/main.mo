@@ -1219,4 +1219,15 @@ persistent actor Contractor {
       isPaused;
     }
   };
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    jobCanisterId := Canisters.envId<system>("job", jobCanisterId);
+    quoteCanisterId := Canisters.envId<system>("quote", quoteCanisterId);
+    payCanisterId := Canisters.envId<system>("payment", payCanisterId);
+  };
+  syncCanisterIds<system>();
 }

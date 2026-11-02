@@ -21,6 +21,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
+import Canisters "../shared/Canisters";
 
 persistent actor Agent {
 
@@ -549,4 +550,13 @@ persistent actor Agent {
       isPaused;
     }
   };
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    listingCanisterId := Canisters.envId<system>("listing", listingCanisterId);
+  };
+  syncCanisterIds<system>();
 }

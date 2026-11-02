@@ -22,6 +22,7 @@ import RateLimit "../shared/RateLimit";
 import Admin "../shared/Admin";
 import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
+import Canisters "../shared/Canisters";
 
 persistent actor Monitoring {
 
@@ -1267,4 +1268,16 @@ persistent actor Monitoring {
   };
 
   ignore Timer.recurringTimer<system>(#nanoseconds STALE_CHECK_NS, checkStaleMetrics);
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    propCanisterId := Canisters.envId<system>("property", propCanisterId);
+    jobCanisterId := Canisters.envId<system>("job", jobCanisterId);
+    quoteCanisterId := Canisters.envId<system>("quote", quoteCanisterId);
+    paymentCanisterId := Canisters.envId<system>("payment", paymentCanisterId);
+  };
+  syncCanisterIds<system>();
 }

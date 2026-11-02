@@ -2000,4 +2000,19 @@ persistent actor Listing {
     };
     { totalRequests = requests.size(); openRequests = open; awardedRequests = awarded; totalProposals = proposals.size(); isPaused }
   };
+
+  // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
+
+  /// Re-read sibling IDs from icp-cli's PUBLIC_CANISTER_ID:<name> variables;
+  /// see Canisters.envId. Runs on install and on every upgrade.
+  func syncCanisterIds<system>() {
+    propCanisterId := Canisters.envId<system>("property", propCanisterId);
+    jobCanisterId := Canisters.envId<system>("job", jobCanisterId);
+    reportCanisterId := Canisters.envId<system>("report", reportCanisterId);
+    marketCanisterId := Canisters.envId<system>("market", marketCanisterId);
+    agentCanisterId := Canisters.envId<system>("agent", agentCanisterId);
+    feeCanisterId := Canisters.envId<system>("fee", feeCanisterId);
+    photoCanisterId := Canisters.envId<system>("photo", photoCanisterId);
+  };
+  syncCanisterIds<system>();
 }
