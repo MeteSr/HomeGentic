@@ -982,13 +982,7 @@ persistent actor Monitoring {
         else                                  #equal
       }
     );
-    var slice : [ErrorSummary] = [];
-    var index = 0;
-    for (item in all.values()) {
-      if (index >= from and index < from + limit) { slice := slice.concat([item]) };
-      index += 1;
-    };
-    slice
+    all.values().drop(from).take(limit).toArray()
   };
 
   private func resolveError(errors: Map.Map<Text, ErrorSummary>, fingerprint: Text) : Result.Result<(), Error> {
@@ -1033,7 +1027,7 @@ persistent actor Monitoring {
   // Server-side failures the user may never see: a Stripe webhook the Worker
   // could not apply, a transactional email Resend refused, a relay that could
   // not deliver. Reported by the Worker and relays (reporters), read hourly by
-  // scripts/check-ops-alerts.py from the Cycle Watchdog, which emails on any
+  // scripts/ops/check-ops-alerts.mjs from the Cycle Watchdog, which emails on any
   // unresolved one seen since its last run. errorType is the source
   // ("stripe-webhook", "email", "notifications-relay", ...).
 
