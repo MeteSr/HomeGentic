@@ -454,7 +454,7 @@ persistent actor Bills {
     if (msg.caller.isAnonymous()) return [];
     let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
     let roles : [?AccessRole] =
-      if (propCanisterId == "") [] else await* Canisters.accessRoles(propCanisterId, ids, msg.caller);
+      if (propCanisterId == "") [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
     let out = List.empty<BillRecord>();
     for (i in ids.keys()) {
       let shared_ = i < roles.size() and seesProperty(roles[i]);

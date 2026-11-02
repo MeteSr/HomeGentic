@@ -296,7 +296,7 @@ persistent actor Recurring {
     let admin = isAdmin(msg.caller);
     let localDev = Text.size(propCanisterId) == 0 and not admin;
     let roles : [?Canisters.AccessRole] =
-      if (admin or localDev) [] else await* Canisters.accessRoles(propCanisterId, ids, msg.caller);
+      if (admin or localDev) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
     let found = List.empty<RecurringService>();
     let logs  = List.empty<VisitLog>();
     for (i in ids.keys()) {

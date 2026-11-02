@@ -599,7 +599,7 @@ persistent actor Job {
     let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
     let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller) or Text.size(propCanisterId) == 0;
     let roles : [?Canisters.AccessRole] =
-      if (open) [] else await* Canisters.accessRoles(propCanisterId, ids, msg.caller);
+      if (open) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
     let out = List.empty<Job>();
     for (i in ids.keys()) {
       if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {

@@ -923,6 +923,7 @@ persistent actor Report {
       case (?p) { p };
     };
     if (prop.owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let level = levelText(prop.verificationLevel);
     // Allow-list the verified levels (reviewing-motoko T1): a level added
     // later stays unsigned until it is listed here.
     switch (prop.verificationLevel) { case (#Basic or #Premium) {}; case _ { return #err(#UnverifiedProperty) } };

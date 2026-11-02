@@ -54,12 +54,6 @@ module {
     catch _ { #err(#Unavailable(unavailable("property"))) }
   };
 
-  /// `property.getAccessRoles`, or no roles when the call is rejected, so a
-  /// list read shows nothing rather than failing.
-  public func accessRoles(propCanisterId : Text, propertyIds : [Text], caller : Principal) : async* [?AccessRole] {
-    try { await property(propCanisterId).getAccessRoles(propertyIds, caller) } catch _ { [] }
-  };
-
   /// `payment.getTierForPrincipal`, with a rejected call as `#Unavailable`.
   /// Callers decide the not-wired case themselves (most fail closed to Free).
   public func tierOf(payCanisterId : Text, p : Principal) : async* { #ok : Tier; #err : Errors.Common } {
