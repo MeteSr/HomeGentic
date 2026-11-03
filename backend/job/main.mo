@@ -602,8 +602,15 @@ persistent actor Job {
 
   /// Returns a lightweight snapshot of all jobs for a property, suitable for
   /// cross-canister consumption by the market canister's computePropertyScore.
-  public query func getJobSnapshotsForProperty(propertyId: Text) : async [JobSnapshot] {
-    Iter.toArray(Index.records(jobsByProperty, propertyId, jobs).map(
+  /// What a home owner paid is private: admins, trusted canisters (market) and
+  /// notifiers (the Home Pulse relay) get every job; anyone else gets only the
+  /// jobs they are the homeowner on, so a stranger gets [].
+  public query(msg) func getJobSnapshotsForProperty(propertyId: Text) : async [JobSnapshot] {
+    if (msg.caller.isAnonymous()) return [];
+    let all = isAdmin(msg.caller) or isTrustedCanister(msg.caller) or isNotifier(msg.caller);
+    Iter.toArray(Index.records(jobsByProperty, propertyId, jobs).filter(
+      func(j: Job) : Bool { all or j.homeowner == msg.caller }
+    ).map(
       func(j: Job) : JobSnapshot {
         {
           serviceType   = serviceTypeText(j.serviceType);

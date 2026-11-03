@@ -42,7 +42,7 @@
     "getPropertyYearBuilt(property)",
     "getVerificationLevel(property)"
   ],
-  "job": ["getJobSnapshotsForProperty(property)"],
+  "job": [],
   "contractor": [],
   "quote": ["getQuoteRequest(request)"],
   "payment": [],

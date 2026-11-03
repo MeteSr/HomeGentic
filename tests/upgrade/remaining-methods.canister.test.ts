@@ -11,6 +11,9 @@
  *  REM.4 listing: feed pages are capped and past-the-end pages are empty
  *  REM.5 job: getUnattestedJobIds lists only jobs signed through an
  *        unverified contractor profile
+ *  REM.6 job: a property's job snapshots (service, year, amount paid) are read
+ *        only by its homeowner and trusted canisters, and market still scores
+ *        from them
  *
  * Run: cd tests/upgrade && npx vitest run remaining-methods.canister.test.ts
  * (needs .dfx/local/canisters/<all>/<name>.wasm)
@@ -139,5 +142,43 @@ describe("methods with no earlier real-canister test", () => {
     ok(await as("job", owner).createJob(pid, "Paint", { Painting: null }, "Painted.", [], 0n, 0n, [], [], true, []));
     expect(await as("job", owner).getUnattestedJobIds(pid)).toEqual([]);
     expect(await as("job", owner).getUnattestedJobIds("no-such-home")).toEqual([]);
+  });
+
+  it("REM.6 job snapshots: the homeowner and market read them, another user doesn't", async () => {
+    const owner = await proUser();
+    const other = await proUser();
+    const pid = await home(owner);
+    const empty = await as("market", owner).computePropertyScore(pid);
+    ok(
+      await as("job", owner).createJob(
+        pid,
+        "Roof",
+        { Roofing: null },
+        "New roof.",
+        [],
+        1_500_000n,
+        0n,
+        [],
+        [],
+        true,
+        [],
+      ),
+    );
+
+    const mine = await as("job", owner).getJobSnapshotsForProperty(pid);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ serviceType: "Roofing", amountCents: 1_500_000n, isDiy: true });
+    expect(await as("job", other).getJobSnapshotsForProperty(pid)).toEqual([]);
+    expect(await as("job", createIdentity("rem-anon-ish")).getJobSnapshotsForProperty(pid)).toEqual([]);
+    // The Home Pulse relay reads them as a notifier.
+    const relay = createIdentity("rem-relay");
+    expect(await as("job", relay).getJobSnapshotsForProperty(pid)).toEqual([]);
+    ok(await as("job", admin).addNotifier(relay.getPrincipal()));
+    expect(await as("job", relay).getJobSnapshotsForProperty(pid)).toHaveLength(1);
+
+    // market reads them as a trusted canister, so the job moves the score.
+    const scored = await as("market", owner).computePropertyScore(pid);
+    expect(scored).toHaveLength(1);
+    expect(scored[0]).not.toEqual(empty[0]);
   });
 });
