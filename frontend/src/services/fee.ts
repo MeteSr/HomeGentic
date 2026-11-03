@@ -152,10 +152,7 @@ function createFeeService() {
         return f;
       }
       const res = await (await getActor()).waiveReferralFee(feeId, note);
-      if ("err" in res) {
-        const [k, v] = Object.entries(res.err)[0];
-        throw new Error(typeof v === "string" ? v : k);
-      }
+      if ("err" in res) throw canisterError(res.err);
       return fromRawReferralFee(res.ok);
     },
   };
