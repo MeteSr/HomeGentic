@@ -333,6 +333,8 @@ jobs:
       pull-requests: write   # allows posting the coverage comment on PRs
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # diff coverage needs the merge-base with the PR's base
 
       - uses: actions/setup-node@v7
         with:
@@ -347,6 +349,11 @@ jobs:
 
       - name: Unit tests with coverage
         run: cd frontend && npm run test:unit:coverage
+
+      - name: Diff coverage (80% of changed frontend lines run by a test)
+        if: github.event_name == 'pull_request'
+        run: |
+          node scripts/ci/diff-coverage.mjs --lcov frontend/coverage/lcov.info --base "origin/${{ github.base_ref }}" --threshold 80
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v7

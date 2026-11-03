@@ -8,6 +8,9 @@
 - [ ] Documentation update
 
 ## Testing
+Tests written first (TDD): <!-- name the new or changed test files, or say why none were needed -->
+
+- [ ] Each new behaviour or fix has a test that failed before the change
 - [ ] Backend tests pass (`make test`)
 - [ ] Frontend builds (`cd frontend && npm run build`)
 - [ ] Tested locally with dfx
