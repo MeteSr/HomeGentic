@@ -27,8 +27,11 @@ import { deployAll, wiringCalls, isIdSetter, type Deployment, type CanisterName 
 const ROOT = resolve(__dirname, "../..");
 
 type R<T> = { ok: T } | { err: Record<string, unknown> };
-const ok = <T,>(r: R<T>): T => {
-  if ("err" in r) throw new Error(`Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`);
+const ok = <T>(r: R<T>): T => {
+  if ("err" in r)
+    throw new Error(
+      `Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`,
+    );
   return r.ok;
 };
 const errOf = (r: R<unknown>) => ("err" in r ? Object.keys(r.err)[0] : "ok");
@@ -82,15 +85,23 @@ describe("canisters wired only through PUBLIC_CANISTER_ID variables", () => {
   }
   const register = (owner: Identity) =>
     as("property", owner).registerProperty({
-      address: `${++n} Variable Ave`, city: "Orlando", state: "FL", zipCode: "32801",
-      propertyType: { SingleFamily: null }, yearBuilt: 1998n, squareFeet: 1850n, tier: { Pro: null },
+      address: `${++n} Variable Ave`,
+      city: "Orlando",
+      state: "FL",
+      zipCode: "32801",
+      propertyType: { SingleFamily: null },
+      yearBuilt: 1998n,
+      squareFeet: 1850n,
+      tier: { Pro: null },
     });
 
   beforeAll(async () => {
     pic = await createPic();
     d = await deployAll(pic, admin, wasmPath, { envIds: true });
   });
-  afterAll(async () => { await pic?.tearDown(); });
+  afterAll(async () => {
+    await pic?.tearDown();
+  });
 
   it("ENV.2 property reads the tier from payment: Free stops at one home, Pro doesn't", async () => {
     const free = await user();
@@ -105,13 +116,49 @@ describe("canisters wired only through PUBLIC_CANISTER_ID variables", () => {
     const owner = await user("Pro");
     const pid = (ok(await register(owner)) as any).id;
     const stranger = await user("Pro");
-    ok(await as("job", owner).createJob(pid, "Water heater", { Plumbing: null }, "Replaced it.", [], 0n, 0n, [], [], true, []));
-    expect(errOf(await as("job", stranger).createJob(pid, "x", { Plumbing: null }, "x", [], 0n, 0n, [], [], true, []))).toBe("NotAuthorized");
-    ok(await as("bills", owner).addBill({
-      propertyId: pid, billType: { Electric: null }, provider: "Duke", periodStart: "2026-09-01",
-      periodEnd: "2026-09-30", amountCents: 12_000n, usageAmount: [], usageUnit: [],
-    }));
-    ok(await as("recurring", owner).createRecurringService(pid, { LawnCare: null }, "Green Co", [], [], { Monthly: null }, "2026-01-01", [], []));
+    ok(
+      await as("job", owner).createJob(
+        pid,
+        "Water heater",
+        { Plumbing: null },
+        "Replaced it.",
+        [],
+        0n,
+        0n,
+        [],
+        [],
+        true,
+        [],
+      ),
+    );
+    expect(
+      errOf(await as("job", stranger).createJob(pid, "x", { Plumbing: null }, "x", [], 0n, 0n, [], [], true, [])),
+    ).toBe("NotAuthorized");
+    ok(
+      await as("bills", owner).addBill({
+        propertyId: pid,
+        billType: { Electric: null },
+        provider: "Duke",
+        periodStart: "2026-09-01",
+        periodEnd: "2026-09-30",
+        amountCents: 12_000n,
+        usageAmount: [],
+        usageUnit: [],
+      }),
+    );
+    ok(
+      await as("recurring", owner).createRecurringService(
+        pid,
+        { LawnCare: null },
+        "Green Co",
+        [],
+        [],
+        { Monthly: null },
+        "2026-01-01",
+        [],
+        [],
+      ),
+    );
     ok(await as("maintenance", owner).createScheduleEntry(pid, "HVAC", "Annual service", 2027n, [3n], [20_000n]));
     ok(await as("quote", owner).createQuoteRequest(pid, { HVAC: null }, "AC out", { High: null }, [], [], [], [], []));
     ok(await as("market", owner).submitScore(pid));
@@ -123,7 +170,11 @@ describe("canisters wired only through PUBLIC_CANISTER_ID variables", () => {
     // Point property at the wrong payment canister (audit's id) through the setter fallback.
     ok(await as("property", admin).setPaymentCanisterId(d.ids.audit));
     expect(errOf(await register(pro))).not.toBe("ok");
-    await pic.upgradeCanister({ canisterId: d.ids.property, wasm: readFileSync(wasmPath("property")), sender: CONTROLLER.getPrincipal() });
+    await pic.upgradeCanister({
+      canisterId: d.ids.property,
+      wasm: readFileSync(wasmPath("property")),
+      sender: CONTROLLER.getPrincipal(),
+    });
     ok(await register(pro));
   });
 
@@ -131,13 +182,20 @@ describe("canisters wired only through PUBLIC_CANISTER_ID variables", () => {
     // An empty value keeps the stored ID (Canisters.envId), so deploying a new
     // canister later can't break the ones already running.
     await pic.updateCanisterSettings({
-      canisterId: d.ids.property, sender: CONTROLLER.getPrincipal(),
+      canisterId: d.ids.property,
+      sender: CONTROLLER.getPrincipal(),
       environmentVariables: [
-        ...Object.entries(d.ids).filter(([k]) => k !== "listing").map(([k, v]) => ({ name: `PUBLIC_CANISTER_ID:${k}`, value: (v as Principal).toText() })),
+        ...Object.entries(d.ids)
+          .filter(([k]) => k !== "listing")
+          .map(([k, v]) => ({ name: `PUBLIC_CANISTER_ID:${k}`, value: (v as Principal).toText() })),
         { name: "PUBLIC_CANISTER_ID:listing", value: "" },
       ],
     });
-    await pic.upgradeCanister({ canisterId: d.ids.property, wasm: readFileSync(wasmPath("property")), sender: CONTROLLER.getPrincipal() });
+    await pic.upgradeCanister({
+      canisterId: d.ids.property,
+      wasm: readFileSync(wasmPath("property")),
+      sender: CONTROLLER.getPrincipal(),
+    });
     ok(await register(await user("Pro")));
   });
 });

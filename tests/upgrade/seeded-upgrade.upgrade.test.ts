@@ -19,11 +19,15 @@ import { createPic, wasmPath, baseWasmPath, CONTROLLER } from "./__helpers__/set
 import { deployAll, type Deployment, type CanisterName } from "./__helpers__/deployAll";
 
 type R<T> = { ok: T } | { err: Record<string, unknown> };
-const ok = <T,>(r: R<T>): T => {
-  if ("err" in r) throw new Error(`Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`);
+const ok = <T>(r: R<T>): T => {
+  if ("err" in r)
+    throw new Error(
+      `Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`,
+    );
   return r.ok;
 };
-const norm = (x: unknown) => JSON.stringify(x, (_k, v) => (typeof v === "bigint" ? v.toString() : v?._isPrincipal ? v.toText() : v));
+const norm = (x: unknown) =>
+  JSON.stringify(x, (_k, v) => (typeof v === "bigint" ? v.toString() : v?._isPrincipal ? v.toText() : v));
 
 describe("hand-seeded upgrades from the base build", () => {
   let pic: PocketIc;
@@ -31,28 +35,44 @@ describe("hand-seeded upgrades from the base build", () => {
   const admin = createIdentity("seed-admin");
   const as = (name: CanisterName, who: Identity) => d.actor(name, who);
   const upgrade = (name: CanisterName) =>
-    pic.upgradeCanister({ canisterId: d.ids[name], wasm: readFileSync(wasmPath(name)), sender: CONTROLLER.getPrincipal() });
+    pic.upgradeCanister({
+      canisterId: d.ids[name],
+      wasm: readFileSync(wasmPath(name)),
+      sender: CONTROLLER.getPrincipal(),
+    });
 
   beforeAll(async () => {
     pic = await createPic();
     d = await deployAll(pic, admin, (n) => baseWasmPath(n) ?? wasmPath(n));
   });
-  afterAll(async () => { await pic?.tearDown(); });
+  afterAll(async () => {
+    await pic?.tearDown();
+  });
 
   it("SEED.1 agent profiles, verification and reviews survive", async () => {
     const agentId = createIdentity("seed-agent");
-    ok(await as("agent", agentId).register({
-      name: "Pat Realtor", brokerage: "Sun Realty", licenseNumber: "SL3412345", licenseState: "FL",
-      county: "Orange", serviceCities: ["Orlando"], bio: "Central Florida homes.", phone: "+14075550123", email: "pat@example.com",
-    }));
+    ok(
+      await as("agent", agentId).register({
+        name: "Pat Realtor",
+        brokerage: "Sun Realty",
+        licenseNumber: "SL3412345",
+        licenseState: "FL",
+        county: "Orange",
+        serviceCities: ["Orlando"],
+        bio: "Central Florida homes.",
+        phone: "+14075550123",
+        email: "pat@example.com",
+      }),
+    );
     ok(await as("agent", admin).verifyAgent(agentId.getPrincipal()));
-    const read = async () => norm({
-      mine: await as("agent", agentId).getMyProfile(),
-      all: await as("agent", admin).getAllProfiles(),
-      city: await as("agent", admin).getAgentsForCity("Orlando", 10n),
-      verified: await as("agent", admin).isVerifiedAgent(agentId.getPrincipal()),
-      reviews: await as("agent", admin).getReviews(agentId.getPrincipal()),
-    });
+    const read = async () =>
+      norm({
+        mine: await as("agent", agentId).getMyProfile(),
+        all: await as("agent", admin).getAllProfiles(),
+        city: await as("agent", admin).getAgentsForCity("Orlando", 10n),
+        verified: await as("agent", admin).isVerifiedAgent(agentId.getPrincipal()),
+        reviews: await as("agent", admin).getReviews(agentId.getPrincipal()),
+      });
     const before = await read();
     expect(before).toContain("Pat Realtor");
     expect(before).toContain('"verified":true');
@@ -63,21 +83,41 @@ describe("hand-seeded upgrades from the base build", () => {
   it("SEED.2 bills and recurring expenses survive", async () => {
     const owner = createIdentity("seed-owner");
     ok(await as("payment", admin).grantSubscription(owner.getPrincipal(), { Pro: null }));
-    const pid = ok<any>(await as("property", owner).registerProperty({
-      address: "9 Upgrade Row", city: "Orlando", state: "FL", zipCode: "32801",
-      propertyType: { SingleFamily: null }, yearBuilt: 1998n, squareFeet: 1850n, tier: { Pro: null },
-    })).id;
-    for (const [start, end, cents] of [["2026-07-01", "2026-07-31", 11_000n], ["2026-08-01", "2026-08-31", 12_500n]] as const) {
-      ok(await as("bills", owner).addBill({
-        propertyId: pid, billType: { Electric: null }, provider: "Duke", periodStart: start,
-        periodEnd: end, amountCents: cents, usageAmount: [], usageUnit: [],
-      }));
+    const pid = ok<any>(
+      await as("property", owner).registerProperty({
+        address: "9 Upgrade Row",
+        city: "Orlando",
+        state: "FL",
+        zipCode: "32801",
+        propertyType: { SingleFamily: null },
+        yearBuilt: 1998n,
+        squareFeet: 1850n,
+        tier: { Pro: null },
+      }),
+    ).id;
+    for (const [start, end, cents] of [
+      ["2026-07-01", "2026-07-31", 11_000n],
+      ["2026-08-01", "2026-08-31", 12_500n],
+    ] as const) {
+      ok(
+        await as("bills", owner).addBill({
+          propertyId: pid,
+          billType: { Electric: null },
+          provider: "Duke",
+          periodStart: start,
+          periodEnd: end,
+          amountCents: cents,
+          usageAmount: [],
+          usageUnit: [],
+        }),
+      );
     }
-    const read = async () => norm({
-      bills: await as("bills", owner).getBillsForProperty(pid),
-      batch: await as("bills", owner).getBillsForProperties([pid]),
-      expenses: await as("bills", owner).getRecurringExpensesForProperty(pid),
-    });
+    const read = async () =>
+      norm({
+        bills: await as("bills", owner).getBillsForProperty(pid),
+        batch: await as("bills", owner).getBillsForProperties([pid]),
+        expenses: await as("bills", owner).getRecurringExpensesForProperty(pid),
+      });
     const before = await read();
     expect(before).toContain("12500");
     await upgrade("bills");

@@ -41,7 +41,7 @@ const xrcIdl = ({ IDL: I }: { IDL: typeof IDL }) =>
   });
 
 type R<T> = { ok: T } | { err: Record<string, unknown> };
-const ok = <T,>(r: R<T>): T => {
+const ok = <T>(r: R<T>): T => {
   if ("err" in r) throw new Error(`Expected ok, got err: ${JSON.stringify(r.err)}`);
   return r.ok;
 };
@@ -62,10 +62,16 @@ describe("payment: paying in ICP", () => {
   let n = 0;
   const admin = createIdentity("sub-admin");
   const user = () => createIdentity(`sub-user-${++n}`);
-  const as = (who: Identity) => { pay.setIdentity(who); return pay; };
+  const as = (who: Identity) => {
+    pay.setIdentity(who);
+    return pay;
+  };
   const nowNs = async () => BigInt(await pic.getTime()) * 1_000_000n;
   /** Moves past the five-minute rate cache. */
-  const expireRate = async () => { await pic.advanceTime(6 * 60 * 1000); await pic.tick(); };
+  const expireRate = async () => {
+    await pic.advanceTime(6 * 60 * 1000);
+    await pic.tick();
+  };
   const reset = async () => {
     await ledger.setMode("ok");
     await xrc.setMode("ok");
@@ -81,33 +87,50 @@ describe("payment: paying in ICP", () => {
     const nns = await pic.getNnsSubnet();
     const ii = await pic.getInternetIdentitySubnet();
     const app = (await pic.getApplicationSubnets())[0];
-    ledger = (await pic.setupCanister({
-      idlFactory: ledgerIdl as any, wasm: wasmPath("mock_icp_ledger"),
-      targetCanisterId: LEDGER_ID, targetSubnetId: nns!.id,
-    })).actor;
-    xrc = (await pic.setupCanister({
-      idlFactory: xrcIdl as any, wasm: wasmPath("mock_xrc"),
-      targetCanisterId: XRC_ID, targetSubnetId: ii!.id,
-    })).actor;
-    const f = await pic.setupCanister({ idlFactory: paymentIdl as any, wasm: wasmPath("payment"), targetSubnetId: app.id });
-    paymentId = f.canisterId; pay = f.actor;
+    ledger = (
+      await pic.setupCanister({
+        idlFactory: ledgerIdl as any,
+        wasm: wasmPath("mock_icp_ledger"),
+        targetCanisterId: LEDGER_ID,
+        targetSubnetId: nns!.id,
+      })
+    ).actor;
+    xrc = (
+      await pic.setupCanister({
+        idlFactory: xrcIdl as any,
+        wasm: wasmPath("mock_xrc"),
+        targetCanisterId: XRC_ID,
+        targetSubnetId: ii!.id,
+      })
+    ).actor;
+    const f = await pic.setupCanister({
+      idlFactory: paymentIdl as any,
+      wasm: wasmPath("payment"),
+      targetSubnetId: app.id,
+    });
+    paymentId = f.canisterId;
+    pay = f.actor;
     await pay.setBootstrapNonce("n");
     ok(await as(admin).initAdmins([admin.getPrincipal()], "n"));
   });
 
-  afterAll(async () => { await pic?.tearDown(); });
+  afterAll(async () => {
+    await pic?.tearDown();
+  });
 
   it("SUB.1 quotes the USD price at the XRC rate plus 5%, and Free costs nothing", async () => {
-    await reset(); await expireRate();
+    await reset();
+    await expireRate();
     const u = user();
     expect(ok(await as(u).getPriceQuote({ Free: null }))).toBe(0n);
-    expect(ok(await as(u).getPriceQuote({ Pro: null }))).toBe(PRO_E8S * 105n / 100n);
+    expect(ok(await as(u).getPriceQuote({ Pro: null }))).toBe((PRO_E8S * 105n) / 100n);
     // ContractorPro is $40 a month.
-    expect(ok(await as(u).getPriceQuote({ ContractorPro: null }))).toBe(400_000_000n * 105n / 100n);
+    expect(ok(await as(u).getPriceQuote({ ContractorPro: null }))).toBe((400_000_000n * 105n) / 100n);
   });
 
   it("SUB.2 a paid subscribe pulls exactly the price from the caller to payment, once, for a year", async () => {
-    await reset(); await expireRate();
+    await reset();
+    await expireRate();
     const u = user();
     const before = (await ledger.getCalls()).length;
     const sub = ok(await as(u).subscribe({ Pro: null })) as any;
@@ -142,7 +165,9 @@ describe("payment: paying in ICP", () => {
       await ledger.setMode(mode);
       const r = await as(u).subscribe({ Pro: null });
       expect(errOf(r)).toBe("PaymentFailed");
-      expect(JSON.stringify((r as any).err)).toMatch(mode === "insufficient_allowance" ? /allowance/i : /Insufficient ICP/);
+      expect(JSON.stringify((r as any).err)).toMatch(
+        mode === "insufficient_allowance" ? /allowance/i : /Insufficient ICP/,
+      );
       expect(tierOf((ok(await as(u).getMySubscription()) as any).tier)).toBe("Free");
     }
   });
@@ -174,13 +199,15 @@ describe("payment: paying in ICP", () => {
   });
 
   it("SUB.5 a zero rate is refused instead of dividing by zero", async () => {
-    await reset(); await expireRate();
+    await reset();
+    await expireRate();
     await xrc.setRate(0n, 8);
     expect(errOf(await as(user()).getPriceQuote({ Pro: null }))).toBe("PaymentFailed");
   });
 
   it("SUB.6 the rate is fetched once per five minutes, with the XRC's 1B cycles attached", async () => {
-    await reset(); await expireRate();
+    await reset();
+    await expireRate();
     const start = await xrc.callCount();
     const u = user();
     ok(await as(u).getPriceQuote({ Pro: null }));
@@ -190,14 +217,15 @@ describe("payment: paying in ICP", () => {
     expect(await xrc.lastCyclesAttached()).toBe(1_000_000_000n);
     // A new rate isn't seen until the cache expires.
     await xrc.setRate(2_000_000_000n, 8);
-    expect(ok(await as(user()).getPriceQuote({ Pro: null }))).toBe(PRO_E8S * 105n / 100n);
+    expect(ok(await as(user()).getPriceQuote({ Pro: null }))).toBe((PRO_E8S * 105n) / 100n);
     await expireRate();
-    expect(ok(await as(user()).getPriceQuote({ Pro: null }))).toBe((PRO_E8S / 2n) * 105n / 100n);
+    expect(ok(await as(user()).getPriceQuote({ Pro: null }))).toBe(((PRO_E8S / 2n) * 105n) / 100n);
     expect(await xrc.callCount()).toBe(start + 2n);
   });
 
   it("SUB.7 two subscribes from one caller in the same round charge once", async () => {
-    await reset(); await expireRate();
+    await reset();
+    await expireRate();
     const u = user();
     const before = (await ledger.getCalls()).length;
     const results = await sameRound(pic, paymentIdl as any, paymentId, [

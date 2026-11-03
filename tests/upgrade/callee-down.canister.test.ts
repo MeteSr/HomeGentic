@@ -24,8 +24,11 @@ import { createPic, CONTROLLER } from "./__helpers__/setup";
 import { deployAll, type Deployment, type CanisterName } from "./__helpers__/deployAll";
 
 type R<T> = { ok: T } | { err: Record<string, unknown> };
-const ok = <T,>(r: R<T>): T => {
-  if ("err" in r) throw new Error(`Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`);
+const ok = <T>(r: R<T>): T => {
+  if ("err" in r)
+    throw new Error(
+      `Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`,
+    );
   return r.ok;
 };
 /** The error tag, "ok", or "rejected" when the call itself was rejected. */
@@ -35,7 +38,9 @@ async function outcome(p: Promise<any>): Promise<string> {
     if (r && typeof r === "object" && "err" in r) return Object.keys(r.err)[0];
     return "ok";
   } catch (e) {
-    return `rejected: ${String((e as Error).message).split("\n")[0].slice(0, 160)}`;
+    return `rejected: ${String((e as Error).message)
+      .split("\n")[0]
+      .slice(0, 160)}`;
   }
 }
 
@@ -53,13 +58,20 @@ describe("callers when a sibling canister is down", () => {
   }
   async function home(owner: Identity): Promise<string> {
     const r = await as("property", owner).registerProperty({
-      address: `${++n} Outage Way`, city: "Orlando", state: "FL", zipCode: "32801",
-      propertyType: { SingleFamily: null }, yearBuilt: 1998n, squareFeet: 1850n, tier: { Pro: null },
+      address: `${++n} Outage Way`,
+      city: "Orlando",
+      state: "FL",
+      zipCode: "32801",
+      propertyType: { SingleFamily: null },
+      yearBuilt: 1998n,
+      squareFeet: 1850n,
+      tier: { Pro: null },
     });
     return (ok(r) as any).id;
   }
   const stop = (name: CanisterName) => pic.stopCanister({ canisterId: d.ids[name], sender: CONTROLLER.getPrincipal() });
-  const start = (name: CanisterName) => pic.startCanister({ canisterId: d.ids[name], sender: CONTROLLER.getPrincipal() });
+  const start = (name: CanisterName) =>
+    pic.startCanister({ canisterId: d.ids[name], sender: CONTROLLER.getPrincipal() });
 
   /** Every write that asks property about the home first. */
   const homeWrites = (owner: Identity, pid: string): Record<string, () => Promise<any>> => ({
@@ -67,11 +79,27 @@ describe("callers when a sibling canister is down", () => {
       as("job", owner).createJob(pid, "Water heater", { Plumbing: null }, "Replaced it.", [], 0n, 0n, [], [], true, []),
     "bills.addBill": () =>
       as("bills", owner).addBill({
-        propertyId: pid, billType: { Electric: null }, provider: "Duke", periodStart: "2026-09-01",
-        periodEnd: "2026-09-30", amountCents: 12_000n, usageAmount: [], usageUnit: [],
+        propertyId: pid,
+        billType: { Electric: null },
+        provider: "Duke",
+        periodStart: "2026-09-01",
+        periodEnd: "2026-09-30",
+        amountCents: 12_000n,
+        usageAmount: [],
+        usageUnit: [],
       }),
     "recurring.createRecurringService": () =>
-      as("recurring", owner).createRecurringService(pid, { LawnCare: null }, "Green Co", [], [], { Monthly: null }, "2026-01-01", [], []),
+      as("recurring", owner).createRecurringService(
+        pid,
+        { LawnCare: null },
+        "Green Co",
+        [],
+        [],
+        { Monthly: null },
+        "2026-01-01",
+        [],
+        [],
+      ),
     "maintenance.createScheduleEntry": () =>
       as("maintenance", owner).createScheduleEntry(pid, "HVAC", "Annual service", 2027n, [3n], [20_000n]),
     "quote.createQuoteRequest": () =>
@@ -84,8 +112,26 @@ describe("callers when a sibling canister is down", () => {
     "report.generateReport": () =>
       as("report", owner).generateReport(
         pid,
-        { address: "ignored", city: "", state: "", zipCode: "", propertyType: "", yearBuilt: 0n, squareFeet: 0n, verificationLevel: "Premium" },
-        [], [], [], { Public: null }, [], [], [], [], [], [],
+        {
+          address: "ignored",
+          city: "",
+          state: "",
+          zipCode: "",
+          propertyType: "",
+          yearBuilt: 0n,
+          squareFeet: 0n,
+          verificationLevel: "Premium",
+        },
+        [],
+        [],
+        [],
+        { Public: null },
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
       ),
   });
 
@@ -93,7 +139,9 @@ describe("callers when a sibling canister is down", () => {
     pic = await createPic();
     d = await deployAll(pic, admin);
   });
-  afterAll(async () => { await pic?.tearDown(); });
+  afterAll(async () => {
+    await pic?.tearDown();
+  });
 
   it("DOWN.1 with property stopped, writes on a home answer #Unavailable and store nothing", async () => {
     const owner = await proUser();
@@ -136,10 +184,18 @@ describe("callers when a sibling canister is down", () => {
     const pid = await home(owner);
 
     await stop("payment");
-    const register = await outcome(as("property", owner).registerProperty({
-      address: `${++n} Outage Way`, city: "Orlando", state: "FL", zipCode: "32801",
-      propertyType: { SingleFamily: null }, yearBuilt: 2001n, squareFeet: 1500n, tier: { Pro: null },
-    }));
+    const register = await outcome(
+      as("property", owner).registerProperty({
+        address: `${++n} Outage Way`,
+        city: "Orlando",
+        state: "FL",
+        zipCode: "32801",
+        propertyType: { SingleFamily: null },
+        yearBuilt: 2001n,
+        squareFeet: 1500n,
+        tier: { Pro: null },
+      }),
+    );
     const invite = await outcome(as("property", owner).inviteManager(pid, { Manager: null }, "Morgan", []));
     await start("payment");
 

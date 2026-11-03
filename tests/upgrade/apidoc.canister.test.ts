@@ -37,14 +37,21 @@ describe("getApiDoc matches each exposed canister", () => {
     for (const name of EXPOSED) {
       const { idlFactory, initArgs } = serviceFromWasm(wasmPath(name));
       const svc = idlFactory({ IDL });
-      const arg = new Uint8Array(IDL.encode(initArgs, initArgs.map(() => admin.getPrincipal())));
+      const arg = new Uint8Array(
+        IDL.encode(
+          initArgs,
+          initArgs.map(() => admin.getPrincipal()),
+        ),
+      );
       const f = await pic.setupCanister({ idlFactory: (() => svc) as any, wasm: wasmPath(name), arg });
       f.actor.setIdentity(admin);
       docs[name] = await (f.actor as any).getApiDoc();
       methods[name] = svc._fields.map(([m]) => m).sort();
     }
   });
-  afterAll(async () => { await pic?.tearDown(); });
+  afterAll(async () => {
+    await pic?.tearDown();
+  });
 
   it("the manifest exposes the canisters the audit expects", () => {
     expect(EXPOSED.length).toBeGreaterThan(0);

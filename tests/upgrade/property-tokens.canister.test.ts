@@ -24,8 +24,11 @@ import { createPic } from "./__helpers__/setup";
 import { deployAll, type Deployment, type CanisterName } from "./__helpers__/deployAll";
 
 type R<T> = { ok: T } | { err: Record<string, unknown> };
-const ok = <T,>(r: R<T>): T => {
-  if ("err" in r) throw new Error(`Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`);
+const ok = <T>(r: R<T>): T => {
+  if ("err" in r)
+    throw new Error(
+      `Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`,
+    );
   return r.ok;
 };
 const errOf = (r: R<unknown>) => ("err" in r ? Object.keys(r.err)[0] : "ok");
@@ -45,17 +48,27 @@ describe("property: claim-page tokens and other reads", () => {
     return u;
   }
   async function home(owner: Identity): Promise<any> {
-    return ok(await as("property", owner).registerProperty({
-      address: `${++n} Token Street`, city: "Orlando", state: "FL", zipCode: "32801",
-      propertyType: { SingleFamily: null }, yearBuilt: 1998n, squareFeet: 1850n, tier: { Pro: null },
-    }));
+    return ok(
+      await as("property", owner).registerProperty({
+        address: `${++n} Token Street`,
+        city: "Orlando",
+        state: "FL",
+        zipCode: "32801",
+        propertyType: { SingleFamily: null },
+        yearBuilt: 1998n,
+        squareFeet: 1850n,
+        tier: { Pro: null },
+      }),
+    );
   }
 
   beforeAll(async () => {
     pic = await createPic();
     d = await deployAll(pic, admin);
   });
-  afterAll(async () => { await pic?.tearDown(); });
+  afterAll(async () => {
+    await pic?.tearDown();
+  });
 
   it("TOK.1 a transfer token shows the transfer and the home, with identity evidence blanked", async () => {
     const owner = await proUser();
@@ -87,7 +100,7 @@ describe("property: claim-page tokens and other reads", () => {
     expect(BigInt(pending.expiresAt)).toBeLessThan(BigInt(await pic.getTime()) * 1_000_000n);
     expect(await as("property", visitor).getPropertyByTransferToken(pt.token)).toEqual([]);
     expect(errOf(await as("property", buyer).claimTransfer(pt.token))).not.toBe("ok");
-    expect((ok<any>(await as("property", owner).getProperty(p.id))).owner.toText()).toBe(owner.getPrincipal().toText());
+    expect(ok<any>(await as("property", owner).getProperty(p.id)).owner.toText()).toBe(owner.getPrincipal().toText());
   });
 
   it("TOK.3 a cancelled transfer's token shows nothing", async () => {
@@ -127,7 +140,9 @@ describe("property: claim-page tokens and other reads", () => {
   it("TOK.5 getJobPropertyAddresses answers the job's homeowner and nobody else", async () => {
     const owner = await proUser();
     const p = await home(owner);
-    const job = ok<any>(await as("job", owner).createJob(p.id, "Roof", { Roofing: null }, "New roof.", [], 0n, 0n, [], [], true, []));
+    const job = ok<any>(
+      await as("job", owner).createJob(p.id, "Roof", { Roofing: null }, "New roof.", [], 0n, 0n, [], [], true, []),
+    );
     expect(await as("property", owner).getJobPropertyAddresses([job.id])).toEqual([
       { jobId: job.id, propertyId: p.id, address: p.address },
     ]);
@@ -139,8 +154,28 @@ describe("property: claim-page tokens and other reads", () => {
     const before = await as("property", visitor).getRoomMetrics();
     const owner = await proUser();
     const p = await home(owner);
-    const room = ok<any>(await as("property", owner).createRoom({ propertyId: p.id, name: "Kitchen", floorName: "Ground", floorType: "Tile", paintColor: "", paintBrand: "", paintCode: "", notes: "" }));
-    ok(await as("property", owner).addFixture(room.id, { brand: "Bosch", model: "SHX", serialNumber: "1", installedDate: "2020-01-01", warrantyExpiry: "", notes: "" }));
+    const room = ok<any>(
+      await as("property", owner).createRoom({
+        propertyId: p.id,
+        name: "Kitchen",
+        floorName: "Ground",
+        floorType: "Tile",
+        paintColor: "",
+        paintBrand: "",
+        paintCode: "",
+        notes: "",
+      }),
+    );
+    ok(
+      await as("property", owner).addFixture(room.id, {
+        brand: "Bosch",
+        model: "SHX",
+        serialNumber: "1",
+        installedDate: "2020-01-01",
+        warrantyExpiry: "",
+        notes: "",
+      }),
+    );
     const after = await as("property", visitor).getRoomMetrics();
     expect(after.totalRooms - before.totalRooms).toBe(1n);
     expect(after.totalFixtures - before.totalFixtures).toBe(1n);

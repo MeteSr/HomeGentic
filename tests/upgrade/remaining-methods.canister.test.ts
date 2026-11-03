@@ -23,8 +23,11 @@ import { createPic } from "./__helpers__/setup";
 import { deployAll, type Deployment, type CanisterName } from "./__helpers__/deployAll";
 
 type R<T> = { ok: T } | { err: Record<string, unknown> };
-const ok = <T,>(r: R<T>): T => {
-  if ("err" in r) throw new Error(`Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`);
+const ok = <T>(r: R<T>): T => {
+  if ("err" in r)
+    throw new Error(
+      `Expected ok, got err: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`,
+    );
   return r.ok;
 };
 const errOf = (r: R<unknown>) => ("err" in r ? Object.keys(r.err)[0] : "ok");
@@ -43,31 +46,54 @@ describe("methods with no earlier real-canister test", () => {
     return u;
   }
   async function home(owner: Identity): Promise<string> {
-    return ok<any>(await as("property", owner).registerProperty({
-      address: `${++n} Coverage Court`, city: "Orlando", state: "FL", zipCode: "32801",
-      propertyType: { SingleFamily: null }, yearBuilt: 1998n, squareFeet: 1850n, tier: { Pro: null },
-    })).id;
+    return ok<any>(
+      await as("property", owner).registerProperty({
+        address: `${++n} Coverage Court`,
+        city: "Orlando",
+        state: "FL",
+        zipCode: "32801",
+        propertyType: { SingleFamily: null },
+        yearBuilt: 1998n,
+        squareFeet: 1850n,
+        tier: { Pro: null },
+      }),
+    ).id;
   }
 
   beforeAll(async () => {
     pic = await createPic();
     d = await deployAll(pic, admin);
   });
-  afterAll(async () => { await pic?.tearDown(); });
+  afterAll(async () => {
+    await pic?.tearDown();
+  });
 
   it("REM.1 sensor's verified-only sources: admin-only, never Manual, and they gate direct registration", async () => {
     const owner = await proUser();
     const pid = await home(owner);
     ok(await as("sensor", admin).addGateway(gateway.getPrincipal()));
-    expect((await as("sensor", owner).getVerifiedOnlySources()).map((s: object) => Object.keys(s)[0])).toContain("Ecobee");
-    expect(errOf(await as("sensor", owner).registerDevice(pid, "eco-1", { Ecobee: null }, "Hall"))).toBe("InvalidInput");
+    expect((await as("sensor", owner).getVerifiedOnlySources()).map((s: object) => Object.keys(s)[0])).toContain(
+      "Ecobee",
+    );
+    expect(errOf(await as("sensor", owner).registerDevice(pid, "eco-1", { Ecobee: null }, "Hall"))).toBe(
+      "InvalidInput",
+    );
 
     expect(errOf(await as("sensor", owner).setVerifiedOnlySources([]))).toBe("NotAuthorized");
     expect(errOf(await as("sensor", admin).setVerifiedOnlySources([{ Manual: null }]))).toBe("InvalidInput");
     ok(await as("sensor", admin).setVerifiedOnlySources([{ HoneywellHome: null }]));
     ok(await as("sensor", owner).registerDevice(pid, "eco-1", { Ecobee: null }, "Hall"));
-    expect(errOf(await as("sensor", owner).registerDevice(pid, "hw-1", { HoneywellHome: null }, "Den"))).toBe("InvalidInput");
-    ok(await as("sensor", admin).setVerifiedOnlySources([{ Ecobee: null }, { HoneywellHome: null }, { LGThinQ: null }, { GESmartHQ: null }]));
+    expect(errOf(await as("sensor", owner).registerDevice(pid, "hw-1", { HoneywellHome: null }, "Den"))).toBe(
+      "InvalidInput",
+    );
+    ok(
+      await as("sensor", admin).setVerifiedOnlySources([
+        { Ecobee: null },
+        { HoneywellHome: null },
+        { LGThinQ: null },
+        { GESmartHQ: null },
+      ]),
+    );
   });
 
   it("REM.2 completeOnboarding marks a registered user and ignores an unregistered one", async () => {
@@ -75,9 +101,9 @@ describe("methods with no earlier real-canister test", () => {
     await as("auth", u).completeOnboarding();
     expect(errOf(await as("auth", u).getProfile())).toBe("NotFound");
     ok(await as("auth", u).register({ role: { Homeowner: null }, email: "o@example.com", phone: "" }));
-    expect((ok<any>(await as("auth", u).getProfile())).onboardingComplete).not.toEqual([true]);
+    expect(ok<any>(await as("auth", u).getProfile()).onboardingComplete).not.toEqual([true]);
     await as("auth", u).completeOnboarding();
-    expect((ok<any>(await as("auth", u).getProfile())).onboardingComplete).toEqual([true]);
+    expect(ok<any>(await as("auth", u).getProfile()).onboardingComplete).toEqual([true]);
 
     expect(await as("auth", u).isAdminPrincipal(admin.getPrincipal())).toBe(true);
     expect(await as("auth", u).isAdminPrincipal(u.getPrincipal())).toBe(false);
