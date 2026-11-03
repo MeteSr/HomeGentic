@@ -21,6 +21,7 @@
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
 import { wellKnownFiles } from "./appLinks.mjs";
+import { discoveryFiles } from "./icArchitecture.mjs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -176,6 +177,26 @@ if (Object.keys(wellKnown).length) {
     block(`/.well-known/${name}`, { "Content-Type": "application/json" });
   }
   console.log(`[gen-ic-assets] wrote .well-known/${Object.keys(wellKnown).join(", .well-known/")}`);
+}
+
+// ICP MCP: the canister manifest and the II derivation origin, for deployed
+// builds only (scripts/icArchitecture.mjs; publishing the manifest accepts the
+// ICP MCP App Operator Terms). Extension-less, so the media type is set here.
+let discovery;
+try {
+  discovery = discoveryFiles(env);
+} catch (e) {
+  console.error(`[gen-ic-assets] FATAL: ${e.message}`);
+  process.exit(1);
+}
+if (Object.keys(discovery).length) {
+  mkdirSync(resolve(DIST, ".well-known"), { recursive: true });
+  for (const [name, body] of Object.entries(discovery)) {
+    writeFileSync(resolve(DIST, ".well-known", name), body);
+  }
+  block("/.well-known/ic-architecture", { "Content-Type": "application/json" });
+  block("/.well-known/ii-derivation-origin", { "Content-Type": "text/plain" });
+  console.log("[gen-ic-assets] wrote .well-known/ic-architecture, .well-known/ii-derivation-origin");
 }
 
 const outPath = resolve(DIST, "_headers");

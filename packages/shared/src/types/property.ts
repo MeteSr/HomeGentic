@@ -197,6 +197,7 @@ export interface _SERVICE {
     [string[], Principal],
     Array<[] | [{ CoOwner: null } | { Viewer: null } | { NoAccess: null } | { Owner: null } | { Manager: null }]>
   >;
+  getApiDoc: ActorMethod<[], string>;
   getApprovals: ActorMethod<[string], { ok: PendingApprovalRequest[] } | { err: Error }>;
   getJobPropertyAddresses: ActorMethod<
     [string[]],

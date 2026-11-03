@@ -53,6 +53,7 @@ addRecurringExpense(2) -> (1)
 deleteBill(1) -> (1)
 deleteMyData(0) -> (1)
 deleteRecurringExpense(1) -> (1)
+getApiDoc(0) -> (1) [query]
 getBillsForProperties(1) -> (1) [composite_query]
 getBillsForProperty(1) -> (1)
 getRecurringExpensesForProperty(1) -> (1)
@@ -67,6 +68,7 @@ addNotifier(1) -> (1)
 createOrLinkGuestProfile(7) -> (1)
 deleteMyData(0) -> (1)
 getAll(0) -> (1) [query]
+getApiDoc(0) -> (1) [query]
 getBySpecialty(1) -> (1) [query]
 getContractor(1) -> (1) [query]
 getContractorEmail(1) -> (1) [composite_query]
@@ -103,6 +105,7 @@ createJob(11) -> (1)
 createJobProposal(9) -> (1)
 deleteMyData(0) -> (1)
 dismissEmailDraft(1) -> (1)
+getApiDoc(0) -> (1) [query]
 getCertificationData(1) -> (1) [query]
 getJob(1) -> (1) [query]
 getJobByInviteToken(1) -> (1) [query]
@@ -202,6 +205,7 @@ withdrawProposal(1) -> (1)"
 exports[`Candid contract snapshots — method arity > maintenance 1`] = `
 "createScheduleEntry(6) -> (1)
 deleteMyData(0) -> (1)
+getApiDoc(0) -> (1) [query]
 getScheduleByProperty(1) -> (1)
 markCompleted(1) -> (1)"
 `;
@@ -288,6 +292,7 @@ dismissNotifications(1) -> (1)
 findPropertiesByAddress(1) -> (1) [query]
 getAccessRole(2) -> (1) [query]
 getAccessRoles(2) -> (1) [query]
+getApiDoc(0) -> (1) [query]
 getApprovals(1) -> (1) [query]
 getJobPropertyAddresses(1) -> (1)
 getManagerInviteByToken(1) -> (1) [query]
@@ -336,6 +341,7 @@ closeQuoteRequest(1) -> (1)
 createQuoteRequest(9) -> (1)
 createSealedBidRequest(10) -> (1)
 deleteMyData(0) -> (1)
+getApiDoc(0) -> (1) [query]
 getIbePublicKey(0) -> (1)
 getLocalPriceStats(2) -> (1) [query]
 getMyBid(1) -> (1) [query]
@@ -362,6 +368,7 @@ exports[`Candid contract snapshots — method arity > recurring 1`] = `
 attachContractDoc(2) -> (1)
 createRecurringService(9) -> (1)
 deleteMyData(0) -> (1)
+getApiDoc(0) -> (1) [query]
 getByProperty(1) -> (1)
 getMetrics(0) -> (1) [query]
 getRecurringService(1) -> (1)
@@ -376,6 +383,7 @@ findPublicReport(1) -> (1) [query]
 generateReport(12) -> (1)
 generateRiskProfile(3) -> (1)
 getAllowPublicReports(0) -> (1) [query]
+getApiDoc(0) -> (1) [query]
 getAttestationKey(0) -> (1) [query]
 getBillsSummary(1) -> (1) [query]
 getCertAttestation(1) -> (1) [query]

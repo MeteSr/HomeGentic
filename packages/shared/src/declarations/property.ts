@@ -169,6 +169,7 @@ export const idlFactory = ({ IDL }: any) => {
   });
 
   return IDL.Service({
+    getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
     getRoomsByProperty: IDL.Func([IDL.Text], [IDL.Vec(RoomRecord)], ["query"]),
     registerProperty: IDL.Func([RegisterArgs], [IDL.Variant({ ok: Property, err: Error })], []),
     getMyProperties: IDL.Func([], [IDL.Vec(Property)], ["query"]),

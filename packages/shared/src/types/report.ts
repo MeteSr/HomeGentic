@@ -198,6 +198,7 @@ export interface _SERVICE {
   >;
   generateRiskProfile: ActorMethod<[string, [] | [bigint], string], { ok: RiskProfile } | { err: RiskProfileError }>;
   getAllowPublicReports: ActorMethod<[], boolean>;
+  getApiDoc: ActorMethod<[], string>;
   getAttestationKey: ActorMethod<
     [],
     | []

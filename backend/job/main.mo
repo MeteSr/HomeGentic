@@ -32,6 +32,7 @@ import Score "../shared/Score";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
+import ApiDoc "ApiDoc";
 
 persistent actor Job {
 
@@ -2037,6 +2038,11 @@ persistent actor Job {
       errorsByMethod = errsByMethod.entries().toArray();
     }
   };
+
+  /// A guide for AI assistants and other integrators to how this canister
+  /// behaves: units, auth, what can't be undone, fees (service-discoverability
+  /// skill, Layer 3; read through ICP MCP). Text in ./ApiDoc.mo.
+  public query func getApiDoc() : async Text { ApiDoc.text() };
 
   // ─── Sibling canister IDs (M-5) ─────────────────────────────────────────────
 

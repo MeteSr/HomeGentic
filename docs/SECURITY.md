@@ -101,6 +101,17 @@ All canisters use `persistent actor` — the Motoko compiler makes every
 module-level variable implicitly stable. No `preupgrade`/`postupgrade` hooks
 are needed (and none exist). The SEC.6/PROD.6 test suite verifies this.
 
+## AI Assistants (ICP MCP)
+
+Through ICP MCP (see ARCHITECTURE.md), an AI assistant can call the canisters listed in
+`/.well-known/ic-architecture` as the signed-in user, with that user's own per-app Internet Identity
+principal. Treat it like any other client: each method's own access check is the only boundary, and
+rate limits and tier limits apply as usual. Prompt injection in data a user stores (a job description,
+a review) can reach an assistant that reads it, so methods that change state must keep checking
+ownership rather than trusting what a caller was told. The fastest way to cut off assistant access in
+an incident is to redeploy the frontend built with `ICP_MCP_DISABLED=1`, which leaves the manifest out.
+ICP MCP stops new reads and calls once it sees the file is gone.
+
 ## Controller Hardening
 
 The deploying identity is the sole controller after `scripts/deploy.sh`.

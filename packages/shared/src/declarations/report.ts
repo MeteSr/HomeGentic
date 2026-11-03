@@ -156,6 +156,7 @@ export const idlFactory = ({ IDL }: any) => {
     signedAt:  IDL.Int,
   });
   return IDL.Service({
+    getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
     // Params 1-6 match the original interface; 7-12 are new trailing opt args.
     generateReport: IDL.Func(
       [IDL.Text, PropertyInput, IDL.Vec(JobInput), IDL.Vec(RecurringServiceInput),

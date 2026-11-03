@@ -31,6 +31,7 @@ export interface _SERVICE {
     { ok: ScheduleEntry } | { err: Error }
   >;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
+  getApiDoc: ActorMethod<[], string>;
   getScheduleByProperty: ActorMethod<[string], ScheduleEntry[]>;
   markCompleted: ActorMethod<[string], { ok: ScheduleEntry } | { err: Error }>;
 }

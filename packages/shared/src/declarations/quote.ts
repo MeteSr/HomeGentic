@@ -82,6 +82,7 @@ export const idlFactory = ({ IDL }: any) => {
   const UnitResult = IDL.Variant({ ok: IDL.Null, err: Error });
 
   return IDL.Service({
+    getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
     attachUsageSummary: IDL.Func([IDL.Text, UsageSummary], [UnitResult], []),
     removeUsageSummary: IDL.Func([IDL.Text], [UnitResult], []),
     getUsageSummary:    IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Opt(UsageSummary), err: Error })], []),

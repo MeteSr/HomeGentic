@@ -449,6 +449,15 @@ exports[`bills IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; TierLimitReached:text; Unavailable:text}}",
     ],
   },
+  "getApiDoc": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
+    ],
+  },
   "getBillsForProperties": {
     "args": [
       "vec text",
@@ -560,6 +569,15 @@ exports[`contractor IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {id:principal; bio:opt text; serviceArea:opt text; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; name:text; createdAt:int; origin:variant {GuestSigned:text; SelfRegistered}; trustScore:nat; email:text; isVerified:bool; licenseNumber:opt text; specialties:vec variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; notifyPush:opt bool; notifyEmail:opt text; phone:text}",
+    ],
+  },
+  "getApiDoc": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
     ],
   },
   "getBySpecialty": {
@@ -874,6 +892,15 @@ exports[`contractor IDL factory — notification preferences (#279) > Contractor
     ],
     "rets": [
       "vec record {id:principal; bio:opt text; serviceArea:opt text; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; name:text; createdAt:int; origin:variant {GuestSigned:text; SelfRegistered}; trustScore:nat; email:text; isVerified:bool; licenseNumber:opt text; specialties:vec variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; notifyPush:opt bool; notifyEmail:opt text; phone:text}",
+    ],
+  },
+  "getApiDoc": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
     ],
   },
   "getBySpecialty": {
@@ -1219,6 +1246,15 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
+  "getApiDoc": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
     ],
   },
   "getCertificationData": {
@@ -2185,6 +2221,15 @@ exports[`maintenance IDL factory > full signature snapshot 1`] = `
       "variant {ok:nat; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
     ],
   },
+  "getApiDoc": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
+    ],
+  },
   "getScheduleByProperty": {
     "args": [
       "text",
@@ -2744,6 +2789,15 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "vec opt variant {CoOwner; Viewer; NoAccess; Owner; Manager}",
     ],
   },
+  "getApiDoc": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
+    ],
+  },
   "getApprovals": {
     "args": [
       "text",
@@ -3234,6 +3288,15 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "variant {ok:nat; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
     ],
   },
+  "getApiDoc": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
+    ],
+  },
   "getIbePublicKey": {
     "args": [],
     "mode": [],
@@ -3482,6 +3545,15 @@ exports[`report IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "bool",
+    ],
+  },
+  "getApiDoc": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
     ],
   },
   "getAttestationKey": {

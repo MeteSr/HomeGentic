@@ -203,6 +203,7 @@ describe("job IDL factory", () => {
       "createJobProposal",
       "deleteMyData",
       "dismissEmailDraft",
+      "getApiDoc",
       "getCertificationData",
       "getJob",
       "getJobByInviteToken",
@@ -240,6 +241,7 @@ describe("job IDL factory", () => {
       .map(([name]) => name)
       .sort();
     expect(queries).toEqual([
+      "getApiDoc",
       "getCertificationData",
       "getJob",
       "getJobByInviteToken",
@@ -277,6 +279,7 @@ describe("property IDL factory", () => {
       "findPropertiesByAddress",
       "getAccessRole",
       "getAccessRoles",
+      "getApiDoc",
       "getApprovals",
       "getJobPropertyAddresses",
       "getManagerInviteByToken",
@@ -328,6 +331,7 @@ describe("property IDL factory", () => {
       "findPropertiesByAddress",
       "getAccessRole",
       "getAccessRoles",
+      "getApiDoc",
       "getApprovals",
       "getManagerInviteByToken",
       "getMyManagedProperties",
@@ -514,6 +518,7 @@ describe("quote IDL factory", () => {
       "createQuoteRequest",
       "createSealedBidRequest",
       "deleteMyData",
+      "getApiDoc",
       "getIbePublicKey",
       "getLocalPriceStats",
       "getMyBid",
@@ -543,6 +548,7 @@ describe("quote IDL factory", () => {
       .map(([name]) => name)
       .sort();
     expect(queries).toEqual([
+      "getApiDoc",
       "getLocalPriceStats",
       "getMyBid",
       "getMyQuoteRequests",
@@ -586,6 +592,7 @@ describe("contractor IDL factory", () => {
       "createOrLinkGuestProfile",
       "deleteMyData",
       "getAll",
+      "getApiDoc",
       "getBySpecialty",
       "getContractor",
       "getContractorEmail",
@@ -623,6 +630,7 @@ describe("contractor IDL factory", () => {
       .sort();
     expect(queries).toEqual([
       "getAll",
+      "getApiDoc",
       "getBySpecialty",
       "getContractor",
       "getCredentials",
@@ -708,6 +716,7 @@ describe("report IDL factory", () => {
       "generateReport",
       "generateRiskProfile",
       "getAllowPublicReports",
+      "getApiDoc",
       "getAttestationKey",
       "getBillsSummary",
       "getCertAttestation",
@@ -796,6 +805,7 @@ describe("maintenance IDL factory", () => {
     expect(Object.keys(svc).sort()).toEqual([
       "createScheduleEntry",
       "deleteMyData",
+      "getApiDoc",
       "getScheduleByProperty",
       "markCompleted",
     ]);
@@ -828,6 +838,7 @@ describe("bills IDL factory", () => {
       "deleteBill",
       "deleteMyData",
       "deleteRecurringExpense",
+      "getApiDoc",
       "getBillsForProperties",
       "getBillsForProperty",
       "getRecurringExpensesForProperty",
@@ -845,12 +856,12 @@ describe("bills IDL factory", () => {
     expect(svc.addRecurringExpense.args[1]).toMatch(/endDate:opt/i);
   });
 
-  it("only metrics is a query (reads go through update for tier-gated filtering)", () => {
+  it("only getApiDoc and metrics are queries (reads go through update for tier-gated filtering)", () => {
     const svc = extractService(billsIdlFactory);
     const queries = Object.entries(svc)
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name);
-    expect(queries).toEqual(["metrics"]);
+    expect(queries).toEqual(["getApiDoc", "metrics"]);
   });
 
   it("getUsageTrend BillType arg is a Variant (not Text)", () => {

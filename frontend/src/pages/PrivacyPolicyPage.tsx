@@ -130,6 +130,7 @@ const SECTIONS: Section[] = [
             </tbody>
           </table>
         </div>
+        <p><strong>AI assistants you connect.</strong> HomeGentic is available through ICP MCP, a connector run by the DFINITY Foundation that lets AI assistants such as ChatGPT and Claude work with Internet Computer apps. If you connect one and sign in with Internet Identity, the assistant can read your HomeGentic records and, if you allow actions, make changes as you, with the same access you have in the app. What it reads goes to that assistant's provider and is handled under their privacy policy and ICP MCP's. You can revoke the connection at any time in Internet Identity's settings. We don't connect any assistant for you.</p>
         <p>Each company handles this data under its own privacy policy. Public map and permit services receive only an address. We may also disclose information when required by law, to protect the safety of our users or the public, or as part of a merger or acquisition, in which case we will tell you before your data becomes subject to a different privacy policy.</p>
       </>
     ),

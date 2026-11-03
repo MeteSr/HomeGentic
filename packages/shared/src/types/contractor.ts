@@ -160,6 +160,7 @@ export interface _SERVICE {
   >;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   getAll: ActorMethod<[], ContractorProfile[]>;
+  getApiDoc: ActorMethod<[], string>;
   getBySpecialty: ActorMethod<[ServiceType], ContractorProfile[]>;
   getContractor: ActorMethod<[Principal], { ok: ContractorProfile } | { err: Error }>;
   getContractorEmail: ActorMethod<[Principal], { ok: string } | { err: Error }>;
