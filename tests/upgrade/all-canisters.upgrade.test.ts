@@ -1,7 +1,7 @@
 /**
  * Every canister survives an upgrade from the base branch with its data.
  *
- * from-base.upgrade.test.ts checks six canisters in depth with hand-written
+ * from-base.upgrade.test.ts and seeded-upgrade.upgrade.test.ts check canisters in depth with hand-written
  * data. This one covers all twenty generically, so a canister nobody wrote an
  * upgrade test for is still upgraded with state in it:
  *
@@ -106,9 +106,17 @@ describe("every canister keeps its data across an upgrade", () => {
     await pic.tearDown();
   }, 180_000);
 
-  // Generic writes can't satisfy every canister's input checks (some need a
-  // registered profile or a wired canister first), but they must reach most.
-  it("the generic writes stored data in most canisters", () => {
-    expect(seeded.length).toBeGreaterThanOrEqual(12);
+  // Generic writes can't satisfy every canister's input checks. The ones they
+  // can't seed are named here and seeded by hand elsewhere, so none upgrades
+  // empty without anyone noticing.
+  const SEEDED_ELSEWHERE: Record<string, string> = {
+    agent: "seeded-upgrade.upgrade.test.ts (needs a valid licence profile)",
+    bills: "seeded-upgrade.upgrade.test.ts (needs a wired property and a Pro owner)",
+    photo: "from-base.upgrade.test.ts (needs a job on a wired property)",
+  };
+  it("the generic writes stored data in every canister not seeded by hand elsewhere", () => {
+    const expected = CANISTERS.filter((c) => !(c in SEEDED_ELSEWHERE));
+    expect([...seeded].sort()).toEqual(expect.arrayContaining(expected));
+    expect(expected.filter((c) => !seeded.includes(c))).toEqual([]);
   });
 });
