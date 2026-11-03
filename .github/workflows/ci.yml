@@ -164,6 +164,10 @@ jobs:
 
       - name: Run upgrade tests
         run: cd tests/upgrade && npm test
+        env:
+          # candid-compat.upgrade.test.ts: a deliberate interface break (every
+          # client updated first) is reported instead of failing.
+          ALLOW_CANDID_BREAK: ${{ contains(github.event.pull_request.labels.*.name, 'allow-candid-break') && '1' || '' }}
 
   test-backend:
     runs-on: ubuntu-latest
