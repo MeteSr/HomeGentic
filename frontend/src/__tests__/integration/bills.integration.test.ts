@@ -32,9 +32,6 @@ const deployed = !!CANISTER_ID;
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-// Unique per test-run — prevents state bleed across runs on the same replica
-const RUN_ID = Date.now();
-
 // With the property canister wired, bills refuses a property id nobody
 // registered (#NotFound), so each label gets a real property of the test
 // identity, registered on first use.
