@@ -1603,8 +1603,10 @@ persistent actor Property {
     // registerProperty(). Existing managers/invites from before this gate keep
     // working; only granting a *new* invite is blocked on Free/Basic.
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
-      let payActor = Canisters.payment(payCanisterId);
-      await payActor.getTierForPrincipal(msg.caller)
+      switch (await* Canisters.tierOf(payCanisterId, msg.caller)) {
+        case (#ok(t)) t;
+        case (#err(e)) return #err(e);   // payment didn't answer: #Unavailable
+      }
     } else {
       #Free  // payment canister not wired: no tier source, fail closed
     };
