@@ -188,25 +188,35 @@ export default defineConfig(({ mode, command }) => {
       },
       coverage: {
         provider: "istanbul",
+        allowExternal: true, // ../packages/shared is outside the Vite root
         // Widened from src/services/** only — that scope let hooks/, components/,
         // pages/, and contexts/ (185 files, the bulk of the app's actual user-facing
         // logic) go completely unmeasured and ungated by CI. Thresholds below are
         // the real measured baseline at widen-time (rounded down a few points so
         // routine changes don't flake the gate); raise them as coverage improves,
         // never lower them to make a PR pass.
-        include: ["src/{services,hooks,components,pages,contexts}/**/*.{ts,tsx}"],
+        // store/, utils/ and packages/shared joined 2026-11-03 (test-gap audit M3);
+        // shared's Candid declarations and generated types are data, not logic.
+        include: [
+          "src/{services,hooks,components,pages,contexts,store,utils}/**/*.{ts,tsx}",
+          "../packages/shared/src/**/*.ts",
+        ],
         exclude: [
           "src/services/actor.ts",       // ICP transport layer — not unit-testable
           "src/services/agentTools.ts",  // Claude API schema definitions — not unit-testable
           "src/services/index.ts",       // Re-export barrel — no logic to test
+          "../packages/shared/src/declarations/**",
+          "../packages/shared/src/types/**",
         ],
         reporter: ["text", "html", "lcov", "json-summary"],   // terminal + browsable HTML + CI/tooling + PR comments
         reportsDirectory: "./coverage",
         thresholds: {
-          lines:      74,
-          functions:  66,
-          branches:   65,
-          statements: 71,
+          // Re-measured 2026-11-03 with store/, utils/ and packages/shared in:
+          // 76.89 / 68.47 / 67.09 / 73.93.
+          lines:      76,
+          functions:  68,
+          branches:   66,
+          statements: 73,
         },
       },
     },
