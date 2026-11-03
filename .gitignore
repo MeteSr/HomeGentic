@@ -54,3 +54,5 @@ Thumbs.db
 .claude/worktrees/*
 !.claude/worktrees/.gitignore
 agents/voice/coverage/
+agents/notifications/coverage/
+agents/iot-gateway/coverage/

@@ -1190,7 +1190,11 @@ app.get("/health", (_req: Request, res: Response) => {
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-app.listen(port, () => {
+// Exported for the route tests (__tests__/server.test.ts), which listen on a
+// port of their own; only `node server.js` / `tsx server.ts` starts it here.
+export { app };
+
+if (require.main === module) app.listen(port, () => {
   if (!process.env.ADMIN_TOKEN) {
     logger.warn("gateway", "ADMIN_TOKEN not set — POST /accounts/:platform is disabled");
   }
