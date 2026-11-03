@@ -2,6 +2,12 @@ name: Deploy Mainnet
 
 on:
   workflow_dispatch:
+    inputs:
+      allow_upgrade_break:
+        description: 'Deploy even if upgrading from the deployed build fails its tests (a planned reinstall or interface break)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read   # canister-ID commits push with CI_PUSH_TOKEN, not GITHUB_TOKEN
@@ -27,10 +33,39 @@ jobs:
       contents: read
       pull-requests: write   # ci.yml's test-frontend declares it (PR coverage comment; skipped here)
 
+  upgrade-gate:
+    name: Upgrade from the deployed build
+    # The upgrade this deploy is about to run: from the build running on
+    # mainnet (the newest mainnet-* tag) to this commit, in PocketIC
+    # (scripts/ci/upgrade-from-deployed.sh). No environment and no secrets.
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Cache mops packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/mops
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml', 'mops.lock') }}
+      - name: Install mops and moc
+        run: |
+          npm install -g ic-mops@3.5.1
+          mops install --locked
+          mops toolchain use moc 1.16.1
+      - name: Upgrade tests from the deployed build
+        run: bash scripts/ci/upgrade-from-deployed.sh mainnet
+        env:
+          # A planned reinstall or interface break: dispatch with this input.
+          ALLOW_STABLE_BREAK: ${{ inputs.allow_upgrade_break && '1' || '' }}
+          ALLOW_CANDID_BREAK: ${{ inputs.allow_upgrade_break && '1' || '' }}
+
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    needs: [test]
+    needs: [test, upgrade-gate]
     if: github.ref == 'refs/heads/main'
     steps:
       # persist-credentials: false keeps any token out of .git/config while

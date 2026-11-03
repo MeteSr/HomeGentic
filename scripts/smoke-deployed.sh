@@ -9,7 +9,9 @@
 #      signed-out page makes) comes back non-empty;
 #   3. the frontend canister serves the app's index page, plus the ICP MCP
 #      manifest (matching canister_ids.json), a getApiDoc() answer from each
-#      listed canister, and the II derivation origin;
+#      listed canister, the II derivation origin, and that the
+#      PUBLIC_CANISTER_ID variables in its ic_env cookie match
+#      canister_ids.json for every canister;
 #   4. with VOICE_AGENT_URL set, the voice Worker's /health is 200 (it checks
 #      its own canister IDs and secrets).
 #
@@ -52,6 +54,19 @@ if [ "${ONLY:-}" != "worker" ]; then
   if [ -n "$fe" ]; then
     page=$(curl -fsS --max-time 30 "https://$fe.icp0.io/" 2>&1 || true)
     if [[ "$page" == *'id="root"'* ]]; then echo "  ✓ https://$fe.icp0.io/"; else fail "frontend https://$fe.icp0.io/ did not serve the app"; fi
+
+    # The PUBLIC_CANISTER_ID:<name> variables the canisters read their
+    # siblings from (Canisters.envId); the frontend's ic_env cookie carries
+    # the same set. A missing or stale one makes a canister fail closed.
+    echo "▶ Canister IDs are wired"
+    headers=$(mktemp)
+    curl -sS --max-time 30 -D "$headers" -o /dev/null "https://$fe.icp0.io/" 2>/dev/null || true
+    if problems=$(node scripts/ops/check-ic-env.mjs "$ICP_ENV" "$headers" "${ALL_CANISTERS[@]}"); then
+      echo "  ✓ every canister's PUBLIC_CANISTER_ID matches canister_ids.json"
+    else
+      while read -r p; do [ -n "$p" ] && fail "$p"; done <<<"$problems"
+    fi
+    rm -f "$headers"
 
     # ICP MCP (frontend/scripts/icArchitecture.mjs): the manifest is real JSON
     # (not the SPA shell) naming this environment's canisters, and each listed
