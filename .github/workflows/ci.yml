@@ -286,14 +286,18 @@ jobs:
           dfx canister call payment grantSubscription "(principal \"$INTEG_PRINCIPAL\", variant { ContractorPro })"
 
           # TEST_ADMIN (seed[0]=160, ADMIN_SEED in integration/helpers.ts): admin on
-          # property and contractor, for the steps a real admin performs in the suites
-          # (verifying a property before generateReport, verifying a contractor profile).
+          # property, contractor, monitoring and sensor, for the steps a real admin (or
+          # the IoT gateway) performs in the suites: verifying a property before
+          # generateReport, verifying a contractor profile, the tracked-canister
+          # registry, recording sensor readings.
           # The integration identity itself stays a plain user on report, so report tests
           # go through the real ownership and verification checks on a registered property.
           # Bootstrap already done above; the nonce param is required by Candid but ignored.
           TEST_ADMIN="keu4p-zyiaa-twkb3-mrrjg-6gesj-ytfss-zymq6-nzdz4-g3yvp-vejcp-nqe"
           dfx canister call property   addAdmin "(principal \"$TEST_ADMIN\", \"\")"
           dfx canister call contractor addAdmin "(principal \"$TEST_ADMIN\", \"\")"
+          dfx canister call monitoring addAdmin "(principal \"$TEST_ADMIN\", \"\")"
+          dfx canister call sensor     addAdmin "(principal \"$TEST_ADMIN\", \"\")"
 
           # Grant integration test identity admin on agent so listing.integration.test.ts
           # can self-verify a test agent profile (submitProposal requires isVerified=true —

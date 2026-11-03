@@ -196,8 +196,6 @@ describe.skipIf(!deployed)("computePropertyScore — on-chain FSBO score", () =>
   });
 
   it("returns a number in 0-100 when a wired property has jobs", async () => {
-    // This test only runs when all three canisters are wired (deploy.sh handles it).
-    // If canister IDs are not wired, computePropertyScore returns null — skip gracefully.
     let prop: Awaited<ReturnType<typeof propertyService.registerProperty>>;
     try {
       prop = await propertyService.registerProperty({
@@ -229,7 +227,8 @@ describe.skipIf(!deployed)("computePropertyScore — on-chain FSBO score", () =>
     });
 
     const score = await computePropertyScore(prop.id);
-    if (score === null) return; // canister not yet wired — acceptable in local dev
+    // CI wires market to property and job and trusts it on job (deploy-canisters.sh).
+    expect(score).not.toBeNull();
     expect(score).toBeGreaterThanOrEqual(0);
     expect(score).toBeLessThanOrEqual(100);
   });
