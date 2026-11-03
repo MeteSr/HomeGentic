@@ -157,7 +157,7 @@ jobs:
         # After the root npm ci, so the browser matches the pinned Playwright.
         run: npx playwright install --with-deps chromium
 
-      - name: Ops script tests (backup / restore drill)
+      - name: Ops script tests (backup / restore drill, smoke test, release manifest)
         run: |
           sudo apt-get install -y age >/dev/null
           npm test --prefix scripts/ops
