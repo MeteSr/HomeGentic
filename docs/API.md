@@ -144,7 +144,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `createJobProposal` | update | `(propertyId: Text, title: Text, serviceType: ServiceType, description: Text, contractorName: ?Text, amount: Nat, completedDate: Time.Time, permitNumber: ?Text, warrantyMonths: ?Nat)` | Called by a contractor to propose a completed job for homeowner approval. |
 | `approveJobProposal` | update | `(jobId: Text)` | Homeowner approves a pending contractor proposal. |
 | `rejectJobProposal` | update | `(jobId: Text)` | Homeowner rejects a pending contractor proposal. |
-| `getJobSnapshotsForProperty` | query | `(propertyId: Text)` | The score inputs for each of a property's jobs (`{ serviceType; completedYear; amountCents; isDiy; isVerified }`), read by the market canister's `computePropertyScore` and the weekly Home Pulse email. |
+| `getJobSnapshotsForProperty` | query | `(propertyId: Text)` | The score inputs for each of a property's jobs (`{ serviceType; completedYear; amountCents; isDiy; isVerified }`), read by the market canister's `computePropertyScore` (a trusted canister) and the weekly Home Pulse email (a notifier). Anyone else gets only the jobs they are the homeowner on. |
 | `getReferralJobs` | update | `()` | Returns all jobs that were sourced via a HomeGentic quote request. |
 | `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: notification outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |
 | `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) reading the outbox |

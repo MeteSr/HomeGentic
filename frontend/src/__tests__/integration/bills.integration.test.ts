@@ -22,6 +22,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { billService } from "@/services/billService";
 import { getUsageTrend, analyzeEfficiencyTrend } from "@/services/billsIntelligence";
 import { TEST_PRINCIPAL } from "./setup";
+import { registerTestProperty } from "./helpers";
 
 // ─── Skip guard ───────────────────────────────────────────────────────────────
 // Tests skip themselves cleanly when the canister isn't deployed (CI without replica).
@@ -31,11 +32,13 @@ const deployed = !!CANISTER_ID;
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-// Unique per test-run — prevents state bleed across runs on the same replica
-const RUN_ID = Date.now();
-
-function propId(label: string) {
-  return `test-${label}-${RUN_ID}`;
+// With the property canister wired, bills refuses a property id nobody
+// registered (#NotFound), so each label gets a real property of the test
+// identity, registered on first use.
+const props = new Map<string, Promise<string>>();
+function propId(label: string): Promise<string> {
+  if (!props.has(label)) props.set(label, registerTestProperty(`Bills ${label}`));
+  return props.get(label)!;
 }
 
 const BASE_ARGS = {
@@ -51,7 +54,7 @@ describe.skipIf(!deployed)("addBill — Candid serialization", () => {
   it("returns a BillRecord with a non-empty id", async () => {
     const record = await billService.addBill({
       ...BASE_ARGS,
-      propertyId: propId("candid-id"),
+      propertyId: await propId("candid-id"),
       billType: "Electric",
     });
     expect(record.id).toBeTruthy();
@@ -61,7 +64,7 @@ describe.skipIf(!deployed)("addBill — Candid serialization", () => {
   it("amountCents survives BigInt round-trip without truncation", async () => {
     const record = await billService.addBill({
       ...BASE_ARGS,
-      propertyId:  propId("bigint"),
+      propertyId:  await propId("bigint"),
       billType:    "Electric",
       amountCents: 12_345,
     });
@@ -71,7 +74,7 @@ describe.skipIf(!deployed)("addBill — Candid serialization", () => {
   it("Optional usageAmount and usageUnit are preserved (Opt round-trip)", async () => {
     const record = await billService.addBill({
       ...BASE_ARGS,
-      propertyId:  propId("opt"),
+      propertyId:  await propId("opt"),
       billType:    "Electric",
       usageAmount: 842.5,
       usageUnit:   "kWh",
@@ -83,7 +86,7 @@ describe.skipIf(!deployed)("addBill — Candid serialization", () => {
   it("usageAmount and usageUnit are undefined when not provided", async () => {
     const record = await billService.addBill({
       ...BASE_ARGS,
-      propertyId: propId("no-opt"),
+      propertyId: await propId("no-opt"),
       billType:   "Gas",
     });
     expect(record.usageAmount).toBeUndefined();
@@ -91,7 +94,7 @@ describe.skipIf(!deployed)("addBill — Candid serialization", () => {
   });
 
   it("billType Variant round-trips correctly for all six variants", async () => {
-    const pid = propId("variants");
+    const pid = await propId("variants");
     const types = ["Electric", "Gas", "Water", "Internet", "Telecom", "Other"] as const;
 
     for (const billType of types) {
@@ -110,7 +113,7 @@ describe.skipIf(!deployed)("addBill — Candid serialization", () => {
     const before = Date.now() - 5_000;
     const record = await billService.addBill({
       ...BASE_ARGS,
-      propertyId: propId("timestamp"),
+      propertyId: await propId("timestamp"),
       billType:   "Electric",
     });
     const after = Date.now() + 5_000;
@@ -122,7 +125,7 @@ describe.skipIf(!deployed)("addBill — Candid serialization", () => {
   it("homeowner field matches the test identity's principal", async () => {
     const record = await billService.addBill({
       ...BASE_ARGS,
-      propertyId: propId("principal"),
+      propertyId: await propId("principal"),
       billType:   "Water",
     });
     expect(record.homeowner).toBe(TEST_PRINCIPAL);
@@ -132,7 +135,10 @@ describe.skipIf(!deployed)("addBill — Candid serialization", () => {
 // ─── getBillsForProperty ──────────────────────────────────────────────────────
 
 describe.skipIf(!deployed)("getBillsForProperty — principal scoping & retrieval", () => {
-  const pid = propId("get-bills");
+  let pid = "";
+  beforeAll(async () => {
+    pid = await propId("get-bills");
+  });
 
   beforeAll(async () => {
     // Seed two bills into this property
@@ -156,7 +162,7 @@ describe.skipIf(!deployed)("getBillsForProperty — principal scoping & retrieva
   });
 
   it("returns empty array for a property with no bills", async () => {
-    const bills = await billService.getBillsForProperty(propId("empty-property"));
+    const bills = await billService.getBillsForProperty(await propId("empty-property"));
     expect(bills).toHaveLength(0);
   });
 });
@@ -164,12 +170,15 @@ describe.skipIf(!deployed)("getBillsForProperty — principal scoping & retrieva
 // ─── Anomaly detection ────────────────────────────────────────────────────────
 
 describe.skipIf(!deployed)("anomaly detection — canister-level (not just mock)", () => {
-  const pid = propId("anomaly");
+  let pid = "";
+  beforeAll(async () => {
+    pid = await propId("anomaly");
+  });
 
   it("anomalyFlag is false when only one bill exists (no baseline yet)", async () => {
     const record = await billService.addBill({
       ...BASE_ARGS,
-      propertyId:  propId("anomaly-single"),
+      propertyId:  await propId("anomaly-single"),
       billType:    "Electric",
       amountCents: 10_000,
     });
@@ -194,7 +203,7 @@ describe.skipIf(!deployed)("anomaly detection — canister-level (not just mock)
 
 describe.skipIf(!deployed)("deleteBill — removes from canister state", () => {
   it("deleted bill is no longer returned by getBillsForProperty", async () => {
-    const pid = propId("delete");
+    const pid = await propId("delete");
     const record = await billService.addBill({
       ...BASE_ARGS,
       propertyId: pid,
@@ -225,7 +234,10 @@ function monthAgo(n: number): string {
 }
 
 describe.skipIf(!deployed)("getUsageTrend — Motoko query round-trip", () => {
-  const pid = propId("usage-trend");
+  let pid = "";
+  beforeAll(async () => {
+    pid = await propId("usage-trend");
+  });
 
   beforeAll(async () => {
     // Seed 3 Electric bills with ascending usage — oldest first so degradation
@@ -258,7 +270,7 @@ describe.skipIf(!deployed)("getUsageTrend — Motoko query round-trip", () => {
   });
 
   it("excludes bills without usageAmount from the trend", async () => {
-    const pidMixed = propId("usage-mixed");
+    const pidMixed = await propId("usage-mixed");
     // Bill WITH usageAmount must have a recent periodStart to pass the date filter.
     await billService.addBill({ ...BASE_ARGS, propertyId: pidMixed, billType: "Electric", usageAmount: 800, usageUnit: "kWh", periodStart: monthAgo(1) });
     await billService.addBill({ ...BASE_ARGS, propertyId: pidMixed, billType: "Electric" /* no usage */ });
@@ -292,7 +304,7 @@ describe.skipIf(!deployed)("tier enforcement — paid tiers have no monthly uplo
   // Paid tiers: monthlyUploadLimit = 0 = unlimited.
   // Free-tier blocking (any upload rejected) is covered by canister unit tests.
   it("multiple uploads in the same month all succeed for a paid-tier caller", async () => {
-    const pid = propId("tier-basic");
+    const pid = await propId("tier-basic");
     await expect(
       billService.addBill({ ...BASE_ARGS, propertyId: pid, billType: "Electric" })
     ).resolves.toBeDefined();
@@ -314,7 +326,7 @@ describe.skipIf(!deployed)("recurring expenses — Candid round-trip & lifecycle
   };
 
   it("every category and frequency Variant round-trips", async () => {
-    const pid = propId("rec-variants");
+    const pid = await propId("rec-variants");
     const categories  = ["Mortgage", "PropertyTax", "HOA", "HomeInsurance", "Other"] as const;
     const frequencies = ["Monthly", "Quarterly", "SemiAnnual", "Annual"] as const;
     for (const [i, category] of categories.entries()) {
@@ -327,7 +339,7 @@ describe.skipIf(!deployed)("recurring expenses — Candid round-trip & lifecycle
   });
 
   it("endDate Opt round-trips both present and absent", async () => {
-    const pid = propId("rec-opt");
+    const pid = await propId("rec-opt");
     const withEnd = await billService.addRecurringExpense(pid, { ...FIELDS, endDate: "2030-06-01" });
     const open    = await billService.addRecurringExpense(pid, FIELDS);
     expect(withEnd.endDate).toBe("2030-06-01");
@@ -337,12 +349,12 @@ describe.skipIf(!deployed)("recurring expenses — Candid round-trip & lifecycle
 
   it("canister rejects an endDate before the startDate", async () => {
     await expect(
-      billService.addRecurringExpense(propId("rec-bad"), { ...FIELDS, endDate: "2020-01-01" })
+      billService.addRecurringExpense(await propId("rec-bad"), { ...FIELDS, endDate: "2020-01-01" })
     ).rejects.toThrow("InvalidInput");
   });
 
   it("update then delete", async () => {
-    const pid = propId("rec-lifecycle");
+    const pid = await propId("rec-lifecycle");
     const rec = await billService.addRecurringExpense(pid, FIELDS);
     const updated = await billService.updateRecurringExpense(rec.id, { ...FIELDS, provider: "Chase", amountCents: 219_000 });
     expect(updated.id).toBe(rec.id);

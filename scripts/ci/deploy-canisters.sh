@@ -157,6 +157,7 @@ dfx canister call job        addTrustedCanister "(principal \"$SENSOR_ID\")"
 dfx canister call job        addTrustedCanister "(principal \"$REPORT_ID\")"
 dfx canister call job        addTrustedCanister "(principal \"$CONTRACTOR_ID\")"
 dfx canister call job        addTrustedCanister "(principal \"$PROPERTY_ID\")"
+dfx canister call job        addTrustedCanister "(principal \"$MARKET_ID\")"
 
 # ── Audit canister wiring ────────────────────────────────────────────
 dfx canister call audit setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")"

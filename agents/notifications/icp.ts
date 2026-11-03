@@ -261,10 +261,12 @@ export async function getJobsByOwner(owner: string): Promise<PulseJob[]> {
 /**
  * The job canister's score inputs for one property — the same snapshots the
  * market canister scores certificates from, so the email shows that number.
+ * They are private to the owner, so this reads them as the relay (needs
+ * addNotifier on job, like getJobsByOwner).
  */
 export async function getJobSnapshots(propertyId: string): Promise<ScoreJob[]> {
   const job = Actor.createActor(jobIdl, {
-    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_JOB"),
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_JOB"),
   }) as any;
   const snaps: any[] = await job.getJobSnapshotsForProperty(propertyId);
   return snaps.map((s) => ({

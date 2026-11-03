@@ -295,8 +295,8 @@ persistent actor Bills {
   type AccessRole = { #Owner; #CoOwner; #Manager; #Viewer; #NoAccess };
 
   /// The caller's role on a property, from the property canister. null means the
-  /// canister isn't wired or doesn't know the property — records are then
-  /// visible only to their author, exactly as before sharing existed.
+  /// canister isn't wired — records are then visible only to their author, as
+  /// before sharing existed. A property the canister doesn't know is #NotFound.
   /// #Unavailable when the property canister didn't answer (M-4): never null,
   /// which would read as "not wired" and let the author write.
   private func accessRole(propertyId: Text, caller: Principal) : async* Result.Result<?AccessRole, Error> {
@@ -304,8 +304,12 @@ persistent actor Bills {
     let propActor = actor(propCanisterId) : actor {
       getAccessRole : shared query (Text, Principal) -> async ?AccessRole;
     };
-    try { #ok(await propActor.getAccessRole(propertyId, caller)) }
-    catch (_) { #err(#Unavailable(Canisters.unavailable("property"))) }
+    let role = try { await propActor.getAccessRole(propertyId, caller) }
+      catch (_) { return #err(#Unavailable(Canisters.unavailable("property"))) };
+    // With property wired, null means no such property: refuse, rather than
+    // letting anyone file bills against an id nobody registered (idor sweep).
+    if (role == null) return #err(#NotFound);
+    #ok(role)
   };
 
   private func canWrite(role: ?AccessRole) : Bool {

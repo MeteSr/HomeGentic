@@ -658,8 +658,11 @@ persistent actor MarketIntelligence {
     if (propCanisterId == "" or jobCanisterId == "")
       return #err(#InvalidInput("Scores are not available yet"));
 
-    if (not (await Canisters.property(propCanisterId).isAuthorized(propertyId, caller, true)))
-      return #err(#NotAuthorized);
+    // A sibling that doesn't answer is #Unavailable, not an opaque reject (M-4).
+    switch (await* Canisters.authorize(propCanisterId, propertyId, caller, true)) {
+      case (#err(e)) return #err(e);
+      case (#ok(())) {};
+    };
 
     let propActor = actor(propCanisterId) : actor {
       getPropertyYearBuilt : query (Text) -> async ?Nat;
@@ -668,18 +671,22 @@ persistent actor MarketIntelligence {
     let jobActor = actor(jobCanisterId) : actor {
       getJobSnapshotsForProperty : query (Text) -> async [JobSummary];
     };
-    let yearBuilt = switch (await propActor.getPropertyYearBuilt(propertyId)) {
+    let (yearBuiltOpt, addressOpt) = try {
+      (await propActor.getPropertyYearBuilt(propertyId), await propActor.getPropertyAddress(propertyId))
+    } catch (_) { return #err(#Unavailable(Canisters.unavailable("property"))) };
+    let yearBuilt = switch (yearBuiltOpt) {
       case null { return #err(#NotFound) };
       case (?y) { y };
     };
-    let zipCode = switch (await propActor.getPropertyAddress(propertyId)) {
+    let zipCode = switch (addressOpt) {
       case null { return #err(#NotFound) };
       case (?a) {
         switch (zipOfAddress(a)) { case (?z) z; case null { return #err(#NotFound) } }
       };
     };
     if (Text.size(zipCode) > 20) return #err(#InvalidInput("zipCode exceeds 20 characters"));
-    let jobs = await jobActor.getJobSnapshotsForProperty(propertyId);
+    let jobs = try { await jobActor.getJobSnapshotsForProperty(propertyId) }
+      catch (_) { return #err(#Unavailable(Canisters.unavailable("job"))) };
     if (jobs.size() == 0) return #err(#InvalidInput("Add a job to this home before scoring it"));
     let scored = if (jobs.size() > MAX_SCORE_JOBS) jobs.sliceToArray(0, MAX_SCORE_JOBS) else jobs;
 

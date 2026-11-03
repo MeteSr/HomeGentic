@@ -1096,6 +1096,10 @@ if [ -n "$JOB_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  job: trusting property ($PROPERTY_ID) (contractor job addresses)..."
   bg_call job addTrustedCanister "(principal \"$PROPERTY_ID\")"    -e "$ENV"
 fi
+if [ -n "$MARKET_ID" ] && [ -n "$JOB_ID" ]; then
+  echo "  job: trusting market ($MARKET_ID) (score inputs are private job snapshots)..."
+  bg_call job addTrustedCanister "(principal \"$MARKET_ID\")"      -e "$ENV"
+fi
 
 # Wire audit canister: register source canisters as trusted writers, then give
 # each source canister the audit canister ID so it can call log().

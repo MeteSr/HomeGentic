@@ -51,7 +51,7 @@ const IDLS = {
       tier: I.Variant({ Free: I.Null, Pro: I.Null, ContractorFree: I.Null, ContractorPro: I.Null }),
     }))], [I.Record({ succeeded: I.Vec(I.Text), failed: I.Vec(I.Record({ index: I.Nat, reason: I.Text })) })], []),
   })),
-  job:      withMethods(jobIdl, (I) => ({ ...bootstrap(I), ...textSetters("setPropertyCanisterId")(I) })),
+  job:      withMethods(jobIdl, (I) => ({ ...bootstrap(I), ...textSetters("setPropertyCanisterId")(I), ...principalSetters("addTrustedCanister")(I) })),
   quote:    withMethods(quoteIdl, (I) => ({ ...bootstrap(I), ...principalSetters("setPaymentCanisterId", "setPropertyCanisterId")(I) })),
   listing:  withMethods(listingIdl, (I) => ({ ...bootstrap(I), ...textSetters("setPropertyCanisterId", "setJobCanisterId", "setMarketCanisterId")(I) })),
   // Only wired here; listing calls it. (packages/shared has no market declaration.)
@@ -118,6 +118,7 @@ describe("same-round calls", () => {
     ok(await actor("market", admin).setPropertyCanisterId(t("property")));
     ok(await actor("market", admin).setJobCanisterId(t("job")));
     ok(await actor("market", admin).setListingCanisterId(t("listing")));
+    ok(await actor("job", admin).addTrustedCanister(ids.market)); // market reads private job snapshots
   });
 
   afterAll(async () => { await pic?.tearDown(); });

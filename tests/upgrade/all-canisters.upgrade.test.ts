@@ -1,7 +1,7 @@
 /**
  * Every canister survives an upgrade from the base branch with its data.
  *
- * from-base.upgrade.test.ts checks six canisters in depth with hand-written
+ * from-base.upgrade.test.ts and seeded-upgrade.upgrade.test.ts check canisters in depth with hand-written
  * data. This one covers all twenty generically, so a canister nobody wrote an
  * upgrade test for is still upgraded with state in it:
  *
@@ -38,6 +38,16 @@ const CANISTERS = [
 
 /** Updates that take state away or reconfigure the canister: not seed data. */
 const DESTRUCTIVE = /pause|delete|remove|revoke|reset|clear|cancel|resign|deactivate|withdraw|Transfer|BootstrapNonce|CanisterId|initAdmins|addAdmin|retire|purge|prune|wipe/i;
+
+/**
+ * Reads whose access rules this branch narrows on purpose: a signed-in user's
+ * answer shrinks after the upgrade although no data is lost, so they're
+ * compared as the admin only. Drop an entry once the base branch has the
+ * change.
+ */
+const ACCESS_NARROWED: Record<string, string[]> = {
+  job: ["getJobSnapshotsForProperty"], // private to the owner and trusted canisters
+};
 
 const norm = (x: unknown) => JSON.stringify(x, (_k, v) =>
   typeof v === "bigint" ? v.toString() : (v && v._isPrincipal ? v.toText() : v));
@@ -80,7 +90,10 @@ describe("every canister keeps its data across an upgrade", () => {
     const read = async () => {
       const out: Record<string, string> = {};
       for (const who of [admin, user]) {
-        for (const m of queries) out[`${who === admin ? "admin" : "user"}.${m}`] = norm(await call(who, m, sample(m, who)));
+        for (const m of queries) {
+          if (who === user && ACCESS_NARROWED[name]?.includes(m)) continue;
+          out[`${who === admin ? "admin" : "user"}.${m}`] = norm(await call(who, m, sample(m, who)));
+        }
       }
       return out;
     };
@@ -106,9 +119,17 @@ describe("every canister keeps its data across an upgrade", () => {
     await pic.tearDown();
   }, 180_000);
 
-  // Generic writes can't satisfy every canister's input checks (some need a
-  // registered profile or a wired canister first), but they must reach most.
-  it("the generic writes stored data in most canisters", () => {
-    expect(seeded.length).toBeGreaterThanOrEqual(12);
+  // Generic writes can't satisfy every canister's input checks. The ones they
+  // can't seed are named here and seeded by hand elsewhere, so none upgrades
+  // empty without anyone noticing.
+  const SEEDED_ELSEWHERE: Record<string, string> = {
+    agent: "seeded-upgrade.upgrade.test.ts (needs a valid licence profile)",
+    bills: "seeded-upgrade.upgrade.test.ts (needs a wired property and a Pro owner)",
+    photo: "from-base.upgrade.test.ts (needs a job on a wired property)",
+  };
+  it("the generic writes stored data in every canister not seeded by hand elsewhere", () => {
+    const expected = CANISTERS.filter((c) => !(c in SEEDED_ELSEWHERE));
+    expect([...seeded].sort()).toEqual(expect.arrayContaining(expected));
+    expect(expected.filter((c) => !seeded.includes(c))).toEqual([]);
   });
 });

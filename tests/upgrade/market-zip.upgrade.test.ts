@@ -61,6 +61,7 @@ describe.skipIf(!base)("market: zip index upgrade", () => {
     ok(await as("job", admin).setPropertyCanisterId(ids.property.toText()));
     ok(await as("market", admin).setPropertyCanisterId(ids.property.toText()));
     ok(await as("market", admin).setJobCanisterId(ids.job.toText()));
+    ok(await as("job", admin).addTrustedCanister(ids.market)); // market reads private job snapshots
 
     const homeowners = [0, 1, 2, 3, 4, 5].map((i) => createIdentity(`mz-${i}`));
     for (const [i, h] of homeowners.entries()) {

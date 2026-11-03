@@ -100,10 +100,30 @@ export interface Deployment {
  * Installs every canister with `admin` as its admin and wires them as CI does.
  * `wasm` picks each canister's build (default: this branch's).
  */
+export interface DeployOptions {
+  /**
+   * Wire sibling IDs the way `icp deploy` does: every canister is created
+   * first, gets a `PUBLIC_CANISTER_ID:<name>` environment variable for each
+   * canister, and only then is installed. The `set*CanisterId` setter calls in
+   * deploy-canisters.sh are skipped, so the canisters can only learn their
+   * siblings from the variables (Canisters.envId / syncCanisterIds).
+   */
+  envIds?: boolean;
+}
+
+/** `PUBLIC_CANISTER_ID:<name>` for every canister, as `icp deploy` stamps them. */
+export function canisterIdVars(ids: Record<string, Principal>) {
+  return Object.entries(ids).map(([name, id]) => ({ name: `PUBLIC_CANISTER_ID:${name}`, value: id.toText() }));
+}
+
+/** A deploy-canisters.sh call that stores a sibling's ID (rather than granting trust). */
+export const isIdSetter = (method: string) => /^set\w*CanisterIds?$/.test(method);
+
 export async function deployAll(
   pic: PocketIc,
   admin: Identity,
   wasm: (name: CanisterName) => string = wasmPath,
+  opts: DeployOptions = {},
 ): Promise<Deployment> {
   const ids = {} as Record<CanisterName, Principal>;
   const svcs = {} as Record<CanisterName, IDL.ServiceClass>;
@@ -117,6 +137,13 @@ export async function deployAll(
       throw new Error(`${what}: ${JSON.stringify(r.err, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`);
   };
 
+  if (opts.envIds) {
+    for (const name of ALL_CANISTERS) ids[name] = await pic.createCanister({ sender: CONTROLLER.getPrincipal() });
+    const vars = canisterIdVars(ids);
+    for (const name of ALL_CANISTERS)
+      await pic.updateCanisterSettings({ canisterId: ids[name], sender: CONTROLLER.getPrincipal(), environmentVariables: vars });
+  }
+
   for (const name of ALL_CANISTERS) {
     const { idlFactory, initArgs } = serviceFromWasm(wasm(name));
     svcs[name] = idlFactory({ IDL });
@@ -126,7 +153,11 @@ export async function deployAll(
         initArgs.map(() => admin.getPrincipal()),
       ),
     );
-    ids[name] = (await pic.setupCanister({ idlFactory: (() => svcs[name]) as any, wasm: wasm(name), arg })).canisterId;
+    if (opts.envIds) {
+      await pic.installCode({ canisterId: ids[name], wasm: wasm(name), arg, sender: CONTROLLER.getPrincipal() });
+    } else {
+      ids[name] = (await pic.setupCanister({ idlFactory: (() => svcs[name]) as any, wasm: wasm(name), arg })).canisterId;
+    }
     const methods = new Map(svcs[name]._fields);
     if (methods.has("setBootstrapNonce")) await actor(name, CONTROLLER).setBootstrapNonce("n");
     if (methods.has("initAdmins"))
@@ -145,6 +176,7 @@ export async function deployAll(
 
   for (const call of wiringCalls()) {
     const name = call.canister as CanisterName;
+    if (opts.envIds && isIdSetter(call.method)) continue;
     if (!svcs[name]) throw new Error(`deploy-canisters.sh calls unknown canister ${call.canister}`);
     if (call.guard && !new Map(svcs[call.guard.canister as CanisterName]._fields).has(call.guard.method)) continue;
     const fn = new Map(svcs[name]._fields).get(call.method);

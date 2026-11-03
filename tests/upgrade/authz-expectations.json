@@ -32,9 +32,6 @@
   "bills": {
     "stranger": [
       "deleteMyData",
-      "getBillsForProperty",
-      "getRecurringExpensesForProperty",
-      "getUsageTrend",
       "setBootstrapNonce?"
     ],
     "anonymous": []
