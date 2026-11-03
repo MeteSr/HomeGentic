@@ -48,6 +48,23 @@ build_tree() {      # $1 tree, $2 output root
 echo "Building $(git rev-parse --short HEAD) → .dfx/local/canisters"
 build_tree "$REPO_ROOT" "$REPO_ROOT/.dfx/local/canisters"
 
+# Test doubles for canisters HomeGentic calls but doesn't own (the ICP ledger,
+# the exchange rate canister): tests/upgrade/mocks/<name>.mo →
+# .dfx/local/canisters/mock_<name>/mock_<name>.wasm. Only this checkout's.
+if [ $# -eq 0 ]; then
+  MOCK_PKGS=$(package_flags "$REPO_ROOT")
+  for src in "$REPO_ROOT"/tests/upgrade/mocks/*.mo; do
+    [ -f "$src" ] || continue
+    name="mock_$(basename "$src" .mo)"
+    mkdir -p "$REPO_ROOT/.dfx/local/canisters/$name"
+    # shellcheck disable=SC2086
+    if ! log=$("$MOC" $MOCK_PKGS "$src" -o "$REPO_ROOT/.dfx/local/canisters/$name/$name.wasm" 2>&1); then
+      echo "❌ $name failed to compile"; echo "$log"; exit 1
+    fi
+    printf '  %-12s ✓\n' "$name"
+  done
+fi
+
 if [ -n "$BASE_REF" ]; then
   BASE_SHA=$(git rev-parse --verify "$BASE_REF^{commit}") || { echo "❌ unknown base ref: $BASE_REF"; exit 2; }
   WORK=$(mktemp -d)
