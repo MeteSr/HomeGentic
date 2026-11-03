@@ -7,7 +7,8 @@ import { logger } from "@homegentic/shared/logger";
 
 let out: ReturnType<typeof vi.spyOn>;
 let err: ReturnType<typeof vi.spyOn>;
-const lines = (spy: ReturnType<typeof vi.spyOn>): any[] => spy.mock.calls.map((c: unknown[]) => JSON.parse(String(c[0])));
+const lines = (spy: ReturnType<typeof vi.spyOn>): any[] =>
+  spy.mock.calls.map((c: unknown[]) => JSON.parse(String(c[0])));
 
 beforeEach(() => {
   out = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
