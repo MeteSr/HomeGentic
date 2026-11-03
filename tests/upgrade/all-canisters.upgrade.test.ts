@@ -39,6 +39,16 @@ const CANISTERS = [
 /** Updates that take state away or reconfigure the canister: not seed data. */
 const DESTRUCTIVE = /pause|delete|remove|revoke|reset|clear|cancel|resign|deactivate|withdraw|Transfer|BootstrapNonce|CanisterId|initAdmins|addAdmin|retire|purge|prune|wipe/i;
 
+/**
+ * Reads whose access rules this branch narrows on purpose: a signed-in user's
+ * answer shrinks after the upgrade although no data is lost, so they're
+ * compared as the admin only. Drop an entry once the base branch has the
+ * change.
+ */
+const ACCESS_NARROWED: Record<string, string[]> = {
+  job: ["getJobSnapshotsForProperty"], // private to the owner and trusted canisters
+};
+
 const norm = (x: unknown) => JSON.stringify(x, (_k, v) =>
   typeof v === "bigint" ? v.toString() : (v && v._isPrincipal ? v.toText() : v));
 
@@ -80,7 +90,10 @@ describe("every canister keeps its data across an upgrade", () => {
     const read = async () => {
       const out: Record<string, string> = {};
       for (const who of [admin, user]) {
-        for (const m of queries) out[`${who === admin ? "admin" : "user"}.${m}`] = norm(await call(who, m, sample(m, who)));
+        for (const m of queries) {
+          if (who === user && ACCESS_NARROWED[name]?.includes(m)) continue;
+          out[`${who === admin ? "admin" : "user"}.${m}`] = norm(await call(who, m, sample(m, who)));
+        }
       }
       return out;
     };
