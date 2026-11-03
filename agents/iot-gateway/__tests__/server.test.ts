@@ -271,7 +271,7 @@ describe("GW.7 admin OAuth state", () => {
 
     // The token exchange goes to Honeywell; answer it, but let the test's own requests through.
     global.fetch = (async (url: any, init?: any) =>
-      String(url).startsWith("https://api.honeywell.com")
+      new URL(String(url)).hostname === "api.honeywell.com"
         ? new Response(JSON.stringify({ access_token: "a", refresh_token: "r", expires_in: 3600 }), { status: 200 })
         : realFetch(url, init)) as typeof fetch;
     try {
