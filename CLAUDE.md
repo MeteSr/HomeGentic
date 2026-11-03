@@ -32,7 +32,7 @@ npx prettier --write <file>   # CI checks Prettier only on files a PR adds; exis
 **TDD gates.** New code ships with a test written first, and CI checks the floor:
 - `scripts/ci/diff-coverage.mjs` (test-frontend, PRs only) fails when under 80% of the executable lines a PR changes in `frontend/src` or `packages/shared/src` are run by a unit test.
 - `tests/upgrade/method-inventory.canister.test.ts` fails when a new canister method has no test that names it. `method-inventory-allowlist.json` only shrinks; regenerate it with `UPDATE_INVENTORY=1`.
-- `tests/upgrade/api-doc.canister.test.ts` fails when `getApiDoc()` names a method that doesn't exist, or leaves out a new one. `api-doc-undocumented.json` only shrinks; regenerate it with `UPDATE_APIDOC=1`.
+- `tests/upgrade/apidoc.canister.test.ts` fails when `getApiDoc()` names a method that doesn't exist, shows the wrong argument count, or leaves out a new one. `apidoc-undocumented.json` only shrinks; regenerate it with `UPDATE_APIDOC=1`.
 - `frontend/src/__tests__/services/errorModelGate.test.ts` fails on `new Error(JSON.stringify(...))`. Throw `canisterError(result.err)`.
 - Mobile `npm run ci` enforces a coverage floor (`coverageThreshold` in `mobile/package.json`).
 
