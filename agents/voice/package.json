@@ -6,8 +6,8 @@
     "dev": "wrangler dev src/index.ts",
     "deploy": "wrangler deploy",
     "build": "tsc",
-    "test": "jest --passWithNoTests",
-    "test:coverage": "jest --passWithNoTests --coverage"
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "jest": {
     "testEnvironment": "node",
@@ -34,10 +34,10 @@
     ],
     "coverageThreshold": {
       "global": {
-        "lines": 67,
-        "functions": 70,
-        "branches": 58,
-        "statements": 65
+        "lines": 77,
+        "functions": 76,
+        "branches": 67,
+        "statements": 74
       }
     },
     "transformIgnorePatterns": [

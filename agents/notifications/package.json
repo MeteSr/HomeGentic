@@ -6,10 +6,23 @@
     "dev": "tsx server.ts",
     "build": "tsc",
     "start": "node dist/agents/notifications/server.js",
-    "test": "jest --passWithNoTests"
+    "test": "jest --coverage"
   },
   "jest": {
     "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "**/*.ts",
+      "!**/node_modules/**",
+      "!**/__tests__/**",
+      "!coverage/**",
+      "!**/*.d.ts"
+    ],
+    "coverageReporters": [
+      "text-summary"
+    ],
+    "coverageThreshold": {
+      "global": {"lines": 82, "statements": 80, "functions": 76, "branches": 73}
+    },
     "testMatch": [
       "**/__tests__/**/*.test.ts"
     ],

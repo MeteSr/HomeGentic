@@ -162,7 +162,7 @@ Realtors have no subscription tier: the winning agent in a Bid to List auction p
 
 Agent calls (agentic tool-use loop) are counted separately from chat calls. Limits live in `agents/voice/agentLimiter.ts` (`TIER_LIMITS`, `TIER_PERIOD`, `CHAT_LIMITS`). See `docs/AI_RATE_LIMITS.md` for the financial basis.
 
-Because accounts are free to create, every Claude call also passes `agents/voice/src/aiGuard.ts`: free accounts need a one-time Turnstile human check and share a daily token budget (paid accounts skip both), and repeated 429s trigger exponential backoff on the IP and principal. New paid routes (Claude or any metered API) should go through `aiGate` in `src/index.ts`; clients call them through `fetchWithAgentSession` (web) or `aiFetch` (mobile), which handle the check and `Retry-After`.
+Because accounts are free to create, every Claude call also passes `agents/voice/src/aiGuard.ts`: free accounts need a one-time Turnstile human check and share a daily token budget (paid accounts skip both), and repeated 429s trigger exponential backoff on the IP and principal. New paid routes (Claude or any metered API) should go through `aiGate` in `src/index.ts` (add them to `AUX_AI_ROUTES` and to the table in `__tests__/workerAiRoutes.test.ts`, which fails on a route that uses `provider` ungated); clients call them through `fetchWithAgentSession` (web) or `aiFetch` (mobile), which handle the check and `Retry-After`.
 
 | Tier | Agent calls | Chat calls/day |
 |---|---|---|
