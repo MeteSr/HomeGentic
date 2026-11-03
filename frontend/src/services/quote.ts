@@ -240,7 +240,11 @@ function createQuoteService() {
     if (fromMock) return fromMock;
     const a = await getActor();
     const result = await a.getQuoteRequest(id);
-    if ("err" in result) return undefined;
+    if ("err" in result) {
+      // Only a missing request is "not found"; an outage or pause must surface.
+      if ("NotFound" in result.err) return undefined;
+      throw canisterError(result.err);
+    }
     return fromRequest(result.ok);
   },
 
@@ -277,7 +281,11 @@ function createQuoteService() {
     }
     const a = await getActor();
     const result = await a.getQuotesForRequest(requestId);
-    if ("err" in result) return [];
+    if ("err" in result) {
+      // Not visible to the caller (or gone) means no bids to show; an outage must surface.
+      if ("NotFound" in result.err || "NotAuthorized" in result.err) return [];
+      throw canisterError(result.err);
+    }
     return (result.ok as any[]).map(fromQuote);
   },
 
