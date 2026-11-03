@@ -148,7 +148,8 @@ function createRecurringService() {
     const a = await getActor();
     const result = await a.getRecurringService(serviceId);
     if ("ok" in result) return fromService(result.ok);
-    return null;
+    if ("NotFound" in result.err) return null;
+    throw canisterError(result.err);
   },
 
   async getByProperty(propertyId: string): Promise<RecurringService[]> {
