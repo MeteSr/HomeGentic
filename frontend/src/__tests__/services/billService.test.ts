@@ -300,7 +300,7 @@ describe("billService recurring expenses", () => {
 
   it("deleteRecurringExpense throws on NotFound", async () => {
     mockActor.deleteRecurringExpense.mockResolvedValueOnce({ err: { NotFound: null } });
-    await expect(billService.deleteRecurringExpense("REC_404")).rejects.toThrow("NotFound");
+    await expect(billService.deleteRecurringExpense("REC_404")).rejects.toMatchObject({ code: "NotFound" });
   });
 });
 

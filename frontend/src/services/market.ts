@@ -12,6 +12,7 @@ import { Actor } from "@icp-sdk/core/agent";
 import { Job } from "./job";
 import type { Property } from "./property";
 import { getAgent } from "./actor";
+import { canisterError } from "./candid";
 
 const MARKET_CANISTER_ID = (process.env as any).MARKET_CANISTER_ID || "";
 
@@ -101,7 +102,7 @@ export interface ScoreEnvelope {
 export async function submitScore(propertyId: string): Promise<StoredScore> {
   const actor = await getNeighbourhoodActor();
   const result = await actor.submitScore(propertyId);
-  if ("err" in result) throw new Error(JSON.stringify(result.err));
+  if ("err" in result) throw canisterError(result.err);
   return {
     score:     Number(result.ok.score),
     zipCode:   result.ok.zipCode,
@@ -136,7 +137,7 @@ export async function getMyScoreEncrypted(
 ): Promise<ScoreEnvelope> {
   const actor = await getNeighbourhoodActor();
   const result = await actor.getMyScoreEncrypted(Array.from(transportPublicKey));
-  if ("err" in result) throw new Error(JSON.stringify(result.err));
+  if ("err" in result) throw canisterError(result.err);
   return {
     encryptedKey: new Uint8Array(result.ok.encryptedKey),
     score:        Number(result.ok.score),

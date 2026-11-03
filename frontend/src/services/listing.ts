@@ -1,7 +1,7 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/listing";
 import type { _SERVICE as ListingCanister } from "@homegentic/shared/types/listing";
-import { variant } from "./candid";
+import { canisterError, variant } from "./candid";
 import type * as Listing from "@homegentic/shared/types/listing";
 export { idlFactory };
 
@@ -319,7 +319,7 @@ function createListingService() {
       input.notes,
       toWindowDaysVariant(input.windowDays),
     );
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
     return fromRawRequest(result.ok);
   },
 
@@ -339,7 +339,7 @@ function createListingService() {
   async cancelBidRequest(id: string): Promise<void> {
     const actor = await getActor();
     const result = await actor.cancelBidRequest(id);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
   },
 
   /** Masked opportunity feed for the agent browse screen (A2). Slot count only — invariant 03. */
@@ -354,13 +354,13 @@ function createListingService() {
   async flagPhotoForReview(photoId: string): Promise<void> {
     const actor = await getActor();
     const result = await actor.flagPhotoForReview(photoId);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
   },
 
   async reviewPhoto(photoId: string): Promise<void> {
     const actor = await getActor();
     const result = await actor.reviewPhoto(photoId);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
   },
 
   async getPhotoReviewState(photoId: string): Promise<{ flagged: boolean; reviewed: boolean } | null> {
@@ -385,14 +385,14 @@ function createListingService() {
       BigInt(input.validUntil) * 1_000_000n,
       input.coverLetter,
     );
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
     return fromRawProposal(result.ok);
   },
 
   async withdrawProposal(proposalId: string): Promise<void> {
     const actor = await getActor();
     const result = await actor.withdrawProposal(proposalId);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
   },
 
   /** Sealed until three bids or the window closes (invariant 02); masked until feePaid (invariant 04). */
@@ -405,7 +405,7 @@ function createListingService() {
   async getBidProgress(requestId: string): Promise<{ count: number; sealed: boolean }> {
     const actor = await getActor();
     const result = await actor.getBidProgress(requestId);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
     return { count: Number(result.ok.count), sealed: result.ok.sealed };
   },
 
@@ -426,7 +426,7 @@ function createListingService() {
   async acceptProposal(proposalId: string): Promise<string> {
     const actor = await getActor();
     const result = await actor.acceptProposal(proposalId);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
     return result.ok;
   },
 
@@ -435,14 +435,14 @@ function createListingService() {
   async postMessage(proposalId: string, rawBody: string, authorRole: MessageRole): Promise<ThreadMessage> {
     const actor = await getActor();
     const result = await actor.postMessage(proposalId, rawBody, variant(authorRole));
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
     return fromRawMessage(result.ok);
   },
 
   async getThread(proposalId: string): Promise<ThreadMessage[]> {
     const actor = await getActor();
     const result = await actor.getThread(proposalId);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
     return result.ok.map(fromRawMessage);
   },
 
@@ -469,7 +469,7 @@ function createListingService() {
   async addListingPhoto(propertyId: string, photoId: string): Promise<void> {
     const actor = await getActor();
     const result = await actor.addListingPhoto(propertyId, photoId);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
   },
 
   /** Returns the ordered photo IDs for a listing (first = cover image). */
@@ -486,7 +486,7 @@ function createListingService() {
   async removeListingPhoto(propertyId: string, photoId: string): Promise<void> {
     const actor = await getActor();
     const result = await actor.removeListingPhoto(propertyId, photoId);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
   },
 
   /**
@@ -496,7 +496,7 @@ function createListingService() {
   async reorderListingPhotos(propertyId: string, photoIds: string[]): Promise<void> {
     const actor = await getActor();
     const result = await actor.reorderListingPhotos(propertyId, photoIds);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
   },
 
   // ── Panoramas (issue #308) ────────────────────────────────────────────────────
@@ -505,7 +505,7 @@ function createListingService() {
     if (!LISTING_CANISTER_ID) return;
     const actor = await getActor();
     const result = await actor.addPanorama(propertyId, roomLabel, photoId);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
   },
 
   async getPanoramas(propertyId: string): Promise<PanoramaEntry[]> {
@@ -523,7 +523,7 @@ function createListingService() {
     if (!LISTING_CANISTER_ID) return;
     const actor = await getActor();
     const result = await actor.removePanorama(propertyId, roomLabel);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
   },
 
   // ── Public FSBO search index ─────────────────────────────────────────────────
@@ -557,13 +557,13 @@ function createListingService() {
       photoUrl:         listing.photoUrl != null ? [listing.photoUrl] : [],
       systemHighlights: listing.systemHighlights ?? [],
     });
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
   },
 
   async deactivateFsboListing(propertyId: string): Promise<void> {
     const actor = await getActor();
     const result = await actor.deactivateFsboListing(propertyId);
-    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    if ("err" in result) throw canisterError(result.err);
   },
   };
 }
