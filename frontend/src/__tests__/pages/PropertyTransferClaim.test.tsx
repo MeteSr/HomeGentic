@@ -203,7 +203,7 @@ describe("PropertyTransferClaimPage", () => {
 
     // The component fires a 1.8s setTimeout before navigating — wait for it
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith("/properties/42");
+      expect(mockNavigate).toHaveBeenCalledWith("/properties/42/move-in");
     }, { timeout: 3000 });
   });
 

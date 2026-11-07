@@ -19,6 +19,7 @@ import { insuranceClaimService, claimIdOfPhoto } from "./insuranceClaims";
 import { inventoryService, inventoryIdOfPhoto } from "./inventory";
 import { houseGuideService } from "./houseGuide";
 import { hoaService } from "./hoaRecords";
+import { moveInPlanService } from "./moveInPlan";
 import { maintenanceService } from "./maintenance";
 import { sensorService } from "./sensor";
 import { billService } from "./billService";
@@ -122,6 +123,7 @@ export async function collectMyData(
         architecturalReviews: await step(at("architectural review requests"), () => hoaService.listReviews(id)),
         specialAssessments: await step(at("special assessments"), () => hoaService.listAssessments(id)),
         condoAssociation: await step(at("condo association record"), () => hoaService.getCondo(id)),
+        moveInPlan: await step(at("move-in plan"), () => moveInPlanService.get(id)),
       };
       const ph = await step(at("photos"), () => photoService.getByProperty(id));
       if ("ok" in ph) {

@@ -75,6 +75,7 @@ rewiring screens.
 | `/properties/:id/verify` | PropertyVerifyPage | Upload ownership documents |
 | `/properties/:id/systems` | SystemAgesPage | Manage system ages |
 | `/properties/:id/improvements` | ImprovementsRecordPage | Improvements record for the owner's tax preparer |
+| `/properties/:id/move-in` | MoveInPlanPage | Move-in plan for a new owner's first weeks |
 | `/jobs/new` | JobCreatePage | Log a maintenance job |
 | `/quotes/new` | QuoteRequestPage | Post a quote request |
 | `/quotes/:id` | QuoteDetailPage | View bids, accept a quote |
@@ -400,6 +401,16 @@ Multi-tab page — the main workspace for a property.
 - **Share links**: named, expiring links (1 to 90 days, at most 10 live per home) that anyone can open at `/guide/:token` without signing in. They show the guide and the home's street address and nothing else from the record; the page is `noindex`. Links can be turned off at once, and removing the guide ends them all; older expired or turned-off links are cleared as new ones are made, so a home keeps at most 30. Only people who can edit see the links
 - Guide photos load through the link: on-chain bytes from the photo canister (`getGuidePhotoData`), off-chain bytes from the voice Worker (`GET /photos/<id>?guide=<token>`, checked with `guidePhotoAccess`). Both ask the property canister (`guideSharesPhoto`) whether that live link's guide lists that photo of that home; documents are never shown
 - Stored on the property canister (`setHouseGuide` / `getHouseGuide` / `createHouseGuideLink` / `listHouseGuideLinks` / `revokeHouseGuideLink` / `getSharedHouseGuide`). The guide and its links are dropped when the home is transferred (the Wi-Fi and alarm are the seller's) and on deleteMyData; the guide is in Download My Data
+
+**Move-in plan** (`/properties/:id/move-in`, #712)
+- A checklist for a new owner's first weeks, written by the app from the home's own records (`services/moveInSteps.ts`): change the locks, find the shutoffs, test smoke and CO alarms, put the insurance on record, move the utilities, the homestead exemption, check appliances for recalls, change the HVAC filter, confirm system ages, and turn the purchase inspection into a repair list. Each step says what it's for and links to where it's done
+- Two steps tick themselves when the record shows them: shutoffs (the house guide notes the water shutoff and electrical panel) and insurance (a policy is on file). The rest the household ticks
+- Homestead: Florida homes get the Florida deadline (permanent home on January 1 of the year after the plan starts, file with the county property appraiser by March 1 of that year, Fla. Stat. 196.011) and a search link for the county appraiser; other states get no deadline, just a prompt to ask the county
+- Recalls: uses the CPSC check of the appliances on record (as the dashboard does) and says when nothing matched, when it couldn't check, or when appliances still need adding
+- **Inspection to tasks**: the owner uploads the inspection report from their purchase (a PDF up to 1.5 MB, or photos of the summary pages). The voice Worker (`POST /api/inspection-findings`, an AI route behind `aiGate` and the daily AI quota, `src/inspectionFindings.ts`) lists only what the inspector flagged, up to 25 items, each marked safety, repair or monitor. The owner reviews the list (labelled as read by AI, to check against the report), unticks what they don't want, and adds the rest as tasks; the report is also filed in the home's documents as an Inspection report unless they untick that. Repair and safety tasks have **Get quotes**, which opens the quote form with a trade from the area and a description
+- The page says the steps are suggestions, not an inspection, and nothing on it says a home is safe or up to code
+- A buyer who claims a home through a transfer gets a fresh plan (the seller's isn't passed on) and the claim page takes them to it; any owner can start one from the property page's **Move-in plan** button. While a plan has unfinished steps, the dashboard brief shows "Your move-in plan: N of M steps done" and opens it
+- Stored on the property canister (`startMoveInPlan` / `getMoveInPlan` / `setMoveInStep` / `addMoveInTasks` / `deleteMoveInTask` / `endMoveInPlan`, side map keyed by property id): finished step ids and up to 60 tasks. Owners, co-owners and managers change it; viewers read it. Dropped on deleteMyData; in Download My Data
 
 **HOA and condo paperwork** (property page → HOA tab, #726)
 - **Architectural review requests**: what was asked, details, status (not sent yet, waiting, approved, approved with conditions, denied, withdrawn), submitted and decision dates, conditions, the approval letter (a document from the vault) and the job for the work. A submitted request needs its date; a decision needs its date. Up to 100 per home

@@ -118,9 +118,11 @@ describe("PropertyTransferClaimPage — authenticated claim flow", () => {
 
     fireEvent.click(await screen.findByText("Accept & Become Owner →"));
     expect(await screen.findByText("You're the new owner")).toBeInTheDocument();
+    // #712: the canister starts a move-in plan for the buyer; the page opens it.
+    expect(screen.getByText(/move-in plan/i)).toBeInTheDocument();
 
     await act(async () => { vi.advanceTimersByTime(1800); });
-    expect(mockNavigate).toHaveBeenCalledWith("/properties/prop-1");
+    expect(mockNavigate).toHaveBeenCalledWith("/properties/prop-1/move-in");
     vi.useRealTimers();
   });
 

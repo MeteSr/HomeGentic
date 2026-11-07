@@ -58,6 +58,7 @@ import HouseGuide "HouseGuide";
 import Hoa "Hoa";
 import HomeFinance "HomeFinance";
 import FloodZone "FloodZone";
+import MoveIn "MoveIn";
 
 persistent actor Property {
 
@@ -211,6 +212,10 @@ persistent actor Property {
   public type FloodZoneInput         = FloodZone.Input;
   public type FloodZoneRecord        = FloodZone.FloodZone;
   public type FloodTarget            = FloodZone.Target;
+  public type MoveInTaskUrgency      = MoveIn.TaskUrgency;
+  public type MoveInTaskInput        = MoveIn.TaskInput;
+  public type MoveInTask             = MoveIn.Task;
+  public type MoveInPlan             = MoveIn.Plan;
 
   public type RegisterPropertyArgs = {
     address      : Text;
@@ -601,6 +606,13 @@ persistent actor Property {
   /// address. It describes the land, so it stays on claimTransfer;
   /// deleteMyData drops it with the home.
   private let floodZones = Map.empty<Text, FloodZone.FloodZone>();
+
+  /// #712: propertyId → the household's move-in plan (steps done, tasks from
+  /// the purchase inspection). A buyer gets a fresh one on claimTransfer (the
+  /// seller's goes); deleteMyData drops it.
+  private let moveInPlans = Map.empty<Text, MoveIn.Plan>();
+  /// Next move-in task id ("mt-<n>").
+  private var moveInTaskCounter : Nat = 0;
 
   private func putProperty(p : Property) { Index.put(properties, propertyIndexes, p.id, p) };
   private func putRoom(r : RoomRecord)   { Index.put(rooms, roomIndexes, r.id, r) };
@@ -1653,6 +1665,8 @@ persistent actor Property {
                 // #719 / #722: the seller's home warranty contract and mortgage.
                 homeWarrantyPlans.remove(propertyId);
                 mortgageLoans.remove(propertyId);
+                // #712: a fresh move-in plan for the buyer; the seller's goes.
+                moveInPlans.add(propertyId, MoveIn.fresh(now));
 
                 // Append immutable record to ownership history. L-3: take a
                 // fresh key per claim so two claims never share a record slot.
@@ -3170,6 +3184,91 @@ persistent actor Property {
     #ok(rec)
   };
 
+  // ─── Move-in plan (#712) ──────────────────────────────────────────────────
+
+  /// The plan on a home the caller can change, or the error to return.
+  private func writablePlan(propertyId : Text, caller : Principal) : Result.Result<MoveIn.Plan, Error> {
+    switch (requireActive(caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, caller, true)) return #err(#NotAuthorized);
+    switch (moveInPlans.get(propertyId)) { case null #err(#NotFound); case (?p) #ok(p) }
+  };
+
+  /// #712: start a move-in plan on the home, or return the one it has. Needs
+  /// write access. A buyer who claims a home gets one without asking.
+  public shared(msg) func startMoveInPlan(propertyId: Text) : async Result.Result<MoveInPlan, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    switch (moveInPlans.get(propertyId)) {
+      case (?p) #ok(p);
+      case null {
+        let p = MoveIn.fresh(Time.now());
+        moveInPlans.add(propertyId, p);
+        #ok(p)
+      };
+    }
+  };
+
+  /// #712: the home's move-in plan, or null. Anyone with a role on the home and admins.
+  public query(msg) func getMoveInPlan(propertyId: Text) : async Result.Result<?MoveInPlan, Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(moveInPlans.get(propertyId))
+  };
+
+  /// #712: mark a step (or a task, by its id) done or not done.
+  public shared(msg) func setMoveInStep(propertyId: Text, stepId: Text, done: Bool) : async Result.Result<MoveInPlan, Error> {
+    if (not MoveIn.isStepId(stepId)) return #err(#InvalidInput("That step doesn't exist"));
+    let plan = switch (writablePlan(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(p)) p };
+    if (done and plan.doneSteps.size() >= MoveIn.MAX_DONE and plan.doneSteps.find(func s = s == stepId) == null)
+      return #err(#InvalidInput("This plan has too many finished steps"));
+    let next = MoveIn.mark(plan, stepId, done, Time.now());
+    moveInPlans.add(propertyId, next);
+    #ok(next)
+  };
+
+  /// #712: add tasks the owner reviewed (usually from the purchase
+  /// inspection). 1 to 25 per call, at most 60 on a plan.
+  public shared(msg) func addMoveInTasks(propertyId: Text, inputs: [MoveInTaskInput]) : async Result.Result<MoveInPlan, Error> {
+    let plan = switch (writablePlan(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(p)) p };
+    if (inputs.size() == 0) return #err(#InvalidInput("Choose at least one task to add"));
+    if (inputs.size() > MoveIn.MAX_TASKS_PER_CALL) return #err(#InvalidInput("Add up to 25 tasks at a time"));
+    if (plan.tasks.size() + inputs.size() > MoveIn.MAX_TASKS)
+      return #err(#InvalidInput("A move-in plan can hold up to 60 tasks; delete some first"));
+    let cleaned = inputs.map(MoveIn.clean);
+    for (t in cleaned.values()) {
+      switch (MoveIn.validate(t)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    };
+    let now = Time.now();
+    let added = cleaned.map(func(t : MoveIn.TaskInput) : MoveIn.Task {
+      moveInTaskCounter += 1;
+      { id = "mt-" # moveInTaskCounter.toText(); title = t.title; detail = t.detail; area = t.area; urgency = t.urgency; createdAt = now }
+    });
+    let next = { plan with tasks = plan.tasks.concat(added); updatedAt = now };
+    moveInPlans.add(propertyId, next);
+    #ok(next)
+  };
+
+  /// #712: delete a task from the plan (and its tick).
+  public shared(msg) func deleteMoveInTask(propertyId: Text, taskId: Text) : async Result.Result<MoveInPlan, Error> {
+    let plan = switch (writablePlan(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(p)) p };
+    if (plan.tasks.find(func(t : MoveIn.Task) : Bool { t.id == taskId }) == null) return #err(#NotFound);
+    let now = Time.now();
+    let next = MoveIn.mark({ plan with tasks = plan.tasks.filter(func(t : MoveIn.Task) : Bool { t.id != taskId }) }, taskId, false, now);
+    moveInPlans.add(propertyId, next);
+    #ok(next)
+  };
+
+  /// #712: end the move-in plan (removes it). Needs write access.
+  public shared(msg) func endMoveInPlan(propertyId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    moveInPlans.remove(propertyId);
+    #ok(())
+  };
+
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
@@ -3261,6 +3360,8 @@ persistent actor Property {
       removed += dropWarrantyClaims(pid);
       if (mortgageLoans.get(pid) != null) { mortgageLoans.remove(pid); removed += 1 };
       if (floodZones.get(pid) != null) { floodZones.remove(pid); removed += 1 };
+      // #712 move-in plan.
+      if (moveInPlans.get(pid) != null) { moveInPlans.remove(pid); removed += 1 };
 
       // Pending transfer and its token index.
       switch (pendingTransfers.get(pid)) {

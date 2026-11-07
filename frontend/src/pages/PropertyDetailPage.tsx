@@ -4,7 +4,7 @@ import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { MobilePropertyPage } from "@/pages/MobilePropertyPage";
 import {
   Share2, Shield, Wrench, MessageSquare, AlertCircle,
-  CalendarDays, Activity, Cpu, ArrowRight,
+  CalendarDays, Activity, Cpu, ArrowRight, ListChecks,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { SHELL_PAGE_MIN_HEIGHT } from "@/components/dashboardV3/chrome";
@@ -436,6 +436,12 @@ export default function PropertyDetailPage() {
             style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: BODY, fontSize: "0.875rem", fontWeight: 600, color: "var(--hg-blue-ink)", background: "var(--hg-blue-wash)", border: "1px solid var(--hg-blue-edge)", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
           >
             <MessageSquare size={15} /> Request Quote
+          </button>
+          <button
+            onClick={() => navigate(`/properties/${property.id}/move-in`)}
+            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: BODY, fontSize: "0.875rem", fontWeight: 500, color: "var(--hg-ink)", background: "var(--hg-fill)", border: "1px solid var(--hg-line-2)", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+          >
+            <ListChecks size={15} /> Move-in plan
           </button>
           {property.verificationLevel !== "Unverified" && (
             <>

@@ -291,6 +291,7 @@ exports[`Candid contract snapshots — method arity > property 1`] = `
 addHomeWarrantyClaim(2) -> (1)
 addInsuranceClaimLog(3) -> (1)
 addInventoryItem(2) -> (1)
+addMoveInTasks(2) -> (1)
 addSpecialAssessment(2) -> (1)
 cancelManagerInvite(2) -> (1)
 cancelTransfer(1) -> (1)
@@ -302,9 +303,11 @@ deleteArchitecturalReview(1) -> (1)
 deleteHomeWarrantyClaim(1) -> (1)
 deleteInsuranceClaim(1) -> (1)
 deleteInventoryItem(1) -> (1)
+deleteMoveInTask(2) -> (1)
 deleteMyData(0) -> (1)
 deleteSpecialAssessment(1) -> (1)
 dismissNotifications(1) -> (1)
+endMoveInPlan(1) -> (1)
 findPropertiesByAddress(1) -> (1) [query]
 getAccessRole(2) -> (1) [query]
 getAccessRoles(2) -> (1) [query]
@@ -322,6 +325,7 @@ getInventory(1) -> (1) [query]
 getJobPropertyAddresses(1) -> (1)
 getManagerInviteByToken(1) -> (1) [query]
 getMortgageLoan(1) -> (1) [query]
+getMoveInPlan(1) -> (1) [query]
 getMyManagedProperties(0) -> (1) [query]
 getMyProperties(0) -> (1) [query]
 getOwnerNotifications(1) -> (1) [query]
@@ -367,6 +371,8 @@ setHomeWarrantyPlan(2) -> (1)
 setHouseGuide(2) -> (1)
 setInsurancePolicy(2) -> (1)
 setMortgageLoan(2) -> (1)
+setMoveInStep(3) -> (1)
+startMoveInPlan(1) -> (1)
 submitVerification(4) -> (1)
 updateArchitecturalReview(2) -> (1)
 updateHomeWarrantyClaim(2) -> (1)

@@ -120,6 +120,25 @@ describe("buildHomeBrief", () => {
     expect(b.items[1].text).toBe("A safety recall may cover your Rheem XG40T06EC36U1: Rheem Recalls Gas Water Heaters. Compare the model numbers on the notice. (1 more appliance may be affected.)");
   });
 
+  it("#712 shows an unfinished move-in plan after urgent items, linking to the plan", () => {
+    const b = buildHomeBrief(input({
+      sensorAlerts: [{ id: "e1", deviceId: "d", propertyId: "p", eventType: "WaterLeak", value: 1, unit: "", timestamp: 0, severity: "Critical" } as any],
+      pendingProposals: [{ id: "j1" } as any],
+      moveIn: { propertyId: "p1", done: 3, total: 10 },
+    }));
+    expect(b.items.map((i) => i.id)).toEqual(["sensor", "movein", "approvals"]);
+    expect(b.items[1]).toMatchObject({
+      tone: "action",
+      text: "Your move-in plan: 3 of 10 steps done.",
+      path: "/properties/p1/move-in",
+    });
+  });
+
+  it("#712 leaves a finished move-in plan out", () => {
+    const b = buildHomeBrief(input({ moveIn: { propertyId: "p1", done: 10, total: 10 } }));
+    expect(b.items).toEqual([]);
+  });
+
   it("sends a recall without a CPSC link to the property panel", () => {
     const b = buildHomeBrief(input({ recalls: [{ brand: "GE", model: "GDF630", recalls: [{ id: "2", number: "", date: "", title: "", url: "", hazard: "", remedy: "" }] }] }));
     expect(b.items[0]).toMatchObject({ id: "recall", go: "property" });

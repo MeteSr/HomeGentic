@@ -50,6 +50,7 @@ const VerifyExpiredPage         = React.lazy(() => import("@/pages/PropertyVerif
 const VerifyContestedPage       = React.lazy(() => import("@/pages/PropertyVerify/VerifyContestedPage"));
 const SystemAgesPage             = React.lazy(() => import("@/pages/SystemAgesPage"));
 const ImprovementsRecordPage     = React.lazy(() => import("@/pages/ImprovementsRecordPage"));
+const MoveInPlanPage             = React.lazy(() => import("@/pages/MoveInPlanPage"));
 const JobCreatePage              = React.lazy(() => import("@/pages/JobCreatePage"));
 const JobsPage                   = React.lazy(() => import("@/pages/JobsPage"));
 const QuoteRequestPage           = React.lazy(() => import("@/pages/QuoteRequestPage"));
@@ -217,6 +218,7 @@ export default function App() {
           </Route>
           <Route path="/properties/:id/systems" element={<ProtectedRoute><SystemAgesPage /></ProtectedRoute>} />
           <Route path="/properties/:id/improvements" element={<ProtectedRoute><ImprovementsRecordPage /></ProtectedRoute>} />
+          <Route path="/properties/:id/move-in" element={<ProtectedRoute><MoveInPlanPage /></ProtectedRoute>} />
           <Route path="/jobs"         element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
           <Route path="/jobs/new"     element={<ProtectedRoute><JobCreatePage /></ProtectedRoute>} />
           <Route path="/quotes/new"   element={<ProtectedRoute><QuoteRequestPage /></ProtectedRoute>} />

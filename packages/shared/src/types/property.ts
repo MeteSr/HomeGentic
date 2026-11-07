@@ -125,6 +125,31 @@ export type InventoryItem = {
   valueCents: [] | [bigint];
 };
 
+export type MoveInTaskInput = {
+  title: string;
+  urgency: MoveInTaskUrgency;
+  area: string;
+  detail: string;
+};
+
+export type MoveInTaskUrgency = { Repair: null } | { Safety: null } | { Monitor: null };
+
+export type MoveInPlan = {
+  tasks: MoveInTask[];
+  startedAt: bigint;
+  updatedAt: bigint;
+  doneSteps: string[];
+};
+
+export type MoveInTask = {
+  id: string;
+  title: string;
+  urgency: MoveInTaskUrgency;
+  area: string;
+  createdAt: bigint;
+  detail: string;
+};
+
 export type AssessmentInput = {
   title: string;
   dueDate: string;
@@ -534,6 +559,7 @@ export interface _SERVICE {
   addHomeWarrantyClaim: ActorMethod<[string, HomeWarrantyClaimInput], { ok: HomeWarrantyClaim } | { err: Error }>;
   addInsuranceClaimLog: ActorMethod<[string, string, string], { ok: InsuranceClaim } | { err: Error }>;
   addInventoryItem: ActorMethod<[string, InventoryItemInput], { ok: InventoryItem } | { err: Error }>;
+  addMoveInTasks: ActorMethod<[string, MoveInTaskInput[]], { ok: MoveInPlan } | { err: Error }>;
   addSpecialAssessment: ActorMethod<[string, AssessmentInput], { ok: SpecialAssessment } | { err: Error }>;
   cancelManagerInvite: ActorMethod<[string, string], { ok: null } | { err: Error }>;
   cancelTransfer: ActorMethod<[string], { ok: null } | { err: Error }>;
@@ -554,9 +580,11 @@ export interface _SERVICE {
   deleteHomeWarrantyClaim: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteInsuranceClaim: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteInventoryItem: ActorMethod<[string], { ok: null } | { err: Error }>;
+  deleteMoveInTask: ActorMethod<[string, string], { ok: MoveInPlan } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   deleteSpecialAssessment: ActorMethod<[string], { ok: null } | { err: Error }>;
   dismissNotifications: ActorMethod<[string], { ok: null } | { err: Error }>;
+  endMoveInPlan: ActorMethod<[string], { ok: null } | { err: Error }>;
   findPropertiesByAddress: ActorMethod<[string], AddressMatch[]>;
   getAccessRole: ActorMethod<
     [string, Principal],
@@ -587,6 +615,7 @@ export interface _SERVICE {
   >;
   getManagerInviteByToken: ActorMethod<[string], [] | [ManagerInvite]>;
   getMortgageLoan: ActorMethod<[string], { ok: [] | [MortgageLoan] } | { err: Error }>;
+  getMoveInPlan: ActorMethod<[string], { ok: [] | [MoveInPlan] } | { err: Error }>;
   getMyManagedProperties: ActorMethod<[], ManagedProperty[]>;
   getMyProperties: ActorMethod<[], Property[]>;
   getOwnerNotifications: ActorMethod<[string], { ok: OwnerNotification[] } | { err: Error }>;
@@ -655,6 +684,8 @@ export interface _SERVICE {
   setHouseGuide: ActorMethod<[string, [] | [HouseGuideInput]], { ok: null } | { err: Error }>;
   setInsurancePolicy: ActorMethod<[string, [] | [InsurancePolicyInput]], { ok: null } | { err: Error }>;
   setMortgageLoan: ActorMethod<[string, [] | [MortgageLoanInput]], { ok: null } | { err: Error }>;
+  setMoveInStep: ActorMethod<[string, string, boolean], { ok: MoveInPlan } | { err: Error }>;
+  startMoveInPlan: ActorMethod<[string], { ok: MoveInPlan } | { err: Error }>;
   submitVerification: ActorMethod<[string, string, string, [] | [string]], { ok: Property } | { err: Error }>;
   updateArchitecturalReview: ActorMethod<[string, ReviewInput], { ok: ArchitecturalReview } | { err: Error }>;
   updateHomeWarrantyClaim: ActorMethod<[string, HomeWarrantyClaimInput], { ok: HomeWarrantyClaim } | { err: Error }>;
