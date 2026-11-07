@@ -80,7 +80,9 @@ describe("every canister keeps its data across an upgrade", () => {
     const kind = (m: string) => methods.get(m)!.annotations;
     const isQuery = (m: string) => kind(m).includes("query") || kind(m).includes("composite_query");
     const updates = [...methods.keys()].filter((m) => !isQuery(m) && !DESTRUCTIVE.test(m)).sort();
-    const queries = [...methods.keys()].filter(isQuery).sort();
+    // getApiDoc() is documentation compiled into the Wasm, not stored data:
+    // it changes whenever a PR updates the doc (apidoc.canister.test.ts checks it).
+    const queries = [...methods.keys()].filter((m) => isQuery(m) && m !== "getApiDoc").sort();
     const sample = (m: string, who: Identity) => methods.get(m)!.argTypes.map((t) => sampleValue(t, who.getPrincipal()));
 
     for (const who of [admin, user]) {
