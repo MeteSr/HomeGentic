@@ -2,6 +2,7 @@ import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/agent";
 import type { _SERVICE as AgentCanister } from "@homegentic/shared/types/agent";
 import type * as AgentTypes from "@homegentic/shared/types/agent";
+import { canisterError } from "./candid";
 export { idlFactory };
 
 const AGENT_CANISTER_ID = (process.env as any).AGENT_CANISTER_ID || "";
@@ -92,7 +93,7 @@ function createAgentService() {
     async register(input: RegisterAgentInput): Promise<AgentProfile> {
       const actor = await getActor();
       const result = await actor.register(input);
-      if ("err" in result) throw new Error(JSON.stringify(result.err));
+      if ("err" in result) throw canisterError(result.err);
       return fromRawProfile(result.ok);
     },
 
@@ -114,14 +115,14 @@ function createAgentService() {
     async updateProfile(input: RegisterAgentInput): Promise<AgentProfile> {
       const actor = await getActor();
       const result = await actor.updateProfile(input);
-      if ("err" in result) throw new Error(JSON.stringify(result.err));
+      if ("err" in result) throw canisterError(result.err);
       return fromRawProfile(result.ok);
     },
 
     async setCardOnFile(onFile: boolean): Promise<void> {
       const actor = await getActor();
       const result = await actor.setCardOnFile(onFile);
-      if ("err" in result) throw new Error(JSON.stringify(result.err));
+      if ("err" in result) throw canisterError(result.err);
     },
 
     /** Admin only. */
@@ -129,7 +130,7 @@ function createAgentService() {
       const { Principal } = await import("@icp-sdk/core/principal");
       const actor = await getActor();
       const result = await actor.verifyAgent(Principal.fromText(agentId));
-      if ("err" in result) throw new Error(JSON.stringify(result.err));
+      if ("err" in result) throw canisterError(result.err);
       return fromRawProfile(result.ok);
     },
 
@@ -145,7 +146,7 @@ function createAgentService() {
       const result = await actor.addReview({
         agentId: Principal.fromText(agentId), rating: BigInt(rating), comment, transactionId,
       });
-      if ("err" in result) throw new Error(JSON.stringify(result.err));
+      if ("err" in result) throw canisterError(result.err);
       return fromRawReview(result.ok);
     },
 

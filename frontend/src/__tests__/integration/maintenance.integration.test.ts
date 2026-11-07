@@ -152,15 +152,11 @@ describe.skipIf(!deployed)("markCompleted — sets isCompleted and returns updat
     entryId = fromEntry(result.ok).id;
   });
 
-  it("updated entry has isCompleted=true (Unauthorized acceptable when property canister is wired)", async () => {
+  it("updated entry has isCompleted=true for the property's owner", async () => {
     const a = await getActor();
     const result = await a.markCompleted(entryId) as any;
-    if ("err" in result) {
-      // Unauthorized when propCanisterId is configured and the test property
-      // doesn't exist in the property canister — expected in local integration runs.
-      expect(Object.keys(result.err)[0]).toMatch(/^(NotAuthorized|Unauthorized)$/);
-      return;
-    }
+    // PROPERTY_ID is registered by this identity, so the owner check passes.
+    expect(result).toHaveProperty("ok");
     const updated = fromEntry(result.ok);
     expect(updated.isCompleted).toBe(true);
     expect(updated.id).toBe(entryId);

@@ -10,7 +10,7 @@
     "test": "jest --watchAll=false",
     "test:watch": "jest --watchAll",
     "typecheck": "tsc --noEmit",
-    "ci": "tsc --noEmit && jest --ci --watchAll=false"
+    "ci": "tsc --noEmit && jest --ci --watchAll=false --coverage --coverageReporters=text-summary"
   },
   "jest": {
     "preset": "jest-expo",
@@ -28,7 +28,15 @@
     ],
     "setupFiles": [
       "<rootDir>/jest/setup.js"
-    ]
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 52,
+        "branches": 45,
+        "functions": 43,
+        "lines": 55
+      }
+    }
   },
   "dependencies": {
     "@expo-google-fonts/bricolage-grotesque": "^0.4.1",

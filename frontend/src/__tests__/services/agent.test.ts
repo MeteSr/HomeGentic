@@ -26,6 +26,7 @@ vi.mock("@icp-sdk/core/agent", () => ({
 }));
 
 import { agentService } from "@/services/agent";
+import { hasErrorCode, errorMessage } from "@/services/candid";
 
 function makeRawProfile(overrides: Record<string, unknown> = {}) {
   return {
@@ -99,5 +100,59 @@ describe("agentService — actor caching", () => {
     agentService.reset();
     await agentService.getMyProfile();
     expect(mockCreateActor).toHaveBeenCalledTimes(2);
+  });
+});
+
+// Test-gap audit 2026-11-03 (M2): canister errors reach the page as typed
+// CanisterErrors, so the toast shows the canister's sentence, never JSON.
+describe("agentService errors and the remaining calls", () => {
+  const input = {
+    name: "J", brokerage: "B", licenseNumber: "L", licenseState: "FL", county: "Orange",
+    serviceCities: ["orlando"], bio: "", phone: "", email: "j@x.com",
+  };
+
+  it.each([
+    ["register", () => agentService.register(input), "register"],
+    ["updateProfile", () => agentService.updateProfile(input), "updateProfile"],
+    ["setCardOnFile", () => agentService.setCardOnFile(true), "setCardOnFile"],
+    ["verifyAgent", () => agentService.verifyAgent("p"), "verifyAgent"],
+    ["addReview", () => agentService.addReview("p", 5, "great", "t1"), "addReview"],
+  ] as const)("%s throws a typed error with the canister's text", async (_n, call, method) => {
+    (mockActor as any)[method].mockResolvedValue({ err: { InvalidInput: "License number is required." } });
+    const err = await call().catch((e) => e);
+    expect(hasErrorCode(err, "InvalidInput")).toBe(true);
+    expect(errorMessage(err, "fallback")).toBe("License number is required.");
+  });
+
+  it("a tag without text gets the shared copy, not JSON", async () => {
+    mockActor.setCardOnFile.mockResolvedValue({ err: { NotAuthorized: null } });
+    const err = await agentService.setCardOnFile(true).catch((e) => e);
+    expect(errorMessage(err, "fallback")).not.toMatch(/[{}]/);
+  });
+
+  it("updateProfile, getProfile, isVerifiedAgent, addReview and getReviews decode results", async () => {
+    mockActor.updateProfile.mockResolvedValue({ ok: makeRawProfile({ county: "Orange" }) });
+    mockActor.getProfile.mockResolvedValue([makeRawProfile()]);
+    mockActor.isVerifiedAgent.mockResolvedValue(true);
+    const rawReview = {
+      id: "rv1", agentId: { toText: () => "agent-principal" }, reviewerPrincipal: { toText: () => "owner" },
+      rating: 5n, comment: "great", transactionId: "t1", createdAt: 2_000n * 1_000_000n,
+    };
+    mockActor.addReview.mockResolvedValue({ ok: rawReview });
+    mockActor.getReviews.mockResolvedValue([rawReview]);
+
+    expect((await agentService.updateProfile(input)).county).toBe("Orange");
+    expect((await agentService.getProfile("agent-principal"))?.name).toBe("Jane Realtor");
+    expect(await agentService.isVerifiedAgent("agent-principal")).toBe(true);
+    expect(await agentService.addReview("agent-principal", 5, "great", "t1")).toEqual({
+      id: "rv1", agentId: "agent-principal", reviewerPrincipal: "owner", rating: 5, comment: "great", transactionId: "t1", createdAt: 2_000,
+    });
+    expect(mockActor.addReview.mock.calls[0][0]).toMatchObject({ rating: 5n, comment: "great", transactionId: "t1" });
+    expect(await agentService.getReviews("agent-principal")).toHaveLength(1);
+  });
+
+  it("getProfile returns null for an unknown agent", async () => {
+    mockActor.getProfile.mockResolvedValue([]);
+    expect(await agentService.getProfile("nobody")).toBeNull();
   });
 });

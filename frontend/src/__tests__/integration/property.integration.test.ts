@@ -17,6 +17,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { propertyService } from "@/services/property";
 import type { Property } from "@/services/property";
 import { TEST_PRINCIPAL } from "./setup";
+import { ADMIN_SEED, asIdentity, freshIdentity, seededIdentity } from "./helpers";
 
 const CANISTER_ID = process.env.PROPERTY_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
@@ -157,20 +158,31 @@ describe.skipIf(!deployed)("submitVerification — verification state machine", 
 
 // ─── Duplicate address detection ──────────────────────────────────────────────
 
-// Duplicate detection requires two different identities: the canister treats
-// same-owner re-registration as idempotent (returns the existing property
-// rather than rejecting). A single CI identity cannot exercise the conflict path.
-describe.skip("registerProperty — duplicate address detection", () => {
+// The conflict paths need other identities: a second claimant during the 7-day
+// window gets AddressConflict, and once TEST_ADMIN verifies the first claim a
+// third gets DuplicateAddress.
+describe.skipIf(!deployed)("registerProperty — duplicate address detection", () => {
   const duplicateAddr = addr("duplicate");
+  let firstId = "";
 
   beforeAll(async () => {
-    await propertyService.registerProperty({ ...BASE, address: duplicateAddr });
+    firstId = (await propertyService.registerProperty({ ...BASE, address: duplicateAddr })).id;
   });
 
-  it("registering the same address twice throws AddressConflict or DuplicateAddress", async () => {
+  it("another owner inside the claim window gets AddressConflict", async () => {
     await expect(
-      propertyService.registerProperty({ ...BASE, address: duplicateAddr })
-    ).rejects.toThrow(/conflict|duplicate|already/i);
+      asIdentity(freshIdentity(), [propertyService], () =>
+        propertyService.registerProperty({ ...BASE, address: duplicateAddr })),
+    ).rejects.toThrow(/Address already claimed/);
+  });
+
+  it("another owner after the first claim is verified gets DuplicateAddress", async () => {
+    await asIdentity(seededIdentity(ADMIN_SEED), [propertyService], () =>
+      propertyService.verifyProperty(firstId, "Basic"));
+    await expect(
+      asIdentity(freshIdentity(), [propertyService], () =>
+        propertyService.registerProperty({ ...BASE, address: duplicateAddr })),
+    ).rejects.toThrow(/already registered and verified/);
   });
 });
 

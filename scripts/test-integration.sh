@@ -155,13 +155,16 @@ __JSEOF__
     echo "  seed=203 → ${SEED_203:-<empty>}"
     echo "  seed=204 → ${SEED_204:-<empty>}"
 
-    # TEST_ADMIN (seed=160, helpers.ts ADMIN_SEED): admin on property and
-    # contractor, for the admin steps the suites need (verifying a property
-    # before a report, verifying a contractor profile before it signs).
+    # TEST_ADMIN (seed=160, helpers.ts ADMIN_SEED): admin on property,
+    # contractor, monitoring and sensor, for the admin steps the suites need
+    # (verifying a property before a report or a contractor profile before it
+    # signs, the tracked-canister registry, recording sensor readings).
     if [ -n "${SEED_160:-}" ]; then
       dfx canister call property   addAdmin "(principal \"$SEED_160\", \"\")" >/dev/null 2>&1 \
         && dfx canister call contractor addAdmin "(principal \"$SEED_160\", \"\")" >/dev/null 2>&1 \
-        && echo "  ✓ property + contractor admin → TEST_ADMIN (seed=160)" \
+        && dfx canister call monitoring addAdmin "(principal \"$SEED_160\", \"\")" >/dev/null 2>&1 \
+        && dfx canister call sensor     addAdmin "(principal \"$SEED_160\", \"\")" >/dev/null 2>&1 \
+        && echo "  ✓ property, contractor, monitoring + sensor admin → TEST_ADMIN (seed=160)" \
         || echo "  ⚠  Could not make TEST_ADMIN an admin"
     fi
 

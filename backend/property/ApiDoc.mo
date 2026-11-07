@@ -12,7 +12,7 @@ module {
     "- `getRoomsByProperty(propertyId)` / `getRoom(id)` (query): rooms and the fixtures in them (appliances, model numbers, install dates).\n" #
     "- `getOwnershipHistory(propertyId)` (query): past owner transfers.\n\n" #
     "## Changing\n" #
-    "- `registerProperty(args)`: adds a home. `state` is a 2-letter code, `zipCode` 5 digits or ZIP+4, `squareFeet` 1 to 100,000. Free accounts can register 1 property and Pro accounts 20. If another user has verified that address, the call is refused with `#DuplicateAddress`. If another user has claimed it without verifying, `#AddressConflict` gives the end of a 7-day window for resolving it.\n" #
+    "- `registerProperty(args)`: adds a home. `state` is a 2-letter code, `zipCode` 5 digits or ZIP+4, `squareFeet` 1 to 100,000. Free accounts can register 1 property and Pro accounts 20. Registering an address you already own returns that home unchanged and creates nothing. If another user has verified that address, the call is refused with `#DuplicateAddress`. If another user has claimed it without verifying, `#AddressConflict` gives the end of a 7-day window for resolving it.\n" #
     "- `submitVerification(propertyId, method, documentHash, nameOnDoc)`: asks HomeGentic to verify ownership from a document the user uploaded in the web app. It moves the property to `#PendingReview`. A HomeGentic administrator approves it.\n" #
     "- `createRoom`, `updateRoom`, `deleteRoom`, `addFixture`, `updateFixture`, `removeFixture`: edit rooms and fixtures. `deleteRoom` and `removeFixture` can't be undone.\n" #
     "- `inviteManager(...)` creates an invite link that gives another person access to the property. `removeManager` and `updateManagerRole` change that access.\n" #

@@ -82,7 +82,7 @@ export default function ContractorProfilePage() {
           if (p.licenseNumber) contractorService.getLicenseCheck(p.id).then(setLicenseCheck).catch(() => {});
         }
       })
-      .catch((e) => console.error("[ContractorProfilePage] profile load failed:", e))
+      .catch((e) => toast.error(errorMessage(e, "Couldn't load your profile. Please try again before saving.")))
       .finally(() => setLoading(false));
     paymentService.getMySubscription()
       .then((s) => setIsPro(s.tier === "ContractorPro"))

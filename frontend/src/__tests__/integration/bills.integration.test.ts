@@ -350,7 +350,7 @@ describe.skipIf(!deployed)("recurring expenses — Candid round-trip & lifecycle
   it("canister rejects an endDate before the startDate", async () => {
     await expect(
       billService.addRecurringExpense(await propId("rec-bad"), { ...FIELDS, endDate: "2020-01-01" })
-    ).rejects.toThrow("InvalidInput");
+    ).rejects.toMatchObject({ code: "InvalidInput" });
   });
 
   it("update then delete", async () => {

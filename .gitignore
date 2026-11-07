@@ -56,3 +56,4 @@ Thumbs.db
 agents/voice/coverage/
 agents/notifications/coverage/
 agents/iot-gateway/coverage/
+mobile/coverage/

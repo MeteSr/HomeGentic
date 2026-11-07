@@ -52,7 +52,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 
 | Method | Type | Signature | Description |
 |---|---|---|---|
-| `registerProperty` | update | `(args: RegisterPropertyArgs)` | Register a new property |
+| `registerProperty` | update | `(args: RegisterPropertyArgs)` | Register a new property; an address the caller already owns returns that home unchanged |
 | `getMyProperties` | query | `()` | Caller's properties |
 | `getPropertiesByOwner` | query | `(owner: Principal)` | Properties for a given owner |
 | `getProperty` | query | `(id: Text)` | Get property by ID |

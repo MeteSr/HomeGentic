@@ -35,7 +35,7 @@ import { idlFactory as photoIdl }            from "@/services/photo";
 import { idlFactory as reportIdl }           from "@/services/report";
 import { idlFactory as quoteIdl }            from "@/services/quote";
 import { idlFactory as paymentIdl }          from "@/services/payment";
-import { registerContractor, seededIdentity } from "./helpers";
+import { ADMIN_SEED, agentFor, registerContractor, seededIdentity } from "./helpers";
 
 // ─── Canister IDs ─────────────────────────────────────────────────────────────
 
@@ -182,10 +182,22 @@ describe.skipIf(!integrationReady)("WF.A — Full homeowner onboarding chain", (
   });
 
   it("step A.3 — generates a report snapshot for the property", async () => {
-    // NOTE: generateReport requires at least Free verification on the property.
-    // Newly registered properties start as Unverified; promoting them requires
-    // admin action (dfx canister call property verifyProperty) which is not
-    // automated in CI. We accept UnverifiedProperty as a valid CI outcome.
+    // generateReport needs a verified property: a new one starts Unverified,
+    // and before verification the report canister refuses it.
+    const early = await onboardReportActor.generateReport(
+      propId,
+      { address: addr("onboarding"), city: "Austin", state: "TX", zipCode: "78701", propertyType: "SingleFamily",
+        yearBuilt: BigInt(1998), squareFeet: BigInt(2100), verificationLevel: "Free" },
+      [], [], [], { Public: null }, [], [], [], [], [], [],
+    );
+    expect(early).toEqual({ err: { UnverifiedProperty: null } });
+
+    // TEST_ADMIN (a property admin in CI) verifies it, as a reviewer would.
+    const adminProperty = Actor.createActor(propertyIdl as any, {
+      agent: await agentFor(seededIdentity(ADMIN_SEED)), canisterId: PROPERTY_CANISTER_ID,
+    });
+    unwrap(await adminProperty.verifyProperty(propId, { Basic: null }, ["integration"]) as any, "WF.A verifyProperty");
+
     const propertyInput = {
       address:           addr("onboarding"),
       city:              "Austin",
@@ -210,14 +222,6 @@ describe.skipIf(!integrationReady)("WF.A — Full homeowner onboarding chain", (
       [],                  // hideDescriptions : ?Bool
       [],                  // billsSummary : ?BillsSummary
     );
-    if ("err" in (result as any)) {
-      const errKey = Object.keys((result as any).err)[0];
-      if (errKey === "UnverifiedProperty" || errKey === "NotAuthorized") {
-        // Expected in CI — admin verification is a manual step; shareToken stays unset
-        return;
-      }
-      throw new Error(`WF.A generateReport: unexpected error ${errKey}`);
-    }
     const link = unwrap<{ token: string }>(result as any, "WF.A generateReport");
     shareToken = link.token;
     expect(typeof shareToken).toBe("string");
@@ -225,12 +229,10 @@ describe.skipIf(!integrationReady)("WF.A — Full homeowner onboarding chain", (
   });
 
   it("step A.4 — getReport returns snapshot with correct property address", async () => {
-    if (!shareToken) {
-      // Property was Unverified in CI (admin step required) — A.3 skipped gracefully
-      return;
-    }
+    expect(shareToken).toBeTruthy();
     const result = await onboardReportActor.getReport(shareToken);
-    const { link, snapshot } = unwrap<{ link: any; snapshot: { address: string } }>(
+    // getReport returns a (ShareLink, ReportSnapshot) tuple, decoded as an array.
+    const [link, snapshot] = unwrap<[any, { address: string }]>(
       result as any, "WF.A getReport"
     );
     expect(link.token).toBe(shareToken);

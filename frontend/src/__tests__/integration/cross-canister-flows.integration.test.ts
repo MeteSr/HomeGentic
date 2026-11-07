@@ -469,7 +469,7 @@ describe.skipIf(!integrationReady)("Flow 4: Quote open-request limit enforcement
 // ─────────────────────────────────────────────────────────────────────────────
 // Flow 5 — Property verification state machine
 // Unverified → PendingReview (homeowner submitVerification)
-// PendingReview → Basic (admin verifyProperty — documented but not automated here)
+// PendingReview → Basic (admin verifyProperty, as TEST_ADMIN)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe.skipIf(!integrationReady)("Flow 5: Property verification state machine", () => {
@@ -520,16 +520,23 @@ describe.skipIf(!integrationReady)("Flow 5: Property verification state machine"
     expect("PendingReview" in updated.verificationLevel).toBe(true);
   });
 
-  /**
-   * Admin promotion (PendingReview → Basic) requires the deployer identity
-   * and is intentionally not automated in the integration test suite.
-   *
-   * Manual verification:
-   *   dfx canister call property verifyProperty \
-   *     "(\"<property-id>\", variant { Basic }, opt \"manual review\")"
-   *
-   * Then confirm the property returns verificationLevel: "Free".
-   * See docs/MANUAL_TESTS.md for the full runbook.
-   */
-  it.todo("admin promotes PendingReview → Basic (requires dfx deployer identity — see docs/MANUAL_TESTS.md)");
+  it("only an admin promotes PendingReview → Basic", async () => {
+    const refused = await workflowPropertyActor5.verifyProperty(propId, { Basic: null }, ["manual review"]);
+    expect(refused).toEqual({ err: { NotAuthorized: null } });
+
+    // TEST_ADMIN (ADMIN_SEED) is a property admin in CI.
+    const adminActor = Actor.createActor(propertyIdl as any, {
+      agent: await makeAgent(ADMIN_SEED), canisterId: PROPERTY_CANISTER_ID,
+    });
+    const promoted = unwrap<{ verificationLevel: object }>(
+      (await adminActor.verifyProperty(propId, { Basic: null }, ["manual review"])) as any,
+      "verifyProperty",
+    );
+    expect("Basic" in promoted.verificationLevel).toBe(true);
+    const reread = unwrap<{ verificationLevel: object }>(
+      (await workflowPropertyActor5.getProperty(propId)) as any,
+      "getProperty after verify",
+    );
+    expect("Basic" in reread.verificationLevel).toBe(true);
+  });
 });

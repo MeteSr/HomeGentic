@@ -249,3 +249,11 @@ describe("ContractorProfilePage — profile completeness", () => {
     expect(screen.getByText(/Complete profiles receive 20% more bid views/)).toBeInTheDocument();
   });
 });
+
+describe("ContractorProfilePage — load failure", () => {
+  it("warns before the contractor overwrites a profile that couldn't be loaded", async () => {
+    mockGetMyProfile.mockRejectedValue(new Error("HomeGentic is down for maintenance."));
+    renderPage();
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("HomeGentic is down for maintenance."));
+  });
+});
