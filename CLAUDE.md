@@ -29,6 +29,13 @@ npm run knip                  # fails on frontend files nothing in the app impor
 npm run check:motoko-warnings # fails on moc warnings not in scripts/ci/motoko-warnings-allowed.txt (needs moc)
 npx prettier --write <file>   # CI checks Prettier only on files a PR adds; existing files aren't reformatted yet
 ```
+**TDD gates.** New code ships with a test written first, and CI checks the floor:
+- `scripts/ci/diff-coverage.mjs` (test-frontend, PRs only) fails when under 80% of the executable lines a PR changes in `frontend/src` or `packages/shared/src` are run by a unit test.
+- `tests/upgrade/method-inventory.canister.test.ts` fails when a new canister method has no test that names it. `method-inventory-allowlist.json` only shrinks; regenerate it with `UPDATE_INVENTORY=1`.
+- `tests/upgrade/apidoc.canister.test.ts` fails when `getApiDoc()` names a method that doesn't exist, shows the wrong argument count, or leaves out a new one. `apidoc-undocumented.json` only shrinks; regenerate it with `UPDATE_APIDOC=1`.
+- `frontend/src/__tests__/services/errorModelGate.test.ts` fails on `new Error(JSON.stringify(...))`. Throw `canisterError(result.err)`.
+- Mobile `npm run ci` enforces a coverage floor (`coverageThreshold` in `mobile/package.json`).
+
 oxlint is used instead of ESLint because typescript-eslint needs the TypeScript JS API, which TypeScript 7 doesn't ship. Lint errors fail CI's `lint` job; warnings (currently `react-hooks/exhaustive-deps`) are shown but don't. Delete code you replace rather than leaving it for its tests: knip fails the build on a file only tests import.
 
 ### Testing
@@ -60,7 +67,7 @@ Local visual baselines don't match CI (different fonts/Chromium build), so don't
 
 ### Stable-memory compatibility (IMPORTANT)
 
-Canisters use enhanced orthogonal persistence: an upgrade whose stable types aren't compatible with the running version (e.g. any new field, even an optional one, on a record held in a stable var or a `Map`) is rejected with `Memory-incompatible program upgrade`, and the only way out is a reinstall that wipes data. The `stable-compat-check` CI job (`scripts/ci/check-stable-compat.sh`) compares every canister's stable types against the PR's base and fails on a break. Don't change the fields of a stored record type: keep new data in a new stable var with an inline initializer (e.g. a side `Map` keyed by the record's id). An intentional break needs the `allow-stable-break` label, and on testnet `scripts/deploy.sh` only reinstalls canisters listed in its `TESTNET_REINSTALL_OK` allow-list (empty by default); mainnet never reinstalls.
+Canisters use enhanced orthogonal persistence: an upgrade whose stable types aren't compatible with the running version (e.g. any new field, even an optional one, on a record held in a stable var or a `Map`) is rejected with `Memory-incompatible program upgrade`, and the only way out is a reinstall that wipes data. The `stable-compat-check` CI job (`scripts/ci/check-stable-compat.sh`) compares every canister's stable types against the PR's base and fails on a break. Don't change the fields of a stored record type: keep new data in a new stable var with an inline initializer (e.g. a side `Map` keyed by the record's id). An intentional break needs the `allow-stable-break` label, and on testnet `scripts/deploy.sh` only reinstalls canisters listed in its `TESTNET_REINSTALL_OK` allow-list (empty by default); mainnet never reinstalls. Each deploy first tests the upgrade from the build actually running (`scripts/ci/upgrade-from-deployed.sh`, newest `testnet-*`/`mainnet-*` tag). Candid interfaces are checked too (`candid-compat.upgrade.test.ts`): don't remove a method, add a required argument, drop a result field or add a result variant tag, since installed mobile apps and the Workers keep the old declarations. A deliberate break needs the `allow-candid-break` label.
 
 ### E2E test maintenance (IMPORTANT)
 
@@ -162,7 +169,7 @@ Realtors have no subscription tier: the winning agent in a Bid to List auction p
 
 Agent calls (agentic tool-use loop) are counted separately from chat calls. Limits live in `agents/voice/agentLimiter.ts` (`TIER_LIMITS`, `TIER_PERIOD`, `CHAT_LIMITS`). See `docs/AI_RATE_LIMITS.md` for the financial basis.
 
-Because accounts are free to create, every Claude call also passes `agents/voice/src/aiGuard.ts`: free accounts need a one-time Turnstile human check and share a daily token budget (paid accounts skip both), and repeated 429s trigger exponential backoff on the IP and principal. New paid routes (Claude or any metered API) should go through `aiGate` in `src/index.ts`; clients call them through `fetchWithAgentSession` (web) or `aiFetch` (mobile), which handle the check and `Retry-After`.
+Because accounts are free to create, every Claude call also passes `agents/voice/src/aiGuard.ts`: free accounts need a one-time Turnstile human check and share a daily token budget (paid accounts skip both), and repeated 429s trigger exponential backoff on the IP and principal. New paid routes (Claude or any metered API) should go through `aiGate` in `src/index.ts` (add them to `AUX_AI_ROUTES` and to the table in `__tests__/workerAiRoutes.test.ts`, which fails on a route that uses `provider` ungated); clients call them through `fetchWithAgentSession` (web) or `aiFetch` (mobile), which handle the check and `Retry-After`.
 
 | Tier | Agent calls | Chat calls/day |
 |---|---|---|

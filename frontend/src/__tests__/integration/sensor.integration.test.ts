@@ -20,6 +20,11 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { sensorService } from "@/services/sensor";
 import type { SensorDevice, SensorEvent, DeviceSource } from "@/services/sensor";
 import { propertyService } from "@/services/property";
+import { ADMIN_SEED, asIdentity, seededIdentity } from "./helpers";
+
+/** Readings come from a gateway or an admin; TEST_ADMIN is a sensor admin in CI.
+ *  recordEvent takes the device's external id, as the IoT gateway sends it. */
+const asGateway = <T,>(fn: () => Promise<T>) => asIdentity(seededIdentity(ADMIN_SEED), [sensorService], fn);
 
 const CANISTER_ID = (process.env as any).SENSOR_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
@@ -132,34 +137,30 @@ describe.skipIf(!deployed)("recordEvent — Candid serialization", () => {
     device = await sensorService.registerDevice(
       PROPERTY_ID, `${EXT_ID}-evt`, "Manual", "Event test device"
     );
-    try {
-      event = await sensorService.ingestReading(
-        PROPERTY_ID, device.id, "HvacFilterDue", 0, "", ""
-      );
-    } catch (e: any) {
-      // recordEvent requires an authorized gateway or admin principal.
-      // In local dev the test identity is neither — Unauthorized is expected.
-      if (e?.code !== "NotAuthorized") throw e;
-    }
+    event = await asGateway(() =>
+      sensorService.ingestReading(PROPERTY_ID, `${EXT_ID}-evt`, "HvacFilterDue", 0, "", ""));
   });
 
-  it("event has a non-empty id (skipped if gateway auth not configured)", () => {
-    if (!event) return;
+  it("the homeowner can't record a reading for their own device", async () => {
+    await expect(
+      sensorService.ingestReading(PROPERTY_ID, `${EXT_ID}-evt`, "HvacFilterDue", 0, "", ""),
+    ).rejects.toMatchObject({ code: "NotAuthorized" });
+  });
+
+  it("event has a non-empty id", () => {
     expect(event.id).toBeTruthy();
+    expect(event.deviceId).toBe(device.id);
   });
 
   it("eventType round-trips through SensorEventType Variant", () => {
-    if (!event) return;
     expect(event.eventType).toBe("HvacFilterDue");
   });
 
   it("severity is Info for HvacFilterDue", () => {
-    if (!event) return;
     expect(event.severity).toBe("Info");
   });
 
   it("timestamp is a reasonable ms value", () => {
-    if (!event) return;
     expect(event.timestamp).toBeGreaterThan(Date.now() - 60_000);
     expect(event.timestamp).toBeLessThan(Date.now() + 5_000);
   });
@@ -167,44 +168,31 @@ describe.skipIf(!deployed)("recordEvent — Candid serialization", () => {
 
 describe.skipIf(!deployed)("getEventsForProperty — limit is respected", () => {
   beforeAll(async () => {
-    const d = await sensorService.registerDevice(
+    await sensorService.registerDevice(
       PROPERTY_ID, `${EXT_ID}-lim`, "Manual", "Limit test device"
     );
-    // ingestReading requires gateway/admin; skip silently if Unauthorized
     for (let i = 0; i < 3; i++) {
-      try {
-        await sensorService.ingestReading(PROPERTY_ID, d.id, "HighHumidity", 70 + i, "%", "");
-      } catch (e: any) {
-        if (e?.code !== "NotAuthorized") throw e;
-      }
+      await asGateway(() => sensorService.ingestReading(PROPERTY_ID, `${EXT_ID}-lim`, "HighHumidity", 70 + i, "%", ""));
     }
   });
 
-  it("returns at most `limit` events", async () => {
+  it("returns exactly `limit` events when more exist", async () => {
     const events = await sensorService.getEventsForProperty(PROPERTY_ID, 2);
-    expect(events.length).toBeLessThanOrEqual(2);
+    expect(events).toHaveLength(2);
   });
 });
 
 // ─── getPendingAlerts — Critical severity ─────────────────────────────────────
 
 describe.skipIf(!deployed)("getPendingAlerts — returns Critical/Warning events", () => {
-  let alertIngested = false;
-
   beforeAll(async () => {
-    const d = await sensorService.registerDevice(
+    await sensorService.registerDevice(
       PROPERTY_ID, `${EXT_ID}-alert`, "Manual", "Alert test device"
     );
-    try {
-      await sensorService.ingestReading(PROPERTY_ID, d.id, "WaterLeak", 1, "bool", "raw");
-      alertIngested = true;
-    } catch (e: any) {
-      if (e?.code !== "NotAuthorized") throw e;
-    }
+    await asGateway(() => sensorService.ingestReading(PROPERTY_ID, `${EXT_ID}-alert`, "WaterLeak", 1, "bool", "raw"));
   });
 
   it("WaterLeak event appears in getPendingAlerts as Critical", async () => {
-    if (!alertIngested) return; // gateway auth not configured
     const alerts = await sensorService.getPendingAlerts(PROPERTY_ID);
     const critical = alerts.filter((a) => a.severity === "Critical");
     expect(critical.length).toBeGreaterThan(0);
@@ -220,18 +208,13 @@ describe.skipIf(!deployed)("DeviceSource — all 12 variants survive Candid roun
     "EmporiaVue", "Rachio", "SmartThings", "HomeAssistant",
   ];
 
+  // No IoT gateway is registered in CI, so the verified-only sources (Ecobee,
+  // HoneywellHome) can still be registered directly; PocketIC's REM.1 covers
+  // the refusal once a gateway exists.
   it.each(ALL_SOURCES)("%s registers and round-trips", async (source) => {
-    try {
-      const d = await sensorService.registerDevice(
-        PROPERTY_ID, `${EXT_ID}-${source}-${RUN_ID}`, source, `${source} device`
-      );
-      expect(d.source).toBe(source);
-    } catch (e: any) {
-      // The 8 non-original variants (RingAlarm, HoneywellHome, etc.) require
-      // the sensor canister to be upgraded with the expanded DeviceSource type.
-      // Accept IDL variant tag errors until the canister is redeployed.
-      if (/unexpected variant tag|IDL error/i.test(e.message ?? "")) return;
-      throw e;
-    }
+    const d = await sensorService.registerDevice(
+      PROPERTY_ID, `${EXT_ID}-${source}-${RUN_ID}`, source, `${source} device`
+    );
+    expect(d.source).toBe(source);
   }, 120_000);
 });

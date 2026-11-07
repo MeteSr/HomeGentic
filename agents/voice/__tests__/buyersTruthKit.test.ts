@@ -451,15 +451,4 @@ describe("generateKit", () => {
   });
 });
 
-// ─── 6. Route integration — POST /api/buyers-truth-kit ───────────────────────
-// Light smoke tests to verify the endpoint wires inputs to the service correctly.
-// Heavy logic is covered above; here we just verify bad inputs are rejected.
-
-describe("POST /api/buyers-truth-kit input validation", () => {
-  // These are tested at the unit level via the functions above.
-  // A separate route-level integration test lives in stripe.route.test.ts pattern.
-  // Skipped here to avoid spinning up the full Express app in every test run.
-  it.todo("rejects missing address with 400");
-  it.todo("rejects yearBuilt < 1800 with 400");
-  it.todo("rejects missing claims with 400");
-});
+// Route-level input validation (400s) is in workerAiRoutes.test.ts (ROUTES.8).

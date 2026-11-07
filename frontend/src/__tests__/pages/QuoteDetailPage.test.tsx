@@ -232,3 +232,12 @@ describe("QuoteDetailPage — shared usage", () => {
     expect(mockGetUsage).not.toHaveBeenCalled();
   });
 });
+
+describe("QuoteDetailPage — load failure", () => {
+  it("tells the homeowner the request couldn't load instead of failing silently", async () => {
+    mockGetRequest.mockRejectedValue(new Error("Quotes are unavailable right now."));
+    mockGetQuotesForRequest.mockResolvedValue([]);
+    renderPage();
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("Quotes are unavailable right now."));
+  });
+});

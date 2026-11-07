@@ -28,7 +28,7 @@ function ok<T>(r: R<T>): T {
 const errKey = (r: R<unknown>) => ("err" in r ? Object.keys(r.err)[0] : "ok");
 const errText = (r: R<unknown>) => ("err" in r ? JSON.stringify(r.err) : "ok");
 
-const CANISTERS = ["quote", "payment", "property", "contractor"] as const;
+const CANISTERS = ["quote", "payment", "property", "contractor", "market"] as const;
 type Name = typeof CANISTERS[number];
 const HOUR_MS = 60 * 60 * 1000;
 /** Sealed windows must be at least an hour (CD-3); tests open two-hour ones. */
@@ -211,5 +211,20 @@ describe("quote: sealed bids with real vetKD", () => {
     await pic.advanceTime(24 * HOUR_MS);
     await pic.tick();
     ok(await reveal(owner, req) as any);
+  });
+  it("keeps the vetKD key name fixed once sealed bids exist (ICP skills M-3)", async () => {
+    // Earlier tests placed sealed bids under test_key_1.
+    expect(errKey(await as("quote", stranger).setVetkdKeyName("key_1"))).toBe("NotAuthorized");
+    expect(errText(await as("quote", admin).setVetkdKeyName("key_1"))).toMatch(/can't change once sealed bids exist/);
+    expect(errText(await as("quote", admin).setVetkdKeyName("nope"))).toMatch(/unknown vetKD key name/);
+    ok(await as("quote", admin).setVetkdKeyName("test_key_1"));
+    expect(await as("quote", owner).getVetkdKeyName()).toBe("test_key_1");
+  });
+
+  it("market's key name is admin-only and limited to known keys", async () => {
+    expect(errKey(await as("market", stranger).setVetkdKeyName("key_1"))).toBe("NotAuthorized");
+    expect(errText(await as("market", admin).setVetkdKeyName("nope"))).toMatch(/unknown vetKD key name/);
+    ok(await as("market", admin).setVetkdKeyName("test_key_1"));
+    expect(await as("market", owner).getVetkdKeyName()).toBe("test_key_1");
   });
 });

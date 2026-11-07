@@ -434,15 +434,17 @@ persistent actor Report {
   };
 
   /// Fetch the property record from the property canister (report is a
-  /// trusted canister there). null = not wired, not found, or call failed.
-  private func fetchProperty(propertyId : Text) : async ?PropFacts {
-    if (Text.size(propCanisterId) == 0) return null;
+  /// trusted canister there). #missing = not wired or not found;
+  /// #unavailable = the property canister didn't answer (M-4), which callers
+  /// report as #Unavailable rather than as a permission denial.
+  private func fetchProperty(propertyId : Text) : async { #ok : PropFacts; #missing; #unavailable } {
+    if (Text.size(propCanisterId) == 0) return #missing;
     let propActor = actor(propCanisterId) : actor {
       getProperty : query (Text) -> async { #ok : PropFacts; #err : Any };
     };
     try {
-      switch (await propActor.getProperty(propertyId)) { case (#ok(p)) ?p; case (#err(_)) null }
-    } catch (_) { null }
+      switch (await propActor.getProperty(propertyId)) { case (#ok(p)) #ok(p); case (#err(_)) #missing }
+    } catch (_) { #unavailable }
   };
 
   /// Fetch every job for the property from the job canister (report must be a
@@ -921,8 +923,9 @@ persistent actor Report {
 
     // ── Authoritative property record + owner-only gate ─────────────────────
     let prop = switch (await fetchProperty(propertyId)) {
-      case null { return #err(if (isAdmin(msg.caller)) #NotFound else #NotAuthorized) };
-      case (?p) { p };
+      case (#missing) { return #err(if (isAdmin(msg.caller)) #NotFound else #NotAuthorized) };
+      case (#unavailable) { return #err(#Unavailable(Canisters.unavailable("property"))) };
+      case (#ok(p)) { p };
     };
     if (prop.owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
     let level = levelText(prop.verificationLevel);
@@ -1714,8 +1717,9 @@ persistent actor Report {
       return #err(#InvalidInput("Certificate limit reached for this property; try again tomorrow"));
 
     let prop = switch (await fetchProperty(propertyId)) {
-      case null { return #err(if (isAdmin(msg.caller)) #NotFound else #NotAuthorized) };
-      case (?p) { p };
+      case (#missing) { return #err(if (isAdmin(msg.caller)) #NotFound else #NotAuthorized) };
+      case (#unavailable) { return #err(#Unavailable(Canisters.unavailable("property"))) };
+      case (#ok(p)) { p };
     };
     if (prop.owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
     // M-3: like generateReport, only verified homes get a signed certificate.

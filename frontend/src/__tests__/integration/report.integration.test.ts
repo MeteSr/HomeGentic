@@ -242,7 +242,7 @@ describe.skipIf(!deployed)("getBillsSummary — BillsSummary round-trip", () => 
 
 // ─── Insurance risk profile ──────────────────────────────────────────────────
 
-describe.skipIf(!deployed || !(process.env as any).SENSOR_CANISTER_ID)("generateRiskProfile — with sensor wired", () => {
+describe.skipIf(!deployed)("generateRiskProfile — with sensor wired", () => {
   it("lists the home's devices", async () => {
     await sensorService.registerDevice(PROP_ID, `moen-${RUN_ID}`, "MoenFlo", "Kitchen leak sensor");
     const profile = await reportService.generateRiskProfile(PROP_ID, "Basic", null);

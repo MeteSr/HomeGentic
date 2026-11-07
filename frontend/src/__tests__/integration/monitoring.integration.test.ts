@@ -15,19 +15,26 @@
  *   - getTrackedCanisters() returns registered canister records
  *   - checkCycleLevels() returns CycleLevelResult array with valid status strings
  *   - registerCanister() / unregisterCanister() update the tracked set
- *   - setLowCycleThreshold() can be called (Unauthorized acceptable in local dev)
+ *   - registry and threshold changes are admin only (TEST_ADMIN is one)
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { Actor } from "@icp-sdk/core/agent";
 import { idlFactory } from "@/services/monitoringService";
 import { getAgent } from "@/services/actor";
+import { ADMIN_SEED, agentFor, seededIdentity } from "./helpers";
 
 const CANISTER_ID = (process.env as any).MONITORING_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
 
 async function getActor() {
   const agent = await getAgent();
+  return Actor.createActor(idlFactory, { agent, canisterId: CANISTER_ID });
+}
+
+/** TEST_ADMIN, made a monitoring admin by CI's integration setup. */
+async function getAdminActor() {
+  const agent = await agentFor(seededIdentity(ADMIN_SEED));
   return Actor.createActor(idlFactory, { agent, canisterId: CANISTER_ID });
 }
 
@@ -102,36 +109,25 @@ describe.skipIf(!deployed)("getTrackedCanisters — returns registered canisters
 
 describe.skipIf(!deployed)("registerCanister & unregisterCanister — round-trip", () => {
   const testName = `integ-test-${Date.now()}`;
+  const target = async () => (await import("@icp-sdk/core/principal")).Principal.fromText(CANISTER_ID);
+  const tracked = async () =>
+    ((await (await getAdminActor()).getTrackedCanisters()) as any[]).filter((c) => c.id.toText() === CANISTER_ID);
 
-  it("registerCanister completes without trapping (Unauthorized acceptable)", async () => {
+  it("a plain user can't register or unregister a canister", async () => {
     const a = await getActor();
-    try {
-      const result = await a.registerCanister(
-        (await import("@icp-sdk/core/principal")).Principal.fromText(CANISTER_ID),
-        testName
-      ) as any;
-      expect("ok" in result || "err" in result).toBe(true);
-    } catch (e: any) {
-      expect(e.message).toMatch(/Unauthorized/i);
-    }
+    expect(await a.registerCanister(await target(), testName)).toEqual({ err: { NotAuthorized: null } });
+    expect(await a.unregisterCanister(await target())).toEqual({ err: { NotAuthorized: null } });
+    expect(await a.getTrackedCanisters()).toEqual([]);
   });
 
-  it("getTrackedCanisters still returns an array after registration attempt", async () => {
-    const a = await getActor();
-    const canisters = await a.getTrackedCanisters() as any[];
-    expect(Array.isArray(canisters)).toBe(true);
+  it("the admin's registration shows in getTrackedCanisters", async () => {
+    expect(await (await getAdminActor()).registerCanister(await target(), testName)).toEqual({ ok: null });
+    expect((await tracked()).map((c) => c.name)).toEqual([testName]);
   });
 
-  it("unregisterCanister completes without trapping", async () => {
-    const a = await getActor();
-    try {
-      const result = await a.unregisterCanister(
-        (await import("@icp-sdk/core/principal")).Principal.fromText(CANISTER_ID)
-      ) as any;
-      expect("ok" in result || "err" in result).toBe(true);
-    } catch (e: any) {
-      expect(e.message).toMatch(/Unauthorized|NotFound/i);
-    }
+  it("the admin's unregisterCanister removes it", async () => {
+    expect(await (await getAdminActor()).unregisterCanister(await target())).toEqual({ ok: null });
+    expect(await tracked()).toEqual([]);
   });
 });
 
@@ -141,25 +137,29 @@ describe.skipIf(!deployed)("checkCycleLevels — returns CycleLevelResult array"
   let results: any[];
 
   beforeAll(async () => {
-    const a = await getActor();
-    results = await a.checkCycleLevels() as any[];
+    const admin = await getAdminActor();
+    await admin.registerCanister(
+      (await import("@icp-sdk/core/principal")).Principal.fromText(CANISTER_ID),
+      "monitoring (integ)",
+    );
+    results = (await admin.checkCycleLevels()) as any[];
   });
 
-  it("returns an array", () => {
-    expect(Array.isArray(results)).toBe(true);
+  it("a plain user gets nothing", async () => {
+    expect(await (await getActor()).checkCycleLevels()).toEqual([]);
   });
 
-  it("each result has a valid status string", () => {
+  it("the admin gets one result per tracked canister, with a valid status", () => {
+    const mine = results.filter((r) => r.id.toText() === CANISTER_ID);
+    expect(mine).toHaveLength(1);
     const VALID = new Set(["ok", "warning", "critical", "unknown"]);
-    for (const r of results) {
-      expect(VALID.has(r.status)).toBe(true);
-    }
+    for (const r of results) expect(VALID.has(r.status)).toBe(true);
   });
 
   it("each result has numeric cycles and boolean fromCache", () => {
+    expect(results.length).toBeGreaterThan(0);
     for (const r of results) {
-      expect(typeof Number(r.cycles)).toBe("number");
-      expect(Number(r.cycles)).toBeGreaterThanOrEqual(0);
+      expect(typeof r.cycles).toBe("bigint");
       expect(typeof r.fromCache).toBe("boolean");
     }
   });
@@ -167,14 +167,11 @@ describe.skipIf(!deployed)("checkCycleLevels — returns CycleLevelResult array"
 
 // ─── setLowCycleThreshold ─────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("setLowCycleThreshold — accepted or Unauthorized", () => {
-  it("does not trap (returns ok or Unauthorized err)", async () => {
-    const a = await getActor();
-    try {
-      const result = await a.setLowCycleThreshold(BigInt(500_000_000_000)) as any;
-      expect("ok" in result || "err" in result).toBe(true);
-    } catch (e: any) {
-      expect(e.message).toMatch(/Unauthorized/i);
-    }
+describe.skipIf(!deployed)("setLowCycleThreshold — admin only", () => {
+  it("refuses a plain user and accepts the admin", async () => {
+    expect(await (await getActor()).setLowCycleThreshold(BigInt(500_000_000_000))).toEqual({
+      err: { NotAuthorized: null },
+    });
+    expect(await (await getAdminActor()).setLowCycleThreshold(BigInt(1_000_000_000_000))).toEqual({ ok: null });
   });
 });

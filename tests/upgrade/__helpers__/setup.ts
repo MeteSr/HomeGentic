@@ -43,10 +43,13 @@ export function wasmPath(canisterName: string): string {
  * Wasm of the same canister built from the PR's base branch, for tests that
  * upgrade from the code that is deployed today to this branch. Built by
  * scripts/ci/build-upgrade-wasms.sh into .dfx/base/; null when absent, so
- * those tests skip locally unless you build it.
+ * those tests skip locally unless you build it. UPGRADE_BASE_DIR points them
+ * at another build instead, e.g. .dfx/deployed (what is actually running on
+ * the network, built from the last deploy tag).
  */
 export function baseWasmPath(canisterName: string): string | null {
-  const p = resolve(ROOT, `.dfx/base/canisters/${canisterName}/${canisterName}.wasm`);
+  const dir = process.env.UPGRADE_BASE_DIR || ".dfx/base";
+  const p = resolve(ROOT, `${dir}/canisters/${canisterName}/${canisterName}.wasm`);
   return existsSync(p) ? p : null;
 }
 

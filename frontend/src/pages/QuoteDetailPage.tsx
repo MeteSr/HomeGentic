@@ -71,6 +71,7 @@ export default function QuoteDetailPage() {
         setContractorVerified(verified);
         setLicenseChecks(checks);
       })
+      .catch((err) => toast.error(errorMessage(err, "Couldn't load this quote request")))
       .finally(() => setLoading(false));
   }, [id]);
 

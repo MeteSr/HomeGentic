@@ -188,19 +188,13 @@ describe.skipIf(!deployed)("SHA-256 deduplication", () => {
 // ─── deletePhoto ──────────────────────────────────────────────────────────────
 
 describe.skipIf(!deployed)("deletePhoto — removes record", () => {
-  it("photo is no longer in getPhotosByJob after delete (Unauthorized acceptable when property canister is wired)", async () => {
+  it("photo is no longer in getPhotosByJob after its owner deletes it", async () => {
     const deleteJobId = `integ-delete-job-${RUN_ID}`;
     const file = makeTestFile(`delete-test-${RUN_ID}`, `delete-${RUN_ID}.jpg`);
     const p = await photoService.upload(file, deleteJobId, PROPERTY_ID, "Drywall", "To delete");
 
-    try {
-      await photoService.deletePhoto(p.id);
-    } catch (e: any) {
-      // Unauthorized when propCanisterId is configured and the test property
-      // doesn't exist in the property canister — expected in local integration runs.
-      if (e?.code === "NotAuthorized") return;
-      throw e;
-    }
+    // PROPERTY_ID is registered by this identity, so the property check passes.
+    await photoService.deletePhoto(p.id);
 
     const remaining = await photoService.getByJob(deleteJobId);
     expect(remaining.every((x) => x.id !== p.id)).toBe(true);

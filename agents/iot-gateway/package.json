@@ -6,10 +6,23 @@
     "dev": "tsx server.ts",
     "build": "tsc",
     "start": "node dist/agents/iot-gateway/server.js",
-    "test": "jest --passWithNoTests"
+    "test": "jest --coverage"
   },
   "jest": {
     "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "**/*.ts",
+      "!**/node_modules/**",
+      "!**/__tests__/**",
+      "!coverage/**",
+      "!**/*.d.ts"
+    ],
+    "coverageReporters": [
+      "text-summary"
+    ],
+    "coverageThreshold": {
+      "global": {"lines": 75, "statements": 71, "functions": 75, "branches": 62}
+    },
     "testMatch": [
       "**/__tests__/**/*.test.ts"
     ],

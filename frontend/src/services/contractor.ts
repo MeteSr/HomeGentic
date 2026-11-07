@@ -217,7 +217,11 @@ function createContractorService() {
     if (!CONTRACTOR_CANISTER_ID) return null;
     const a = await getActor();
     const result = await a.getMyProfile();
-    if ("err" in result) return null;
+    if ("err" in result) {
+      // No profile yet is null; an outage must not look like "go create one".
+      if ("NotFound" in result.err) return null;
+      throw canisterError(result.err);
+    }
     return fromProfile(result.ok);
   },
 
@@ -236,7 +240,10 @@ function createContractorService() {
     }
     const a = await getActor();
     const result = await a.getContractor(principal);
-    if ("err" in result) return null;
+    if ("err" in result) {
+      if ("NotFound" in result.err) return null;
+      throw canisterError(result.err);
+    }
     const profile = fromProfile(result.ok);
     // Profile reads blank the email for anyone who hasn't worked with the
     // contractor; getContractorEmail returns it to those who have (a job

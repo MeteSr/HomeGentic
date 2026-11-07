@@ -636,6 +636,14 @@ persistent actor Property {
     n
   };
 
+  /// The caller's active home at address key `key`, if they have one.
+  private func ownedAt(owner : Principal, key : Text) : ?Property {
+    for (p in ownedBy(owner)) {
+      if (p.isActive and addressKey(p.address, p.city, p.state, p.zipCode) == key) return ?p;
+    };
+    null
+  };
+
   /// Produces a stable address key for duplicate detection: the four address
   /// components, each trimmed, lowercased and with runs of whitespace
   /// collapsed, joined with pipes. "12 Main St" and " 12  main st" collide.
@@ -805,6 +813,14 @@ persistent actor Property {
 
     let caller = msg.caller;
     let key    = addressKey(args.address, args.city, args.state, args.zipCode);
+
+    // ── Re-registering a home the caller already owns ────────────────────────
+    // Returns that home unchanged (Mete, 2026-11-03), before the tier limit,
+    // so a retry or a second tap never makes a duplicate.
+    switch (ownedAt(caller, key)) {
+      case (?existing) return #ok(existing);
+      case null {};
+    };
 
     // ── Duplicate address check ──────────────────────────────────────────────
     // Checked here and again after the last await below (M-8): two principals
@@ -1603,8 +1619,10 @@ persistent actor Property {
     // registerProperty(). Existing managers/invites from before this gate keep
     // working; only granting a *new* invite is blocked on Free/Basic.
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
-      let payActor = Canisters.payment(payCanisterId);
-      await payActor.getTierForPrincipal(msg.caller)
+      switch (await* Canisters.tierOf(payCanisterId, msg.caller)) {
+        case (#ok(t)) t;
+        case (#err(e)) return #err(e);   // payment didn't answer: #Unavailable
+      }
     } else {
       #Free  // payment canister not wired: no tier source, fail closed
     };

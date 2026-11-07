@@ -214,9 +214,12 @@ describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this b
   it("job: list answers are unchanged and new writes are indexed", async () => {
     const idl = ext(jobIdl, (I, f) => ({
       getJobsByOwner: I.Func([I.Principal], [I.Vec(f.getJobsPendingMySignature.retTypes[0]._type)], ["query"]),
+      setBootstrapNonce: I.Func([I.Text], [], []),
+      addAdmin: I.Func([I.Principal, I.Text], [I.Variant({ ok: I.Null, err: I.Reserved })], []),
     }));
     const t = await fromBase("job", idl);
-    const A = createIdentity("A"), B = createIdentity("B");
+    const A = createIdentity("A"), B = createIdentity("B"), ADM = createIdentity("job-admin");
+    await t.bootstrapAdmin(ADM);
     const a = t.as(A), b = t.as(B);
     const create = (actor: any, prop: string, title: string) =>
       actor.createJob(prop, title, { HVAC: null }, "d", [], 0n, 0n, [], [], true, []);
@@ -224,7 +227,9 @@ describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this b
 
     const snapshot = async () => norm({
       p0: await a.getJobsForProperty("P0"), p1: await b.getJobsForProperty("P1"),
-      snapshots: await a.getJobSnapshotsForProperty("P0"),
+      // As an admin: everyone else sees only their own jobs' snapshots since
+      // they became private, so the admin's answer is the one that must survive.
+      snapshots: await t.as(ADM).getJobSnapshotsForProperty("P0"),
       ownerA: await a.getJobsByOwner(A.getPrincipal()), ownerB: await b.getJobsByOwner(B.getPrincipal()),
       pending: await a.getJobsPendingMySignature(),
     });

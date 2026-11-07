@@ -19,6 +19,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { contractorService } from "@/services/contractor";
 import type { ContractorProfile } from "@/services/contractor";
 import { TEST_PRINCIPAL } from "./setup";
+import { ADMIN_SEED, asIdentity, seededIdentity } from "./helpers";
 
 const CANISTER_ID = (process.env as any).CONTRACTOR_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
@@ -142,7 +143,8 @@ describe.skipIf(!deployed)("getContractor — public profile lookup", () => {
 describe.skipIf(!deployed)("getBySpecialty — ServiceType variant filter", () => {
   it("returns at least the registered contractor for their specialty", async () => {
     const all = await contractorService.search();
-    if (all.length === 0) return; // nothing registered — skip assertion
+    // The register suite above created the test identity's profile.
+    expect(all.length).toBeGreaterThan(0);
     const firstSpecialty = all[0].specialties[0];
     const filtered = await contractorService.search(firstSpecialty);
     expect(filtered.every((c) => c.specialties.includes(firstSpecialty))).toBe(true);
@@ -156,7 +158,7 @@ describe.skipIf(!deployed)("submitReview & getReviewsForContractor", () => {
     // Reviews are per-reviewer per-jobId; use unique jobId each run
     const jobId = `integ-job-${RUN_ID}`;
     const before = await (contractorService as any).search();
-    if (before.length === 0) return; // nothing to review
+    expect(before.length).toBeGreaterThan(0);
     const target = before[0];
 
     try {
@@ -179,13 +181,13 @@ describe.skipIf(!deployed)("submitReview & getReviewsForContractor", () => {
 // ─── verifyContractor — admin sets isVerified=true ───────────────────────────
 
 describe.skipIf(!deployed)("verifyContractor — admin flag", () => {
-  it("verifyContractor succeeds for the test identity (who is admin in local deploy)", async () => {
-    try {
-      const result = await contractorService.verifyContractor(TEST_PRINCIPAL);
-      expect(result.isVerified).toBe(true);
-    } catch (e: any) {
-      // Unauthorized: test identity is not admin — acceptable in non-seeded deploys
-      expect(["NotAuthorized", "NotFound"]).toContain(e.code);
-    }
+  it("a plain user can't verify a profile, even their own", async () => {
+    await expect(contractorService.verifyContractor(TEST_PRINCIPAL)).rejects.toMatchObject({ code: "NotAuthorized" });
+  });
+
+  it("TEST_ADMIN verifies the test identity's profile", async () => {
+    const result = await asIdentity(seededIdentity(ADMIN_SEED), [contractorService], () =>
+      contractorService.verifyContractor(TEST_PRINCIPAL));
+    expect(result.isVerified).toBe(true);
   });
 });

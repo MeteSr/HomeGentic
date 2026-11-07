@@ -62,15 +62,51 @@ id_of() {
   if [[ "$1" =~ id\ =\ \"(REC_[0-9]+)\" ]]; then echo "${BASH_REMATCH[1]}"; fi
 }
 
+# property/test.sh pauses the property canister briefly while the suites run
+# in parallel; retry a call that lands in that window.
+prop_call() {
+  local out
+  for _ in 1 2 3 4 5; do
+    out=$(dfx canister call property "$@" 2>&1) || true
+    [[ "$out" == *Paused* ]] || break
+    sleep 2
+  done
+  echo "$out"
+}
+
+# With the property canister wired, bills refuses a property id it doesn't
+# know (#NotFound), so sections 2–15 run as a dedicated Pro identity on a
+# property it really registered. Without it, a made-up id still works.
+ME=$(dfx identity whoami)
 PROP="PROP_BILLS_$(date +%s)"
+if dfx canister id property >/dev/null 2>&1; then
+  ME=bills-main-test
+  dfx identity new "$ME" --disable-encryption 2>/dev/null || true
+  dfx canister call payment grantSubscription "(principal \"$(dfx identity get-principal --identity "$ME")\", variant { Pro })" >/dev/null 2>&1 || true
+  REG=$(prop_call registerProperty "(record {
+    address = \"$(date +%s) Bills Test Way\"; city = \"Tampa\"; state = \"FL\"; zipCode = \"33602\";
+    propertyType = variant { SingleFamily }; yearBuilt = 1998; squareFeet = 1600; tier = variant { Pro };
+  })" --identity "$ME")
+  if [[ "$REG" =~ id\ =\ \"([^\"]+)\" ]]; then PROP="${BASH_REMATCH[1]}"; else
+    echo "❌ could not register the test property: $REG"; exit 1
+  fi
+fi
+echo "Test property: $PROP (as $ME)"
+
+# Calls bills as $ME unless the call names its own identity.
+bills() {
+  local a
+  for a in "$@"; do [ "$a" = "--identity" ] && { dfx canister call bills "$@"; return; }; done
+  dfx canister call bills "$@" --identity "$ME"
+}
 
 echo ""
 echo "── [1] metrics ──────────────────────────────────────────────────────────"
-dfx canister call bills metrics
+bills metrics
 
 echo ""
 echo "── [2] addRecurringExpense — Mortgage, Monthly ─────────────────────────"
-MORT=$(dfx canister call bills addRecurringExpense "(\"$PROP\", record {
+MORT=$(bills addRecurringExpense "(\"$PROP\", record {
   category = variant { Mortgage };
   provider = \"Rocket Mortgage\";
   amountCents = 245000;
@@ -86,7 +122,7 @@ MORT_ID=$(id_of "$MORT")
 
 echo ""
 echo "── [3] addRecurringExpense — PropertyTax, Annual, with endDate ─────────"
-TAX=$(dfx canister call bills addRecurringExpense "(\"$PROP\", record {
+TAX=$(bills addRecurringExpense "(\"$PROP\", record {
   category = variant { PropertyTax };
   provider = \"Hillsborough County\";
   amountCents = 612000;
@@ -99,7 +135,7 @@ expect "property tax saved" "$TAX" "variant { ok"
 
 echo ""
 echo "── [4] addRecurringExpense — HOA, Quarterly ────────────────────────────"
-HOA=$(dfx canister call bills addRecurringExpense "(\"$PROP\", record {
+HOA=$(bills addRecurringExpense "(\"$PROP\", record {
   category = variant { HOA };
   provider = \"Westchase HOA\";
   amountCents = 45000;
@@ -111,7 +147,7 @@ expect "HOA saved" "$HOA" "variant { ok"
 
 echo ""
 echo "── [5] Validation — empty provider rejected ────────────────────────────"
-BAD=$(dfx canister call bills addRecurringExpense "(\"$PROP\", record {
+BAD=$(bills addRecurringExpense "(\"$PROP\", record {
   category = variant { HomeInsurance }; provider = \"\"; amountCents = 180000;
   frequency = variant { Annual }; startDate = \"2024-03-01\"; endDate = null;
 })")
@@ -119,7 +155,7 @@ expect "empty provider → InvalidInput" "$BAD" "InvalidInput"
 
 echo ""
 echo "── [6] Validation — zero amount rejected ───────────────────────────────"
-BAD=$(dfx canister call bills addRecurringExpense "(\"$PROP\", record {
+BAD=$(bills addRecurringExpense "(\"$PROP\", record {
   category = variant { HomeInsurance }; provider = \"State Farm\"; amountCents = 0;
   frequency = variant { Annual }; startDate = \"2024-03-01\"; endDate = null;
 })")
@@ -127,7 +163,7 @@ expect "zero amount → InvalidInput" "$BAD" "InvalidInput"
 
 echo ""
 echo "── [7] Validation — malformed startDate rejected ───────────────────────"
-BAD=$(dfx canister call bills addRecurringExpense "(\"$PROP\", record {
+BAD=$(bills addRecurringExpense "(\"$PROP\", record {
   category = variant { HomeInsurance }; provider = \"State Farm\"; amountCents = 180000;
   frequency = variant { Annual }; startDate = \"2024/03/01\"; endDate = null;
 })")
@@ -135,7 +171,7 @@ expect "bad date → InvalidInput" "$BAD" "InvalidInput"
 
 echo ""
 echo "── [8] Validation — endDate before startDate rejected ──────────────────"
-BAD=$(dfx canister call bills addRecurringExpense "(\"$PROP\", record {
+BAD=$(bills addRecurringExpense "(\"$PROP\", record {
   category = variant { HomeInsurance }; provider = \"State Farm\"; amountCents = 180000;
   frequency = variant { Annual }; startDate = \"2024-03-01\"; endDate = opt \"2023-03-01\";
 })")
@@ -143,7 +179,7 @@ expect "endDate < startDate → InvalidInput" "$BAD" "InvalidInput"
 
 echo ""
 echo "── [9] getRecurringExpensesForProperty — 3 entries, oldest start first ─"
-LIST=$(dfx canister call bills getRecurringExpensesForProperty "(\"$PROP\")")
+LIST=$(bills getRecurringExpensesForProperty "(\"$PROP\")")
 echo "$LIST"
 expect_count "three expenses listed" "$LIST" "id = \"REC_" 3
 if [[ "$LIST" =~ startDate\ =\ \"([0-9-]+)\" ]]; then
@@ -154,12 +190,12 @@ fi
 
 echo ""
 echo "── [10] getRecurringExpensesForProperty — other property is empty ─────"
-OTHER=$(dfx canister call bills getRecurringExpensesForProperty "(\"${PROP}_OTHER\")")
+OTHER=$(bills getRecurringExpensesForProperty "(\"${PROP}_OTHER\")")
 expect_count "property scoping" "$OTHER" "id = \"REC_" 0
 
 echo ""
 echo "── [11] updateRecurringExpense — refinance lowers the payment ──────────"
-UPD=$(dfx canister call bills updateRecurringExpense "(\"$MORT_ID\", record {
+UPD=$(bills updateRecurringExpense "(\"$MORT_ID\", record {
   category = variant { Mortgage };
   provider = \"Chase\";
   amountCents = 219000;
@@ -174,7 +210,7 @@ expect "new amount" "$UPD" "amountCents = 219_000"
 
 echo ""
 echo "── [12] updateRecurringExpense — unknown id → NotFound ─────────────────"
-NF=$(dfx canister call bills updateRecurringExpense "(\"REC_999999\", record {
+NF=$(bills updateRecurringExpense "(\"REC_999999\", record {
   category = variant { Mortgage }; provider = \"Chase\"; amountCents = 1;
   frequency = variant { Monthly }; startDate = \"2024-02-01\"; endDate = null;
 })")
@@ -183,28 +219,28 @@ expect "unknown id → NotFound" "$NF" "NotFound"
 echo ""
 echo "── [13] Access control — another principal can't see or change them ───"
 dfx identity new bills-test-other --disable-encryption 2>/dev/null || true
-THEIRS=$(dfx canister call bills getRecurringExpensesForProperty "(\"$PROP\")" --identity bills-test-other)
+THEIRS=$(bills getRecurringExpensesForProperty "(\"$PROP\")" --identity bills-test-other)
 expect_count "other principal sees none" "$THEIRS" "id = \"REC_" 0
-DENIED=$(dfx canister call bills updateRecurringExpense "(\"$MORT_ID\", record {
+DENIED=$(bills updateRecurringExpense "(\"$MORT_ID\", record {
   category = variant { Mortgage }; provider = \"Mallory\"; amountCents = 1;
   frequency = variant { Monthly }; startDate = \"2024-02-01\"; endDate = null;
 })" --identity bills-test-other)
 expect "other principal update → NotAuthorized" "$DENIED" "NotAuthorized"
-DENIED=$(dfx canister call bills deleteRecurringExpense "(\"$MORT_ID\")" --identity bills-test-other)
+DENIED=$(bills deleteRecurringExpense "(\"$MORT_ID\")" --identity bills-test-other)
 expect "other principal delete → NotAuthorized" "$DENIED" "NotAuthorized"
 
 echo ""
 echo "── [14] deleteRecurringExpense — owner deletes the mortgage ────────────"
-DEL=$(dfx canister call bills deleteRecurringExpense "(\"$MORT_ID\")")
+DEL=$(bills deleteRecurringExpense "(\"$MORT_ID\")")
 expect "delete ok" "$DEL" "variant { ok"
-LIST=$(dfx canister call bills getRecurringExpensesForProperty "(\"$PROP\")")
+LIST=$(bills getRecurringExpensesForProperty "(\"$PROP\")")
 expect_count "two expenses remain" "$LIST" "id = \"REC_" 2
-DEL=$(dfx canister call bills deleteRecurringExpense "(\"$MORT_ID\")")
+DEL=$(bills deleteRecurringExpense "(\"$MORT_ID\")")
 expect "second delete → NotFound" "$DEL" "NotFound"
 
 echo ""
 echo "── [15] addBill regression — utility statements unchanged ──────────────"
-BILL=$(dfx canister call bills addBill "(record {
+BILL=$(bills addBill "(record {
   propertyId = \"$PROP\"; billType = variant { Electric }; provider = \"TECO\";
   periodStart = \"2026-08-01\"; periodEnd = \"2026-08-31\"; amountCents = 18400;
   usageAmount = opt 1210.0; usageUnit = opt \"kWh\";
@@ -229,17 +265,6 @@ else
     dfx canister call payment  grantSubscription "(principal \"$p\", variant { Pro })" >/dev/null 2>&1 || true
   done
 
-  # property/test.sh pauses the property canister briefly while the suites run
-  # in parallel; retry a call that lands in that window.
-  prop_call() {
-    local out
-    for _ in 1 2 3 4 5; do
-      out=$(dfx canister call property "$@" 2>&1) || true
-      [[ "$out" == *Paused* ]] || break
-      sleep 2
-    done
-    echo "$out"
-  }
 
   REG=$(prop_call registerProperty "(record {
     address = \"$(date +%s) Shared Bills Lane\"; city = \"Tampa\"; state = \"FL\"; zipCode = \"33601\";

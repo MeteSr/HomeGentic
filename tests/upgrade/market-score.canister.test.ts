@@ -106,6 +106,7 @@ describe("market: neighbourhood scores", () => {
     ok(await as("job", admin).setPropertyCanisterId(ids.property.toText()));
     ok(await as("market", admin).setPropertyCanisterId(ids.property.toText()));
     ok(await as("market", admin).setJobCanisterId(ids.job.toText()));
+    ok(await as("job", admin).addTrustedCanister(ids.market)); // market reads private job snapshots
     propertyId = await home(owner, "9 Palm Court");
   }, 180_000);
 

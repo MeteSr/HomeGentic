@@ -47,7 +47,7 @@ export default function RecurringServiceDetailPage() {
   useEffect(() => {
     if (!id) return;
     Promise.all([
-      recurringService.getById(id).then((s) => setSvc(s)),
+      recurringService.getById(id).then((s) => setSvc(s)).catch((e) => toast.error(errorMessage(e, "Couldn't load this service"))),
       recurringService.getVisitLogs(id).then((v) => setVisits(v)).catch((e) => console.error("[RecurringServiceDetailPage] visit logs load failed:", e)),
     ]).finally(() => setLoading(false));
   }, [id]);

@@ -11,7 +11,7 @@ import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/bills";
 import { voiceAgentFetch } from "./voiceAgentHeaders";
 import type { _SERVICE as BillsCanister } from "@homegentic/shared/types/bills";
-import { variant } from "./candid";
+import { canisterError, variant } from "./candid";
 import type * as Bills from "@homegentic/shared/types/bills";
 export { idlFactory };
 
@@ -123,7 +123,7 @@ function fromVariant<T>(v: any): T {
   if ("ok" in v) return v.ok as T;
   const err = v.err;
   if (err && "TierLimitReached" in err) throw new TierLimitReachedError(err.TierLimitReached);
-  throw new Error(JSON.stringify(err));
+  throw canisterError(err);
 }
 
 function toRecord(raw: Bills.BillRecord): BillRecord {
