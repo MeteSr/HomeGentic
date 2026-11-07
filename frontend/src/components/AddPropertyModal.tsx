@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { X, Shield, Camera, FileText, Clock, Check } from "lucide-react";
 import { propertyService } from "@/services/property";
 import { photoService, type PhotoQuota } from "@/services/photo";
+import { docTypeFromOnboardingLabel, encodeDoc } from "@/services/documentVault";
 import { authService } from "@/services/auth";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
@@ -561,7 +562,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
 
   const handleDocUpload = async (file: File, docType: string) => {
     if (!registeredId) return;
-    await photoService.upload(file, `docs_${registeredId}`, registeredId, "PostConstruction", docType);
+    await photoService.upload(file, `docs_${registeredId}`, registeredId, "PostConstruction", encodeDoc(docTypeFromOnboardingLabel(docType), file.name));
     setDocsUploaded(n => n + 1);
     setQuota(q => ({ ...q, used: q.used + 1 }));
   };

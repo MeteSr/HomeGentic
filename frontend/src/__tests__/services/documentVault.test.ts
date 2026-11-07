@@ -1,5 +1,5 @@
 /**
- * DocumentsTab hand-rolls a pseudo-schema into the `description` field of
+ * The document vault hand-rolls a pseudo-schema into the `description` field of
  * an uploaded Photo (encodeDoc/encodePermit/encodeInspection → parseDoc).
  * There's no other safety net for this — it's pure string packing/
  * unpacking, easy to silently break while reskinning the surrounding JSX.
@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { encodeDoc, encodePermit, encodeInspection, parseDoc, DOC_TYPES } from "@/pages/PropertyDetail/DocumentsTab";
+import { encodeDoc, encodePermit, encodeInspection, parseDoc, DOC_TYPES, DOC_TYPE_LABELS, DOC_GROUPS, docGroupOf, docTypeFromOnboardingLabel, canEditDocuments } from "@/services/documentVault";
 
 describe("DocumentsTab encoding — plain doc round-trip", () => {
   it("round-trips a Receipt filename", () => {
@@ -66,5 +66,70 @@ describe("DocumentsTab encoding — legacy/malformed descriptions", () => {
 
   it("falls back to a plain filename for a Permit-tagged description missing enough pipe-delimited fields", () => {
     expect(parseDoc("[Permit] incomplete")).toEqual({ type: "Permit", filename: "incomplete" });
+  });
+});
+
+describe("document vault — home papers", () => {
+  it.each([
+    ["Deed", "Deed"],
+    ["Closing", "Closing papers"],
+    ["Title", "Title policy"],
+    ["Survey", "Survey"],
+    ["Insurance", "Insurance policy"],
+    ["Elevation", "Elevation certificate"],
+    ["HOA", "HOA documents"],
+    ["Manual", "Manual"],
+    ["Other", "Other"],
+  ] as const)("keeps %s papers and labels them %s", (type, label) => {
+    expect(DOC_TYPES).toContain(type);
+    expect(DOC_TYPE_LABELS[type]).toBe(label);
+    expect(parseDoc(encodeDoc(type, "scan.pdf"))).toEqual({ type, filename: "scan.pdf" });
+  });
+
+  it("still reads the original five types", () => {
+    for (const t of ["Receipt", "Permit", "Inspection", "Warranty", "Invoice"] as const) {
+      expect(DOC_TYPES).toContain(t);
+    }
+  });
+
+  it("puts every type in exactly one group", () => {
+    const grouped = DOC_GROUPS.flatMap((g) => g.types);
+    expect([...grouped].sort()).toEqual([...DOC_TYPES].sort());
+    expect(new Set(grouped).size).toBe(grouped.length);
+  });
+
+  it("groups papers the way an owner looks for them", () => {
+    expect(docGroupOf("Deed").label).toBe("Ownership and closing");
+    expect(docGroupOf("Closing").label).toBe("Ownership and closing");
+    expect(docGroupOf("Insurance").label).toBe("Insurance and risk");
+    expect(docGroupOf("Elevation").label).toBe("Insurance and risk");
+    expect(docGroupOf("HOA").label).toBe("Home and HOA");
+    expect(docGroupOf("Receipt").label).toBe("Work records");
+    expect(docGroupOf("Permit").label).toBe("Work records");
+  });
+});
+
+describe("document vault — onboarding uploads", () => {
+  it.each([
+    ["Receipt", "Receipt"],
+    ["Invoice", "Invoice"],
+    ["Permit", "Permit"],
+    ["Warranty Card", "Warranty"],
+    ["Inspection Report", "Inspection"],
+    ["Before Photo", "Other"],
+    ["After Photo", "Other"],
+    ["Other", "Other"],
+    ["something new", "Other"],
+  ] as const)("files the onboarding choice %s as %s", (label, type) => {
+    expect(docTypeFromOnboardingLabel(label)).toBe(type);
+  });
+});
+
+describe("document vault — who can change files", () => {
+  it.each([
+    ["Owner", true], ["CoOwner", true], ["Manager", true], [null, true],
+    ["Viewer", false], ["NoAccess", false],
+  ] as const)("%s → %s", (role, allowed) => {
+    expect(canEditDocuments(role)).toBe(allowed);
   });
 });

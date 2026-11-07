@@ -711,7 +711,7 @@ export default function PropertyDetailPage() {
           {tab === "jobs"      && <JobsTab jobs={jobs} />}
           {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} photosByJob={photosByJob} onRoomPhotoUpload={(roomId, file) => uploadRoomPhoto(roomId, file, id!)} />}
           {tab === "documents" && <DocumentsTab propertyId={id!} />}
-          {tab === "bills"     && <BillsTab propertyId={id!} />}
+          {tab === "bills"     && <BillsTab propertyId={id!} state={property.state} zipCode={property.zipCode} />}
           {tab === "settings"  && <SettingsTab property={property} currentPrincipal={principal ?? ""} onVerifyOwnership={() => setModals(m => ({ ...m, verify: true }))} />}
         </div>
 

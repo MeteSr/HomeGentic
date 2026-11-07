@@ -3,61 +3,29 @@ import { photoService, type Photo } from "@/services/photo";
 import toast from "react-hot-toast";
 import { Panel, hudInputStyle } from "@/components/hud";
 import { errorMessage, hasErrorCode } from "../../services/candid";
+import { propertyService, type AccessRole } from "@/services/property";
+import { useAuthStore } from "@/store/authStore";
+import {
+  DOC_GROUPS, DOC_TYPE_LABELS, canEditDocuments, docGroupOf, encodeDoc, encodeInspection, encodePermit, parseDoc,
+  type DocType,
+} from "@/services/documentVault";
 
 const MONO = "'JetBrains Mono',monospace";
 const SERIF = "'Bricolage Grotesque',system-ui,sans-serif";
 
-// ─── Document vault types & helpers ──────────────────────────────────────────
-
-export const DOC_TYPES = ["Receipt", "Permit", "Inspection", "Warranty", "Invoice"] as const;
-export type DocType = typeof DOC_TYPES[number];
-
-const DOC_TYPE_COLORS: Record<DocType, { color: string; bg: string }> = {
-  Receipt:    { color: "var(--hg-muted)",    bg: "transparent" },
+const DOC_TYPE_COLORS: Partial<Record<DocType, { color: string; bg: string }>> = {
   Permit:     { color: "var(--hg-ink-2)",    bg: "var(--hg-blue-wash)" },
   Inspection: { color: "var(--hg-blue-ink)", bg: "var(--hg-blue-wash)" },
   Warranty:   { color: "var(--hg-ink-2)",    bg: "var(--hg-yel-wash)" },
   Invoice:    { color: "var(--hg-blue-ink)", bg: "var(--hg-yel-wash)" },
+  Deed:       { color: "var(--hg-blue-ink)", bg: "var(--hg-blue-wash)" },
+  Closing:    { color: "var(--hg-blue-ink)", bg: "var(--hg-blue-wash)" },
+  Title:      { color: "var(--hg-blue-ink)", bg: "var(--hg-blue-wash)" },
+  Survey:     { color: "var(--hg-blue-ink)", bg: "var(--hg-blue-wash)" },
+  Insurance:  { color: "var(--hg-ink-2)",    bg: "var(--hg-yel-wash)" },
+  Elevation:  { color: "var(--hg-ink-2)",    bg: "var(--hg-yel-wash)" },
 };
-
-export function encodeDoc(type: DocType, filename: string): string {
-  return `[${type}] ${filename}`;
-}
-
-export function encodePermit(permitNumber: string, authority: string, status: string, filename: string): string {
-  return `[Permit] ${permitNumber}|${authority}|${status}|${filename}`;
-}
-
-export function encodeInspection(inspector: string, status: string, filename: string): string {
-  return `[Inspection] ${inspector}|${status}|${filename}`;
-}
-
-export interface ParsedDoc {
-  type:         DocType;
-  filename:     string;
-  permitNumber?: string;
-  authority?:   string;
-  inspector?:   string;
-  status?:      string;
-}
-
-export function parseDoc(description: string): ParsedDoc {
-  const m = description.match(/^\[(\w+)\] (.+)$/);
-  if (!m || !DOC_TYPES.includes(m[1] as DocType)) {
-    return { type: "Receipt", filename: description };
-  }
-  const type = m[1] as DocType;
-  const rest = m[2];
-  if (type === "Permit") {
-    const parts = rest.split("|");
-    if (parts.length >= 4) return { type, permitNumber: parts[0], authority: parts[1], status: parts[2], filename: parts.slice(3).join("|") };
-  }
-  if (type === "Inspection") {
-    const parts = rest.split("|");
-    if (parts.length >= 3) return { type, inspector: parts[0], status: parts[1], filename: parts.slice(2).join("|") };
-  }
-  return { type, filename: rest };
-}
+const DEFAULT_COLORS = { color: "var(--hg-muted)", bg: "transparent" };
 
 type BatchFileStatus = "pending" | "uploading" | "done" | "duplicate" | "error";
 interface BatchFile { name: string; status: BatchFileStatus; error?: string }
@@ -71,6 +39,11 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
   const inspectionRef = React.useRef<HTMLInputElement>(null);
 
   const [docs,     setDocs]     = useState<Photo[]>([]);
+  const [loaded,   setLoaded]   = useState(false);
+  const [role,     setRole]     = useState<AccessRole | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const principal = useAuthStore((st) => st.principal);
+  const canEdit   = canEditDocuments(role);
   const [docType,  setDocType]  = useState<DocType>("Receipt");
   const [queue,    setQueue]    = useState<BatchFile[]>([]);
   const batchActive = queue.some((f) => f.status === "pending" || f.status === "uploading");
@@ -85,11 +58,17 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
   const [inspectionUploading,   setInspectionUploading]   = useState(false);
 
   useEffect(() => {
+    if (!principal) return;
+    propertyService.getAccessRole(propertyId, principal).then(setRole).catch(() => setRole(null));
+  }, [propertyId, principal]);
+
+  useEffect(() => {
     Promise.all([
       photoService.getByJob(`receipts_${propertyId}`).catch(() => [] as Photo[]),
       photoService.getByJob(DOCS_JOB).catch(() => [] as Photo[]),
     ]).then(([legacy, current]) => {
       setDocs([...legacy, ...current].sort((a, b) => b.createdAt - a.createdAt));
+      setLoaded(true);
     });
   }, [propertyId]);
 
@@ -149,6 +128,24 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
     }
   };
 
+  const handleRemove = async (doc: Photo, filename: string) => {
+    if (!window.confirm(`Remove ${filename}? This deletes the file for everyone who can see this home.`)) return;
+    setRemoving(doc.id);
+    try {
+      await photoService.deletePhoto(doc.id);
+      setDocs((prev) => prev.filter((d) => d.id !== doc.id));
+      toast.success("Document removed");
+    } catch (err: any) {
+      toast.error(errorMessage(err, "Couldn't remove the document"));
+    } finally {
+      setRemoving(null);
+    }
+  };
+
+  const grouped = DOC_GROUPS
+    .map((g) => ({ group: g, items: docs.filter((d) => docGroupOf(parseDoc(d.description).type).key === g.key) }))
+    .filter((g) => g.items.length > 0);
+
   const statusIcon = (s: BatchFileStatus) => {
     if (s === "done")      return <span style={{ color: "var(--hg-good)" }}>✓</span>;
     if (s === "duplicate") return <span style={{ color: "var(--hg-muted)" }}>⊘</span>;
@@ -159,11 +156,23 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
 
   return (
     <div>
+      <Panel style={{ marginBottom: "1.25rem", padding: "0.875rem 1.25rem", background: "var(--hg-fill)" }}>
+        <p style={{ fontSize: "0.8rem", color: "var(--hg-ink-2)", lineHeight: 1.6, margin: 0 }}>
+          <strong>Who can see these files:</strong> you, everyone you've added to this home on People (co-owners, managers and viewers), and your buyer if you hand the record over at closing. Closing papers and policies can hold account and loan numbers, so remove anything you don't want to pass on before you send a buyer the claim link.
+        </p>
+        {!canEdit && (
+          <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", lineHeight: 1.6, margin: "0.5rem 0 0" }}>
+            You have view-only access to this home, so you can open documents but not add or remove them.
+          </p>
+        )}
+      </Panel>
+
+      {canEdit && (<>
       {/* Permits & Inspections */}
       <Panel style={{ marginBottom: "1.25rem", overflow: "hidden" }}>
         <div style={{ padding: "0.875rem 1.25rem", borderBottom: "1px solid var(--hg-line)", background: "var(--hg-fill)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <p style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--hg-ink-2)" }}>Permits &amp; Inspections</p>
-          <p style={{ fontFamily: MONO, fontSize: "0.55rem", color: "var(--hg-muted)" }}>Upload with metadata — status tracked on-chain</p>
+          <p style={{ fontFamily: MONO, fontSize: "0.55rem", color: "var(--hg-muted)" }}>Upload with the permit or inspection details</p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
           <div style={{ padding: "1rem 1.25rem", borderRight: "1px solid var(--hg-line)" }}>
@@ -207,15 +216,18 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
           <p style={{ fontFamily: MONO, fontSize: "0.55rem", color: "var(--hg-muted)" }}>Select multiple files — duplicates are auto-detected</p>
         </div>
         <div style={{ padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: "1px", background: "var(--hg-line)", borderRadius: 6, overflow: "hidden" }}>
-            {DOC_TYPES.map((t) => (
-              <button key={t} onClick={() => setDocType(t)} style={{ padding: "0.35rem 0.75rem", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", border: "none", cursor: "pointer", background: docType === t ? "var(--hg-blue)" : "var(--hg-fill)", color: docType === t ? "#FCFCFD" : "var(--hg-muted)" }}>
-                {t}
-              </button>
-            ))}
-          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)" }}>
+            Document type
+            <select aria-label="Document type" value={docType} onChange={(e) => setDocType(e.target.value as DocType)} style={{ ...hudInputStyle, fontSize: "0.8rem", textTransform: "none", letterSpacing: 0 }}>
+              {DOC_GROUPS.map((g) => (
+                <optgroup key={g.key} label={g.label}>
+                  {g.types.map((t) => <option key={t} value={t}>{DOC_TYPE_LABELS[t]}</option>)}
+                </optgroup>
+              ))}
+            </select>
+          </label>
           <button onClick={() => inputRef.current?.click()} disabled={batchActive} style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", borderRadius: 6, border: "1px solid var(--hg-blue-edge)", color: "var(--hg-blue-ink)", background: "none", cursor: batchActive ? "not-allowed" : "pointer", opacity: batchActive ? 0.5 : 1 }}>
-            {batchActive ? "Uploading…" : `+ Upload ${docType}s`}
+            {batchActive ? "Uploading…" : "+ Upload files"}
           </button>
           <input ref={inputRef} type="file" multiple accept="image/*,application/pdf" style={{ display: "none" }} onChange={handleUpload} />
         </div>
@@ -239,20 +251,26 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
         )}
       </Panel>
 
+      </>)}
+
       {/* Document list */}
-      {docs.length === 0 ? (
+      {!loaded ? null : docs.length === 0 ? (
         <Panel style={{ border: "1px dashed var(--hg-line-2)", background: "transparent", padding: "3rem", textAlign: "center" }}>
           <p style={{ fontFamily: SERIF, fontWeight: 700, color: "var(--hg-ink)", marginBottom: "0.375rem" }}>No documents yet</p>
-          <p style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.06em", color: "var(--hg-muted)" }}>Upload receipts, permits, inspection reports, warranties, or invoices. Each file is SHA-256 hashed and stored on-chain.</p>
+          <p style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.06em", color: "var(--hg-muted)" }}>Keep the deed, closing papers, insurance policy, HOA documents, manuals, receipts and permits for this home in one place. Each file gets a SHA-256 fingerprint, so the same file isn't saved twice.</p>
         </Panel>
       ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        {grouped.map(({ group, items }) => (
+        <section key={group.key} aria-labelledby={`docs-${group.key}`}>
+        <h3 id={`docs-${group.key}`} style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--hg-ink-2)", fontWeight: 600, margin: "0 0 0.5rem" }}>{group.label}</h3>
         <Panel style={{ overflow: "hidden" }}>
-          {docs.map((doc, i) => {
+          {items.map((doc, i) => {
             const parsed = parseDoc(doc.description);
-            const tc = DOC_TYPE_COLORS[parsed.type];
+            const tc = DOC_TYPE_COLORS[parsed.type] ?? DEFAULT_COLORS;
             return (
-              <div key={doc.id} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1.25rem", borderBottom: i < docs.length - 1 ? "1px solid var(--hg-line)" : "none" }}>
-                <span style={{ fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.2rem 0.5rem", borderRadius: 100, flexShrink: 0, color: tc.color, background: tc.bg, border: `1px solid ${tc.color}` }}>{parsed.type}</span>
+              <div key={doc.id} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1.25rem", borderBottom: i < items.length - 1 ? "1px solid var(--hg-line)" : "none" }}>
+                <span style={{ fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.2rem 0.5rem", borderRadius: 100, flexShrink: 0, color: tc.color, background: tc.bg, border: `1px solid ${tc.color}` }}>{DOC_TYPE_LABELS[parsed.type]}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--hg-ink-2)", marginBottom: "0.125rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{parsed.filename}</p>
                   {parsed.type === "Permit" && parsed.permitNumber && (
@@ -272,10 +290,18 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
                 {doc.url && (
                   <a href={doc.url} target="_blank" rel="noreferrer" style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-blue-ink)", textDecoration: "none", flexShrink: 0 }}>View</a>
                 )}
+                {canEdit && (
+                  <button aria-label={`Remove ${parsed.filename}`} disabled={removing === doc.id} onClick={() => handleRemove(doc, parsed.filename)} style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)", background: "none", border: "none", cursor: removing === doc.id ? "not-allowed" : "pointer", flexShrink: 0, padding: 0 }}>
+                    {removing === doc.id ? "Removing…" : "Remove"}
+                  </button>
+                )}
               </div>
             );
           })}
         </Panel>
+        </section>
+        ))}
+        </div>
       )}
     </div>
   );
