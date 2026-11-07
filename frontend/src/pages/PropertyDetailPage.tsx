@@ -40,6 +40,7 @@ import { DocumentsTab } from "./PropertyDetail/DocumentsTab";
 import { SettingsTab }  from "./PropertyDetail/SettingsTab";
 import { RoomsTab }     from "./PropertyDetail/RoomsTab";
 import { BillsTab }     from "./PropertyDetail/BillsTab";
+import { InsuranceTab } from "./PropertyDetail/InsuranceTab";
 import { useState, useEffect } from "react";
 import { Panel, spinnerVars } from "@/components/hud";
 import { scrollBehavior } from "@/utils/motion";
@@ -49,7 +50,7 @@ const BODY = "'Hanken Grotesk',sans-serif";
 const MONO = "'JetBrains Mono',monospace";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "timeline" | "jobs" | "rooms" | "documents" | "bills" | "settings";
+type Tab = "timeline" | "jobs" | "rooms" | "documents" | "bills" | "insurance" | "settings";
 
 interface ModalState {
   report:        boolean;
@@ -234,6 +235,7 @@ export default function PropertyDetailPage() {
     { key: "bills",     label: "Bills" },
     { key: "rooms",     label: `Rooms (${rooms.length})` },
     { key: "documents", label: "Documents" },
+    { key: "insurance", label: "Insurance" },
     { key: "settings",  label: "Settings" },
   ];
 
@@ -712,6 +714,7 @@ export default function PropertyDetailPage() {
           {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} photosByJob={photosByJob} onRoomPhotoUpload={(roomId, file) => uploadRoomPhoto(roomId, file, id!)} />}
           {tab === "documents" && <DocumentsTab propertyId={id!} />}
           {tab === "bills"     && <BillsTab propertyId={id!} state={property.state} zipCode={property.zipCode} />}
+          {tab === "insurance" && <InsuranceTab propertyId={id!} />}
           {tab === "settings"  && <SettingsTab property={property} currentPrincipal={principal ?? ""} onVerifyOwnership={() => setModals(m => ({ ...m, verify: true }))} />}
         </div>
 

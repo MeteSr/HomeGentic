@@ -38,6 +38,7 @@ import Iter      "mo:core/Iter";
 import List      "mo:core/List";
 import Nat       "mo:core/Nat";
 import Nat8      "mo:core/Nat8";
+import Nat32     "mo:core/Nat32";
 import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
 import Random    "mo:core/Random";
@@ -138,6 +139,41 @@ persistent actor Property {
     state     : Text;
     zipCode   : Text;
     yearBuilt : Nat;
+  };
+
+  /// #711: the hurricane deductible on a home insurance policy, as printed on
+  /// the declarations page: a whole percent of Coverage A (1–25) or a dollar
+  /// amount in cents.
+  public type HurricaneDeductible = {
+    #PercentOfCoverageA : Nat;
+    #Amount             : Nat;
+  };
+
+  /// #711: the household's own copy of the home's insurance policy details.
+  /// `renewalDate` is a calendar date, "YYYY-MM-DD". Nothing here is checked
+  /// with the carrier.
+  public type InsurancePolicyInput = {
+    carrier             : Text;
+    policyNumber        : Text;
+    renewalDate         : Text;
+    coverageACents      : ?Nat;
+    hurricaneDeductible : ?HurricaneDeductible;
+  };
+
+  public type InsurancePolicy = {
+    carrier             : Text;
+    policyNumber        : Text;
+    renewalDate         : Text;
+    coverageACents      : ?Nat;
+    hurricaneDeductible : ?HurricaneDeductible;
+    updatedAt           : Int;
+  };
+
+  /// #711: what the weekly Home Pulse email needs for a renewal reminder.
+  public type PulseInsurance = {
+    propertyId  : Text;
+    carrier     : Text;
+    renewalDate : Text;
   };
 
   public type RegisterPropertyArgs = {
@@ -414,6 +450,11 @@ persistent actor Property {
   /// token (Text) → propertyId (Text) — secondary index for O(1) claim lookup.
   private let tokenIndex       = Map.empty<Text, Text>();
   private let rooms            = Map.empty<Text, RoomRecord>();
+  /// #711: propertyId → the home's insurance policy (setInsurancePolicy). A
+  /// side map, since a new field on Property (stored in a Map) is not
+  /// stable-compatible. Dropped when the home changes hands (claimTransfer)
+  /// or its owner deletes their data.
+  private let insurancePolicies = Map.empty<Text, InsurancePolicy>();
 
   // Secondary indexes (transient, rebuilt on every upgrade). Writes to
   // `properties` / `rooms` go through putProperty / putRoom / Index.delete.
@@ -1468,6 +1509,8 @@ persistent actor Property {
                 // M-3: the previous owner's delegates (managers, co-owners,
                 // pending invites) must not keep access to the buyer's home.
                 clearDelegatedAccess(propertyId);
+                // #711: the seller's insurance policy isn't the buyer's.
+                insurancePolicies.remove(propertyId);
 
                 // Append immutable record to ownership history. L-3: take a
                 // fresh key per claim so two claims never share a record slot.
@@ -2292,6 +2335,106 @@ persistent actor Property {
     }).toArray())
   };
 
+  /// #711: renewal reminders for the weekly Home Pulse email: the carrier
+  /// and renewal date of each of `owner`'s active homes that has a policy on
+  /// record. No policy number or coverage. Notifiers and admins only.
+  public query(msg) func getPulseInsurance(owner: Principal) : async Result.Result<[PulseInsurance], Error> {
+    if (not Admin.contains(notifierEntries, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let out = List.empty<PulseInsurance>();
+    for (p in ownedBy(owner)) {
+      if (p.isActive) {
+        switch (insurancePolicies.get(p.id)) {
+          case (?pol) out.add({ propertyId = p.id; carrier = pol.carrier; renewalDate = pol.renewalDate });
+          case null {};
+        };
+      };
+    };
+    #ok(out.toArray())
+  };
+
+  // ─── Insurance policy (#711) ──────────────────────────────────────────────
+
+  /// Most a Coverage A limit or dollar deductible may be: $100,000,000.
+  private transient let MAX_INSURANCE_CENTS : Nat = 10_000_000_000;
+
+  private func digitsOf(chars : [Char], from : Nat, len : Nat) : ?Nat {
+    var n = 0;
+    for (i in Nat.range(from, from + len)) {
+      let c = chars[i];
+      if (c < '0' or c > '9') return null;
+      n := n * 10 + (c.toNat32() - '0'.toNat32()).toNat();
+    };
+    ?n
+  };
+
+  /// True for a real calendar date written "YYYY-MM-DD", years 2000–2100.
+  private func isIsoDate(t : Text) : Bool {
+    let chars = t.toArray();
+    if (chars.size() != 10 or chars[4] != '-' or chars[7] != '-') return false;
+    switch (digitsOf(chars, 0, 4), digitsOf(chars, 5, 2), digitsOf(chars, 8, 2)) {
+      case (?y, ?m, ?d) {
+        if (y < 2000 or y > 2100 or m < 1 or m > 12 or d < 1) return false;
+        let leap = (y % 4 == 0 and y % 100 != 0) or y % 400 == 0;
+        let days = switch m {
+          case 2 { if leap 29 else 28 };
+          case (4 or 6 or 9 or 11) { 30 };
+          case _ { 31 };
+        };
+        d <= days
+      };
+      case _ false;
+    }
+  };
+
+  private func validatePolicy(p : InsurancePolicyInput) : ?Text {
+    let carrier = p.carrier.trim(#char ' ');
+    if (carrier.size() == 0)        return ?"Enter the insurance company";
+    if (p.carrier.size() > 100)     return ?"Insurance company name is over 100 characters";
+    if (p.policyNumber.size() > 60) return ?"Policy number is over 60 characters";
+    if (not isIsoDate(p.renewalDate)) return ?"Renewal date must be a real date written YYYY-MM-DD";
+    switch (p.coverageACents) {
+      case (?c) { if (c > MAX_INSURANCE_CENTS) return ?"Coverage A is over $100,000,000" };
+      case null {};
+    };
+    switch (p.hurricaneDeductible) {
+      case (?#PercentOfCoverageA(pct)) { if (pct < 1 or pct > 25) return ?"Hurricane deductible percent must be 1 to 25" };
+      case (?#Amount(c)) { if (c > MAX_INSURANCE_CENTS) return ?"Hurricane deductible is over $100,000,000" };
+      case null {};
+    };
+    null
+  };
+
+  /// #711: save the home's insurance policy details, or clear them with null.
+  /// Needs write access to the home (owner, co-owner or manager).
+  public shared(msg) func setInsurancePolicy(propertyId: Text, policy: ?InsurancePolicyInput) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    switch (policy) {
+      case null { insurancePolicies.remove(propertyId) };
+      case (?p) {
+        switch (validatePolicy(p)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+        insurancePolicies.add(propertyId, {
+          carrier             = p.carrier.trim(#char ' ');
+          policyNumber        = p.policyNumber.trim(#char ' ');
+          renewalDate         = p.renewalDate;
+          coverageACents      = p.coverageACents;
+          hurricaneDeductible = p.hurricaneDeductible;
+          updatedAt           = Time.now();
+        });
+      };
+    };
+    #ok(())
+  };
+
+  /// #711: the home's insurance policy, or null when none is on record. Anyone
+  /// with a role on the home (owner, co-owner, manager, viewer) and admins.
+  public query(msg) func getInsurancePolicy(propertyId: Text) : async Result.Result<?InsurancePolicy, Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(insurancePolicies.get(propertyId))
+  };
+
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
@@ -2370,6 +2513,9 @@ persistent actor Property {
 
       // Managers, invites (+ token index), approvals, owner notifications.
       clearDelegatedAccess(pid);
+
+      // #711: the home's insurance policy.
+      if (insurancePolicies.get(pid) != null) { insurancePolicies.remove(pid); removed += 1 };
 
       // Pending transfer and its token index.
       switch (pendingTransfers.get(pid)) {

@@ -6,10 +6,11 @@
  * preference, on by default) one digest built from their own record:
  *
  *   1. jobs waiting on their signature
- *   2. systems past their rated life (age counted the way the score counts it)
- *   3. warranties that end in the next 60 days
- *   4. systems within two years of their rated life
- *   5. this season's priorities for the property's climate zone, with the
+ *   2. a home insurance renewal in the next 60 days (the policy they saved)
+ *   3. systems past their rated life (age counted the way the score counts it)
+ *   4. warranties that end in the next 60 days
+ *   5. systems within two years of their rated life
+ *   6. this season's priorities for the property's climate zone, with the
  *      last matching job on record
  *
  * plus each property's HomeGentic Score, computed from the job canister's
@@ -31,7 +32,7 @@ import { loadSection, saveSection } from "./persist";
 import { emailUnsubscribeId, unsubscribeTokenFor } from "./unsubscribe";
 import { SYSTEM_LIFESPANS, REPLACEMENT_MIN_CENTS, scoreBreakdown, type ScoreJob } from "../../packages/shared/src/score";
 import { climateService, type Season } from "../../packages/shared/src/climate";
-import type { PulseJob, PulseProperty, PulseRecipient } from "./types";
+import type { PulseInsurance, PulseJob, PulseProperty, PulseRecipient } from "./types";
 import { reportFailure, errorCode } from "./opsReport";
 
 export const PULSE_PREF = "weekly_pulse";
@@ -41,6 +42,7 @@ const MAX_PROPERTIES      = 5;   // per email; the rest are a link
 const MAX_ITEMS           = 6;   // per property
 const MAX_ATTENTION       = 4;   // of those, items that need the homeowner; the rest are seasonal
 const WARRANTY_WINDOW_MS  = 60 * 86_400_000;
+const RENEWAL_WINDOW_DAYS = 60;
 const NEAR_LIFE_YEARS     = 2;
 const CHECK_INTERVAL_MS   = 60 * 60_000;
 
@@ -86,7 +88,7 @@ function addMonths(ms: number, months: number): number {
 
 // ── Digest ────────────────────────────────────────────────────────────────────
 
-export type PulseTag = "SIGN OFF" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL";
+export type PulseTag = "SIGN OFF" | "INSURANCE" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL";
 
 export interface PulseItem {
   tag:   PulseTag;
@@ -128,12 +130,36 @@ const SYSTEM_NOUN: Record<string, [string, "is" | "are"]> = {
   Electrical: ["electrical system", "is"], Windows: ["windows", "are"], Flooring: ["flooring", "is"],
 };
 
+/** UTC midnight of a "YYYY-MM-DD" date, or null if it isn't one. */
+export function isoDateMs(date: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return null;
+  const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return new Date(ms).toISOString().startsWith(date) ? ms : null;
+}
+
+/** #711: a reminder when the saved policy renews in the next 60 days (today included). */
+export function insuranceItem(policy: PulseInsurance | null, nowMs: number): PulseItem | null {
+  const renews = policy ? isoDateMs(policy.renewalDate) : null;
+  if (!policy || renews === null) return null;
+  const now = new Date(nowMs);
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const days = Math.round((renews - today) / 86_400_000);
+  if (days < 0 || days > RENEWAL_WINDOW_DAYS) return null;
+  return {
+    tag:   "INSURANCE",
+    title: `Home insurance renews ${dayMonth(renews)}`,
+    body:  `Your ${policy.carrier} policy, by the renewal date you saved. When the renewal notice comes, check its coverage and deductibles against last year's, and tell your agent about work done since then, like a new roof or shutters.`,
+  };
+}
+
 /**
  * One property's section. `jobs` are that property's jobs; `snapshots` are
- * the job canister's score inputs for it.
+ * the job canister's score inputs for it; `insurance` is its saved policy.
  */
 export function buildSection(
   property: PulseProperty, jobs: PulseJob[], snapshots: ScoreJob[], nowMs: number,
+  insurance: PulseInsurance | null = null,
 ): PulseSection {
   const currentYear = new Date(nowMs).getUTCFullYear();
   const zone   = climateService.getZone(property.zipCode);
@@ -152,6 +178,10 @@ export function buildSection(
   if (waiting.length > 3) {
     items.push({ tag: "SIGN OFF", title: `${waiting.length - 3} more jobs waiting on you`, body: "They're in Awaiting on your dashboard." });
   }
+
+  // Insurance renewal
+  const renewal = insuranceItem(insurance, nowMs);
+  if (renewal) items.push(renewal);
 
   // 2 + 4. System life, counted like the score's modernization part.
   const past: PulseItem[] = [];
@@ -232,6 +262,7 @@ export interface PulseLinks {
 
 const TAG_COLOR: Record<PulseTag, string> = {
   "SIGN OFF":           "#2B34FF",
+  "INSURANCE":          "#8A6800",
   "PAST RATED LIFE":    "#C94C2E",
   "WARRANTY":           "#8A6800",
   "NEARING RATED LIFE": "#8A6800",
@@ -293,6 +324,8 @@ export interface PulseDeps {
   getProperties: (owner: string) => Promise<PulseProperty[]>;
   getJobs:       (owner: string) => Promise<PulseJob[]>;
   getSnapshots:  (propertyId: string) => Promise<ScoreJob[]>;
+  /** #711: renewal dates of the owner's saved insurance policies. */
+  getInsurance:  (owner: string) => Promise<PulseInsurance[]>;
   wantsPulse:    (principal: string) => boolean;
   send:          (to: string, msg: EmailMessage, idempotencyKey: string, headers: Record<string, string>) => Promise<void>;
   /** Pause between sends (Resend's default limit is a few requests a second). */
@@ -308,6 +341,7 @@ const defaultDeps: PulseDeps = {
   getProperties: icp.getPulseProperties,
   getJobs:       icp.getJobsByOwner,
   getSnapshots:  icp.getJobSnapshots,
+  getInsurance:  icp.getPulseInsurance,
   wantsPulse:    (p) => getPrefs(p).email.weekly_pulse,
   send:          sendRawEmail,
   pause:         () => new Promise((r) => setTimeout(r, sendGapMs())),
@@ -348,11 +382,20 @@ export async function sendPulseTo(r: PulseRecipient, week: string, nowMs: number
   const properties = await deps.getProperties(r.principal);
   if (properties.length === 0) return false;
   const jobs = await deps.getJobs(r.principal);
+  // A renewal reminder is a nice-to-have: an unreadable list (e.g. a property
+  // canister that predates it) never holds up the rest of the email.
+  let insurance: PulseInsurance[] = [];
+  try {
+    insurance = await deps.getInsurance(r.principal);
+  } catch (err) {
+    console.warn("[pulse] insurance renewals unavailable:", err instanceof Error ? err.message : err);
+  }
   const shown = properties.slice(0, MAX_PROPERTIES);
   const sections: PulseSection[] = [];
   for (const p of shown) {
     const snapshots = await deps.getSnapshots(p.id);
-    sections.push(buildSection(p, jobs.filter((j) => j.propertyId === p.id), snapshots, nowMs));
+    const policy = insurance.find((i) => i.propertyId === p.id) ?? null;
+    sections.push(buildSection(p, jobs.filter((j) => j.propertyId === p.id), snapshots, nowMs, policy));
   }
   const unsubscribe = unsubscribeUrl(base, r.principal);
   const msg = renderPulse(sections, properties.length - shown.length, {

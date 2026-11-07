@@ -296,6 +296,7 @@ getAccessRole(2) -> (1) [query]
 getAccessRoles(2) -> (1) [query]
 getApiDoc(0) -> (1) [query]
 getApprovals(1) -> (1) [query]
+getInsurancePolicy(1) -> (1) [query]
 getJobPropertyAddresses(1) -> (1)
 getManagerInviteByToken(1) -> (1) [query]
 getMyManagedProperties(0) -> (1) [query]
@@ -314,6 +315,7 @@ getPropertyLimitForTier(1) -> (1) [query]
 getPropertyManagers(1) -> (1) [query]
 getPropertyOwner(1) -> (1) [query]
 getPropertyYearBuilt(1) -> (1) [query]
+getPulseInsurance(1) -> (1) [query]
 getPulseProperties(1) -> (1) [query]
 getRoomsByProperty(1) -> (1) [query]
 getVerificationLevel(1) -> (1) [query]
@@ -330,6 +332,7 @@ removeManager(2) -> (1)
 requestApproval(3) -> (1)
 resignAsManager(1) -> (1)
 respondToApproval(3) -> (1)
+setInsurancePolicy(2) -> (1)
 submitVerification(4) -> (1)
 updateManagerRole(4) -> (1)
 verifyProperty(3) -> (1)"
