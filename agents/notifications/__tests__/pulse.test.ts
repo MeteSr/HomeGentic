@@ -123,7 +123,7 @@ describe("buildSection", () => {
   it("says when the loan's schedule nears 80% of the original value, and that the lender decides", () => {
     // $300,000 at 6.5% over 30 years, first payment 2018-07-01, on a $330,000
     // home: the original schedule reaches $264,000 (80%) at payment 101, 2026-11-01.
-    const loan = {
+    const loan: NonNullable<PulseHomeFinance["loan"]> = {
       originalAmountCents: 30_000_000, rateThousandthsPct: 6_500, termMonths: 360,
       firstPaymentDate: "2018-07-01", originalValueCents: 33_000_000, monthlyPmiCents: 11_000,
     };
