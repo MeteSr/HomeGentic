@@ -11,4 +11,7 @@ commits = [
   # Placeholder Google Places session tokens ("tok-12345678") in
   # agents/voice/__tests__/addressSuggest.test.ts; the next commit builds them at runtime
   "effca219f2c7887fa52a7bfc6a289a1226b541e5",
+  # Made-up Wi-Fi password fixture ("sunny-porch-42") in
+  # tests/e2e/property-house-guide.spec.ts; the next commit replaces it
+  "b5ede16f1bb9caed03f04bf93c7ca5185385da91",
 ]
