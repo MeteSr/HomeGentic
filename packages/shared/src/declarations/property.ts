@@ -86,6 +86,33 @@ export const idlFactory = ({ IDL }: any) => {
     hurricaneDeductible: IDL.Opt(HurricaneDeductible),
     updatedAt:           IDL.Int,
   });
+  const ClaimStatus = IDL.Variant({ Open: IDL.Null, Closed: IDL.Null });
+  const ClaimInput = IDL.Record({
+    title:           IDL.Text,
+    dateOfLoss:      IDL.Text,
+    cause:           IDL.Text,
+    description:     IDL.Text,
+    claimNumber:     IDL.Text,
+    adjusterName:    IDL.Text,
+    adjusterContact: IDL.Text,
+    status:          ClaimStatus,
+  });
+  const ClaimLogEntry = IDL.Record({ date: IDL.Text, note: IDL.Text, addedAt: IDL.Int });
+  const InsuranceClaim = IDL.Record({
+    id:              IDL.Text,
+    propertyId:      IDL.Text,
+    title:           IDL.Text,
+    dateOfLoss:      IDL.Text,
+    cause:           IDL.Text,
+    description:     IDL.Text,
+    claimNumber:     IDL.Text,
+    adjusterName:    IDL.Text,
+    adjusterContact: IDL.Text,
+    status:          ClaimStatus,
+    log:             IDL.Vec(ClaimLogEntry),
+    createdAt:       IDL.Int,
+    updatedAt:       IDL.Int,
+  });
   const Error = IDL.Variant({
     NotFound: IDL.Null,
     NotAuthorized: IDL.Null,
@@ -229,6 +256,32 @@ export const idlFactory = ({ IDL }: any) => {
     ),
     setInsurancePolicy: IDL.Func(
       [IDL.Text, IDL.Opt(InsurancePolicyInput)],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    // #711 claim kit: the household's records of insurance claims on the home.
+    getInsuranceClaims: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(InsuranceClaim), err: Error })],
+      ["query"]
+    ),
+    createInsuranceClaim: IDL.Func(
+      [IDL.Text, ClaimInput],
+      [IDL.Variant({ ok: InsuranceClaim, err: Error })],
+      []
+    ),
+    updateInsuranceClaim: IDL.Func(
+      [IDL.Text, ClaimInput],
+      [IDL.Variant({ ok: InsuranceClaim, err: Error })],
+      []
+    ),
+    addInsuranceClaimLog: IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Variant({ ok: InsuranceClaim, err: Error })],
+      []
+    ),
+    deleteInsuranceClaim: IDL.Func(
+      [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),

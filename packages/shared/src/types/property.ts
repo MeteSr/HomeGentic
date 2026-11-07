@@ -3,6 +3,30 @@
 import type { ActorMethod } from "@icp-sdk/core/agent";
 import type { Principal } from "@icp-sdk/core/principal";
 
+export type InsuranceClaim = {
+  id: string;
+  log: ClaimLogEntry[];
+  status: ClaimStatus;
+  adjusterName: string;
+  adjusterContact: string;
+  title: string;
+  cause: string;
+  createdAt: bigint;
+  description: string;
+  propertyId: string;
+  updatedAt: bigint;
+  dateOfLoss: string;
+  claimNumber: string;
+};
+
+export type ClaimLogEntry = {
+  date: string;
+  note: string;
+  addedAt: bigint;
+};
+
+export type ClaimStatus = { Open: null } | { Closed: null };
+
 export type Error =
   | { Paused: null }
   | { InvalidInput: string }
@@ -46,6 +70,17 @@ export type PropertyType = { SingleFamily: null } | { Townhouse: null } | { Mult
 export type SubscriptionTier = { Pro: null } | { Free: null } | { ContractorPro: null } | { ContractorFree: null };
 
 export type VerificationLevel = { Premium: null } | { Basic: null } | { PendingReview: null } | { Unverified: null };
+
+export type ClaimInput = {
+  status: ClaimStatus;
+  adjusterName: string;
+  adjusterContact: string;
+  title: string;
+  cause: string;
+  description: string;
+  dateOfLoss: string;
+  claimNumber: string;
+};
 
 export type AddressMatch = {
   id: string;
@@ -192,6 +227,7 @@ export type InsurancePolicyInput = {
 
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
+  addInsuranceClaimLog: ActorMethod<[string, string, string], { ok: InsuranceClaim } | { err: Error }>;
   cancelManagerInvite: ActorMethod<[string, string], { ok: null } | { err: Error }>;
   cancelTransfer: ActorMethod<[string], { ok: null } | { err: Error }>;
   claimManagerRole: ActorMethod<
@@ -205,6 +241,8 @@ export interface _SERVICE {
     | { err: Error }
   >;
   claimTransfer: ActorMethod<[string], { ok: Property } | { err: Error }>;
+  createInsuranceClaim: ActorMethod<[string, ClaimInput], { ok: InsuranceClaim } | { err: Error }>;
+  deleteInsuranceClaim: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   dismissNotifications: ActorMethod<[string], { ok: null } | { err: Error }>;
   findPropertiesByAddress: ActorMethod<[string], AddressMatch[]>;
@@ -218,6 +256,7 @@ export interface _SERVICE {
   >;
   getApiDoc: ActorMethod<[], string>;
   getApprovals: ActorMethod<[string], { ok: PendingApprovalRequest[] } | { err: Error }>;
+  getInsuranceClaims: ActorMethod<[string], { ok: InsuranceClaim[] } | { err: Error }>;
   getInsurancePolicy: ActorMethod<[string], { ok: [] | [InsurancePolicy] } | { err: Error }>;
   getJobPropertyAddresses: ActorMethod<
     [string[]],
@@ -286,6 +325,7 @@ export interface _SERVICE {
   respondToApproval: ActorMethod<[string, bigint, boolean], { ok: null } | { err: Error }>;
   setInsurancePolicy: ActorMethod<[string, [] | [InsurancePolicyInput]], { ok: null } | { err: Error }>;
   submitVerification: ActorMethod<[string, string, string, [] | [string]], { ok: Property } | { err: Error }>;
+  updateInsuranceClaim: ActorMethod<[string, ClaimInput], { ok: InsuranceClaim } | { err: Error }>;
   updateManagerRole: ActorMethod<[string, Principal, ManagerRole, [] | [bigint]], { ok: null } | { err: Error }>;
   verifyProperty: ActorMethod<
     [string, { Premium: null } | { Basic: null } | { PendingReview: null } | { Unverified: null }, [] | [string]],
