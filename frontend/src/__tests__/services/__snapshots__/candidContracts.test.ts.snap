@@ -288,6 +288,7 @@ uploadPhoto(6) -> (1)"
 
 exports[`Candid contract snapshots — method arity > property 1`] = `
 "addArchitecturalReview(2) -> (1)
+addHomeWarrantyClaim(2) -> (1)
 addInsuranceClaimLog(3) -> (1)
 addInventoryItem(2) -> (1)
 addSpecialAssessment(2) -> (1)
@@ -298,6 +299,7 @@ claimTransfer(1) -> (1)
 createHouseGuideLink(3) -> (1)
 createInsuranceClaim(2) -> (1)
 deleteArchitecturalReview(1) -> (1)
+deleteHomeWarrantyClaim(1) -> (1)
 deleteInsuranceClaim(1) -> (1)
 deleteInventoryItem(1) -> (1)
 deleteMyData(0) -> (1)
@@ -310,12 +312,16 @@ getApiDoc(0) -> (1) [query]
 getApprovals(1) -> (1) [query]
 getArchitecturalReviews(1) -> (1) [query]
 getCondoAssociationRecord(1) -> (1) [query]
+getFloodZone(1) -> (1) [query]
+getHomeWarrantyClaims(1) -> (1) [query]
+getHomeWarrantyPlan(1) -> (1) [query]
 getHouseGuide(1) -> (1) [query]
 getInsuranceClaims(1) -> (1) [query]
 getInsurancePolicy(1) -> (1) [query]
 getInventory(1) -> (1) [query]
 getJobPropertyAddresses(1) -> (1)
 getManagerInviteByToken(1) -> (1) [query]
+getMortgageLoan(1) -> (1) [query]
 getMyManagedProperties(0) -> (1) [query]
 getMyProperties(0) -> (1) [query]
 getOwnerNotifications(1) -> (1) [query]
@@ -332,6 +338,7 @@ getPropertyLimitForTier(1) -> (1) [query]
 getPropertyManagers(1) -> (1) [query]
 getPropertyOwner(1) -> (1) [query]
 getPropertyYearBuilt(1) -> (1) [query]
+getPulseHomeFinance(1) -> (1) [query]
 getPulseInsurance(1) -> (1) [query]
 getPulseProperties(1) -> (1) [query]
 getRoomsByProperty(1) -> (1) [query]
@@ -347,17 +354,22 @@ listHouseGuideLinks(1) -> (1) [query]
 markIdentityCleared(3) -> (1)
 recordManagerActivity(2) -> (1)
 registerProperty(1) -> (1)
+relayFloodTarget(2) -> (1) [query]
 relayMarkIdentityCleared(4) -> (1)
+relaySetFloodZone(3) -> (1)
 removeManager(2) -> (1)
 requestApproval(3) -> (1)
 resignAsManager(1) -> (1)
 respondToApproval(3) -> (1)
 revokeHouseGuideLink(1) -> (1)
 setCondoAssociationRecord(2) -> (1)
+setHomeWarrantyPlan(2) -> (1)
 setHouseGuide(2) -> (1)
 setInsurancePolicy(2) -> (1)
+setMortgageLoan(2) -> (1)
 submitVerification(4) -> (1)
 updateArchitecturalReview(2) -> (1)
+updateHomeWarrantyClaim(2) -> (1)
 updateInsuranceClaim(2) -> (1)
 updateInventoryItem(2) -> (1)
 updateManagerRole(4) -> (1)

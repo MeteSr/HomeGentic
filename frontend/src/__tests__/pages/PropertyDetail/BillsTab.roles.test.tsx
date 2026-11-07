@@ -26,6 +26,10 @@ vi.mock("@/store/authStore", () => ({
   useAuthStore: (sel: (s: { principal: string }) => unknown) => sel({ principal: "me" }),
 }));
 
+vi.mock("@/pages/PropertyDetail/MortgageSection", () => ({
+  MortgageSection: ({ propertyId }: { propertyId: string }) => <div data-testid="mortgage">{propertyId}</div>,
+}));
+
 import { BillsTab } from "@/pages/PropertyDetail/BillsTab";
 
 const OWNERS_BILL: BillRecord = {
@@ -61,6 +65,18 @@ describe("BillsTab — role-aware", () => {
     expect(await screen.findByText("City Water")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: /Upload Bill/i })).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Remove bill" })).not.toBeInTheDocument();
+  });
+
+  it("shows the mortgage calculator to owners and co-owners only (#722)", async () => {
+    for (const [role, shown] of [["Owner", true], ["CoOwner", true], ["Manager", false], ["Viewer", false]] as const) {
+      mockGetAccessRole.mockResolvedValue(role);
+      const { unmount } = render(<BillsTab propertyId="p1" state="FL" zipCode="32114" />);
+      await screen.findByText("City Water");
+      await waitFor(() => expect(mockGetAccessRole).toHaveBeenCalled());
+      if (shown) expect(await screen.findByTestId("mortgage")).toHaveTextContent("p1");
+      else await waitFor(() => expect(screen.queryByTestId("mortgage")).not.toBeInTheDocument());
+      unmount();
+    }
   });
 
   it("a co-owner can remove anyone's bill", async () => {

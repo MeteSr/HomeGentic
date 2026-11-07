@@ -43,6 +43,7 @@ import { BillsTab }     from "./PropertyDetail/BillsTab";
 import { InsuranceTab } from "./PropertyDetail/InsuranceTab";
 import { HouseGuideTab } from "./PropertyDetail/HouseGuideTab";
 import { HoaTab } from "./PropertyDetail/HoaTab";
+import { HomeWarrantyTab } from "./PropertyDetail/HomeWarrantyTab";
 import { formatIsoDate } from "@/utils/format";
 import { useState, useEffect } from "react";
 import { Panel, spinnerVars } from "@/components/hud";
@@ -53,7 +54,7 @@ const BODY = "'Hanken Grotesk',sans-serif";
 const MONO = "'JetBrains Mono',monospace";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "timeline" | "jobs" | "rooms" | "documents" | "bills" | "insurance" | "guide" | "hoa" | "settings";
+type Tab = "timeline" | "jobs" | "rooms" | "documents" | "bills" | "insurance" | "homeWarranty" | "guide" | "hoa" | "settings";
 
 interface ModalState {
   report:        boolean;
@@ -240,6 +241,7 @@ export default function PropertyDetailPage() {
     { key: "rooms",     label: `Rooms (${rooms.length})` },
     { key: "documents", label: "Documents" },
     { key: "insurance", label: "Insurance" },
+    { key: "homeWarranty", label: "Home warranty" },
     { key: "guide",     label: "House guide" },
     { key: "hoa",       label: "HOA" },
     { key: "settings",  label: "Settings" },
@@ -720,7 +722,8 @@ export default function PropertyDetailPage() {
           {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} photosByJob={photosByJob} onRoomPhotoUpload={(roomId, file) => uploadRoomPhoto(roomId, file, id!)} />}
           {tab === "documents" && <DocumentsTab propertyId={id!} />}
           {tab === "bills"     && <BillsTab propertyId={id!} state={property.state} zipCode={property.zipCode} />}
-          {tab === "insurance" && <InsuranceTab propertyId={id!} photos={Object.values(photosByJob).flat()} rooms={rooms} />}
+          {tab === "insurance" && <InsuranceTab propertyId={id!} photos={Object.values(photosByJob).flat()} rooms={rooms} address={`${property.address}, ${property.city}, ${property.state} ${property.zipCode}`} />}
+          {tab === "homeWarranty" && <HomeWarrantyTab propertyId={id!} jobs={jobs.map((j) => ({ id: j.id, label: `${j.serviceType} (${formatIsoDate(j.date)})` }))} />}
           {tab === "guide"     && <HouseGuideTab propertyId={id!} photos={Object.values(photosByJob).flat()} />}
           {tab === "hoa"       && <HoaTab propertyId={id!} propertyType={property.propertyType} jobs={jobs.map((j) => ({ id: j.id, label: `${j.serviceType} (${formatIsoDate(j.date)})` }))} />}
           {tab === "settings"  && <SettingsTab property={property} currentPrincipal={principal ?? ""} onVerifyOwnership={() => setModals(m => ({ ...m, verify: true }))} />}
