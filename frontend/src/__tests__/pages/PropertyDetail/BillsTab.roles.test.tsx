@@ -42,13 +42,13 @@ beforeEach(() => {
 describe("BillsTab — role-aware", () => {
   it("asks the property canister for the caller's role", async () => {
     mockGetAccessRole.mockResolvedValue("Owner");
-    render(<BillsTab propertyId="p1" />);
+    render(<BillsTab propertyId="p1" state="FL" zipCode="32114" />);
     await waitFor(() => expect(mockGetAccessRole).toHaveBeenCalledWith("p1", "me"));
   });
 
   it("a viewer gets a read-only note and no upload or remove controls", async () => {
     mockGetAccessRole.mockResolvedValue("Viewer");
-    render(<BillsTab propertyId="p1" />);
+    render(<BillsTab propertyId="p1" state="FL" zipCode="32114" />);
     expect(await screen.findByText(/view-only access/i)).toBeInTheDocument();
     expect(await screen.findByText("City Water")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Upload Bill/i })).not.toBeInTheDocument();
@@ -57,7 +57,7 @@ describe("BillsTab — role-aware", () => {
 
   it("a manager can upload but not remove the owner's bill", async () => {
     mockGetAccessRole.mockResolvedValue("Manager");
-    render(<BillsTab propertyId="p1" />);
+    render(<BillsTab propertyId="p1" state="FL" zipCode="32114" />);
     expect(await screen.findByText("City Water")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: /Upload Bill/i })).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Remove bill" })).not.toBeInTheDocument();
@@ -65,13 +65,13 @@ describe("BillsTab — role-aware", () => {
 
   it("a co-owner can remove anyone's bill", async () => {
     mockGetAccessRole.mockResolvedValue("CoOwner");
-    render(<BillsTab propertyId="p1" />);
+    render(<BillsTab propertyId="p1" state="FL" zipCode="32114" />);
     expect(await screen.findByRole("button", { name: "Remove bill" })).toBeInTheDocument();
   });
 
   it("falls back to full controls when the role can't be fetched", async () => {
     mockGetAccessRole.mockRejectedValue(new Error("unreachable"));
-    render(<BillsTab propertyId="p1" />);
+    render(<BillsTab propertyId="p1" state="FL" zipCode="32114" />);
     expect(await screen.findByRole("button", { name: "Remove bill" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Upload Bill/i })).toBeInTheDocument();
     expect(screen.queryByText(/view-only access/i)).not.toBeInTheDocument();

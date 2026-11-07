@@ -42,7 +42,7 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-export function BillsTab({ propertyId }: { propertyId: string }) {
+export function BillsTab({ propertyId, state, zipCode }: { propertyId: string; state: string; zipCode: string }) {
   const [bills,         setBills]         = useState<BillRecord[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [expenses,      setExpenses]      = useState<RecurringExpense[] | null>(null);
@@ -88,9 +88,10 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
         }
 
         const hasElectric = fetched.some((b) => b.billType === "Electric");
-        if (hasElectric) {
+        // Rebates depend on where the home is; without its state and zip there's nothing to ask.
+        if (hasElectric && state && zipCode) {
           setLoadingRebates(true);
-          findRebates({ state: "FL", zipCode: "32801", utilityProvider: fetched.find((b) => b.billType === "Electric")?.provider ?? "Unknown", billType: "Electric" })
+          findRebates({ state, zipCode, utilityProvider: fetched.find((b) => b.billType === "Electric")?.provider ?? "Unknown", billType: "Electric" })
             .then(setRebates)
             .catch((e) => console.error("[BillsTab] rebates load failed:", e))
             .finally(() => setLoadingRebates(false));
@@ -98,7 +99,7 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
       })
       .catch((e) => console.error("[BillsTab] bills load failed:", e))
       .finally(() => setLoading(false));
-  }, [propertyId]);
+  }, [propertyId, state, zipCode]);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -422,7 +423,10 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
       {(loadingRebates || (rebates && rebates.length > 0)) && (
         <div style={{ marginTop: "1.5rem" }}>
           <p style={{ fontFamily: BODY, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: inkLight, marginBottom: "0.75rem" }}>
-            Available Rebates
+            Rebates to look into
+          </p>
+          <p style={{ fontFamily: BODY, fontSize: "0.75rem", color: inkLight, margin: "0 0 0.75rem", lineHeight: 1.5 }}>
+            Suggested by AI for your area from what it knows, not checked by HomeGentic. Programs and amounts change, so check each one with the provider before you count on it.
           </p>
           {loadingRebates ? (
             <p style={{ fontFamily: BODY, fontSize: "0.85rem", color: inkLight }}>Loading rebate programs…</p>
@@ -439,7 +443,7 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
                     <p style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "1rem", color: "var(--hg-blue-ink)", margin: "0 0 0.25rem" }}>{r.estimatedAmount}</p>
                     {r.url && (
                       <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: BODY, fontSize: "0.6rem", color: "var(--hg-blue-ink)", textDecoration: "none" }}>
-                        Apply <ExternalLink size={10} />
+                        Program page <ExternalLink size={10} />
                       </a>
                     )}
                   </div>

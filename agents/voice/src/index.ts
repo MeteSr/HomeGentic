@@ -11,6 +11,7 @@
  *   - createHmac / timingSafeEqual from node:crypto (works via nodejs_compat)
  */
 
+import { rebateFinderInputError, rebateFinderPrompt } from "./rebateFinder";
 import { createHmac, timingSafeEqual } from "crypto";
 import { buildSystemPrompt } from "../prompts";
 import { buildMaintenanceSystemPrompt } from "../../maintenance/prompts";
@@ -918,34 +919,9 @@ Respond ONLY with plain text — no markdown, no JSON.`;
   // ── POST /api/rebate-finder ───────────────────────────────────────────────
   if (path === "/api/rebate-finder" && method === "POST") {
     const { state, zipCode, utilityProvider, billType } = await readJsonBody(request);
-    if (!state || !zipCode || !utilityProvider || !billType) {
-      return json({ error: "state, zipCode, utilityProvider, and billType are required" }, 400, cors);
-    }
-    if (billType !== "Electric") {
-      return json({ error: "Rebate finder is only available for Electric bills." }, 400, cors);
-    }
-    const systemPrompt = `You are a utility rebate expert for HomeGentic.
-List available electric utility rebates and incentive programs for a homeowner in the given state/zip with the given utility provider.
-Include federal programs (IRA tax credits), state programs, and utility-specific rebates.
-Respond ONLY with valid JSON — no markdown, no prose.
-
-JSON shape:
-{
-  "rebates": [
-    {
-      "name": "<program name>",
-      "description": "<1–2 sentence description>",
-      "estimatedAmount": "<e.g. Up to $2,000 or $75 rebate>",
-      "provider": "<Federal|State|<utility name>>",
-      "url": "<program URL or omit>"
-    }
-  ]
-}
-
-Rules:
-- Include 3–6 programs most relevant to this homeowner
-- Prioritise programs with the highest dollar value
-- Only include programs that are currently active (as of your knowledge cutoff)`;
+    const inputError = rebateFinderInputError({ state, zipCode, utilityProvider, billType });
+    if (inputError) return json({ error: inputError }, 400, cors);
+    const systemPrompt = rebateFinderPrompt();
     try {
       const text = await provider.complete({
         system:   systemPrompt,

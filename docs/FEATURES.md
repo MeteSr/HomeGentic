@@ -181,13 +181,18 @@ Multi-tab page — the main workspace for a property.
 - Fixtures per room (add/edit/remove)
 - "Scan the label" in the add-fixture form: a photo of the appliance's data plate fills brand, model and serial. When Claude can tell the year made (printed, or decoded from the serial) on a water heater or HVAC unit, the form offers to use it as that system's install year in the forecast (stored with the other system ages on this device)
 
-**Tab: Documents**
-- Uploaded permits, contracts, receipts, warranties
-- OCR-extracted metadata displayed inline
+**Tab: Documents** (home document vault)
+- Document types, grouped: Ownership and closing (deed, closing papers, title policy, survey) · Insurance and risk (insurance policy, elevation certificate) · Home and HOA (HOA documents, manuals) · Work records (receipts, invoices, permits, inspection reports, warranties) · Other (`services/documentVault.ts`)
+- The type travels in the file's description (`[Type] filename`) on the photo canister, so new types need no canister change; files count toward the plan's photo quota (Free: 5 per property in this tab)
+- Permit and inspection uploads carry their number/authority/status or inspector/result
+- Says who can see the files: the owner, everyone added on People (co-owners, managers, viewers) and a buyer who claims the record at closing
+- Owners, co-owners and managers can remove files (with a confirm); viewers can only open them
+- Files from the Add Property wizard's document step are filed under the matching type
 
 **Tab: Bills**
 - Monthly utility bills (Electric, Gas, Water, Internet, Telecom) if uploaded
 - 3-month rolling anomaly detection: bills >20% above baseline are flagged
+- "Rebates to look into" (electric bills): AI suggestions for the property's own state and zip (`/api/rebate-finder`), labelled as unchecked; the prompt leaves out federal tax credits and programs the model isn't sure are still offered
 
 **Tab: Settings**
 - Edit property details (type, year built, sq ft)
