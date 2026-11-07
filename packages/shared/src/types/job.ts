@@ -68,6 +68,8 @@ export type ServiceType =
   | { KitchenRemodel: null }
   | { GeneralHandyman: null };
 
+export type CostCategory = { Improvement: null } | { Repair: null };
+
 export type EmailDraft = {
   id: string;
   completedDate: string;
@@ -152,6 +154,7 @@ export interface _SERVICE {
       }
     | { err: Error }
   >;
+  getJobCostCategories: ActorMethod<[string[]], Array<[string, CostCategory]>>;
   getJobSnapshotsForProperty: ActorMethod<
     [string],
     Array<{
@@ -191,6 +194,7 @@ export interface _SERVICE {
   removeInboxRelay: ActorMethod<[Principal], UnitResult>;
   resetMyInboxToken: ActorMethod<[], TextResult>;
   setFeeCanisterId: ActorMethod<[string], { ok: null } | { err: Error }>;
+  setJobCostCategory: ActorMethod<[string, [] | [CostCategory]], { ok: null } | { err: Error }>;
   setPropertyCanisterId: ActorMethod<[string], { ok: null } | { err: Error }>;
   updateJob: ActorMethod<
     [string, string, ServiceType, string, [] | [string], bigint, bigint, [] | [string], [] | [bigint], boolean],

@@ -1290,6 +1290,17 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {completedDate:int; title:text; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; expiresAt:int; alreadySigned:bool; jobId:text; description:text; propertyAddress:text; amount:nat; contractorName:opt text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
     ],
   },
+  "getJobCostCategories": {
+    "args": [
+      "vec text",
+    ],
+    "mode": [
+      "composite_query",
+    ],
+    "rets": [
+      "vec record {text; variant {Improvement; Repair}}",
+    ],
+  },
   "getJobSnapshotsForProperty": {
     "args": [
       "text",
@@ -1474,6 +1485,16 @@ exports[`job IDL factory > full signature snapshot 1`] = `
   "setFeeCanisterId": {
     "args": [
       "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
+  "setJobCostCategory": {
+    "args": [
+      "text",
+      "opt variant {Improvement; Repair}",
     ],
     "mode": [],
     "rets": [

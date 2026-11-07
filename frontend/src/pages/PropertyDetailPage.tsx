@@ -708,7 +708,7 @@ export default function PropertyDetailPage() {
             <LoadError compact what="this home's job history" onRetry={reloadJobs} />
           )}
           {tab === "timeline"  && <TimelineTab property={property} jobs={jobs} onVerify={verifyJob} currentPrincipal={principal} photosByJob={photosByJob} onPhotoUpload={(jobId, file) => uploadPhoto(jobId, file, id!)} onInviteContractor={job => setModals(m => ({ ...m, inviteJob: job }))} />}
-          {tab === "jobs"      && <JobsTab jobs={jobs} />}
+          {tab === "jobs"      && <JobsTab propertyId={id!} jobs={jobs} />}
           {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} photosByJob={photosByJob} onRoomPhotoUpload={(roomId, file) => uploadRoomPhoto(roomId, file, id!)} />}
           {tab === "documents" && <DocumentsTab propertyId={id!} />}
           {tab === "bills"     && <BillsTab propertyId={id!} state={property.state} zipCode={property.zipCode} />}
