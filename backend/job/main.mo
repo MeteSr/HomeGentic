@@ -82,6 +82,11 @@ persistent actor Job {
     sourceQuoteId: ?Text;     // null = not sourced via a HomeGentic quote request; set = referral fee applies on verification
   };
 
+  /// #713: the owner's own mark on a job for their improvements record. An
+  /// improvement can add to the home's cost basis; a repair keeps it as it
+  /// was. HomeGentic doesn't decide which applies: the owner's tax preparer does.
+  public type CostCategory = { #Improvement; #Repair };
+
   public type Error = Errors.Common or {
     #AlreadyVerified;
     #TierLimitReached: Text;
@@ -172,6 +177,11 @@ persistent actor Job {
   /// the contractor (refreshContractorAttestation).
   private let contractorAttest = Map.empty<Text, Bool>();
   private let errsByMethod : Map.Map<Text, Nat> = Map.empty();
+  /// #713: jobId → the owner's improvement/repair mark (setJobCostCategory).
+  /// A side map, since a new field on Job (stored in a Map) is not
+  /// stable-compatible. Absent = not marked yet; clients show a suggestion.
+  /// Entries go when their job is deleted (rejectJobProposal, deleteMyData).
+  private let costCategories = Map.empty<Text, CostCategory>();
 
   // Secondary indexes over `jobs` (transient, rebuilt on every upgrade).
   // Writes go through putJob / Index.delete so they stay in step.
@@ -595,6 +605,51 @@ persistent actor Job {
     for (i in ids.keys()) {
       if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
         for (j in Index.records(jobsByProperty, ids[i], jobs)) out.add(j);
+      };
+    };
+    out.toArray()
+  };
+
+  /// #713: mark a job as an improvement or a repair for the owner's
+  /// improvements record, or clear the mark with null. Anyone with write
+  /// access to the property (owner, co-owner, manager) may set it. A signed or
+  /// verified job can still be marked: the mark is the owner's own note and
+  /// not part of what the contractor signed. Open or rejected contractor
+  /// proposals aren't part of the record yet, so they can't be marked.
+  public shared(msg) func setJobCostCategory(jobId: Text, category: ?CostCategory) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let before = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
+    switch (await* authorize(before.propertyId, before.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
+
+    // Re-read after the await: the job may have been deleted meanwhile.
+    let j = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
+    if (j.status == #PendingHomeownerApproval or j.status == #RejectedByHomeowner)
+      return #err(#InvalidInput("Accept this proposed job before marking it"));
+    switch (category) {
+      case null   { costCategories.remove(jobId) };
+      case (?c)   { costCategories.add(jobId, c) };
+    };
+    #ok(())
+  };
+
+  /// #713: the improvement/repair marks on the jobs of several properties, as
+  /// (jobId, category) pairs. Same access rule as getJobsForProperties: ids
+  /// the caller has no role on are skipped. Unmarked jobs are left out.
+  public composite query(msg) func getJobCostCategories(propertyIds: [Text]) : async [(Text, CostCategory)] {
+    if (msg.caller.isAnonymous()) return [];
+    let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
+    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller) or Text.size(propCanisterId) == 0;
+    let roles : [?Canisters.AccessRole] =
+      if (open) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
+    let out = List.empty<(Text, CostCategory)>();
+    for (i in ids.keys()) {
+      if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
+        for (jobId in Index.ids(jobsByProperty, ids[i])) {
+          switch (costCategories.get(jobId)) {
+            case (?c) out.add((jobId, c));
+            case null {};
+          };
+        };
       };
     };
     out.toArray()
@@ -1753,6 +1808,7 @@ persistent actor Job {
 
     Index.delete(jobs, jobIndexes, jobId);
     contractorAttest.remove(jobId);
+    costCategories.remove(jobId);
     #ok(())
   };
 
@@ -1966,6 +2022,7 @@ persistent actor Job {
     for (id in ids.values()) {
       Index.delete(jobs, jobIndexes, id);
       contractorAttest.remove(id);
+      costCategories.remove(id);
       idSet.add(id, ());
     };
 

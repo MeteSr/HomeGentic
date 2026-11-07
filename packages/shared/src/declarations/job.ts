@@ -31,6 +31,7 @@ export const idlFactory = ({ IDL }: any) => {
     createdAt:        IDL.Int,
     sourceQuoteId:    IDL.Opt(IDL.Text),
   });
+  const CostCategory = IDL.Variant({ Improvement: IDL.Null, Repair: IDL.Null });
   const Error = IDL.Variant({
     NotFound:        IDL.Null,
     NotAuthorized:   IDL.Null,
@@ -144,6 +145,17 @@ export const idlFactory = ({ IDL }: any) => {
     // The owner, admins, trusted canisters and the notification relay (weekly Home Pulse email).
     getJobsByOwner: IDL.Func([IDL.Principal], [IDL.Vec(Job)], ["query"]),
     getJobsForProperties: IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(Job)], ["composite_query"]),
+    // #713: the owner's improvement/repair marks, as (jobId, category) pairs.
+    getJobCostCategories: IDL.Func(
+      [IDL.Vec(IDL.Text)],
+      [IDL.Vec(IDL.Tuple(IDL.Text, CostCategory))],
+      ["composite_query"]
+    ),
+    setJobCostCategory: IDL.Func(
+      [IDL.Text, IDL.Opt(CostCategory)],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
     getJobsForProperty: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Vec(Job), err: Error })],

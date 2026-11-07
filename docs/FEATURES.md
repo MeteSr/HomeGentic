@@ -73,6 +73,7 @@ rewiring screens.
 | `/properties/:id` | PropertyDetailPage | Full property view (multi-tab) |
 | `/properties/:id/verify` | PropertyVerifyPage | Upload ownership documents |
 | `/properties/:id/systems` | SystemAgesPage | Manage system ages |
+| `/properties/:id/improvements` | ImprovementsRecordPage | Improvements record for the owner's tax preparer |
 | `/jobs/new` | JobCreatePage | Log a maintenance job |
 | `/quotes/new` | QuoteRequestPage | Post a quote request |
 | `/quotes/:id` | QuoteDetailPage | View bids, accept a quote |
@@ -233,6 +234,15 @@ Multi-tab page — the main workspace for a property.
 - View estimated vs. actual system ages for all 9 major systems
 - Override any system with a "last replaced" date
 - Impact: updates maintenance forecast, score decay calculations
+
+### Improvements Record (`/properties/:id/improvements`)
+
+- Every job on the home marked as an improvement or a repair (job canister `setJobCostCategory` / `getJobCostCategories`, a side map keyed by job id)
+- Until the owner chooses, a suggestion: remodels, solar and insulation are improvements; pest, handyman, painting and drywall are repairs; anything else is an improvement at $5,000 or more (`services/improvementRecord.ts`)
+- Owner, co-owners and managers change marks; viewers read them. Verified jobs can be marked (the mark isn't part of what was signed)
+- Running total of improvements, a "work from" date filter, CSV download and print / save as PDF, plus the receipts and invoices saved in the home's documents
+- Copy: a record to share with a tax preparer, never tax advice; no deduction or credit claims
+- Linked from the property's Jobs tab
 
 ---
 

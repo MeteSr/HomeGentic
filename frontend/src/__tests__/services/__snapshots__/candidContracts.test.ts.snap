@@ -109,6 +109,7 @@ getApiDoc(0) -> (1) [query]
 getCertificationData(1) -> (1) [query]
 getJob(1) -> (1) [query]
 getJobByInviteToken(1) -> (1) [query]
+getJobCostCategories(1) -> (1) [composite_query]
 getJobsByOwner(1) -> (1) [query]
 getJobsForProperties(1) -> (1) [composite_query]
 getJobsForProperty(1) -> (1)
@@ -129,6 +130,7 @@ relayCheckInboxToken(1) -> (1) [query]
 removeInboxRelay(1) -> (1)
 resetMyInboxToken(0) -> (1)
 setFeeCanisterId(1) -> (1)
+setJobCostCategory(2) -> (1)
 setPropertyCanisterId(1) -> (1)
 updateJob(10) -> (1)
 updateJobStatus(2) -> (1)

@@ -46,6 +46,14 @@ export interface Job {
   contractorUnverified?: boolean;
 }
 
+/** #713: the owner's mark on a job for their improvements record. */
+export type CostCategory = "improvement" | "repair";
+
+/** E2E: window.__e2e_job_cost_categories = { [jobId]: CostCategory } stands in for the canister's marks. */
+function e2eCostCategories(): Record<string, CostCategory> | undefined {
+  return typeof window !== "undefined" ? (window as any).__e2e_job_cost_categories : undefined;
+}
+
 export interface InvitePreview {
   jobId:           string;
   title:           string;
@@ -249,6 +257,36 @@ function createJobService() {
       updates.isDiy,
     );
     return unwrapJob(result);
+  },
+
+  /** #713: improvement/repair marks for the jobs of these properties, by job id. Unmarked jobs are left out. */
+  async getCostCategories(propertyIds: string[]): Promise<Record<string, CostCategory>> {
+    const e2e = e2eCostCategories();
+    if (e2e) return { ...e2e };
+    if (propertyIds.length === 0) return {};
+    const a = await getActor();
+    let pairs: Array<[string, JobTypes.CostCategory]>;
+    try {
+      pairs = await a.getJobCostCategories(propertyIds);
+    } catch {
+      return {};  // canister predates the method: nothing marked yet
+    }
+    return Object.fromEntries(pairs.map(([id, c]) => [id, "Improvement" in c ? "improvement" : "repair"]));
+  },
+
+  /** #713: mark a job as an improvement or a repair, or clear the mark with null. */
+  async setCostCategory(jobId: string, category: CostCategory | null): Promise<void> {
+    const e2e = e2eCostCategories();
+    if (e2e) {
+      if (category) e2e[jobId] = category;
+      else delete e2e[jobId];
+      return;
+    }
+    const a = await getActor();
+    const arg: [] | [JobTypes.CostCategory] =
+      category === null ? [] : [category === "improvement" ? { Improvement: null } : { Repair: null }];
+    const result = await a.setJobCostCategory(jobId, arg);
+    if ("err" in result) throw canisterError(result.err);
   },
 
   async updateJobStatus(jobId: string, status: JobStatus): Promise<Job> {

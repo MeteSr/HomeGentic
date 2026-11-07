@@ -194,6 +194,20 @@ const mockJobActor = {
     return { ok: null };
   }),
 
+  // #713: improvement/repair marks, keyed by job id.
+  _costCategories: new Map<string, any>(),
+  setJobCostCategory: vi.fn(async (jobId: string, category: any[]) => {
+    if (!_mockJobs.some((j) => j.id === jobId)) return { err: { NotFound: null } };
+    if (category.length) mockJobActor._costCategories.set(jobId, category[0]);
+    else mockJobActor._costCategories.delete(jobId);
+    return { ok: null };
+  }),
+  getJobCostCategories: vi.fn(async (propertyIds: string[]) =>
+    _mockJobs
+      .filter((j) => propertyIds.includes(j.propertyId) && mockJobActor._costCategories.has(j.id))
+      .map((j) => [j.id, mockJobActor._costCategories.get(j.id)])
+  ),
+
   getJobSnapshotsForProperty: vi.fn(async (propertyId: string) => {
     const secsPerYear = 31_536_000;
     return _mockJobs
@@ -986,5 +1000,53 @@ describe("jobService.getByProperties", () => {
     mockJobActor.getJobsForProperties.mockClear();
     expect(await jobService.getByProperties([])).toEqual([]);
     expect(mockJobActor.getJobsForProperties).not.toHaveBeenCalled();
+  });
+});
+
+describe("jobService cost categories (#713)", () => {
+  beforeEach(() => { jobService.reset(); mockJobActor._costCategories.clear(); delete (window as any).__e2e_job_cost_categories; });
+
+  const create = (propertyId: string) => jobService.create({
+    propertyId, serviceType: "Roofing", amount: 1_500_000, date: "2024-01-01", description: "New roof", isDiy: false, contractorName: "Acme Roofing",
+  });
+
+  it("sends the mark as a Candid variant and reads it back by job id", async () => {
+    const roof = await create("cc-A");
+    const paint = await create("cc-A");
+    await jobService.setCostCategory(roof.id, "improvement");
+    await jobService.setCostCategory(paint.id, "repair");
+    expect(mockJobActor.setJobCostCategory).toHaveBeenCalledWith(roof.id, [{ Improvement: null }]);
+    expect(await jobService.getCostCategories(["cc-A"])).toEqual({ [roof.id]: "improvement", [paint.id]: "repair" });
+  });
+
+  it("clears a mark with null", async () => {
+    const roof = await create("cc-B");
+    await jobService.setCostCategory(roof.id, "improvement");
+    await jobService.setCostCategory(roof.id, null);
+    expect(mockJobActor.setJobCostCategory).toHaveBeenLastCalledWith(roof.id, []);
+    expect(await jobService.getCostCategories(["cc-B"])).toEqual({});
+  });
+
+  it("throws a canister error when the canister refuses", async () => {
+    await expect(jobService.setCostCategory("missing", "repair")).rejects.toMatchObject({ code: "NotFound" });
+  });
+
+  it("reads no marks, without a call, for an empty list", async () => {
+    mockJobActor.getJobCostCategories.mockClear();
+    expect(await jobService.getCostCategories([])).toEqual({});
+    expect(mockJobActor.getJobCostCategories).not.toHaveBeenCalled();
+  });
+
+  it("reads no marks when the canister predates the method", async () => {
+    mockJobActor.getJobCostCategories.mockRejectedValueOnce(new Error("method not found"));
+    expect(await jobService.getCostCategories(["cc-C"])).toEqual({});
+  });
+
+  it("uses the e2e marks when they are injected", async () => {
+    (window as any).__e2e_job_cost_categories = { j1: "improvement" };
+    expect(await jobService.getCostCategories(["any"])).toEqual({ j1: "improvement" });
+    await jobService.setCostCategory("j2", "repair");
+    await jobService.setCostCategory("j1", null);
+    expect((window as any).__e2e_job_cost_categories).toEqual({ j2: "repair" });
   });
 });
