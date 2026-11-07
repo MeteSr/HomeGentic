@@ -20,7 +20,7 @@ vi.mock("@/services/photo", () => ({
     getByProperty: async () => [
       {
         id: "PHOTO_1",
-        jobId: "JOB_1",
+        jobId: "inventory_I1",
         propertyId: "7",
         phase: "After",
         description: "",
@@ -51,6 +51,10 @@ vi.mock("@/services/insurancePolicy", () => ({
 vi.mock("@/services/insuranceClaims", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/insuranceClaims")>()),
   insuranceClaimService: { list: async () => [{ id: "C1", title: "Leak", log: [] }] },
+}));
+vi.mock("@/services/inventory", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/inventory")>()),
+  inventoryService: { list: async () => [{ id: "I1", name: "65-inch TV", valueCents: 129900 }] },
 }));
 vi.mock("@/services/room", () => ({ roomService: { getRoomsByProperty: async () => [] } }));
 vi.mock("@/services/maintenance", () => ({ maintenanceService: { getScheduleByProperty: async () => [] } }));
@@ -135,6 +139,7 @@ describe("data export", () => {
       "bills",
       "insuranceClaims",
       "insurancePolicy",
+      "inventory",
       "jobs",
       "maintenanceSchedule",
       "ownershipHistory",
@@ -155,6 +160,9 @@ describe("data export", () => {
     expect(home.sections.insuranceClaims.ok[0].id).toBe("C1");
     // Claim damage photos are marked with the claim they were taken for.
     expect(home.sections.photos.ok.map((p: any) => p.insuranceClaimId)).toEqual([undefined, "C1"]);
+    // Inventory photos and receipts are marked with their item.
+    expect(home.sections.inventory.ok[0].name).toBe("65-inch TV");
+    expect(home.sections.photos.ok.map((p: any) => p.inventoryItemId)).toEqual(["I1", undefined]);
     expect(failed).toEqual(["photo PHOTO_2"]);
     expect(new TextDecoder().decode(files.get("README.txt"))).toContain(
       "could not be read and are missing: photo PHOTO_2",

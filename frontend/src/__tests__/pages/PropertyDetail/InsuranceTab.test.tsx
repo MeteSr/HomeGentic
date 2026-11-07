@@ -24,6 +24,12 @@ vi.mock("@/pages/PropertyDetail/ClaimKit", () => ({
   ),
 }));
 
+vi.mock("@/pages/PropertyDetail/ContentsInventory", () => ({
+  ContentsInventory: ({ propertyId, canEdit, rooms = [] }: { propertyId: string; canEdit: boolean; rooms?: { name: string }[] }) => (
+    <div data-testid="inventory">{`${propertyId}:${canEdit ? "edit" : "read"}:${rooms.map((r) => r.name).join("|")}`}</div>
+  ),
+}));
+
 import { InsuranceTab } from "@/pages/PropertyDetail/InsuranceTab";
 
 const POLICY: InsurancePolicy = {
@@ -85,6 +91,17 @@ describe("InsuranceTab", () => {
   it("includes the claim kit, editable for the owner", async () => {
     render(<InsuranceTab propertyId="p1" />);
     expect(await screen.findByTestId("claim-kit")).toHaveTextContent("p1:edit");
+  });
+
+  it("includes the contents inventory with the home's rooms", async () => {
+    render(<InsuranceTab propertyId="p1" rooms={[{ id: "r1", name: "Kitchen" }]} />);
+    expect(await screen.findByTestId("inventory")).toHaveTextContent("p1:edit:Kitchen");
+  });
+
+  it("gives a viewer a read-only inventory", async () => {
+    mockGetAccessRole.mockResolvedValue("Viewer");
+    render(<InsuranceTab propertyId="p1" />);
+    await waitFor(() => expect(screen.getByTestId("inventory")).toHaveTextContent("p1:read"));
   });
 
   it("gives a viewer a read-only claim kit", async () => {

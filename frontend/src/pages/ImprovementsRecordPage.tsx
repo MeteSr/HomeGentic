@@ -19,6 +19,7 @@ import { photoService, type Photo } from "@/services/photo";
 import { canEditDocuments, parseDoc } from "@/services/documentVault";
 import { errorMessage } from "@/services/candid";
 import { useAuthStore } from "@/store/authStore";
+import { downloadText } from "@/utils/csv";
 import {
   CATEGORY_LABELS,
   buildImprovementRecord,
@@ -118,14 +119,11 @@ export default function ImprovementsRecordPage() {
     }
   };
 
-  const downloadCsv = () => {
-    const url = URL.createObjectURL(new Blob([improvementRecordCsv(record.rows)], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `homegentic-improvements-${(property?.address ?? id).replace(/[^\w]+/g, "-").toLowerCase()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const downloadCsv = () =>
+    downloadText(
+      improvementRecordCsv(record.rows),
+      `homegentic-improvements-${(property?.address ?? id).replace(/[^\w]+/g, "-").toLowerCase()}.csv`,
+    );
 
   const address = property ? `${property.address}, ${property.city}, ${property.state} ${property.zipCode}` : "";
   const empty = loaded && record.rows.length === 0;

@@ -2,26 +2,30 @@ import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
 import { injectTestProperties, injectSubscription } from "./helpers/testData";
 
-// #711: the home's insurance policy and claim kit on the property page
-// (Insurance tab). window.__e2e_insurance_policies / __e2e_insurance_claims
-// stand in for the property canister.
+// #711: the home's insurance policy, claim kit and contents inventory on the
+// property page (Insurance tab). window.__e2e_insurance_policies /
+// __e2e_insurance_claims / __e2e_inventory / __e2e_rooms stand in for the
+// property canister.
 
 async function openInsuranceTab(
   page: import("@playwright/test").Page,
   policies: Record<string, unknown>,
   claims: Record<string, unknown[]> = {},
   photos: Record<string, unknown[]> = {},
+  extra: { inventory?: Record<string, unknown[]>; rooms?: unknown[] } = {},
 ) {
   await injectTestAuth(page);
   await injectTestProperties(page);
   await injectSubscription(page, "Pro");
   await page.addInitScript(
-    ({ p, c, ph }) => {
+    ({ p, c, ph, inv, rooms }) => {
       (window as any).__e2e_insurance_policies = p;
       (window as any).__e2e_insurance_claims = c;
+      (window as any).__e2e_inventory = inv;
+      if (rooms) (window as any).__e2e_rooms = rooms;
       if (Object.keys(ph).length) (window as any).__e2e_baseline_photos = ph;
     },
-    { p: policies, c: claims, ph: photos },
+    { p: policies, c: claims, ph: photos, inv: extra.inventory ?? {}, rooms: extra.rooms ?? null },
   );
   await page.goto("/properties/1");
   await expect(page.getByText(/123 maple street/i).first()).toBeVisible();
@@ -136,5 +140,79 @@ test.describe("Insurance claim kit", () => {
     await card.getByRole("button", { name: "Get repair quotes" }).click();
     await expect(page).toHaveURL(/\/quotes\/new/);
     await expect(page.locator("textarea").first()).toHaveValue(/Repair needed after: Kitchen ceiling leak/);
+  });
+});
+
+const ROOMS = [
+  { id: "ROOM_1", propertyId: "1", name: "Living room", floorType: "", paintColor: "", paintBrand: "", paintCode: "", notes: "", owner: "", fixtures: [], createdAt: 0, updatedAt: 0 },
+  { id: "ROOM_2", propertyId: "1", name: "Bedroom", floorType: "", paintColor: "", paintBrand: "", paintCode: "", notes: "", owner: "", fixtures: [], createdAt: 0, updatedAt: 0 },
+];
+
+const TV = {
+  id: "item-tv",
+  propertyId: "1",
+  roomId: "ROOM_1",
+  name: "65-inch TV",
+  category: "Electronics",
+  quantity: 1,
+  valueCents: 129_900,
+  purchaseDate: "2024-11-29",
+  serialNumber: "SN-123",
+  notes: "",
+  createdAt: 1,
+  updatedAt: 1,
+};
+
+test.describe("Contents inventory", () => {
+  test("adds an item to a room and totals the home", async ({ page }) => {
+    await openInsuranceTab(page, {}, {}, {}, { inventory: { "1": [TV] }, rooms: ROOMS });
+    await expect(page.getByRole("region", { name: "Living room" }).getByText("65-inch TV")).toBeVisible();
+    await expect(page.getByText("1 item · $1,299 listed")).toBeVisible();
+
+    await page.getByRole("button", { name: "Add an item" }).click();
+    await page.getByLabel("Item", { exact: true }).fill("Dining chair");
+    await page.getByLabel("Room", { exact: true }).selectOption({ label: "Bedroom" });
+    await page.getByLabel("Category").fill("Furniture");
+    await page.getByLabel("Quantity").fill("4");
+    await page.getByLabel("Value each ($)").fill("150");
+    await page.getByRole("button", { name: "Save item" }).click();
+
+    const bedroom = page.getByRole("region", { name: "Bedroom" });
+    await expect(bedroom.getByText("Dining chair")).toBeVisible();
+    await expect(bedroom.getByText("4 × $150 = $600")).toBeVisible();
+    await expect(page.getByText("2 items · $1,899 listed")).toBeVisible();
+  });
+
+  test("refuses an item with no name", async ({ page }) => {
+    await openInsuranceTab(page, {}, {}, {}, { rooms: ROOMS });
+    await expect(page.getByText("Nothing listed yet.")).toBeVisible();
+    await page.getByRole("button", { name: "Add an item" }).click();
+    await page.getByRole("button", { name: "Save item" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Name the item" })).toBeVisible();
+  });
+
+  test("moves an item to another room", async ({ page }) => {
+    await openInsuranceTab(page, {}, {}, {}, { inventory: { "1": [TV] }, rooms: ROOMS });
+    await page.getByRole("button", { name: "Edit 65-inch TV" }).click();
+    await page.getByLabel("Room", { exact: true }).selectOption({ label: "Bedroom" });
+    await page.getByRole("button", { name: "Save item" }).click();
+    await expect(page.getByRole("region", { name: "Bedroom" }).getByText("65-inch TV")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Living room" })).toHaveCount(0);
+  });
+
+  test("downloads the inventory as CSV", async ({ page }) => {
+    await openInsuranceTab(page, {}, {}, {}, { inventory: { "1": [TV] }, rooms: ROOMS });
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Download CSV" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe("home-inventory.csv");
+  });
+
+  test("deletes an item after confirming", async ({ page }) => {
+    await openInsuranceTab(page, {}, {}, {}, { inventory: { "1": [TV] }, rooms: ROOMS });
+    await page.getByRole("button", { name: "Delete 65-inch TV" }).click();
+    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await expect(page.getByText("Nothing listed yet.")).toBeVisible();
   });
 });

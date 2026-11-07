@@ -273,12 +273,14 @@ describe("property IDL factory", () => {
     const svc = extractService(propertyIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
       "addInsuranceClaimLog",
+      "addInventoryItem",
       "cancelManagerInvite",
       "cancelTransfer",
       "claimManagerRole",
       "claimTransfer",
       "createInsuranceClaim",
       "deleteInsuranceClaim",
+      "deleteInventoryItem",
       "deleteMyData",
       "dismissNotifications",
       "findPropertiesByAddress",
@@ -288,6 +290,7 @@ describe("property IDL factory", () => {
       "getApprovals",
       "getInsuranceClaims",
       "getInsurancePolicy",
+      "getInventory",
       "getJobPropertyAddresses",
       "getManagerInviteByToken",
       "getMyManagedProperties",
@@ -326,6 +329,7 @@ describe("property IDL factory", () => {
       "setInsurancePolicy",
       "submitVerification",
       "updateInsuranceClaim",
+      "updateInventoryItem",
       "updateManagerRole",
       "verifyProperty",
     ]);
@@ -345,6 +349,7 @@ describe("property IDL factory", () => {
       "getApprovals",
       "getInsuranceClaims",
       "getInsurancePolicy",
+      "getInventory",
       "getManagerInviteByToken",
       "getMyManagedProperties",
       "getMyProperties",

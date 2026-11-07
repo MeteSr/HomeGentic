@@ -153,9 +153,12 @@ describe("PropertyDetailPage — hero photo", () => {
     mockUsePropertyRooms.mockReturnValue({ rooms: [], setRooms: vi.fn() });
   });
 
-  it("never uses an insurance claim damage photo as the home's picture", () => {
+  it("never uses a claim damage photo or an inventory photo as the home's picture", () => {
     mockUsePropertyPhotos.mockReturnValue({
-      photosByJob: { "claim_c1": [{ id: "d", jobId: "claim_c1", url: "blob:damage" }], JOB_1: [{ id: "j", jobId: "JOB_1", url: "blob:job" }] },
+      photosByJob: {
+        "claim_c1": [{ id: "d", jobId: "claim_c1", url: "blob:damage" }],
+        "inventory_i1": [{ id: "i", jobId: "inventory_i1", url: "blob:receipt" }],
+        JOB_1: [{ id: "j", jobId: "JOB_1", url: "blob:job" }] },
       uploadPhoto: vi.fn(),
       uploadRoomPhoto: vi.fn(),
     });

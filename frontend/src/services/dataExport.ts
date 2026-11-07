@@ -16,6 +16,7 @@ import { photoService, type Photo } from "./photo";
 import { roomService } from "./room";
 import { insurancePolicyService } from "./insurancePolicy";
 import { insuranceClaimService, claimIdOfPhoto } from "./insuranceClaims";
+import { inventoryService, inventoryIdOfPhoto } from "./inventory";
 import { maintenanceService } from "./maintenance";
 import { sensorService } from "./sensor";
 import { billService } from "./billService";
@@ -114,6 +115,7 @@ export async function collectMyData(
         ownershipHistory: await step(at("ownership history"), () => propertyService.getOwnershipHistory(id)),
         insurancePolicy: await step(at("insurance policy"), () => insurancePolicyService.get(id)),
         insuranceClaims: await step(at("insurance claims"), () => insuranceClaimService.list(id)),
+        inventory: await step(at("contents inventory"), () => inventoryService.list(id)),
       };
       const ph = await step(at("photos"), () => photoService.getByProperty(id));
       if ("ok" in ph) {
@@ -124,6 +126,8 @@ export async function collectMyData(
             file: `photos/${id}/${meta.id}`,
             // Damage photos for an insurance claim say which claim they were for.
             ...(claimIdOfPhoto(meta) ? { insuranceClaimId: claimIdOfPhoto(meta) } : {}),
+            // Inventory photos and receipts say which item they belong to.
+            ...(inventoryIdOfPhoto(meta) ? { inventoryItemId: inventoryIdOfPhoto(meta) } : {}),
           })),
         };
       } else {

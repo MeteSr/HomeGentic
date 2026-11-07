@@ -224,7 +224,7 @@ export default function PropertyDetailPage() {
   const scoreGrade     = getScoreGrade(homegenticScore);
   const delta          = scoreDelta(scoreHistory);
   // An insurance claim's damage photos stay with the home's photos, but never as its picture.
-  const heroPhotoUrl   = Object.values(photosByJob).flat().find((p) => p && !p.jobId.startsWith("claim_"))?.url ?? null;
+  const heroPhotoUrl   = Object.values(photosByJob).flat().find((p) => p && !p.jobId.startsWith("claim_") && !p.jobId.startsWith("inventory_"))?.url ?? null;
   const recentActivity = React.useMemo(
     () => [...jobs].sort((a, b) => Number(b.createdAt) - Number(a.createdAt)).slice(0, 4),
     [jobs],
@@ -715,7 +715,7 @@ export default function PropertyDetailPage() {
           {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} photosByJob={photosByJob} onRoomPhotoUpload={(roomId, file) => uploadRoomPhoto(roomId, file, id!)} />}
           {tab === "documents" && <DocumentsTab propertyId={id!} />}
           {tab === "bills"     && <BillsTab propertyId={id!} state={property.state} zipCode={property.zipCode} />}
-          {tab === "insurance" && <InsuranceTab propertyId={id!} photos={Object.values(photosByJob).flat()} />}
+          {tab === "insurance" && <InsuranceTab propertyId={id!} photos={Object.values(photosByJob).flat()} rooms={rooms} />}
           {tab === "settings"  && <SettingsTab property={property} currentPrincipal={principal ?? ""} onVerifyOwnership={() => setModals(m => ({ ...m, verify: true }))} />}
         </div>
 

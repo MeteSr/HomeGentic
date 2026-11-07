@@ -181,6 +181,8 @@ persistent actor Property {
   public type ClaimInput     = Insurance.ClaimInput;
   public type ClaimLogEntry  = Insurance.ClaimLogEntry;
   public type InsuranceClaim = Insurance.InsuranceClaim;
+  public type InventoryItemInput = Insurance.InventoryItemInput;
+  public type InventoryItem      = Insurance.InventoryItem;
 
   public type RegisterPropertyArgs = {
     address      : Text;
@@ -486,6 +488,20 @@ persistent actor Property {
   private func dropClaims(propertyId : Text) : Nat {
     let ids = Index.ids(claimsByProperty, propertyId).toArray();
     for (id in ids.values()) { Index.delete(insuranceClaims, claimIndexes, id) };
+    ids.size()
+  };
+
+  /// #711 contents inventory: itemId → one thing in the home and its value.
+  /// Indexed by property (transient). Dropped on claimTransfer and deleteMyData.
+  private let inventoryItems = Map.empty<Text, InventoryItem>();
+  private transient let inventoryByProperty = Index.empty();
+  private transient let inventoryIndexes : [Index.Keyed<InventoryItem>] = Index.indexed(inventoryItems, [
+    (inventoryByProperty, func(i : InventoryItem) : ?Text { ?i.propertyId }),
+  ]);
+  private func putItem(i : InventoryItem) { Index.put(inventoryItems, inventoryIndexes, i.id, i) };
+  private func dropInventory(propertyId : Text) : Nat {
+    let ids = Index.ids(inventoryByProperty, propertyId).toArray();
+    for (id in ids.values()) { Index.delete(inventoryItems, inventoryIndexes, id) };
     ids.size()
   };
 
@@ -1534,6 +1550,7 @@ persistent actor Property {
                 // #711: the seller's insurance policy and claims aren't the buyer's.
                 insurancePolicies.remove(propertyId);
                 ignore dropClaims(propertyId);
+                ignore dropInventory(propertyId);
 
                 // Append immutable record to ownership history. L-3: take a
                 // fresh key per claim so two claims never share a record slot.
@@ -2516,6 +2533,82 @@ persistent actor Property {
     }))
   };
 
+  // ─── Contents inventory (#711) ────────────────────────────────────────────
+
+  /// The problem with an item for `propertyId`, including its room, or null.
+  private func itemProblem(propertyId : Text, i : InventoryItemInput) : ?Text {
+    switch (Insurance.validateItem(i)) { case (?why) return ?why; case null {} };
+    switch (i.roomId) {
+      case (?rid) {
+        switch (rooms.get(rid)) {
+          case (?r) { if (r.propertyId != propertyId) return ?"That room is in another home" };
+          case null { return ?"That room doesn't exist" };
+        };
+      };
+      case null {};
+    };
+    null
+  };
+
+  /// #711: add something in the home to its contents inventory. Needs write
+  /// access to the home; at most 500 items per home.
+  public shared(msg) func addInventoryItem(propertyId: Text, input: InventoryItemInput) : async Result.Result<InventoryItem, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    let i = Insurance.cleanItem(input);
+    switch (itemProblem(propertyId, i)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let id = Uuid.fromBlob(await Random.blob());
+    // Re-check after the await: the home may have changed hands meanwhile.
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    if (Index.ids(inventoryByProperty, propertyId).size() >= Insurance.MAX_INVENTORY_ITEMS)
+      return #err(#InvalidInput("This home's inventory is full (" # Insurance.MAX_INVENTORY_ITEMS.toText() # " items)"));
+    let now = Time.now();
+    let item : InventoryItem = {
+      id; propertyId;
+      roomId = i.roomId; name = i.name; category = i.category; quantity = i.quantity;
+      valueCents = i.valueCents; purchaseDate = i.purchaseDate; serialNumber = i.serialNumber; notes = i.notes;
+      createdAt = now; updatedAt = now;
+    };
+    putItem(item);
+    #ok(item)
+  };
+
+  /// #711: change an inventory item, including moving it to another room of
+  /// the same home (or none). Needs write access to the home.
+  public shared(msg) func updateInventoryItem(itemId: Text, input: InventoryItemInput) : async Result.Result<InventoryItem, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let existing = switch (inventoryItems.get(itemId)) { case null return #err(#NotFound); case (?x) x };
+    if (not checkAuthorized(existing.propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    let i = Insurance.cleanItem(input);
+    switch (itemProblem(existing.propertyId, i)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let updated : InventoryItem = {
+      existing with
+      roomId = i.roomId; name = i.name; category = i.category; quantity = i.quantity;
+      valueCents = i.valueCents; purchaseDate = i.purchaseDate; serialNumber = i.serialNumber; notes = i.notes;
+      updatedAt = Time.now();
+    };
+    putItem(updated);
+    #ok(updated)
+  };
+
+  /// #711: remove an item from the inventory. Can't be undone. Its photos and
+  /// receipts stay in the photo canister.
+  public shared(msg) func deleteInventoryItem(itemId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let existing = switch (inventoryItems.get(itemId)) { case null return #err(#NotFound); case (?x) x };
+    if (not checkAuthorized(existing.propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    Index.delete(inventoryItems, inventoryIndexes, itemId);
+    #ok(())
+  };
+
+  /// #711: the home's contents inventory. Anyone with a role on the home and admins.
+  public query(msg) func getInventory(propertyId: Text) : async Result.Result<[InventoryItem], Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(Index.records(inventoryByProperty, propertyId, inventoryItems).toArray())
+  };
+
   /// #711: the home's insurance policy, or null when none is on record. Anyone
   /// with a role on the home (owner, co-owner, manager, viewer) and admins.
   public query(msg) func getInsurancePolicy(propertyId: Text) : async Result.Result<?InsurancePolicy, Error> {
@@ -2606,6 +2699,7 @@ persistent actor Property {
       // #711: the home's insurance policy.
       if (insurancePolicies.get(pid) != null) { insurancePolicies.remove(pid); removed += 1 };
       removed += dropClaims(pid);
+      removed += dropInventory(pid);
 
       // Pending transfer and its token index.
       switch (pendingTransfers.get(pid)) {

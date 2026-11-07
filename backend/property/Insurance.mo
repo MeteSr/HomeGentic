@@ -59,12 +59,15 @@ module {
   };
 
   /// True for a real calendar date written "YYYY-MM-DD", years 2000–2100.
-  public func isIsoDate(t : Text) : Bool {
+  public func isIsoDate(t : Text) : Bool { isDateFrom(t, 2000) };
+
+  /// True for a real calendar date written "YYYY-MM-DD", years fromYear–2100.
+  public func isDateFrom(t : Text, fromYear : Nat) : Bool {
     let chars = t.toArray();
     if (chars.size() != 10 or chars[4] != '-' or chars[7] != '-') return false;
     switch (digitsOf(chars, 0, 4), digitsOf(chars, 5, 2), digitsOf(chars, 8, 2)) {
       case (?y, ?m, ?d) {
-        if (y < 2000 or y > 2100 or m < 1 or m > 12 or d < 1) return false;
+        if (y < fromYear or y > 2100 or m < 1 or m > 12 or d < 1) return false;
         let leap = (y % 4 == 0 and y % 100 != 0) or y % 400 == 0;
         let days = switch m {
           case 2 { if leap 29 else 28 };
@@ -110,6 +113,68 @@ module {
     if (not isIsoDate(date)) return ?"Log date must be a real date written YYYY-MM-DD";
     if (note.size() == 0)    return ?"Write what happened";
     if (note.size() > 1000)  return ?"Log note is over 1,000 characters";
+    null
+  };
+
+  // ─── Contents inventory ─────────────────────────────────────────────────
+
+  /// What the household enters for one thing in the home. `valueCents` is the
+  /// owner's estimate of what one would cost to replace; `purchaseDate` is
+  /// "YYYY-MM-DD" or "".
+  public type InventoryItemInput = {
+    roomId       : ?Text;
+    name         : Text;
+    category     : Text;
+    quantity     : Nat;
+    valueCents   : ?Nat;
+    purchaseDate : Text;
+    serialNumber : Text;
+    notes        : Text;
+  };
+
+  public type InventoryItem = {
+    id           : Text;
+    propertyId   : Text;
+    roomId       : ?Text;
+    name         : Text;
+    category     : Text;
+    quantity     : Nat;
+    valueCents   : ?Nat;
+    purchaseDate : Text;
+    serialNumber : Text;
+    notes        : Text;
+    createdAt    : Int;
+    updatedAt    : Int;
+  };
+
+  public let MAX_INVENTORY_ITEMS : Nat = 500;
+  /// Most an item's value may be: $100,000,000.
+  public let MAX_VALUE_CENTS : Nat = 10_000_000_000;
+
+  public func cleanItem(i : InventoryItemInput) : InventoryItemInput {
+    {
+      i with
+      name         = trim(i.name);
+      category     = trim(i.category);
+      serialNumber = trim(i.serialNumber);
+      notes        = trim(i.notes);
+    }
+  };
+
+  /// The problem with a (cleaned) item, or null. The room is checked by the caller.
+  public func validateItem(i : InventoryItemInput) : ?Text {
+    if (i.name.size() == 0)           return ?"Name the item";
+    if (i.name.size() > 100)          return ?"Name is over 100 characters";
+    if (i.category.size() > 40)       return ?"Category is over 40 characters";
+    if (i.quantity < 1 or i.quantity > 999) return ?"Quantity must be 1 to 999";
+    switch (i.valueCents) {
+      case (?v) { if (v > MAX_VALUE_CENTS) return ?"Value is over $100,000,000" };
+      case null {};
+    };
+    if (i.purchaseDate != "" and not isDateFrom(i.purchaseDate, 1900))
+      return ?"Purchase date must be a real date written YYYY-MM-DD";
+    if (i.serialNumber.size() > 100)  return ?"Serial number is over 100 characters";
+    if (i.notes.size() > 500)         return ?"Notes are over 500 characters";
     null
   };
 };

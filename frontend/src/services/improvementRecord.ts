@@ -9,6 +9,7 @@
  */
 import { serviceTypeKey, type ServiceTypeKey } from "@homegentic/shared/serviceTypes";
 import type { CostCategory, Job } from "@/services/job";
+import { csvCell } from "@/utils/csv";
 
 /** At or above this cost, work in a cost-dependent trade is suggested as an improvement ($5,000). */
 export const IMPROVEMENT_SUGGEST_CENTS = 500_000;
@@ -86,12 +87,6 @@ export function recordStatus(job: Job): string {
 
 export const CATEGORY_LABELS: Record<CostCategory, string> = { improvement: "Improvement", repair: "Repair" };
 
-/** A CSV cell: quoted when needed, and never read by a spreadsheet as a formula. */
-function cell(value: string): string {
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-}
-
 const CSV_HEADER = [
   "Date",
   "Work",
@@ -120,7 +115,7 @@ export function improvementRecordCsv(rows: RecordRow[]): string {
         recordStatus(job),
         job.permitNumber ?? "",
       ]
-        .map(cell)
+        .map(csvCell)
         .join(","),
     );
   }

@@ -4,6 +4,8 @@ import { Button } from "@/components/Button";
 import { Panel, Pill, SectionHeader, hudButtonStyle, hudInputStyle, type PillTone } from "@/components/hud";
 import { LoadError } from "@/components/LoadError";
 import { ClaimKit } from "./ClaimKit";
+import { ContentsInventory } from "./ContentsInventory";
+import type { RoomRef } from "@/services/inventory";
 import type { Photo } from "@/services/photo";
 import { errorMessage } from "@/services/candid";
 import { propertyService, type AccessRole } from "@/services/property";
@@ -105,7 +107,15 @@ function deductibleText(p: InsurancePolicy): string {
  * #711: the home's insurance policy details, kept by the household. Owners,
  * co-owners and managers can edit; viewers only read.
  */
-export function InsuranceTab({ propertyId, photos = [] }: { propertyId: string; photos?: Photo[] }) {
+export function InsuranceTab({
+  propertyId,
+  photos = [],
+  rooms = [],
+}: {
+  propertyId: string;
+  photos?: Photo[];
+  rooms?: RoomRef[];
+}) {
   const principal = useAuthStore((s) => s.principal);
   const [role, setRole] = useState<AccessRole | null>(null);
   const [policy, setPolicy] = useState<InsurancePolicy | null>(null);
@@ -364,6 +374,8 @@ export function InsuranceTab({ propertyId, photos = [] }: { propertyId: string; 
       </p>
 
       <ClaimKit propertyId={propertyId} canEdit={canEdit} propertyPhotos={photos} />
+
+      <ContentsInventory propertyId={propertyId} canEdit={canEdit} rooms={rooms} propertyPhotos={photos} />
     </div>
   );
 }

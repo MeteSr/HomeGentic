@@ -13,6 +13,7 @@ module {
     "- `getOwnershipHistory(propertyId)` (query): past owner transfers.\n" #
     "- `getInsurancePolicy(propertyId)` (query): the home insurance policy details the household saved (carrier, policy number, renewal date as YYYY-MM-DD, Coverage A and hurricane deductible), or null. HomeGentic doesn't check them with the insurer.\n" #
     "- `getInsuranceClaims(propertyId)` (query): the household's records of insurance claims on the home, newest date of loss first, each with its dated log (`log`: date, note). These are the household's own notes; HomeGentic doesn't file or track anything with the insurer.\n" #
+    "- `getInventory(propertyId)` (query): the household's list of what's in the home (name, category, quantity, value in cents, purchase date, serial number, notes, and the room it's in, if any), for an insurance claim. Only the household can read it.\n" #
     "- `getPulseInsurance(owner)` (query): only for HomeGentic's notification relay, which emails the renewal reminder. Any other caller gets `#NotAuthorized`.\n\n" #
     "## Changing\n" #
     "- `registerProperty(args)`: adds a home. `state` is a 2-letter code, `zipCode` 5 digits or ZIP+4, `squareFeet` 1 to 100,000. Free accounts can register 1 property and Pro accounts 20. Registering an address you already own returns that home unchanged and creates nothing. If another user has verified that address, the call is refused with `#DuplicateAddress`. If another user has claimed it without verifying, `#AddressConflict` gives the end of a 7-day window for resolving it.\n" #
@@ -23,6 +24,8 @@ module {
     "- `addInsuranceClaimLog(claimId, date, note)`: adds a dated line to the claim's log (a call, a visit, a letter). Entries can't be edited or removed one by one.\n" #
     "- `deleteInsuranceClaim(claimId)`: deletes a claim record and its log. It can't be undone. Claim records are also removed when the home is transferred.\n" #
     "- `inviteManager(...)` creates an invite link that gives another person access to the property. `removeManager` and `updateManagerRole` change that access.\n" #
+    "- `addInventoryItem(propertyId, input)` / `updateInventoryItem(itemId, input)`: add or edit an item in the home's contents inventory: `name` (required, up to 100 characters), `category` (up to 40), `quantity` 1 to 999, `valueCents` (optional, up to $100,000,000), `purchaseDate` (empty, or YYYY-MM-DD from 1900 on), `serialNumber`, `notes`, and `roomId` (a room on this home, or none). Needs write access to the home; at most 500 items per home. This only records what the household enters; HomeGentic doesn't appraise anything or send it to an insurer.\n" #
+    "- `deleteInventoryItem(itemId)`: deletes an inventory item. It can't be undone. The inventory is also removed when the home is transferred.\n" #
     "- Ownership transfers (`initiateTransfer`, `claimTransfer`, `cancelTransfer`) hand the home and its record to a new owner. A transfer can't be reversed once claimed.\n\n" #
     Shared.common()
   };
