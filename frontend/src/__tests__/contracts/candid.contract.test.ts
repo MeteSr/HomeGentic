@@ -546,6 +546,7 @@ describe("quote IDL factory", () => {
       "getOpenRequestsForMe",
       "getOpenRequestsPage",
       "getQuoteRequest",
+      "getQuoteRequestSubtypes",
       "getQuotesForRequest",
       "getRevealedBids",
       "getUsageSummary",
@@ -554,6 +555,7 @@ describe("quote IDL factory", () => {
       "revealBidsEncrypted",
       "setFeeCanisterId",
       "setPropertyCanisterId",
+      "setQuoteRequestSubtype",
       "submitQuote",
       "submitSealedBid",
     ]);
@@ -574,6 +576,7 @@ describe("quote IDL factory", () => {
       "getOpenRequests",
       "getOpenRequestsPage",
       "getQuoteRequest",
+      "getQuoteRequestSubtypes",
       "getQuotesForRequest",
       "getRevealedBids",
     ]);

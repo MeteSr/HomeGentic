@@ -55,9 +55,10 @@ export function serviceTypeLabel(keyOrLabel: string): string {
   return key ? LABEL_OF.get(key)! : keyOrLabel;
 }
 
-/** Candid variant value for a label, e.g. "Kitchen Remodel" → { KitchenRemodel: null }. */
+/** Candid variant value for a label, e.g. "Kitchen Remodel" → { KitchenRemodel: null }.
+ *  A subtype label ("Septic") is sent as { Other: null }. */
 export function serviceTypeVariant(labelOrKey: string): ServiceTypeVariant {
-  const key = serviceTypeKey(labelOrKey);
+  const key = serviceTypeKey(labelOrKey) ?? (serviceSubtypeKey(labelOrKey) ? "Other" : undefined);
   if (!key) throw new Error(`Unknown service type: ${labelOrKey}`);
   return { [key]: null } as ServiceTypeVariant;
 }
@@ -73,4 +74,61 @@ export function serviceTypeFromVariant(variant: Record<string, unknown>): string
 /** The ServiceType IDL variant shared by the job, quote and contractor declarations. */
 export function serviceTypeIdl(IDL: any) {
   return IDL.Variant(Object.fromEntries(SERVICE_TYPES.map((s) => [s.key, IDL.Null])));
+}
+
+// ─── Subtypes of Other (#721) ────────────────────────────────────────────────
+//
+// Kinds of work that have no ServiceType tag of their own. Adding a tag would
+// change the Candid type every installed mobile app and Worker decodes, so
+// these travel as #Other plus a subtype:
+//   • a job carries it as its title (the web app already titles a job with its
+//     service label), read back with jobServiceLabel();
+//   • a quote request keeps it in the quote canister's side map
+//     (setQuoteRequestSubtype / getQuoteRequestSubtypes).
+// Mirrors backend/shared/ServiceSubtype.mo (the report canister labels jobs
+// with it). They count toward the score as Other does, and they aren't
+// contractor trades: the directory has no contractors listed under them.
+
+export const SERVICE_SUBTYPES = [
+  { key: "Inspection",      label: "Inspection" },
+  { key: "ApplianceRepair", label: "Appliance Repair" },
+  { key: "GarageDoor",      label: "Garage Door" },
+  { key: "Septic",          label: "Septic" },
+  { key: "WellWater",       label: "Well & Water Treatment" },
+  { key: "Chimney",         label: "Chimney" },
+  { key: "Generator",       label: "Generator" },
+  { key: "TreeService",     label: "Tree Service" },
+  { key: "SecurityAlarm",   label: "Security & Alarm" },
+  { key: "MoldRadon",       label: "Mold & Radon" },
+] as const;
+
+export type ServiceSubtypeKey = (typeof SERVICE_SUBTYPES)[number]["key"];
+
+const SUB_BY_NAME = new Map<string, ServiceSubtypeKey>(
+  SERVICE_SUBTYPES.flatMap((s) => [[s.key.toLowerCase(), s.key], [s.label.toLowerCase(), s.key]] as const),
+);
+const SUB_LABEL_OF = new Map<string, string>(SERVICE_SUBTYPES.map((s) => [s.key, s.label]));
+
+/** The subtype for a label or key (any case), or undefined if it isn't one. */
+export function serviceSubtypeKey(labelOrKey: string): ServiceSubtypeKey | undefined {
+  return SUB_BY_NAME.get(labelOrKey.trim().toLowerCase());
+}
+
+/** The display label for a subtype key (or label), or undefined if it isn't one. */
+export function serviceSubtypeLabel(keyOrLabel: string): string | undefined {
+  const key = serviceSubtypeKey(keyOrLabel);
+  return key ? SUB_LABEL_OF.get(key) : undefined;
+}
+
+/** Job and quote picker choices: the named types, then the subtypes, then Other. */
+export const SERVICE_CHOICE_LABELS: string[] = [
+  ...SERVICE_TYPE_LABELS.filter((l) => l !== "Other"),
+  ...SERVICE_SUBTYPES.map((s) => s.label),
+  "Other",
+];
+
+/** Display label for a decoded job: its subtype when it is Other and titled with one, else its type. */
+export function jobServiceLabel(variant: Record<string, unknown>, title: string): string {
+  if ("Other" in variant) return serviceSubtypeLabel(title) ?? "Other";
+  return serviceTypeFromVariant(variant);
 }

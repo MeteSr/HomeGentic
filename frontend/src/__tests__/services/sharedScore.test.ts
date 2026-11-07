@@ -49,3 +49,17 @@ describe("shared score vectors", () => {
     expect(maintenanceScore([j("HVAC", 2020, 100, false, false), j("HVAC", 2021, 100, false, true)])).toBe(25);
   });
 });
+
+// #721: the new kinds of work are subtypes of Other. They count in the "other"
+// slot exactly as Other does, so the canisters (which only see #Other) and the
+// web app keep giving the same score.
+describe("subtypes of Other (#721)", () => {
+  it("a septic or inspection job scores exactly like an Other job", () => {
+    for (const label of ["Septic", "Inspection", "Generator", "Well & Water Treatment"]) {
+      expect(maintenanceScore([j(label, 2025, 50_000, false, true)]))
+        .toBe(maintenanceScore([j("Other", 2025, 50_000, false, true)]));
+      expect(scoreBreakdown([j(label, 2025, 50_000, false, true)], 2000, 2026))
+        .toEqual(scoreBreakdown([j("Other", 2025, 50_000, false, true)], 2000, 2026));
+    }
+  });
+});

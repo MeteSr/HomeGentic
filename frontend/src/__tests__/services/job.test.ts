@@ -34,21 +34,21 @@ function makeRawJob(overrides: any = {}): any {
 }
 
 const mockJobActor = {
-  updateJob: vi.fn(async (jobId: string, _title: string, serviceType: any, description: string,
+  updateJob: vi.fn(async (jobId: string, title: string, serviceType: any, description: string,
     contractorName: any[], amount: bigint, completedDate: bigint,
     permitNumber: any[], warrantyMonths: any[], isDiy: boolean) => {
     const i = _mockJobs.findIndex((j) => j.id === jobId);
     if (i < 0) return { err: { NotFound: null } };
     if (_mockJobs[i].homeownerSigned) return { err: { InvalidInput: "This record has been signed and can't be edited" } };
-    _mockJobs[i] = { ..._mockJobs[i], serviceType, description, contractorName, amount, completedDate, permitNumber, warrantyMonths, isDiy, contractorSigned: isDiy };
+    _mockJobs[i] = { ..._mockJobs[i], title, serviceType, description, contractorName, amount, completedDate, permitNumber, warrantyMonths, isDiy, contractorSigned: isDiy };
     return { ok: _mockJobs[i] };
   }),
 
-  createJob: vi.fn(async (propertyId: string, _title: string, serviceType: any, description: string,
+  createJob: vi.fn(async (propertyId: string, title: string, serviceType: any, description: string,
     contractorName: any[], amount: bigint, completedDate: bigint,
     permitNumber: any[], warrantyMonths: any[], isDiy: boolean, sourceQuoteId: any[]) => {
     const raw = makeRawJob({
-      propertyId, serviceType, description,
+      propertyId, title, serviceType, description,
       contractorName: contractorName.length ? contractorName : [],
       amount,
       completedDate,
@@ -156,11 +156,11 @@ const mockJobActor = {
     return _mockJobs.filter((j) => Array.isArray(j.sourceQuoteId) && j.sourceQuoteId.length > 0);
   }),
 
-  createJobProposal: vi.fn(async (propertyId: string, _title: string, serviceType: any, description: string,
+  createJobProposal: vi.fn(async (propertyId: string, title: string, serviceType: any, description: string,
     contractorName: any[], amount: bigint, completedDate: bigint,
     permitNumber: any[], warrantyMonths: any[]) => {
     const raw = makeRawJob({
-      propertyId, serviceType, description,
+      propertyId, title, serviceType, description,
       contractorName: contractorName.length ? contractorName : [],
       amount,
       completedDate,
@@ -1048,5 +1048,47 @@ describe("jobService cost categories (#713)", () => {
     await jobService.setCostCategory("j2", "repair");
     await jobService.setCostCategory("j1", null);
     expect((window as any).__e2e_job_cost_categories).toEqual({ j2: "repair" });
+  });
+});
+
+// #721: a subtype of Other travels as the job's title (which the web app
+// already sets to the service label), so the job canister is unchanged.
+describe("jobService subtypes of Other (#721)", () => {
+  const base = {
+    propertyId: "prop-1", amount: 35_000, date: "2025-06-01", description: "Pumped the tank",
+    isDiy: false, contractorName: "Acme Septic",
+  };
+
+  it("creates a septic job as Other titled Septic, and reads it back as Septic", async () => {
+    const created = await jobService.create({ ...base, serviceType: "Septic" });
+    const call = mockJobActor.createJob.mock.lastCall!;
+    expect(call[1]).toBe("Septic");
+    expect(call[2]).toEqual({ Other: null });
+    expect(created.serviceType).toBe("Septic");
+    const [listed] = await jobService.getByProperty("prop-1");
+    expect(listed.serviceType).toBe("Septic");
+  });
+
+  it("keeps a plain Other job as Other", async () => {
+    const created = await jobService.create({ ...base, serviceType: "Other" });
+    expect(created.serviceType).toBe("Other");
+  });
+
+  it("moves a job between a subtype and a named type on edit", async () => {
+    const created = await jobService.create({ ...base, serviceType: "Inspection" });
+    const asSeptic = await jobService.updateJob(created.id, { ...base, serviceType: "Septic" });
+    expect(asSeptic.serviceType).toBe("Septic");
+    const asPlumbing = await jobService.updateJob(created.id, { ...base, serviceType: "Plumbing" });
+    expect(mockJobActor.updateJob.mock.lastCall![2]).toEqual({ Plumbing: null });
+    expect(asPlumbing.serviceType).toBe("Plumbing");
+  });
+
+  it("labels a contractor's proposal by its subtype too", async () => {
+    const proposed = await jobService.createJobProposal({
+      propertyId: "prop-1", serviceType: "Garage Door", description: "New opener",
+      contractorName: "Door Co", amountCents: 60_000, completedDate: "2025-05-01",
+    });
+    expect(mockJobActor.createJobProposal.mock.lastCall![2]).toEqual({ Other: null });
+    expect(proposed.serviceType).toBe("Garage Door");
   });
 });

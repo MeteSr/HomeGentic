@@ -7,7 +7,7 @@ import { Button } from "@/components/Button";
 import { ConstructionPhotoUpload } from "@/components/ConstructionPhotoUpload";
 import { jobService } from "@/services/job";
 import { jobInboxService } from "@/services/jobInbox";
-import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
+import { SERVICE_CHOICE_LABELS } from "@homegentic/shared/serviceTypes";
 import { photoService, PhotoQuota } from "@/services/photo";
 import { propertyService } from "@/services/property";
 import { usePropertyStore } from "@/store/propertyStore";
@@ -29,7 +29,7 @@ const UI = {
   mono:     V2_FONTS.body,
 };
 
-const SERVICE_TYPES = SERVICE_TYPE_LABELS;
+const SERVICE_TYPES = SERVICE_CHOICE_LABELS;
 const PERMIT_SERVICE_TYPES = new Set(["HVAC","Roofing","Electrical","Plumbing","Foundation"]);
 
 // Next-service suggestions per category

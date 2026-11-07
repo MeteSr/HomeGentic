@@ -32,6 +32,7 @@ import Result     "mo:core/Result";
 import Text       "mo:core/Text";
 import Time       "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
+import ServiceSubtypes "../shared/ServiceSubtype";
 import Index     "../shared/Index";
 import Uuid      "../shared/Uuid";
 import RateLimit "../shared/RateLimit";
@@ -481,6 +482,15 @@ persistent actor Report {
     }
   };
 
+  /// #721: an #Other job titled with a subtype ("Septic") shows under it, as
+  /// the web app shows it (jobServiceLabel in serviceTypes.ts).
+  private func jobServiceLabel(j : JobRec) : Text {
+    switch (j.serviceType) {
+      case (#Other) { switch (ServiceSubtypes.labelOf(j.title)) { case (?l) l; case null "Other" } };
+      case (s)      serviceLabel(s);
+    }
+  };
+
   private func pad2(n : Nat) : Text { if (n < 10) "0" # n.toText() else n.toText() };
 
   /// Nanosecond timestamp → "YYYY-MM-DD" (UTC; Hinnant's civil_from_days).
@@ -517,7 +527,7 @@ persistent actor Report {
     });
     kept.map(func(j) {
       {
-        serviceType    = serviceLabel(j.serviceType);
+        serviceType    = jobServiceLabel(j);
         description    = j.description;
         contractorName = j.contractorName;
         amountCents    = j.amount;

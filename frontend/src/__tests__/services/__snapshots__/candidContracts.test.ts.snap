@@ -365,6 +365,7 @@ getOpenRequests(0) -> (1) [query]
 getOpenRequestsForMe(0) -> (1)
 getOpenRequestsPage(2) -> (1) [query]
 getQuoteRequest(1) -> (1) [query]
+getQuoteRequestSubtypes(1) -> (1) [query]
 getQuotesForRequest(1) -> (1) [query]
 getRevealedBids(1) -> (1) [query]
 getUsageSummary(1) -> (1)
@@ -373,6 +374,7 @@ revealBids(1) -> (1)
 revealBidsEncrypted(2) -> (1)
 setFeeCanisterId(1) -> (1)
 setPropertyCanisterId(1) -> (1)
+setQuoteRequestSubtype(2) -> (1)
 submitQuote(4) -> (1)
 submitSealedBid(3) -> (1)"
 `;
