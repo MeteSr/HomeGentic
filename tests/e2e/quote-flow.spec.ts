@@ -8,6 +8,8 @@
  * QF.5  Accept bid — confirmation modal → Confirm Accept → "Quote Accepted" banner
  * QF.6  Tier limit (Free = 3): button disabled and shows "Quote limit reached" at 3 open requests
  * QF.7  Tier limit (Pro = unlimited): many open requests still allow submission (button enabled)
+ * QF.8  Kinds of work under Other (#721): picking Septic explains how the request reaches
+ *       contractors, and the request shows as Septic
  *
  * All tests use window.__e2e_* injection — no canister required.
  */
@@ -106,6 +108,17 @@ test.describe("QF — /quotes/new form", () => {
     await expect(page.getByRole("heading", { name: /quote responses/i })).toBeVisible();
     // The submitted service type appears in the request summary card
     await expect(page.getByText("HVAC")).toBeVisible();
+  });
+  // QF.8
+  test("a Septic request explains how it reaches contractors and shows as Septic", async ({ page }) => {
+    await page.goto("/quotes/new");
+    await expect(page.getByTestId("other-work-note")).toHaveCount(0);
+    await page.getByLabel(/service type/i).selectOption("Septic");
+    await expect(page.getByTestId("other-work-note")).toContainText("HomeGentic doesn't list contractors for Septic yet.");
+    await page.getByLabel(/describe the work needed/i).fill("Tank needs pumping before we list the house.");
+    await page.getByRole("button", { name: /send quote request/i }).click();
+    await expect(page).toHaveURL(/\/quotes\/\d+/);
+    await expect(page.getByText("Septic").first()).toBeVisible();
   });
 });
 

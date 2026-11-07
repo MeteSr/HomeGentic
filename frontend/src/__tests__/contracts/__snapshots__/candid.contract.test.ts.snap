@@ -3528,6 +3528,17 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; minTrustScore:opt nat; description:text; propertyId:text; zipCode:opt text; closeAt:opt int; maxBids:opt nat; homeowner:principal; minReviews:opt nat; minJobsCompleted:opt nat}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
     ],
   },
+  "getQuoteRequestSubtypes": {
+    "args": [
+      "vec text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {text; text}",
+    ],
+  },
   "getQuotesForRequest": {
     "args": [
       "text",
@@ -3599,6 +3610,16 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
   "setPropertyCanisterId": {
     "args": [
       "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
+    ],
+  },
+  "setQuoteRequestSubtype": {
+    "args": [
+      "text",
+      "opt text",
     ],
     "mode": [],
     "rets": [

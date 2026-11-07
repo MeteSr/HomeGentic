@@ -8,6 +8,7 @@ import Array    "mo:core/Array";
 import Debug    "mo:core/Debug";
 import Blob     "mo:core/Blob";
 import Char     "mo:core/Char";
+import List     "mo:core/List";
 import Map      "mo:core/Map";
 import Int      "mo:core/Int";
 import Iter     "mo:core/Iter";
@@ -22,6 +23,7 @@ import Text     "mo:core/Text";
 import Time     "mo:core/Time";
 import Cycles   "mo:core/Cycles";
 import ServiceTypes "../shared/ServiceType";
+import ServiceSubtypes "../shared/ServiceSubtype";
 import Notify       "../shared/Notify";
 import Index        "../shared/Index";
 import RateLimit "../shared/RateLimit";
@@ -208,6 +210,11 @@ persistent actor Quote {
   private let revealedBids           = Map.empty<Text, [RevealedBid]>();
   /// requestId → usage the homeowner chose to share with contractors.
   private let usageSummaries         = Map.empty<Text, UsageSummary>();
+  /// #721: requestId → subtype key ("Septic", see shared/ServiceSubtype.mo)
+  /// for #Other requests. A side map, since a new QuoteRequest field is not
+  /// stable-compatible and a new ServiceType tag would break installed
+  /// clients' Candid. Entries go with the requester's account (deleteMyData).
+  private let requestSubtypes        = Map.empty<Text, Text>();
 
   // Secondary indexes (transient, rebuilt on every upgrade). Writes to
   // `requests` / `quotes` go through putRequest / putQuote.
@@ -1582,6 +1589,43 @@ persistent actor Quote {
     #ok(usageSummaries.get(requestId))
   };
 
+  // ─── Subtypes of Other (#721) ─────────────────────────────────────────────────
+
+  /// Most request ids getQuoteRequestSubtypes looks up in one call.
+  private transient let MAX_SUBTYPE_LOOKUP = 200;
+
+  /// Record what kind of #Other work the caller's own open request is for
+  /// (a key from shared/ServiceSubtype.mo, e.g. "Septic"), or clear it with
+  /// null. Only #Other requests take a subtype.
+  public shared(msg) func setQuoteRequestSubtype(requestId: Text, subtype: ?Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let r = switch (requests.get(requestId)) { case null { return #err(#NotFound) }; case (?r) r };
+    if (r.homeowner != msg.caller) return #err(#NotAuthorized);
+    if (r.status != #Open and r.status != #Quoted)
+      return #err(#InvalidInput("This request is no longer open"));
+    if (r.serviceType != #Other)
+      return #err(#InvalidInput("Only an Other request can have a subtype"));
+    switch (subtype) {
+      case null { requestSubtypes.remove(requestId) };
+      case (?k) {
+        if (not ServiceSubtypes.isKey(k)) return #err(#InvalidInput("Unknown kind of work"));
+        requestSubtypes.add(requestId, k);
+      };
+    };
+    #ok(())
+  };
+
+  /// The subtypes of these requests, as (requestId, subtype key) pairs.
+  /// Requests without one, and unknown ids, are left out. Open to any caller,
+  /// like the request's service type itself (getQuoteRequest). At most 200 ids.
+  public query func getQuoteRequestSubtypes(requestIds: [Text]) : async [(Text, Text)] {
+    let out = List.empty<(Text, Text)>();
+    for (id in requestIds.sliceToArray(0, Nat.min(requestIds.size(), MAX_SUBTYPE_LOOKUP)).values()) {
+      switch (requestSubtypes.get(id)) { case (?k) out.add((id, k)); case null {} };
+    };
+    out.toArray()
+  };
+
   // ─── Account Deletion ────────────────────────────────────────────────────────
 
   /// Removes one sealed bid and its by-request / by-contractor index entries.
@@ -1640,6 +1684,7 @@ persistent actor Quote {
       sealedBidsByRequest.remove(reqId);
       revealedBids.remove(reqId);
       usageSummaries.remove(reqId);
+      requestSubtypes.remove(reqId);
       Index.delete(requests, requestIndexes, reqId);
       deletedRefs.add(reqId);
       removed += 1;

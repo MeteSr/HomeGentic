@@ -1,6 +1,6 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/job";
-import { serviceTypeVariant, serviceTypeFromVariant } from "@homegentic/shared/serviceTypes";
+import { serviceTypeVariant, jobServiceLabel } from "@homegentic/shared/serviceTypes";
 import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
 import { canisterError } from "./candid";
 import type * as JobTypes from "@homegentic/shared/types/job";
@@ -94,7 +94,7 @@ function fromJob(raw: JobTypes.Job): Job {
     propertyId:       raw.propertyId,
     homeowner:        raw.homeowner.toText(),
     contractor:       raw.contractor[0]?.toText() ?? undefined,
-    serviceType:      serviceTypeFromVariant(raw.serviceType),
+    serviceType:      jobServiceLabel(raw.serviceType, raw.title),   // #721: subtypes of Other ride on the title
     contractorName:   raw.contractorName[0] ?? undefined,
     amount:           Number(raw.amount),
     date,
@@ -361,7 +361,7 @@ function createJobService() {
       return {
         jobId:           r.jobId,
         title:           r.title,
-        serviceType:     serviceTypeFromVariant(r.serviceType),
+        serviceType:     jobServiceLabel(r.serviceType, r.title),
         description:     r.description,
         amount:          Number(r.amount),
         completedDate:   Number(r.completedDate) / 1_000_000,

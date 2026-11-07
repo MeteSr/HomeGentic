@@ -28,7 +28,7 @@ import { idlFactory as jobIdl } from "../../packages/shared/src/declarations/job
 import { idlFactory as paymentIdl } from "../../packages/shared/src/declarations/payment";
 import { idlFactory as reportIdl } from "../../packages/shared/src/declarations/report";
 import { idlFactory as monitoringIdl } from "../../packages/shared/src/declarations/monitoring";
-import { serviceTypeFromVariant } from "../../packages/shared/src/serviceTypes";
+import { jobServiceLabel } from "../../packages/shared/src/serviceTypes";
 
 const IC_HOST = () => process.env.IC_HOST ?? "https://icp-api.io";
 
@@ -255,7 +255,7 @@ export async function getJobsByOwner(owner: string): Promise<PulseJob[]> {
     id:               j.id,
     propertyId:       j.propertyId,
     title:            j.title,
-    serviceType:      serviceTypeFromVariant(j.serviceType),
+    serviceType:      jobServiceLabel(j.serviceType, j.title),
     contractorName:   j.contractorName[0] ?? null,
     amountCents:      Number(j.amount),
     completedAtMs:    Number(BigInt(j.completedDate) / 1_000_000n),

@@ -4,14 +4,15 @@ import { Button } from "./Button";
 import { quoteService, Urgency } from "@/services/quote";
 import { shareBillsWithRequest } from "@/services/quoteUsage";
 import { ShareUsageToggle } from "./ShareUsageToggle";
-import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
+import { SERVICE_CHOICE_LABELS } from "@homegentic/shared/serviceTypes";
+import { OtherWorkNote, isOtherWork } from "@/components/OtherWorkNote";
 import { type Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
 import { errorMessage } from "@/services/candid";
 
-const SERVICE_TYPES = SERVICE_TYPE_LABELS;
+const SERVICE_TYPES = SERVICE_CHOICE_LABELS;
 
 const URGENCY_OPTIONS: { value: Urgency; label: string; desc: string }[] = [
   { value: "low",       label: "Low",       desc: "Flexible timeline" },
@@ -77,7 +78,7 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
         urgency:     form.urgency,
         description: form.description,
       });
-      toast.success("Quote request sent to contractors!");
+      toast.success(isOtherWork(form.serviceType) ? "Quote request posted" : "Quote request sent to contractors!");
       if (shareUsage) {
         // The request exists either way; usage is a best-effort extra.
         try {
@@ -172,6 +173,7 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
                 <select className="form-input" value={form.serviceType} onChange={(e) => update("serviceType", e.target.value)}>
                   {SERVICE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
+                <OtherWorkNote serviceType={form.serviceType} />
               </div>
 
               {/* Urgency */}

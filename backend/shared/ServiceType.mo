@@ -3,7 +3,9 @@
 /// every tag here needs a label there, and vice versa.
 ///
 /// Adding a tag changes the stable type of every canister that stores it —
-/// that is a stable-memory break unless shipped with a migration.
+/// that is a stable-memory break unless shipped with a migration — and the
+/// Candid type installed apps decode. New kinds of work go in
+/// ServiceSubtype.mo as subtypes of #Other instead (#721).
 module {
   public type ServiceType = {
     #Roofing;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
+import { SERVICE_CHOICE_LABELS } from "@homegentic/shared/serviceTypes";
 import { ArrowLeft, Send, Zap, User, ChevronDown, ChevronUp, Lock } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
@@ -11,6 +11,7 @@ import { propertyService } from "@/services/property";
 import { jobService, Job } from "@/services/job";
 import { getPriceRange, PriceRange, SERVICE_SUBCATEGORIES } from "@/services/market";
 import { PriceBenchmarkWidget } from "@/components/PriceBenchmarkWidget";
+import { OtherWorkNote, isOtherWork } from "@/components/OtherWorkNote";
 import { ShareUsageToggle } from "@/components/ShareUsageToggle";
 import { shareBillsWithRequest } from "@/services/quoteUsage";
 import { usePropertyStore } from "@/store/propertyStore";
@@ -30,7 +31,7 @@ const UI = {
   mono:     V2_FONTS.body,
 };
 
-const SERVICE_TYPES = SERVICE_TYPE_LABELS;
+const SERVICE_TYPES = SERVICE_CHOICE_LABELS;
 
 const URGENCY_OPTIONS: { value: Urgency; label: string; desc: string }[] = [
   { value: "low",       label: "Low",       desc: "Flexible timeline" },
@@ -149,7 +150,7 @@ export default function QuoteRequestPage() {
         urgency: form.urgency, description: form.description,
         minTrustScore, minJobsCompleted, minReviews, maxBids,
       });
-      toast.success("Quote request sent to contractors!");
+      toast.success(isOtherWork(form.serviceType) ? "Quote request posted" : "Quote request sent to contractors!");
       if (shareUsage) {
         // The request exists either way; usage is a best-effort extra.
         try {
@@ -220,6 +221,7 @@ export default function QuoteRequestPage() {
             <select id="service-type" className="form-input" value={form.serviceType} onChange={(e) => update("serviceType", e.target.value)}>
               {SERVICE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
+            <OtherWorkNote serviceType={form.serviceType} />
           </div>
 
           {subCategoryOptions.length > 0 && (

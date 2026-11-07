@@ -213,3 +213,32 @@ describe("QuoteRequestPage — sharing utility usage", () => {
     expect(mockToastError).toHaveBeenCalledWith(expect.stringMatching(/Request sent, but usage couldn't be shared: Rate limit exceeded/));
   });
 });
+
+// #721: subtypes of Other (Septic, Inspection, …) are labels only. The
+// directory lists no contractors under them, so the page says how such a
+// request actually reaches contractors and doesn't claim it was "sent".
+describe("QuoteRequestPage — subtypes of Other (#721)", () => {
+  it("offers the new kinds of work in the service picker", async () => {
+    renderPage();
+    const select = await screen.findByLabelText(/service type/i);
+    const options = [...(select as HTMLSelectElement).options].map((o) => o.value);
+    expect(options).toEqual(expect.arrayContaining(["Inspection", "Septic", "Generator", "Other"]));
+  });
+
+  it("explains where an Other-type request is listed, and doesn't claim it was sent", async () => {
+    mockCreateRequest.mockResolvedValue({ id: "req-7" });
+    renderPage();
+    const select = await screen.findByLabelText(/service type/i);
+    expect(screen.queryByTestId("other-work-note")).not.toBeInTheDocument();
+    fireEvent.change(select, { target: { value: "Septic" } });
+    expect(screen.getByTestId("other-work-note")).toHaveTextContent(
+      "HomeGentic doesn't list contractors for Septic yet. Your request is posted as Other work, which contractors can find and bid on among open requests.",
+    );
+
+    fireEvent.change(screen.getByLabelText(/describe the work needed/i), { target: { value: "Pump the tank" } });
+    fireEvent.click(screen.getByText("Send Quote Request"));
+    await waitFor(() => expect(mockCreateRequest).toHaveBeenCalledWith(expect.objectContaining({ serviceType: "Septic" })));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/quotes/req-7"));
+    expect(mockToastSuccess).toHaveBeenCalledWith("Quote request posted");
+  });
+});

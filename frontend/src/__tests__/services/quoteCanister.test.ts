@@ -25,6 +25,8 @@ const a = {
   getIbePublicKey: vi.fn(),
   submitSealedBid: vi.fn(),
   revealBidsEncrypted: vi.fn(),
+  setQuoteRequestSubtype: vi.fn(),
+  getQuoteRequestSubtypes: vi.fn(),
 };
 
 vi.mock("@/services/actor", () => ({ getAgent: vi.fn().mockResolvedValue({}) }));
@@ -357,5 +359,67 @@ describe("helpers", () => {
       quoteService.getQuotaForTier("ContractorPro"),
       quoteService.getQuotaForTier("???"),
     ]).toEqual([3, 0, 0, 3]);
+  });
+});
+
+// #721: a subtype of Other (Septic, Inspection, …) is kept beside the request
+// in the quote canister (setQuoteRequestSubtype), not in its ServiceType.
+describe("subtypes of Other (#721)", () => {
+  it("creates a septic request as Other, then records the subtype", async () => {
+    a.createQuoteRequest.mockResolvedValue({ ok: rawRequest({ serviceType: { Other: null } }) });
+    a.setQuoteRequestSubtype.mockResolvedValue({ ok: null });
+    const r = await quoteService.createRequest({
+      propertyId: "p1", serviceType: "Septic", urgency: "low", description: "Pump the tank",
+    });
+    expect(a.createQuoteRequest.mock.calls[0][1]).toEqual({ Other: null });
+    expect(a.setQuoteRequestSubtype).toHaveBeenCalledWith("r1", ["Septic"]);
+    expect(r.serviceType).toBe("Septic");
+  });
+
+  it("doesn't call setQuoteRequestSubtype for a named type or plain Other", async () => {
+    a.createQuoteRequest.mockResolvedValue({ ok: rawRequest() });
+    await quoteService.createRequest({ propertyId: "p1", serviceType: "HVAC", urgency: "low", description: "x" });
+    a.createQuoteRequest.mockResolvedValue({ ok: rawRequest({ serviceType: { Other: null } }) });
+    const other = await quoteService.createRequest({ propertyId: "p1", serviceType: "Other", urgency: "low", description: "x" });
+    expect(a.setQuoteRequestSubtype).not.toHaveBeenCalled();
+    expect(other.serviceType).toBe("Other");
+  });
+
+  it("shows Other, as the canister has it, when the subtype couldn't be saved", async () => {
+    a.createQuoteRequest.mockResolvedValue({ ok: rawRequest({ serviceType: { Other: null } }) });
+    a.setQuoteRequestSubtype.mockRejectedValue(new Error("no such method"));
+    const r = await quoteService.createRequest({
+      propertyId: "p1", serviceType: "Chimney", urgency: "low", description: "Sweep",
+    });
+    expect(r.serviceType).toBe("Other");
+  });
+
+  it("labels listed Other requests by their subtype, asking only about Other requests", async () => {
+    a.getMyQuoteRequests.mockResolvedValue([
+      rawRequest({ id: "r1", serviceType: { Other: null } }),
+      rawRequest({ id: "r2", serviceType: { HVAC: null } }),
+      rawRequest({ id: "r3", serviceType: { Other: null } }),
+    ]);
+    a.getQuoteRequestSubtypes.mockResolvedValue([["r1", "Inspection"]]);
+    const rs = await quoteService.getRequests();
+    expect(a.getQuoteRequestSubtypes).toHaveBeenCalledWith(["r1", "r3"]);
+    expect(rs.map((r) => r.serviceType)).toEqual(["Inspection", "HVAC", "Other"]);
+  });
+
+  it("skips the subtype lookup when nothing is Other, and lists as Other if it fails", async () => {
+    a.getOpenRequests.mockResolvedValue([rawRequest()]);
+    await quoteService.getOpenRequests();
+    expect(a.getQuoteRequestSubtypes).not.toHaveBeenCalled();
+
+    a.getOpenRequestsForMe.mockResolvedValue([rawRequest({ serviceType: { Other: null } })]);
+    a.getQuoteRequestSubtypes.mockRejectedValue(new Error("canister predates the method"));
+    const [r] = await quoteService.getOpenRequestsForMe();
+    expect(r.serviceType).toBe("Other");
+  });
+
+  it("labels a single request by its subtype", async () => {
+    a.getQuoteRequest.mockResolvedValue({ ok: rawRequest({ serviceType: { Other: null } }) });
+    a.getQuoteRequestSubtypes.mockResolvedValue([["r1", "TreeService"]]);
+    expect((await quoteService.getRequest("r1"))!.serviceType).toBe("Tree Service");
   });
 });

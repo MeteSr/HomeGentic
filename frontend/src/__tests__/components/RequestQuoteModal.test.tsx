@@ -133,3 +133,20 @@ describe("RequestQuoteModal — dismissal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+describe("RequestQuoteModal — subtypes of Other (#721)", () => {
+  it("sends a subtype choice, says how it reaches contractors, and doesn't claim it was sent", async () => {
+    mockCreateRequest.mockResolvedValue({ id: "quote-2" });
+    const { onSuccess } = renderModal({ prefill: { serviceType: "Generator", description: "Annual service" } });
+    expect(screen.getByTestId("other-work-note")).toHaveTextContent("HomeGentic doesn't list contractors for Generator yet.");
+    fireEvent.click(screen.getByText("Send Quote Request"));
+    await waitFor(() => expect(mockCreateRequest).toHaveBeenCalledWith(expect.objectContaining({ serviceType: "Generator" })));
+    expect(mockToastSuccess).toHaveBeenCalledWith("Quote request posted");
+    expect(onSuccess).toHaveBeenCalledWith("quote-2");
+  });
+
+  it("shows no note for a named trade", () => {
+    renderModal({ prefill: { serviceType: "Roofing", description: "x" } });
+    expect(screen.queryByTestId("other-work-note")).not.toBeInTheDocument();
+  });
+});

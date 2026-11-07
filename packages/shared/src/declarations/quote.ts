@@ -86,6 +86,9 @@ export const idlFactory = ({ IDL }: any) => {
     attachUsageSummary: IDL.Func([IDL.Text, UsageSummary], [UnitResult], []),
     removeUsageSummary: IDL.Func([IDL.Text], [UnitResult], []),
     getUsageSummary:    IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Opt(UsageSummary), err: Error })], []),
+    // #721: subtype of an Other request (key from serviceTypes.ts SERVICE_SUBTYPES)
+    setQuoteRequestSubtype:  IDL.Func([IDL.Text, IDL.Opt(IDL.Text)], [UnitResult], []),
+    getQuoteRequestSubtypes: IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))], ["query"]),
     createQuoteRequest: IDL.Func(
       [IDL.Text, ServiceType, IDL.Text, UrgencyLevel, IDL.Opt(IDL.Text),
        IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],

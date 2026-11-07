@@ -172,6 +172,7 @@ export interface _SERVICE {
   getOpenRequestsForMe: ActorMethod<[], QuoteRequest[]>;
   getOpenRequestsPage: ActorMethod<[bigint, bigint], QuoteRequest[]>;
   getQuoteRequest: ActorMethod<[string], { ok: QuoteRequest } | { err: Error }>;
+  getQuoteRequestSubtypes: ActorMethod<[string[]], Array<[string, string]>>;
   getQuotesForRequest: ActorMethod<[string], { ok: Quote[] } | { err: Error }>;
   getRevealedBids: ActorMethod<[string], RevealedBid[]>;
   getUsageSummary: ActorMethod<[string], { ok: [] | [UsageSummary] } | { err: Error }>;
@@ -180,6 +181,7 @@ export interface _SERVICE {
   revealBidsEncrypted: ActorMethod<[string, Uint8Array | number[]], { ok: SealedBidReveal } | { err: Error }>;
   setFeeCanisterId: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   setPropertyCanisterId: ActorMethod<[Principal], { ok: null } | { err: Error }>;
+  setQuoteRequestSubtype: ActorMethod<[string, [] | [string]], UnitResult>;
   submitQuote: ActorMethod<[string, bigint, bigint, bigint], { ok: Quote } | { err: Error }>;
   submitSealedBid: ActorMethod<[string, Uint8Array | number[], bigint], { ok: SealedBid } | { err: Error }>;
 }

@@ -1,6 +1,6 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/quote";
-import { serviceTypeVariant, serviceTypeFromVariant } from "@homegentic/shared/serviceTypes";
+import { serviceTypeVariant, serviceTypeFromVariant, serviceSubtypeKey, serviceSubtypeLabel } from "@homegentic/shared/serviceTypes";
 import { ibeEncryptAmount, ibeDecryptBids, sealedBidIdentity, type RevealedBid as SealedRevealedBid } from "./sealedBid";
 import type { UsageCategory, UsageSummary } from "./quoteUsage";
 import type { _SERVICE as QuoteCanister } from "@homegentic/shared/types/quote";
@@ -148,6 +148,27 @@ function unwrapRequest(result: any): QuoteRequest {
   throw canisterError(result.err);
 }
 
+/**
+ * #721: label Other requests by their subtype (Septic, Inspection, …), which
+ * the quote canister keeps beside the request. Best effort: if the lookup
+ * fails (e.g. the canister predates it) they stay "Other", as stored.
+ */
+async function withSubtypes(a: QuoteCanister, requests: QuoteRequest[]): Promise<QuoteRequest[]> {
+  const otherIds = requests.filter((r) => r.serviceType === "Other").map((r) => r.id);
+  if (otherIds.length === 0) return requests;
+  let pairs: Array<[string, string]>;
+  try {
+    pairs = await a.getQuoteRequestSubtypes(otherIds);
+  } catch {
+    return requests;
+  }
+  const byId = new Map(pairs);
+  return requests.map((r) => {
+    const label = byId.has(r.id) ? serviceSubtypeLabel(byId.get(r.id)!) : undefined;
+    return label ? { ...r, serviceType: label } : r;
+  });
+}
+
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createQuoteService() {
@@ -190,7 +211,19 @@ function createQuoteService() {
       req.minReviews       != null ? [BigInt(req.minReviews)]       : [],
       req.maxBids          != null ? [BigInt(req.maxBids)]          : []
     );
-    return unwrapRequest(result);
+    const created = unwrapRequest(result);
+    // #721: a subtype goes to the canister as Other, then is recorded beside
+    // the request. If that fails the request shows as Other, which is what
+    // contractors see.
+    const subtype = serviceSubtypeKey(req.serviceType);
+    if (!subtype) return created;
+    try {
+      const set = await a.setQuoteRequestSubtype(created.id, [subtype]);
+      if ("err" in set) return created;
+    } catch {
+      return created;
+    }
+    return { ...created, serviceType: serviceSubtypeLabel(subtype)! };
   },
 
   async getRequests(): Promise<QuoteRequest[]> {
@@ -199,19 +232,19 @@ function createQuoteService() {
     }
     if (mockRequests.length > 0) return mockRequests;
     const a = await getActor();
-    return (await a.getMyQuoteRequests() as any[]).map(fromRequest);
+    return withSubtypes(a, (await a.getMyQuoteRequests() as any[]).map(fromRequest));
   },
 
   async getOpenRequests(): Promise<QuoteRequest[]> {
     if (!QUOTE_CANISTER_ID) return [];
     const a = await getActor();
-    return (await a.getOpenRequests() as any[]).map(fromRequest);
+    return withSubtypes(a, (await a.getOpenRequests() as any[]).map(fromRequest));
   },
 
   async getOpenRequestsForMe(): Promise<QuoteRequest[]> {
     if (!QUOTE_CANISTER_ID) return [];
     const a = await getActor();
-    return (await a.getOpenRequestsForMe() as any[]).map(fromRequest);
+    return withSubtypes(a, (await a.getOpenRequestsForMe() as any[]).map(fromRequest));
   },
 
   async submitQuote(
@@ -245,7 +278,7 @@ function createQuoteService() {
       if ("NotFound" in result.err) return undefined;
       throw canisterError(result.err);
     }
-    return fromRequest(result.ok);
+    return (await withSubtypes(a, [fromRequest(result.ok)]))[0];
   },
 
   async getBidCountMap(requestIds: string[]): Promise<Record<string, number>> {
