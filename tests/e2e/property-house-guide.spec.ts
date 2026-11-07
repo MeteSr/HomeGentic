@@ -8,7 +8,7 @@ import { injectTestProperties, injectSubscription } from "./helpers/testData";
 
 const GUIDE = {
   wifiName: "Maple Guest",
-  wifiPassword: "sunny-porch-42",
+  wifiPassword: "sunny porch",
   alarm: "Panel by the garage door. Code 4821, then OFF.",
   trashDay: "Tuesday night",
   recyclingDay: "Every other Friday",
@@ -44,14 +44,14 @@ test.describe("House guide tab", () => {
 
     await expect(page.getByText(/stored exactly as you type it/i)).toBeVisible();
     await page.getByLabel("Wi-Fi network").fill("Maple Guest");
-    await page.getByLabel("Wi-Fi password").fill("sunny-porch-42");
+    await page.getByLabel("Wi-Fi password").fill("sunny porch");
     await page.getByLabel("Trash day").fill("Tuesday night");
     await page.getByRole("button", { name: "Add a contact" }).click();
     await page.getByLabel("Contact 1 name").fill("Ana");
     await page.getByLabel("Contact 1 phone").fill("512-555-0142");
     await page.getByRole("button", { name: "Save guide" }).click();
 
-    await expect(page.getByText("sunny-porch-42")).toBeVisible();
+    await expect(page.getByText("sunny porch")).toBeVisible();
     await page.getByLabel("Who is it for?").fill("Cat sitter");
     await page.getByLabel("Link lasts").selectOption("3");
     await page.getByRole("button", { name: "Create link" }).click();
@@ -79,7 +79,7 @@ test.describe("Shared house guide page", () => {
     ]);
     await page.goto(`/guide/${TOKEN}`);
     await expect(page.getByRole("heading", { name: "123 Maple Street" })).toBeVisible();
-    await expect(page.getByText("sunny-porch-42")).toBeVisible();
+    await expect(page.getByText("sunny porch")).toBeVisible();
     await expect(page.getByText("Feed the cat at 7am and 6pm.")).toBeVisible();
     await expect(page.getByRole("link", { name: "512-555-0142" })).toHaveAttribute("href", "tel:5125550142");
     await expect(page.getByText(/this link works until/i)).toBeVisible();
@@ -92,6 +92,6 @@ test.describe("Shared house guide page", () => {
     ]);
     await page.goto(`/guide/${TOKEN}`);
     await expect(page.getByRole("heading", { name: /isn't working/i })).toBeVisible();
-    await expect(page.getByText("sunny-porch-42")).toHaveCount(0);
+    await expect(page.getByText("sunny porch")).toHaveCount(0);
   });
 });
