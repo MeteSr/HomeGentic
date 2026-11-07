@@ -2787,6 +2787,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; purchaseDate:text; name:text; createdAt:int; propertyId:text; updatedAt:int; serialNumber:text; notes:text; quantity:nat; category:text; roomId:opt text; valueCents:opt nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "addMoveInTasks": {
+    "args": [
+      "text",
+      "vec record {title:text; urgency:variant {Repair; Safety; Monitor}; area:text; detail:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {tasks:vec record {id:text; title:text; urgency:variant {Repair; Safety; Monitor}; area:text; createdAt:int; detail:text}; startedAt:int; updatedAt:int; doneSteps:vec text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "addSpecialAssessment": {
     "args": [
       "text",
@@ -2891,6 +2901,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "deleteMoveInTask": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {tasks:vec record {id:text; title:text; urgency:variant {Repair; Safety; Monitor}; area:text; createdAt:int; detail:text}; startedAt:int; updatedAt:int; doneSteps:vec text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "deleteMyData": {
     "args": [],
     "mode": [],
@@ -2908,6 +2928,15 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
   },
   "dismissNotifications": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "endMoveInPlan": {
     "args": [
       "text",
     ],
@@ -3099,6 +3128,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:opt record {statementDate:text; rateThousandthsPct:nat; statementBalanceCents:opt nat; monthlyPmiCents:opt nat; originalAmountCents:nat; updatedAt:int; termMonths:nat; lender:text; currentValueCents:opt nat; firstPaymentDate:text; monthlyEscrowCents:opt nat; originalValueCents:opt nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "getMoveInPlan": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:opt record {tasks:vec record {id:text; title:text; urgency:variant {Repair; Safety; Monitor}; area:text; createdAt:int; detail:text}; startedAt:int; updatedAt:int; doneSteps:vec text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "getMyManagedProperties": {
@@ -3576,6 +3616,26 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "setMoveInStep": {
+    "args": [
+      "text",
+      "text",
+      "bool",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {tasks:vec record {id:text; title:text; urgency:variant {Repair; Safety; Monitor}; area:text; createdAt:int; detail:text}; startedAt:int; updatedAt:int; doneSteps:vec text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "startMoveInPlan": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {tasks:vec record {id:text; title:text; urgency:variant {Repair; Safety; Monitor}; area:text; createdAt:int; detail:text}; startedAt:int; updatedAt:int; doneSteps:vec text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "submitVerification": {

@@ -59,6 +59,9 @@ vi.mock("@/services/inventory", async (importOriginal) => ({
 vi.mock("@/services/houseGuide", () => ({
   houseGuideService: { get: async () => ({ wifiName: "Lake House", contacts: [], photoIds: [] }) },
 }));
+vi.mock("@/services/moveInPlan", () => ({
+  moveInPlanService: { get: async () => ({ startedAt: 1, doneSteps: ["locks"], tasks: [], updatedAt: 1 }) },
+}));
 vi.mock("@/services/hoaRecords", () => ({
   hoaService: {
     listReviews: async () => [{ id: "R1", project: "Fence" }],
@@ -155,6 +158,7 @@ describe("data export", () => {
       "inventory",
       "jobs",
       "maintenanceSchedule",
+      "moveInPlan",
       "ownershipHistory",
       "photos",
       "recurringExpenses",
@@ -176,6 +180,8 @@ describe("data export", () => {
     expect(home.sections.architecturalReviews.ok[0].project).toBe("Fence");
     expect(home.sections.specialAssessments.ok[0].amount).toBe(4500);
     expect(home.sections.condoAssociation.ok).toBeNull();
+    // #712: the move-in plan.
+    expect(home.sections.moveInPlan.ok.doneSteps).toEqual(["locks"]);
     expect(home.sections.insuranceClaims.ok[0].id).toBe("C1");
     // Claim damage photos are marked with the claim they were taken for.
     expect(home.sections.photos.ok.map((p: any) => p.insuranceClaimId)).toEqual([undefined, "C1"]);

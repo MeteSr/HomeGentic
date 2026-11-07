@@ -88,7 +88,10 @@ function makeJob(overrides: Partial<Job> = {}): Job {
 function renderAt(id: string) {
   return render(
     <MemoryRouter initialEntries={[`/properties/${id}`]}>
-      <Routes><Route path="/properties/:id" element={<PropertyDetailPage />} /></Routes>
+      <Routes>
+        <Route path="/properties/:id" element={<PropertyDetailPage />} />
+        <Route path="/properties/:id/move-in" element={<div data-testid="move-in-route" />} />
+      </Routes>
     </MemoryRouter>
   );
 }
@@ -148,6 +151,12 @@ describe("PropertyDetailPage — tabs", () => {
     fireEvent.click(screen.getByText("Jobs (2)"));
     expect(screen.getByTestId("tab-jobs")).toBeInTheDocument();
     expect(screen.queryByTestId("tab-timeline")).not.toBeInTheDocument();
+  });
+
+  it("opens the move-in plan (#712)", () => {
+    renderAt("prop-1");
+    fireEvent.click(screen.getByRole("button", { name: /move-in plan/i }));
+    expect(screen.getByTestId("move-in-route")).toBeInTheDocument();
   });
 
   it("has an Insurance tab for the home's policy", () => {

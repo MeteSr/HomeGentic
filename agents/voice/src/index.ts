@@ -34,6 +34,7 @@ import {
   normalizeExtraction,
   SUPPORTED_MIME_TYPES,
 } from "../extractDocumentHelpers";
+import { buildInspectionPrompt, normalizeFindings } from "./inspectionFindings";
 import { lookupPermits, generateKit, geocodeAddress } from "../buyersTruthKit";
 import {
   parseInsightsPayload, describeFacts, parseNarrative, ruleBasedNarrative, NARRATIVE_SYSTEM_PROMPT,
@@ -1010,6 +1011,40 @@ Rules:
     }
   }
 
+  // ── POST /api/inspection-findings ─────────────────────────────────────────
+  // #712: the deficiencies listed in a purchase inspection report, for the new
+  // owner to review before any become move-in tasks.
+  if (path === "/api/inspection-findings" && method === "POST") {
+    const { fileName: rawFileName, mimeType, base64Data } = await readJsonBody(request, MAX_UPLOAD_BYTES);
+    if (pdfTooLarge(mimeType, base64Data)) return json({ error: "pdf_too_large", maxBytes: MAX_AI_PDF_BYTES }, 413, cors);
+    const fileName = typeof rawFileName === "string" ? rawFileName.slice(0, 200) : "";
+    if (!fileName || !mimeType || typeof base64Data !== "string" || !base64Data) {
+      return json({ error: "fileName, mimeType, and base64Data are required" }, 400, cors);
+    }
+    if (!(SUPPORTED_MIME_TYPES as readonly string[]).includes(mimeType)) {
+      return json({ error: "Unsupported file type. Upload an image or PDF." }, 400, cors);
+    }
+    const mediaType = mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp" | "application/pdf";
+    try {
+      const text = await provider.complete({
+        system:   buildInspectionPrompt(),
+        messages: [{ role: "user", content: [
+          mediaType === "application/pdf"
+            ? { type: "document", source: { type: "base64", media_type: mediaType, data: base64Data } }
+            : { type: "image",    source: { type: "base64", media_type: mediaType, data: base64Data } },
+          { type: "text", text: `File name: ${fileName}\nList the findings in this inspection report.` },
+        ]}],
+        maxTokens: 2048,
+      });
+      const m = text.match(/\{[\s\S]*\}/);
+      if (!m) return json({ error: PROVIDER_JSON_ERROR }, 500, cors);
+      return json(normalizeFindings(JSON.parse(m[0])), 200, cors);
+    } catch (err) {
+      logger.error("ai", "provider call failed", { path, error: (err as Error)?.message });
+      return json({ error: "AI request failed" }, 500, cors);
+    }
+  }
+
   // ── POST /api/pulse ───────────────────────────────────────────────────────
   if (path === "/api/pulse" && method === "POST") {
     const ctx = await readJsonBody(request);
@@ -1817,6 +1852,7 @@ Rules:
 /** Anthropic- or paid-API-backed routes: session + per-principal daily quota. */
 const AUX_AI_ROUTES = new Set([
   "/api/maintenance/chat", "/api/classify", "/api/extract-bill", "/api/extract-document",
+  "/api/inspection-findings",   // #712 purchase inspection → move-in tasks (src/inspectionFindings.ts)
   "/api/efficiency-alert", "/api/bills-insights", "/api/rebate-finder", "/api/telecom-negotiate", "/api/pulse",
   "/api/negotiate", "/api/insurer-discount", "/api/buyers-truth-kit", "/api/rentcast/properties",
 ]);

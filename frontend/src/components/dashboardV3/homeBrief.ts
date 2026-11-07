@@ -31,6 +31,8 @@ export interface BriefItem {
   flow?:  FlowKey;
   /** An outside page (opened in a new tab), e.g. a CPSC recall notice. */
   href?:  string;
+  /** A page in the app, e.g. the move-in plan. */
+  path?:  string;
 }
 
 export interface HomeBrief {
@@ -55,6 +57,8 @@ export interface BriefInput {
   quotaExhausted:    boolean;
   /** Possible CPSC recalls for the property's appliances (services/recalls.ts). */
   recalls?:          RecallMatch[];
+  /** #712: progress on the active property's move-in plan, when it has one. */
+  moveIn?:           { propertyId: string; done: number; total: number } | null;
 }
 
 /** Most items the brief shows; the rest are one tap away in the rail. */
@@ -99,6 +103,15 @@ export function buildHomeBrief(input: BriefInput): HomeBrief {
       text: `A safety recall may cover your ${recall.brand} ${recall.model}: ${notice.title || "see the CPSC notice"}. Compare the model numbers on the notice.` +
         (more > 0 ? ` (${more} more ${plural(more, "appliance", "appliances")} may be affected.)` : ""),
       ...(notice.url ? { href: notice.url } : { go: "property" as PanelKey }),
+    });
+  }
+
+  const moveIn = input.moveIn;
+  if (moveIn && moveIn.done < moveIn.total) {
+    items.push({
+      id: "movein", tone: "action",
+      text: `Your move-in plan: ${moveIn.done} of ${moveIn.total} steps done.`,
+      path: `/properties/${moveIn.propertyId}/move-in`,
     });
   }
 

@@ -312,6 +312,22 @@ export const idlFactory = ({ IDL }: any) => {
     zipCode:   IDL.Text,
     floodZone: IDL.Opt(FloodZoneRecord),
   });
+  // #712 move-in plan
+  const MoveInTaskUrgency = IDL.Variant({ Safety: IDL.Null, Repair: IDL.Null, Monitor: IDL.Null });
+  const moveInTaskFields = {
+    title:   IDL.Text,
+    detail:  IDL.Text,
+    area:    IDL.Text,
+    urgency: MoveInTaskUrgency,
+  };
+  const MoveInTaskInput = IDL.Record(moveInTaskFields);
+  const MoveInTask = IDL.Record({ ...moveInTaskFields, id: IDL.Text, createdAt: IDL.Int });
+  const MoveInPlan = IDL.Record({
+    startedAt: IDL.Int,
+    doneSteps: IDL.Vec(IDL.Text),
+    tasks:     IDL.Vec(MoveInTask),
+    updatedAt: IDL.Int,
+  });
   const Error = IDL.Variant({
     NotFound: IDL.Null,
     NotAuthorized: IDL.Null,
@@ -603,6 +619,29 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Vec(PulseHomeFinance), err: Error })],
       ["query"]
     ),
+    // #712 move-in plan for new owners
+    startMoveInPlan: IDL.Func([IDL.Text], [IDL.Variant({ ok: MoveInPlan, err: Error })], []),
+    getMoveInPlan: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Opt(MoveInPlan), err: Error })],
+      ["query"]
+    ),
+    setMoveInStep: IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Bool],
+      [IDL.Variant({ ok: MoveInPlan, err: Error })],
+      []
+    ),
+    addMoveInTasks: IDL.Func(
+      [IDL.Text, IDL.Vec(MoveInTaskInput)],
+      [IDL.Variant({ ok: MoveInPlan, err: Error })],
+      []
+    ),
+    deleteMoveInTask: IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Variant({ ok: MoveInPlan, err: Error })],
+      []
+    ),
+    endMoveInPlan: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     // #718 FEMA flood zone (the household reads; the voice Worker looks it up and saves)
     getFloodZone: IDL.Func(
       [IDL.Text],

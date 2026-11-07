@@ -66,6 +66,10 @@ vi.mock("@/services/billService", () => ({
 }));
 vi.mock("@/services/contractor", () => ({ contractorService: { getBySpecialty: mockGetBySpecialty } }));
 vi.mock("@/services/priceBenchmark", () => ({ getPriceBenchmark: mockGetPriceBenchmark }));
+const { mockGetMoveInPlan } = vi.hoisted(() => ({ mockGetMoveInPlan: vi.fn() }));
+vi.mock("@/services/moveInPlan", () => ({ moveInPlanService: { get: mockGetMoveInPlan } }));
+vi.mock("@/services/houseGuide", () => ({ houseGuideService: { get: vi.fn().mockResolvedValue(null) } }));
+vi.mock("@/services/insurancePolicy", () => ({ insurancePolicyService: { get: vi.fn().mockResolvedValue(null) } }));
 
 // Real modals aren't exercised here (DashboardV3's own precedent is to
 // render them unthemed with no extra wiring) — stub them out so their own
@@ -124,6 +128,7 @@ beforeEach(() => {
   mockGetExpenses.mockResolvedValue([]);
   mockGetBySpecialty.mockResolvedValue([]);
   mockGetPriceBenchmark.mockResolvedValue(null);
+  mockGetMoveInPlan.mockResolvedValue(null);
 });
 
 describe("DashboardV3 — panel navigation", () => {
@@ -300,6 +305,15 @@ describe("DashboardV3 — home brief", () => {
     fireEvent.click(screen.getByText("1 job is waiting on your approval."));
     expect(screen.getByText("Back to quiet")).toBeInTheDocument();
     expect(screen.queryByTestId("home-brief")).not.toBeInTheDocument();
+  });
+
+  it("#712 shows an unfinished move-in plan and opens it", async () => {
+    mockGetMoveInPlan.mockResolvedValue({ startedAt: Date.now(), doneSteps: ["locks", "alarms"], tasks: [], updatedAt: 0 });
+    renderDashboard();
+    const line = await screen.findByText("Your move-in plan: 2 of 10 steps done.");
+    expect(mockGetMoveInPlan).toHaveBeenCalledWith("prop-1");
+    fireEvent.click(line);
+    expect(mockNavigate).toHaveBeenCalledWith("/properties/prop-1/move-in");
   });
 
   it("includes a utility rise from the property's bills", async () => {

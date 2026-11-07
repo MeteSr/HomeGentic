@@ -66,6 +66,10 @@ import { buildPanels, CTA_FLOW, PANEL_ORDER, type PanelCtx } from "./panelData";
 import { buildHomeBrief, type BriefTone } from "./homeBrief";
 import { roomService } from "@/services/room";
 import { recallItems, checkRecalls, type RecallMatch } from "@/services/recalls";
+import { moveInPlanService, type MoveInPlan } from "@/services/moveInPlan";
+import { houseGuideService, type HouseGuide } from "@/services/houseGuide";
+import { insurancePolicyService } from "@/services/insurancePolicy";
+import { buildMoveInSteps, moveInProgress } from "@/services/moveInSteps";
 import { buildSystemAnswer, matchSystemQuestion, SYSTEM_SERVICE_TYPE, type FactTone } from "./answerCards";
 import type { FlowKey, PanelData, PanelKey, PanelRow } from "./types";
 
@@ -255,6 +259,26 @@ export function DashboardV3() {
     return () => { live = false; };
   }, [activePropertyId]);
 
+  // #712: the active property's move-in plan (a buyer gets one on claiming a
+  // home), with the guide and policy that can tick its steps off.
+  const [moveIn, setMoveIn] = useState<{ plan: MoveInPlan; guide: HouseGuide | null; carrier: string | null } | null>(null);
+  React.useEffect(() => {
+    setMoveIn(null);
+    if (!activePropertyId) return;
+    let live = true;
+    moveInPlanService.get(activePropertyId)
+      .then(async (plan) => {
+        if (!plan) return;
+        const [guide, policy] = await Promise.all([
+          houseGuideService.get(activePropertyId).catch(() => null),
+          insurancePolicyService.get(activePropertyId).catch(() => null),
+        ]);
+        if (live) setMoveIn({ plan, guide, carrier: policy?.carrier ?? null });
+      })
+      .catch(() => { /* no plan line */ });
+    return () => { live = false; };
+  }, [activePropertyId]);
+
   // System ages and bill patterns feed both the home brief and answer cards.
   const systems = useMemo(
     () => (activeProperty ? estimateSystems(Number(activeProperty.yearBuilt), activeProperty.state, systemAges) : []),
@@ -397,12 +421,21 @@ export function DashboardV3() {
   };
 
   const pendingCount = pendingProposals.length;
+  const moveInStatus = useMemo(() => {
+    if (!moveIn || !activeProperty || !activePropertyId) return null;
+    const steps = buildMoveInSteps({
+      propertyId: activePropertyId, city: activeProperty.city, state: activeProperty.state, plan: moveIn.plan,
+      guide: moveIn.guide, insuranceCarrier: moveIn.carrier, rooms, recalls, systems,
+    });
+    return { propertyId: activePropertyId, ...moveInProgress(moveIn.plan, steps) };
+  }, [moveIn, activeProperty, activePropertyId, rooms, recalls, systems]);
+
   const brief = useMemo(() => buildHomeBrief({
     now: new Date(), pendingProposals, sensorAlerts, quoteRequests, bidCountMap, jobs,
     recurringServices, visitLogMap, atRiskWarnings, systems, billInsights, people,
-    quotaExhausted: voice.quotaExhausted, recalls,
+    quotaExhausted: voice.quotaExhausted, recalls, moveIn: moveInStatus,
   }), [pendingProposals, sensorAlerts, quoteRequests, bidCountMap, jobs, recurringServices, visitLogMap,
-    atRiskWarnings, systems, billInsights, people, voice.quotaExhausted, recalls]);
+    atRiskWarnings, systems, billInsights, people, voice.quotaExhausted, recalls, moveInStatus]);
 
   // ── Header helpers ────────────────────────────────────────────────────────
   const propertyLabel = activeProperty
@@ -604,7 +637,7 @@ export function DashboardV3() {
                   {brief.items.map((item) => (
                     <button type="button"
                       key={item.id}
-                      onClick={() => (item.href ? window.open(item.href, "_blank", "noopener,noreferrer") : item.flow ? openFlow(item.flow) : item.go ? goPanel(item.go) : undefined)}
+                      onClick={() => (item.href ? window.open(item.href, "_blank", "noopener,noreferrer") : item.path ? navigate(item.path) : item.flow ? openFlow(item.flow) : item.go ? goPanel(item.go) : undefined)}
                       style={{ ...BUTTON_RESET, width: "100%", display: "flex", alignItems: "flex-start", gap: 10, marginTop: 10, cursor: "pointer" }}
                     >
                       <Dot color={BRIEF_DOT[item.tone]} style={{ marginTop: 7 }} />

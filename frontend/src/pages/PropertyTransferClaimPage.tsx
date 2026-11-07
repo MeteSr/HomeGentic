@@ -8,7 +8,8 @@
  *  1. Page loads, looks up the pending transfer by token (no auth needed).
  *  2. Unauthenticated visitor: sees property address + "Sign in to claim" button.
  *  3. Authenticated user: sees full property details + "Accept & Become Owner" button.
- *  4. On claim: calls claimTransfer(token) → redirects to /properties/:id.
+ *  4. On claim: calls claimTransfer(token) → redirects to the move-in plan
+ *     (/properties/:id/move-in), which the canister starts for the buyer (#712).
  *
  * When the home's ownership is verified, the property canister also asks
  * payment for a free Pro year for the buyer (payment.grantHandoffYear, which
@@ -129,7 +130,7 @@ export default function PropertyTransferClaimPage() {
         ? new Date(grantedAt + YEAR_MS) : null;
       setPage({ status: "claimed", property: claimed, proYearUntil });
       // Pause so the success message registers, then navigate
-      setTimeout(() => navigate(`/properties/${claimed.id}`), proYearUntil ? 4000 : 1800);
+      setTimeout(() => navigate(`/properties/${claimed.id}/move-in`), proYearUntil ? 4000 : 1800);
     } catch (e: any) {
       setClaimError(e.message ?? "Claim failed. Please try again.");
       setPage(page);  // restore previous state so retry is available
@@ -213,7 +214,7 @@ export default function PropertyTransferClaimPage() {
         </div>
         <div style={{ padding: "1.5rem 1.75rem" }}>
           <p style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
-            The full property history — maintenance records, photos, utility bills, and verification status — is now in your account. Redirecting you to the property…
+            The full property history — maintenance records, photos, utility bills, and verification status — is now in your account. We've started a move-in plan for your first weeks; taking you there now…
           </p>
           {page.proYearUntil && (
             <p data-testid="handoff-pro-year" style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.ink, lineHeight: 1.6, marginTop: "0.75rem" }}>
