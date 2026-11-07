@@ -10,6 +10,8 @@ import { formatIsoDate } from "@/utils/format";
 import {
   insuranceClaimService,
   claimPhotoJobId,
+  claimPhotoDescription,
+  claimIdOfPhoto,
   repairQuotePrefill,
   validateClaim,
   validateLogEntry,
@@ -265,7 +267,7 @@ function ClaimCard({
           claimPhotoJobId(claim.id),
           claim.propertyId,
           "PreConstruction",
-          `Damage photo: ${file.name}`,
+          claimPhotoDescription(claim.title, file.name),
         );
         setPhotos((prev) => [...prev, p]);
       } catch (err) {
@@ -493,13 +495,67 @@ function ClaimCard({
   );
 }
 
+// ─── Photos from earlier claims ───────────────────────────────────────────────
+
+/** Damage photos whose claim record was deleted (or came with the home): they stay with the home's photos. */
+function EarlierClaimPhotos({ headingId, photos }: { headingId: string; photos: Photo[] }) {
+  if (photos.length === 0) return null;
+  return (
+    <section aria-labelledby={headingId}>
+      <h3 id={headingId} style={{ ...labelText, margin: "0.5rem 0" }}>
+        Photos from earlier claims
+      </h3>
+      <ul
+        style={{
+          listStyle: "none",
+          padding: 0,
+          margin: 0,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+          gap: "0.75rem",
+        }}
+      >
+        {[...photos]
+          .sort((a, b) => a.createdAt - b.createdAt)
+          .map((p) => (
+            <li key={p.id}>
+              {p.url && (
+                <img
+                  src={p.url}
+                  alt={p.description}
+                  style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: 8, display: "block" }}
+                />
+              )}
+              <div style={{ ...small, fontSize: "0.75rem", marginTop: 4, color: "var(--hg-ink)" }}>
+                {p.description.startsWith("Insurance claim photo")
+                  ? p.description
+                  : `Insurance claim photo: ${p.description}`}
+              </div>
+              <div style={{ ...small, fontSize: "0.75rem" }}>Uploaded {uploadedAt(p.createdAt)}</div>
+            </li>
+          ))}
+      </ul>
+    </section>
+  );
+}
+
 // ─── Claim kit ────────────────────────────────────────────────────────────────
 
 /**
  * #711 claim kit: the household's records of insurance claims on the home,
  * each with a dated log, dated damage photos and a pre-filled repair quote.
  */
-export function ClaimKit({ propertyId, canEdit }: { propertyId: string; canEdit: boolean }) {
+export function ClaimKit({
+  propertyId,
+  canEdit,
+  propertyPhotos = [],
+}: {
+  propertyId: string;
+  canEdit: boolean;
+  /** The home's photos, to show claim photos whose claim record is gone. */
+  propertyPhotos?: Photo[];
+}) {
+  const earlierHeading = useId();
   const [claims, setClaims] = useState<InsuranceClaim[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [adding, setAdding] = useState(false);
@@ -564,6 +620,13 @@ export function ClaimKit({ propertyId, canEdit }: { propertyId: string; canEdit:
               onDeleted={(id) => setClaims((prev) => prev.filter((x) => x.id !== id))}
             />
           ))}
+          <EarlierClaimPhotos
+            headingId={earlierHeading}
+            photos={propertyPhotos.filter((p) => {
+              const id = claimIdOfPhoto(p);
+              return id !== null && !claims.some((c) => c.id === id);
+            })}
+          />
         </div>
       )}
     </Panel>

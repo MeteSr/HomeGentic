@@ -32,7 +32,7 @@ vi.mock("@/services/photo", () => ({
       },
       {
         id: "PHOTO_2",
-        jobId: "JOB_1",
+        jobId: "claim_C1",
         propertyId: "7",
         phase: "After",
         description: "",
@@ -44,6 +44,13 @@ vi.mock("@/services/photo", () => ({
       },
     ],
   },
+}));
+vi.mock("@/services/insurancePolicy", () => ({
+  insurancePolicyService: { get: async () => ({ carrier: "Citizens", renewalDate: "2027-06-01" }) },
+}));
+vi.mock("@/services/insuranceClaims", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/insuranceClaims")>()),
+  insuranceClaimService: { list: async () => [{ id: "C1", title: "Leak", log: [] }] },
 }));
 vi.mock("@/services/room", () => ({ roomService: { getRoomsByProperty: async () => [] } }));
 vi.mock("@/services/maintenance", () => ({ maintenanceService: { getScheduleByProperty: async () => [] } }));
@@ -126,6 +133,8 @@ describe("data export", () => {
     expect(home.property).toEqual({ id: "7", address: "12 Elm St" });
     expect(Object.keys(home.sections).sort()).toEqual([
       "bills",
+      "insuranceClaims",
+      "insurancePolicy",
       "jobs",
       "maintenanceSchedule",
       "ownershipHistory",
@@ -142,6 +151,10 @@ describe("data export", () => {
       ["PHOTO_1", "photos/7/PHOTO_1.jpg", undefined],
       ["PHOTO_2", null, undefined],
     ]);
+    expect(home.sections.insurancePolicy.ok.carrier).toBe("Citizens");
+    expect(home.sections.insuranceClaims.ok[0].id).toBe("C1");
+    // Claim damage photos are marked with the claim they were taken for.
+    expect(home.sections.photos.ok.map((p: any) => p.insuranceClaimId)).toEqual([undefined, "C1"]);
     expect(failed).toEqual(["photo PHOTO_2"]);
     expect(new TextDecoder().decode(files.get("README.txt"))).toContain(
       "could not be read and are missing: photo PHOTO_2",

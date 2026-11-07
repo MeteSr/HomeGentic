@@ -142,7 +142,7 @@ describe("ClaimKit", () => {
         "claim_c1",
         "p1",
         "PreConstruction",
-        "Damage photo: ceiling.jpg",
+        "Insurance claim photo: Kitchen ceiling leak (ceiling.jpg)",
       ),
     );
     expect(await within(card).findByText(/Uploaded Sep 29, 2026/)).toBeInTheDocument();
@@ -202,6 +202,29 @@ describe("ClaimKit", () => {
     fireEvent.click(within(card).getByRole("button", { name: "Yes, delete" }));
     await waitFor(() => expect(mockClaims.remove).toHaveBeenCalledWith("c1"));
     expect(await screen.findByText(/no claim records yet/i)).toBeInTheDocument();
+  });
+
+  it("keeps photos from deleted or earlier claims, labelled as claim photos", async () => {
+    mockClaims.list.mockResolvedValue([CLAIM]);
+    const old = {
+      ...PHOTO,
+      id: "ph9",
+      jobId: "claim_gone",
+      description: "Insurance claim photo: Hail 2024 (roof.jpg)",
+    };
+    const job = { ...PHOTO, id: "ph8", jobId: "JOB_1", description: "Job photo" };
+    render(<ClaimKit propertyId="p1" canEdit propertyPhotos={[PHOTO, old, job]} />);
+    const section = await screen.findByRole("region", { name: "Photos from earlier claims" });
+    expect(within(section).getByText("Insurance claim photo: Hail 2024 (roof.jpg)")).toBeInTheDocument();
+    expect(within(section).getAllByRole("img")).toHaveLength(1);
+    expect(within(section).queryByText("Job photo")).not.toBeInTheDocument();
+  });
+
+  it("has no earlier-claims section when every claim photo belongs to a current claim", async () => {
+    mockClaims.list.mockResolvedValue([CLAIM]);
+    render(<ClaimKit propertyId="p1" canEdit propertyPhotos={[PHOTO]} />);
+    await screen.findByRole("article", { name: "Kitchen ceiling leak" });
+    expect(screen.queryByRole("region", { name: "Photos from earlier claims" })).not.toBeInTheDocument();
   });
 
   it("is read-only for a viewer", async () => {

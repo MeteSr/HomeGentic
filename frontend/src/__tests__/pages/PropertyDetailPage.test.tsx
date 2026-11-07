@@ -146,6 +146,24 @@ describe("PropertyDetailPage — tabs", () => {
   });
 });
 
+describe("PropertyDetailPage — hero photo", () => {
+  beforeEach(() => {
+    mockUsePropertyDetail.mockReturnValue({ property: makeProperty(), loading: false });
+    mockUsePropertyJobs.mockReturnValue({ jobs: [], loading: false, reload: vi.fn(), verifyJob: vi.fn() });
+    mockUsePropertyRooms.mockReturnValue({ rooms: [], setRooms: vi.fn() });
+  });
+
+  it("never uses an insurance claim damage photo as the home's picture", () => {
+    mockUsePropertyPhotos.mockReturnValue({
+      photosByJob: { "claim_c1": [{ id: "d", jobId: "claim_c1", url: "blob:damage" }], JOB_1: [{ id: "j", jobId: "JOB_1", url: "blob:job" }] },
+      uploadPhoto: vi.fn(),
+      uploadRoomPhoto: vi.fn(),
+    });
+    renderAt("prop-1");
+    expect(screen.getByAltText("Property")).toHaveAttribute("src", "blob:job");
+  });
+});
+
 describe("PropertyDetailPage — score", () => {
   it("shows the real computeScoreWithDecay() result for loaded property/jobs", () => {
     const property = makeProperty();

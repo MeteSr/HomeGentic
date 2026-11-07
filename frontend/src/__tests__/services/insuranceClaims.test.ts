@@ -38,6 +38,8 @@ vi.mock("@icp-sdk/core/agent", () => ({ Actor: { createActor: vi.fn(() => mockAc
 import {
   insuranceClaimService,
   claimPhotoJobId,
+  claimPhotoDescription,
+  claimIdOfPhoto,
   repairQuotePrefill,
   validateClaim,
   validateLogEntry,
@@ -113,8 +115,15 @@ describe("insuranceClaimService", () => {
 });
 
 describe("claim helpers", () => {
-  it("files damage photos under the claim", () => {
+  it("files damage photos under the claim, labelled as claim photos", () => {
     expect(claimPhotoJobId("abc")).toBe("claim_abc");
+    expect(claimIdOfPhoto({ jobId: "claim_abc" })).toBe("abc");
+    expect(claimIdOfPhoto({ jobId: "JOB_1" })).toBeNull();
+    expect(claimIdOfPhoto({ jobId: "claim_" })).toBeNull();
+    expect(claimPhotoDescription("Kitchen leak", "ceiling.jpg")).toBe(
+      "Insurance claim photo: Kitchen leak (ceiling.jpg)",
+    );
+    expect(claimPhotoDescription("x".repeat(200), "y".repeat(200)).length).toBeLessThanOrEqual(200);
   });
 
   it("pre-fills a repair quote from the claim, picking a trade from the cause", () => {
