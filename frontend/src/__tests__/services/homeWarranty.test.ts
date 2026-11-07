@@ -4,15 +4,25 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 const plans = new Map<string, any>();
 const claims = new Map<string, any>();
 const mockActor = {
-  getHomeWarrantyPlan: vi.fn(async (pid: string) => (pid === "missing" ? { err: { NotFound: null } } : { ok: plans.has(pid) ? [plans.get(pid)] : [] })),
+  getHomeWarrantyPlan: vi.fn(async (pid: string) =>
+    pid === "missing" ? { err: { NotFound: null } } : { ok: plans.has(pid) ? [plans.get(pid)] : [] },
+  ),
   setHomeWarrantyPlan: vi.fn(async (pid: string, p: any[]) => {
     if (p.length === 0) plans.delete(pid);
     else plans.set(pid, { ...p[0], updatedAt: 1_700_000_000_000_000_000n });
     return { ok: null };
   }),
-  getHomeWarrantyClaims: vi.fn(async (pid: string) => ({ ok: [...claims.values()].filter((c) => c.propertyId === pid) })),
+  getHomeWarrantyClaims: vi.fn(async (pid: string) => ({
+    ok: [...claims.values()].filter((c) => c.propertyId === pid),
+  })),
   addHomeWarrantyClaim: vi.fn(async (pid: string, c: any) => {
-    const rec = { ...c, id: `c${claims.size + 1}`, propertyId: pid, createdAt: 1_700_000_000_000_000_000n, updatedAt: 1_700_000_000_000_000_000n };
+    const rec = {
+      ...c,
+      id: `c${claims.size + 1}`,
+      propertyId: pid,
+      createdAt: 1_700_000_000_000_000_000n,
+      updatedAt: 1_700_000_000_000_000_000n,
+    };
     claims.set(rec.id, rec);
     return { ok: rec };
   }),
@@ -22,15 +32,23 @@ const mockActor = {
     claims.set(id, rec);
     return { ok: rec };
   }),
-  deleteHomeWarrantyClaim: vi.fn(async (id: string) => (claims.delete(id) ? { ok: null } : { err: { NotFound: null } })),
+  deleteHomeWarrantyClaim: vi.fn(async (id: string) =>
+    claims.delete(id) ? { ok: null } : { err: { NotFound: null } },
+  ),
 };
 
 vi.mock("@/services/actor", () => ({ getAgent: vi.fn().mockResolvedValue({}) }));
 vi.mock("@icp-sdk/core/agent", () => ({ Actor: { createActor: vi.fn(() => mockActor) } }));
 
 import {
-  homeWarrantyService, validatePlan, validateClaim, claimTotals, EMPTY_PLAN, EMPTY_CLAIM,
-  type HomeWarrantyPlan, type WarrantyClaim,
+  homeWarrantyService,
+  validatePlan,
+  validateClaim,
+  claimTotals,
+  EMPTY_PLAN,
+  EMPTY_CLAIM,
+  type HomeWarrantyPlan,
+  type WarrantyClaim,
 } from "@/services/homeWarranty";
 
 const PLAN: HomeWarrantyPlan = {
@@ -66,7 +84,11 @@ describe("homeWarrantyService", () => {
   it("saves the plan in canister units and reads it back", async () => {
     await homeWarrantyService.savePlan("p1", PLAN);
     expect(mockActor.setHomeWarrantyPlan).toHaveBeenCalledWith("p1", [
-      expect.objectContaining({ provider: "American Home Shield", serviceFeeCents: [12_500n], contractDocId: ["doc-1"] }),
+      expect.objectContaining({
+        provider: "American Home Shield",
+        serviceFeeCents: [12_500n],
+        contractDocId: ["doc-1"],
+      }),
     ]);
     const back = await homeWarrantyService.getPlan("p1");
     expect(back).toMatchObject({ ...PLAN, updatedAt: 1_700_000_000_000 });
@@ -77,9 +99,14 @@ describe("homeWarrantyService", () => {
 
   it("adds, edits and deletes claims", async () => {
     const added = await homeWarrantyService.addClaim("p1", CLAIM);
-    expect(mockActor.addHomeWarrantyClaim).toHaveBeenCalledWith("p1", expect.objectContaining({
-      outcome: { PartlyApproved: null }, serviceFeePaidCents: [12_500n], jobId: ["job-1"],
-    }));
+    expect(mockActor.addHomeWarrantyClaim).toHaveBeenCalledWith(
+      "p1",
+      expect.objectContaining({
+        outcome: { PartlyApproved: null },
+        serviceFeePaidCents: [12_500n],
+        jobId: ["job-1"],
+      }),
+    );
     expect(added).toMatchObject({ ...CLAIM, id: "c1" });
     const edited = await homeWarrantyService.updateClaim("c1", { ...CLAIM, outcome: "Approved", jobId: null });
     expect(edited).toMatchObject({ outcome: "Approved", jobId: null });
@@ -122,7 +149,8 @@ describe("validation mirrors the canister", () => {
 
 describe("claimTotals", () => {
   it("adds up fees paid and counts open claims", () => {
-    expect(claimTotals([CLAIM, { ...CLAIM, outcome: "Open", serviceFeePaid: null }, { ...CLAIM, serviceFeePaid: 100 }]))
-      .toEqual({ feesPaid: 225, open: 1, count: 3 });
+    expect(
+      claimTotals([CLAIM, { ...CLAIM, outcome: "Open", serviceFeePaid: null }, { ...CLAIM, serviceFeePaid: 100 }]),
+    ).toEqual({ feesPaid: 225, open: 1, count: 3 });
   });
 });

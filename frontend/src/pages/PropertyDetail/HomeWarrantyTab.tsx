@@ -36,9 +36,26 @@ const labelText: React.CSSProperties = {
 const field: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "0.25rem" };
 const muted: React.CSSProperties = { fontFamily: BODY, fontSize: "0.8125rem", color: "var(--hg-muted)", margin: 0 };
 const ink: React.CSSProperties = { fontFamily: BODY, fontSize: "0.875rem", color: "var(--hg-ink)" };
-const grid: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem" };
-const list: React.CSSProperties = { listStyle: "none", margin: "0.75rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.75rem" };
-const row: React.CSSProperties = { borderTop: "1px solid var(--hg-line)", paddingTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.375rem" };
+const grid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: "1rem",
+};
+const list: React.CSSProperties = {
+  listStyle: "none",
+  margin: "0.75rem 0 0",
+  padding: 0,
+  display: "flex",
+  flexDirection: "column",
+  gap: "0.75rem",
+};
+const row: React.CSSProperties = {
+  borderTop: "1px solid var(--hg-line)",
+  paddingTop: "0.75rem",
+  display: "flex",
+  flexDirection: "column",
+  gap: "0.375rem",
+};
 
 const OUTCOME_TONE: Record<ClaimOutcome, PillTone> = {
   Open: "info",
@@ -55,14 +72,39 @@ function parseAmount(t: string): number | null {
 }
 const amountText = (n: number | null) => (n === null ? "" : String(n));
 
-function TextField({ label, value, onChange, max, area }: { label: string; value: string; onChange: (v: string) => void; max: number; area?: boolean }) {
+function TextField({
+  label,
+  value,
+  onChange,
+  max,
+  area,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  max: number;
+  area?: boolean;
+}) {
   return (
     <label style={field}>
       <span style={labelText}>{label}</span>
       {area ? (
-        <textarea aria-label={label} rows={3} value={value} maxLength={max} onChange={(e) => onChange(e.target.value)} style={{ ...hudInputStyle, resize: "vertical" }} />
+        <textarea
+          aria-label={label}
+          rows={3}
+          value={value}
+          maxLength={max}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ ...hudInputStyle, resize: "vertical" }}
+        />
       ) : (
-        <input aria-label={label} value={value} maxLength={max} onChange={(e) => onChange(e.target.value)} style={hudInputStyle} />
+        <input
+          aria-label={label}
+          value={value}
+          maxLength={max}
+          onChange={(e) => onChange(e.target.value)}
+          style={hudInputStyle}
+        />
       )}
     </label>
   );
@@ -84,7 +126,10 @@ export function HomeWarrantyTab({ propertyId, jobs = [] }: { propertyId: string;
 
   useEffect(() => {
     if (!principal) return;
-    propertyService.getAccessRole(propertyId, principal).then(setRole).catch(() => setRole(null));
+    propertyService
+      .getAccessRole(propertyId, principal)
+      .then(setRole)
+      .catch(() => setRole(null));
   }, [propertyId, principal]);
 
   useEffect(() => {
@@ -106,22 +151,38 @@ export function HomeWarrantyTab({ propertyId, jobs = [] }: { propertyId: string;
   }, [propertyId]);
   useEffect(load, [load]);
 
-  if (state === "loading") return <p style={{ fontFamily: BODY, color: "var(--hg-muted)" }}>Loading the home warranty…</p>;
+  if (state === "loading")
+    return <p style={{ fontFamily: BODY, color: "var(--hg-muted)" }}>Loading the home warranty…</p>;
   if (state === "error") return <LoadError what="the home warranty" onRetry={load} />;
 
-  const docLabel = (id: string | null) => (id ? (docs.find((d) => d.id === id)?.label ?? "A document in Documents") : null);
+  const docLabel = (id: string | null) =>
+    id ? (docs.find((d) => d.id === id)?.label ?? "A document in Documents") : null;
   const jobLabel = (id: string | null) => (id ? (jobs.find((j) => j.id === id)?.label ?? "A job on this home") : null);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       <p style={muted}>
-        Your own record of a home warranty plan (a service contract on the home's systems and appliances) and the
-        claims filed under it. HomeGentic doesn't sell or rate home warranty plans and doesn't contact the company.
-        What's covered is what you enter here or what the contract says. Product and workmanship warranties from
-        jobs are in the Warranty Wallet.
+        Your own record of a home warranty plan (a service contract on the home's systems and appliances) and the claims
+        filed under it. HomeGentic doesn't sell or rate home warranty plans and doesn't contact the company. What's
+        covered is what you enter here or what the contract says. Product and workmanship warranties from jobs are in
+        the Warranty Wallet.
       </p>
-      <PlanPanel propertyId={propertyId} canEdit={canEdit} plan={plan} setPlan={setPlan} docs={docs} docLabel={docLabel} />
-      <ClaimsPanel propertyId={propertyId} canEdit={canEdit} items={claims} setItems={setClaims} jobs={jobs} jobLabel={jobLabel} />
+      <PlanPanel
+        propertyId={propertyId}
+        canEdit={canEdit}
+        plan={plan}
+        setPlan={setPlan}
+        docs={docs}
+        docLabel={docLabel}
+      />
+      <ClaimsPanel
+        propertyId={propertyId}
+        canEdit={canEdit}
+        items={claims}
+        setItems={setClaims}
+        jobs={jobs}
+        jobLabel={jobLabel}
+      />
     </div>
   );
 }
@@ -198,10 +259,16 @@ function PlanPanel({
       {plan && !f && (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ ...ink, fontWeight: 600 }}>{[plan.provider, plan.planName].filter(Boolean).join(" · ")}</span>
+            <span style={{ ...ink, fontWeight: 600 }}>
+              {[plan.provider, plan.planName].filter(Boolean).join(" · ")}
+            </span>
             {status && (
               <Pill tone={status.tone === "passed" ? "bad" : status.tone === "soon" ? "warn" : "neutral"}>
-                {status.tone === "passed" ? "Renewal date passed" : status.days === 0 ? "Renews today" : `Renews in ${status.days} day${status.days === 1 ? "" : "s"}`}
+                {status.tone === "passed"
+                  ? "Renewal date passed"
+                  : status.days === 0
+                    ? "Renews today"
+                    : `Renews in ${status.days} day${status.days === 1 ? "" : "s"}`}
               </Pill>
             )}
           </div>
@@ -211,7 +278,9 @@ function PlanPanel({
               plan.startDate && `Started ${formatIsoDate(plan.startDate)}`,
               plan.contractNumber && `Contract ${plan.contractNumber}`,
               plan.serviceFee !== null && `Service-call fee ${formatDollars(plan.serviceFee)}`,
-            ].filter(Boolean).join(" · ")}
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
           {plan.claimContact && <span style={ink}>To file a claim: {plan.claimContact}</span>}
           {plan.coverageNotes && (
@@ -232,8 +301,8 @@ function PlanPanel({
             </span>
           )}
           <p style={muted}>
-            Paying for the plan monthly or yearly? Add its price under Housing costs on the Bills tab (category Other) so
-            it counts in your home's costs.
+            Paying for the plan monthly or yearly? Add its price under Housing costs on the Bills tab (category Other)
+            so it counts in your home's costs.
           </p>
         </div>
       )}
@@ -247,19 +316,65 @@ function PlanPanel({
       )}
 
       {f && (
-        <form onSubmit={submit} noValidate style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}>
+        <form
+          onSubmit={submit}
+          noValidate
+          style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}
+        >
           <div style={grid}>
-            <TextField label="Home warranty company" value={f.provider} max={100} onChange={(v) => setForm({ ...f, provider: v })} />
-            <TextField label="Plan name" value={f.planName} max={100} onChange={(v) => setForm({ ...f, planName: v })} />
-            <TextField label="Contract number" value={f.contractNumber} max={60} onChange={(v) => setForm({ ...f, contractNumber: v })} />
-            <TextField label="How to file a claim" value={f.claimContact} max={200} onChange={(v) => setForm({ ...f, claimContact: v })} />
-            <TextField label="Service-call fee, $" value={f.serviceFee} max={12} onChange={(v) => setForm({ ...f, serviceFee: v })} />
+            <TextField
+              label="Home warranty company"
+              value={f.provider}
+              max={100}
+              onChange={(v) => setForm({ ...f, provider: v })}
+            />
+            <TextField
+              label="Plan name"
+              value={f.planName}
+              max={100}
+              onChange={(v) => setForm({ ...f, planName: v })}
+            />
+            <TextField
+              label="Contract number"
+              value={f.contractNumber}
+              max={60}
+              onChange={(v) => setForm({ ...f, contractNumber: v })}
+            />
+            <TextField
+              label="How to file a claim"
+              value={f.claimContact}
+              max={200}
+              onChange={(v) => setForm({ ...f, claimContact: v })}
+            />
+            <TextField
+              label="Service-call fee, $"
+              value={f.serviceFee}
+              max={12}
+              onChange={(v) => setForm({ ...f, serviceFee: v })}
+            />
             <DateInput label="Start date" value={f.startDate} onChange={(v) => setForm({ ...f, startDate: v })} />
             <DateInput label="Renewal date" value={f.renewalDate} onChange={(v) => setForm({ ...f, renewalDate: v })} />
-            <DocSelect label="Contract" docs={docs} value={f.contractDocId} onChange={(v) => setForm({ ...f, contractDocId: v })} />
+            <DocSelect
+              label="Contract"
+              docs={docs}
+              value={f.contractDocId}
+              onChange={(v) => setForm({ ...f, contractDocId: v })}
+            />
           </div>
-          <TextField area label="What it covers" value={f.coverageNotes} max={2000} onChange={(v) => setForm({ ...f, coverageNotes: v })} />
-          <TextField area label="What it excludes" value={f.exclusionNotes} max={2000} onChange={(v) => setForm({ ...f, exclusionNotes: v })} />
+          <TextField
+            area
+            label="What it covers"
+            value={f.coverageNotes}
+            max={2000}
+            onChange={(v) => setForm({ ...f, coverageNotes: v })}
+          />
+          <TextField
+            area
+            label="What it excludes"
+            value={f.exclusionNotes}
+            max={2000}
+            onChange={(v) => setForm({ ...f, exclusionNotes: v })}
+          />
           <p style={muted}>Copy coverage and exclusions from the contract. HomeGentic doesn't check them.</p>
           <Problem text={problem} />
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -356,12 +471,16 @@ function ClaimsPanel({
   const f = form;
   return (
     <Panel style={{ padding: "1.5rem" }}>
-      <SectionHeader title="Claims" sub="Service requests filed with the home warranty company, and what came of them." />
+      <SectionHeader
+        title="Claims"
+        sub="Service requests filed with the home warranty company, and what came of them."
+      />
       {items.length === 0 && !f && <p style={muted}>No claims recorded.</p>}
       {items.length > 0 && (
         <>
           <p style={muted}>
-            Service-call fees paid: {formatDollars(totals.feesPaid)} across {totals.count} claim{totals.count === 1 ? "" : "s"}
+            Service-call fees paid: {formatDollars(totals.feesPaid)} across {totals.count} claim
+            {totals.count === 1 ? "" : "s"}
             {totals.open > 0 ? ` · ${totals.open} open` : ""}
           </p>
           <ul style={list}>
@@ -376,7 +495,9 @@ function ClaimsPanel({
                     `Filed ${formatIsoDate(c.dateFiled)}`,
                     c.claimNumber && `Claim ${c.claimNumber}`,
                     c.serviceFeePaid !== null && `Fee paid ${formatDollars(c.serviceFeePaid)}`,
-                  ].filter(Boolean).join(" · ")}
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
                 {c.outcomeNotes && <span style={ink}>{c.outcomeNotes}</span>}
                 {c.jobId && <span style={muted}>Job: {jobLabel(c.jobId)}</span>}
@@ -396,22 +517,49 @@ function ClaimsPanel({
 
       {canEdit && !f && (
         <div style={{ marginTop: "1rem" }}>
-          <Button onClick={() => open({ ...EMPTY_CLAIM, dateFiled: new Date().toISOString().slice(0, 10) })} style={hudButtonStyle("primary")}>
+          <Button
+            onClick={() => open({ ...EMPTY_CLAIM, dateFiled: new Date().toISOString().slice(0, 10) })}
+            style={hudButtonStyle("primary")}
+          >
             Log a claim
           </Button>
         </div>
       )}
 
       {f && (
-        <form onSubmit={(e) => void submit(e)} noValidate style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}>
-          <TextField label="What's the claim for?" value={f.issue} max={120} onChange={(v) => setForm({ ...f, issue: v })} />
+        <form
+          onSubmit={(e) => void submit(e)}
+          noValidate
+          style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}
+        >
+          <TextField
+            label="What's the claim for?"
+            value={f.issue}
+            max={120}
+            onChange={(v) => setForm({ ...f, issue: v })}
+          />
           <div style={grid}>
             <DateInput label="Date filed" value={f.dateFiled} onChange={(v) => setForm({ ...f, dateFiled: v })} />
-            <TextField label="Claim number" value={f.claimNumber} max={60} onChange={(v) => setForm({ ...f, claimNumber: v })} />
-            <TextField label="Service fee paid, $" value={f.serviceFeePaid} max={12} onChange={(v) => setForm({ ...f, serviceFeePaid: v })} />
+            <TextField
+              label="Claim number"
+              value={f.claimNumber}
+              max={60}
+              onChange={(v) => setForm({ ...f, claimNumber: v })}
+            />
+            <TextField
+              label="Service fee paid, $"
+              value={f.serviceFeePaid}
+              max={12}
+              onChange={(v) => setForm({ ...f, serviceFeePaid: v })}
+            />
             <label style={field}>
               <span style={labelText}>Outcome</span>
-              <select aria-label="Outcome" value={f.outcome} onChange={(e) => setForm({ ...f, outcome: e.target.value as ClaimOutcome })} style={hudInputStyle}>
+              <select
+                aria-label="Outcome"
+                value={f.outcome}
+                onChange={(e) => setForm({ ...f, outcome: e.target.value as ClaimOutcome })}
+                style={hudInputStyle}
+              >
                 {CLAIM_OUTCOMES.map((o) => (
                   <option key={o} value={o}>
                     {CLAIM_OUTCOME_LABELS[o]}
@@ -421,7 +569,12 @@ function ClaimsPanel({
             </label>
             <label style={field}>
               <span style={labelText}>Job</span>
-              <select aria-label="Job" value={f.jobId ?? ""} onChange={(e) => setForm({ ...f, jobId: e.target.value || null })} style={hudInputStyle}>
+              <select
+                aria-label="Job"
+                value={f.jobId ?? ""}
+                onChange={(e) => setForm({ ...f, jobId: e.target.value || null })}
+                style={hudInputStyle}
+              >
                 <option value="">None</option>
                 {jobs.map((j) => (
                   <option key={j.id} value={j.id}>
@@ -431,7 +584,13 @@ function ClaimsPanel({
               </select>
             </label>
           </div>
-          <TextField area label="What happened" value={f.outcomeNotes} max={1000} onChange={(v) => setForm({ ...f, outcomeNotes: v })} />
+          <TextField
+            area
+            label="What happened"
+            value={f.outcomeNotes}
+            max={1000}
+            onChange={(v) => setForm({ ...f, outcomeNotes: v })}
+          />
           <Problem text={problem} />
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <Button type="submit" disabled={saving} style={hudButtonStyle("primary")}>

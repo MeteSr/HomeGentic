@@ -2,13 +2,26 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const mockActor = {
   getFloodZone: vi.fn(async (pid: string) =>
-    pid === "none" ? { ok: [] } : {
-      ok: [{
-        status: { Mapped: null }, zone: "AE", zoneSubtype: "", specialFloodHazardArea: true, baseFloodElevation: "8",
-        firmPanel: "12095C0430F", firmEffectiveDate: "2009-09-25", matchedAddress: "18 PALM CT", latitude: "28.5",
-        longitude: "-81.3", checkedAt: 1_762_473_600_000_000_000n,
-      }],
-    }),
+    pid === "none"
+      ? { ok: [] }
+      : {
+          ok: [
+            {
+              status: { Mapped: null },
+              zone: "AE",
+              zoneSubtype: "",
+              specialFloodHazardArea: true,
+              baseFloodElevation: "8",
+              firmPanel: "12095C0430F",
+              firmEffectiveDate: "2009-09-25",
+              matchedAddress: "18 PALM CT",
+              latitude: "28.5",
+              longitude: "-81.3",
+              checkedAt: 1_762_473_600_000_000_000n,
+            },
+          ],
+        },
+  ),
 };
 const { mockFetch } = vi.hoisted(() => ({ mockFetch: vi.fn() }));
 
@@ -19,9 +32,17 @@ vi.mock("@/services/voiceAgentHeaders", () => ({ voiceAgentFetch: mockFetch }));
 import { floodZoneService, describeZone, femaMapUrl, type FloodZone } from "@/services/floodZone";
 
 const AE: FloodZone = {
-  status: "Mapped", zone: "AE", zoneSubtype: "", specialFloodHazardArea: true, baseFloodElevation: "8",
-  firmPanel: "12095C0430F", firmEffectiveDate: "2009-09-25", matchedAddress: "18 PALM CT", latitude: "28.5",
-  longitude: "-81.3", checkedAt: 1_762_473_600_000,
+  status: "Mapped",
+  zone: "AE",
+  zoneSubtype: "",
+  specialFloodHazardArea: true,
+  baseFloodElevation: "8",
+  firmPanel: "12095C0430F",
+  firmEffectiveDate: "2009-09-25",
+  matchedAddress: "18 PALM CT",
+  latitude: "28.5",
+  longitude: "-81.3",
+  checkedAt: 1_762_473_600_000,
 };
 
 beforeEach(() => vi.clearAllMocks());
@@ -79,7 +100,9 @@ describe("describeZone keeps to what FEMA says", () => {
   });
   it("never promises the home won't flood", () => {
     for (const z of ["AE", "X", "D", "VE", "A"]) {
-      expect(describeZone({ ...AE, zone: z, specialFloodHazardArea: /^[AV]/.test(z) })).not.toMatch(/won't flood|safe from|no risk|guarantee/i);
+      expect(describeZone({ ...AE, zone: z, specialFloodHazardArea: /^[AV]/.test(z) })).not.toMatch(
+        /won't flood|safe from|no risk|guarantee/i,
+      );
     }
   });
 });

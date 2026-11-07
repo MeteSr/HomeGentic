@@ -21,15 +21,22 @@ const labelText: React.CSSProperties = {
 const field: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "0.25rem" };
 const muted: React.CSSProperties = { fontFamily: BODY, fontSize: "0.8125rem", color: "var(--hg-muted)", margin: 0 };
 const big: React.CSSProperties = { fontFamily: BODY, fontSize: "1.125rem", fontWeight: 700, color: "var(--hg-ink)" };
-const grid: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem" };
+const grid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: "1rem",
+};
 
 /** $1,896.20, or $279,000 for whole dollars. */
 export function money(n: number): string {
   const whole = Math.abs(n - Math.round(n)) < 0.005;
-  return (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("en-US", {
-    minimumFractionDigits: whole ? 0 : 2,
-    maximumFractionDigits: whole ? 0 : 2,
-  });
+  return (
+    (n < 0 ? "-$" : "$") +
+    Math.abs(n).toLocaleString("en-US", {
+      minimumFractionDigits: whole ? 0 : 2,
+      maximumFractionDigits: whole ? 0 : 2,
+    })
+  );
 }
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
@@ -89,7 +96,14 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
   return (
     <label style={field}>
       <span style={labelText}>{label}</span>
-      <input aria-label={label} value={value} inputMode="decimal" maxLength={100} onChange={(e) => onChange(e.target.value)} style={hudInputStyle} />
+      <input
+        aria-label={label}
+        value={value}
+        inputMode="decimal"
+        maxLength={100}
+        onChange={(e) => onChange(e.target.value)}
+        style={hudInputStyle}
+      />
     </label>
   );
 }
@@ -106,13 +120,18 @@ function Figure({ label, value, note }: { label: string; value: string; note?: s
 
 function Summary({ loan }: { loan: MortgageLoan }) {
   const s = mortgageSummary(loan, Date.now());
-  const balanceNote = s.balanceSource === "statement"
-    ? `From your statement of ${formatIsoDate(loan.statementDate)}`
-    : `On the original schedule after ${s.paymentsMade} payment${s.paymentsMade === 1 ? "" : "s"}; extra payments make it lower`;
+  const balanceNote =
+    s.balanceSource === "statement"
+      ? `From your statement of ${formatIsoDate(loan.statementDate)}`
+      : `On the original schedule after ${s.paymentsMade} payment${s.paymentsMade === 1 ? "" : "s"}; extra payments make it lower`;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <div style={grid}>
-        <Figure label="Principal and interest" value={money(s.principalAndInterest)} note={`${loan.lender ? `${loan.lender}, ` : ""}${loan.annualRatePct}% for ${loan.termMonths / 12} years`} />
+        <Figure
+          label="Principal and interest"
+          value={money(s.principalAndInterest)}
+          note={`${loan.lender ? `${loan.lender}, ` : ""}${loan.annualRatePct}% for ${loan.termMonths / 12} years`}
+        />
         <Figure
           label="Monthly payment with escrow and PMI"
           value={money(s.monthlyTotal)}
@@ -120,7 +139,11 @@ function Summary({ loan }: { loan: MortgageLoan }) {
         />
         <Figure label="Loan balance" value={money(s.balance)} note={balanceNote} />
         {s.equity !== null && s.loanToValue !== null ? (
-          <Figure label="Equity estimate" value={money(s.equity)} note={`${pct(s.loanToValue)} loan-to-value, from the home value you entered`} />
+          <Figure
+            label="Equity estimate"
+            value={money(s.equity)}
+            note={`${pct(s.loanToValue)} loan-to-value, from the home value you entered`}
+          />
         ) : (
           <div style={field}>
             <span style={labelText}>Equity estimate</span>
@@ -223,20 +246,52 @@ export function MortgageSection({ propertyId }: { propertyId: string }) {
         <form onSubmit={submit} noValidate style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div style={grid}>
             <Input label="Lender" value={f.lender} onChange={(v) => setForm({ ...f, lender: v })} />
-            <Input label="Amount borrowed, $" value={f.originalAmount} onChange={(v) => setForm({ ...f, originalAmount: v })} />
-            <Input label="Interest rate, %" value={f.annualRatePct} onChange={(v) => setForm({ ...f, annualRatePct: v })} />
+            <Input
+              label="Amount borrowed, $"
+              value={f.originalAmount}
+              onChange={(v) => setForm({ ...f, originalAmount: v })}
+            />
+            <Input
+              label="Interest rate, %"
+              value={f.annualRatePct}
+              onChange={(v) => setForm({ ...f, annualRatePct: v })}
+            />
             <Input label="Term, years" value={f.termYears} onChange={(v) => setForm({ ...f, termYears: v })} />
-            <DateInput label="First payment date" value={f.firstPaymentDate} onChange={(v) => setForm({ ...f, firstPaymentDate: v })} />
-            <Input label="Home value when you took out the loan, $" value={f.originalValue} onChange={(v) => setForm({ ...f, originalValue: v })} />
-            <Input label="Home value now (your estimate), $" value={f.currentValue} onChange={(v) => setForm({ ...f, currentValue: v })} />
+            <DateInput
+              label="First payment date"
+              value={f.firstPaymentDate}
+              onChange={(v) => setForm({ ...f, firstPaymentDate: v })}
+            />
+            <Input
+              label="Home value when you took out the loan, $"
+              value={f.originalValue}
+              onChange={(v) => setForm({ ...f, originalValue: v })}
+            />
+            <Input
+              label="Home value now (your estimate), $"
+              value={f.currentValue}
+              onChange={(v) => setForm({ ...f, currentValue: v })}
+            />
             <Input label="Monthly PMI, $" value={f.monthlyPmi} onChange={(v) => setForm({ ...f, monthlyPmi: v })} />
-            <Input label="Monthly escrow, $" value={f.monthlyEscrow} onChange={(v) => setForm({ ...f, monthlyEscrow: v })} />
-            <Input label="Balance on your latest statement, $" value={f.statementBalance} onChange={(v) => setForm({ ...f, statementBalance: v })} />
-            <DateInput label="Statement date" value={f.statementDate} onChange={(v) => setForm({ ...f, statementDate: v })} />
+            <Input
+              label="Monthly escrow, $"
+              value={f.monthlyEscrow}
+              onChange={(v) => setForm({ ...f, monthlyEscrow: v })}
+            />
+            <Input
+              label="Balance on your latest statement, $"
+              value={f.statementBalance}
+              onChange={(v) => setForm({ ...f, statementBalance: v })}
+            />
+            <DateInput
+              label="Statement date"
+              value={f.statementDate}
+              onChange={(v) => setForm({ ...f, statementDate: v })}
+            />
           </div>
           <p style={muted}>
-            The home value when you took out the loan is the lower of the purchase price and the appraisal; PMI milestones
-            are counted from it. Escrow is the tax and insurance your lender collects with each payment.
+            The home value when you took out the loan is the lower of the purchase price and the appraisal; PMI
+            milestones are counted from it. Escrow is the tax and insurance your lender collects with each payment.
           </p>
           <Problem text={problem} />
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>

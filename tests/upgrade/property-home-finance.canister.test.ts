@@ -140,7 +140,12 @@ describe("home warranty plan, mortgage details and flood zone", () => {
     for (const name of CANISTERS) {
       const { idlFactory, initArgs } = serviceFromWasm(wasmPath(name));
       svcs[name] = idlFactory({ IDL });
-      const arg = new Uint8Array(IDL.encode(initArgs, initArgs.map(() => admin.getPrincipal())));
+      const arg = new Uint8Array(
+        IDL.encode(
+          initArgs,
+          initArgs.map(() => admin.getPrincipal()),
+        ),
+      );
       ids[name] = (
         await pic.setupCanister({ idlFactory: (() => svcs[name]) as any, wasm: wasmPath(name), arg })
       ).canisterId;
@@ -222,16 +227,23 @@ describe("home warranty plan, mortgage details and flood zone", () => {
     const closed = ok<any>(
       await prop(manager).updateHomeWarrantyClaim(
         acClaim,
-        claim({ outcome: { PartlyApproved: null }, outcomeNotes: "Compressor covered, not the duct work", jobId: ["job-ac"] }),
+        claim({
+          outcome: { PartlyApproved: null },
+          outcomeNotes: "Compressor covered, not the duct work",
+          jobId: ["job-ac"],
+        }),
       ),
     );
     expect(closed).toMatchObject({ outcome: { PartlyApproved: null }, jobId: ["job-ac"] });
     expect(closed.createdAt).toBe(added.createdAt);
 
     const older = ok<any>(
-      await prop(owner).addHomeWarrantyClaim(home, claim({ dateFiled: "2026-04-10", issue: "Dishwasher leak", outcome: { Denied: null } })),
+      await prop(owner).addHomeWarrantyClaim(
+        home,
+        claim({ dateFiled: "2026-04-10", issue: "Dishwasher leak", outcome: { Denied: null } }),
+      ),
     );
-    expect((ok<any[]>(await prop(viewer).getHomeWarrantyClaims(home))).map((c) => c.issue)).toEqual([
+    expect(ok<any[]>(await prop(viewer).getHomeWarrantyClaims(home)).map((c) => c.issue)).toEqual([
       "AC not cooling",
       "Dishwasher leak",
     ]);
@@ -289,7 +301,11 @@ describe("home warranty plan, mortgage details and flood zone", () => {
       expect(errKey(await prop(owner).setMortgageLoan(home, [l]))).toBe("InvalidInput");
     }
     await nextMinute();
-    ok(await prop(owner).setMortgageLoan(home, [loan({ statementBalanceCents: [27_900_000n], statementDate: "2025-01-01" })]));
+    ok(
+      await prop(owner).setMortgageLoan(home, [
+        loan({ statementBalanceCents: [27_900_000n], statementDate: "2025-01-01" }),
+      ]),
+    );
     ok(await prop(owner).setMortgageLoan(other, [loan()]));
     ok(await prop(owner).setMortgageLoan(other, []));
     expect(ok<any>(await prop(owner).getMortgageLoan(other))).toEqual([]);
@@ -298,7 +314,13 @@ describe("home warranty plan, mortgage details and flood zone", () => {
   it("HF.4 saves the FEMA flood zone only through the Worker, for someone on the home", async () => {
     await nextMinute();
     const target = ok<any>(await prop(worker).relayFloodTarget(home, viewer.getPrincipal()));
-    expect(target).toMatchObject({ address: "18 Palm Ct", city: "Orlando", state: "FL", zipCode: "32801", floodZone: [] });
+    expect(target).toMatchObject({
+      address: "18 Palm Ct",
+      city: "Orlando",
+      state: "FL",
+      zipCode: "32801",
+      floodZone: [],
+    });
     expect(errKey(await prop(worker).relayFloodTarget(home, stranger.getPrincipal()))).toBe("NotAuthorized");
     expect(errKey(await prop(owner).relayFloodTarget(home, owner.getPrincipal()))).toBe("NotAuthorized");
     expect(errKey(await prop(worker).relayFloodTarget("no-such-home", owner.getPrincipal()))).toBe("NotFound");
@@ -326,7 +348,18 @@ describe("home warranty plan, mortgage details and flood zone", () => {
     }
     // An area FEMA hasn't mapped is saved as such.
     const unmapped = ok<any>(
-      await prop(worker).relaySetFloodZone(other, owner.getPrincipal(), flood({ status: { NotMapped: null }, zone: "", firmPanel: "", firmEffectiveDate: "", specialFloodHazardArea: false, baseFloodElevation: "" })),
+      await prop(worker).relaySetFloodZone(
+        other,
+        owner.getPrincipal(),
+        flood({
+          status: { NotMapped: null },
+          zone: "",
+          firmPanel: "",
+          firmEffectiveDate: "",
+          specialFloodHazardArea: false,
+          baseFloodElevation: "",
+        }),
+      ),
     );
     expect(unmapped.status).toEqual({ NotMapped: null });
   });
@@ -337,7 +370,16 @@ describe("home warranty plan, mortgage details and flood zone", () => {
     expect(rows[0]).toMatchObject({
       propertyId: home,
       warranty: [{ provider: "American Home Shield", renewalDate: "2027-03-15" }],
-      loan: [{ originalAmountCents: 30_000_000n, rateThousandthsPct: 6_500n, termMonths: 360n, firstPaymentDate: "2024-02-01", originalValueCents: [35_000_000n], monthlyPmiCents: [12_000n] }],
+      loan: [
+        {
+          originalAmountCents: 30_000_000n,
+          rateThousandthsPct: 6_500n,
+          termMonths: 360n,
+          firstPaymentDate: "2024-02-01",
+          originalValueCents: [35_000_000n],
+          monthlyPmiCents: [12_000n],
+        },
+      ],
     });
     expect(Object.keys(rows[0].loan[0])).not.toContain("lender");
     expect(ok<any[]>(await prop(admin).getPulseHomeFinance(owner.getPrincipal()))).toHaveLength(1);

@@ -6,8 +6,14 @@
  */
 import { describe, it, expect } from "vitest";
 import {
-  monthlyPayment, scheduledBalance, paymentsMadeBy, paymentDate, mortgageSummary,
-  pmiMilestones, pmiReminder, type MortgageLoan,
+  monthlyPayment,
+  scheduledBalance,
+  paymentsMadeBy,
+  paymentDate,
+  mortgageSummary,
+  pmiMilestones,
+  pmiReminder,
+  type MortgageLoan,
 } from "@homegentic/shared/mortgage";
 
 const LOAN: MortgageLoan = {

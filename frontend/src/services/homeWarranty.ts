@@ -202,7 +202,11 @@ export const homeWarrantyService = {
   async addClaim(propertyId: string, claim: WarrantyClaim): Promise<WarrantyClaim> {
     const s = e2e();
     if (s) {
-      const rec = { ...claim, id: `hwc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: Date.now() };
+      const rec = {
+        ...claim,
+        id: `hwc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        createdAt: Date.now(),
+      };
       (s.claims[propertyId] ??= []).push(rec);
       return rec;
     }
@@ -249,7 +253,8 @@ export function validatePlan(p: HomeWarrantyPlan): string | null {
   if (p.planName.length > 100) return "Plan name is over 100 characters";
   if (p.contractNumber.length > 60) return "Contract number is over 60 characters";
   if (p.claimContact.length > 200) return "Claim contact is over 200 characters";
-  if (p.serviceFee !== null && !(p.serviceFee >= 0 && p.serviceFee <= MAX_FEE)) return "Service fee must be $0 to $1,000";
+  if (p.serviceFee !== null && !(p.serviceFee >= 0 && p.serviceFee <= MAX_FEE))
+    return "Service fee must be $0 to $1,000";
   if (p.startDate !== "" && !realDate(p.startDate)) return "Enter a real start date";
   if (!realDate(p.renewalDate)) return "Enter a real renewal date";
   if (p.startDate !== "" && p.startDate > p.renewalDate) return "The start date is after the renewal date";
@@ -264,7 +269,8 @@ export function validateClaim(c: WarrantyClaim): string | null {
   if (c.issue.length > 120) return "Issue is over 120 characters";
   if (!realDate(c.dateFiled)) return "Enter a real date filed";
   if (c.claimNumber.length > 60) return "Claim number is over 60 characters";
-  if (c.serviceFeePaid !== null && !(c.serviceFeePaid >= 0 && c.serviceFeePaid <= MAX_FEE)) return "Service fee must be $0 to $1,000";
+  if (c.serviceFeePaid !== null && !(c.serviceFeePaid >= 0 && c.serviceFeePaid <= MAX_FEE))
+    return "Service fee must be $0 to $1,000";
   if (c.outcomeNotes.length > 1000) return "Outcome notes are over 1,000 characters";
   return null;
 }

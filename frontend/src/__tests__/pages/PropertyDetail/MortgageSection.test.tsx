@@ -88,10 +88,19 @@ describe("MortgageSection", () => {
     fireEvent.change(screen.getByLabelText("Monthly escrow, $"), { target: { value: "600" } });
     fireEvent.click(screen.getByRole("button", { name: "Save loan" }));
     await waitFor(() =>
-      expect(mockSave).toHaveBeenCalledWith("p1", expect.objectContaining({
-        originalAmount: 300_000, annualRatePct: 6.5, termMonths: 360, firstPaymentDate: "2024-02-01",
-        currentValue: 410_000, monthlyEscrow: 600, monthlyPmi: null, statementBalance: null,
-      })),
+      expect(mockSave).toHaveBeenCalledWith(
+        "p1",
+        expect.objectContaining({
+          originalAmount: 300_000,
+          annualRatePct: 6.5,
+          termMonths: 360,
+          firstPaymentDate: "2024-02-01",
+          currentValue: 410_000,
+          monthlyEscrow: 600,
+          monthlyPmi: null,
+          statementBalance: null,
+        }),
+      ),
     );
     expect(await screen.findByText("$1,896.20")).toBeInTheDocument();
   });

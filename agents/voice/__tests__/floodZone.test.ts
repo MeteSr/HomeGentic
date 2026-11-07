@@ -20,32 +20,58 @@
 
 import { describe, it, expect, jest } from "@jest/globals";
 import {
-  lookupFloodZone, readFemaZone, FEMA_ZONES_URL, FEMA_PANELS_URL, CENSUS_GEOCODER_URL,
-  FLOOD_PER_USER_DAY, FLOOD_CACHE_MS, type FloodDeps, type FloodTarget,
+  lookupFloodZone,
+  readFemaZone,
+  FEMA_ZONES_URL,
+  FEMA_PANELS_URL,
+  CENSUS_GEOCODER_URL,
+  FLOOD_PER_USER_DAY,
+  FLOOD_CACHE_MS,
+  type FloodDeps,
+  type FloodTarget,
 } from "../src/floodZone";
 
 const CENSUS = {
   result: {
     input: { address: { address: "18 Palm Ct, Orlando, FL 32801" } },
-    addressMatches: [{
-      matchedAddress: "18 PALM CT, ORLANDO, FL, 32801",
-      coordinates: { x: -81.379234, y: 28.538336 },
-      tigerLine: { side: "L", tigerLineId: "86745471" },
-    }],
+    addressMatches: [
+      {
+        matchedAddress: "18 PALM CT, ORLANDO, FL, 32801",
+        coordinates: { x: -81.379234, y: 28.538336 },
+        tigerLine: { side: "L", tigerLineId: "86745471" },
+      },
+    ],
   },
 };
 const NO_MATCH = { result: { input: {}, addressMatches: [] } };
 const zoneFeature = (attrs: Record<string, unknown>) => ({
-  attributes: { FLD_ZONE: "X", ZONE_SUBTY: "AREA OF MINIMAL FLOOD HAZARD", SFHA_TF: "F", STATIC_BFE: -9999, DFIRM_ID: "12095C", ...attrs },
+  attributes: {
+    FLD_ZONE: "X",
+    ZONE_SUBTY: "AREA OF MINIMAL FLOOD HAZARD",
+    SFHA_TF: "F",
+    STATIC_BFE: -9999,
+    DFIRM_ID: "12095C",
+    ...attrs,
+  },
 });
 const ZONES_AE = {
   displayFieldName: "DFIRM_ID",
-  fields: [{ name: "FLD_ZONE" }, { name: "ZONE_SUBTY" }, { name: "SFHA_TF" }, { name: "STATIC_BFE" }, { name: "DFIRM_ID" }],
+  fields: [
+    { name: "FLD_ZONE" },
+    { name: "ZONE_SUBTY" },
+    { name: "SFHA_TF" },
+    { name: "STATIC_BFE" },
+    { name: "DFIRM_ID" },
+  ],
   features: [zoneFeature({}), zoneFeature({ FLD_ZONE: "AE", ZONE_SUBTY: null, SFHA_TF: "T", STATIC_BFE: 87.5 })],
 };
 const PANELS = {
   displayFieldName: "FIRM_PAN",
-  features: [{ attributes: { FIRM_PAN: "12095C0430F", EFF_DATE: Date.UTC(2009, 8, 25), PANEL_TYP: "Countywide, Panel Printed" } }],
+  features: [
+    {
+      attributes: { FIRM_PAN: "12095C0430F", EFF_DATE: Date.UTC(2009, 8, 25), PANEL_TYP: "Countywide, Panel Printed" },
+    },
+  ],
 };
 
 const TARGET: FloodTarget = { address: "18 Palm Ct", city: "Orlando", state: "FL", zipCode: "32801", floodZone: null };
@@ -55,7 +81,9 @@ function kv() {
   return {
     RATE_LIMIT: {
       get: async (k: string) => m.get(k) ?? null,
-      put: async (k: string, v: string) => { m.set(k, v); },
+      put: async (k: string, v: string) => {
+        m.set(k, v);
+      },
     } as unknown as KVNamespace,
   };
 }
@@ -64,7 +92,13 @@ function kv() {
 function upstream(census: unknown = CENSUS, zones: unknown = ZONES_AE, panels: unknown = PANELS, status = 200) {
   return jest.fn(async (url: any) => {
     const u = String(url);
-    const body = u.startsWith(CENSUS_GEOCODER_URL) ? census : u.startsWith(FEMA_ZONES_URL) ? zones : u.startsWith(FEMA_PANELS_URL) ? panels : {};
+    const body = u.startsWith(CENSUS_GEOCODER_URL)
+      ? census
+      : u.startsWith(FEMA_ZONES_URL)
+        ? zones
+        : u.startsWith(FEMA_PANELS_URL)
+          ? panels
+          : {};
     return new Response(JSON.stringify(body), { status });
   }) as unknown as typeof fetch & jest.Mock;
 }
@@ -81,14 +115,24 @@ function deps(over: Partial<FloodDeps> = {}): FloodDeps & { save: jest.Mock; tar
 describe("FLOOD.1 readFemaZone", () => {
   it("takes the special flood hazard area polygon at the point, with its elevation", () => {
     expect(readFemaZone(ZONES_AE, PANELS)).toEqual({
-      status: "Mapped", zone: "AE", zoneSubtype: "", specialFloodHazardArea: true,
-      baseFloodElevation: "87.5", firmPanel: "12095C0430F", firmEffectiveDate: "2009-09-25",
+      status: "Mapped",
+      zone: "AE",
+      zoneSubtype: "",
+      specialFloodHazardArea: true,
+      baseFloodElevation: "87.5",
+      firmPanel: "12095C0430F",
+      firmEffectiveDate: "2009-09-25",
     });
   });
   it("reads a minimal-hazard zone with no elevation", () => {
     expect(readFemaZone({ features: [zoneFeature({})] }, { features: [] })).toEqual({
-      status: "Mapped", zone: "X", zoneSubtype: "AREA OF MINIMAL FLOOD HAZARD", specialFloodHazardArea: false,
-      baseFloodElevation: "", firmPanel: "", firmEffectiveDate: "",
+      status: "Mapped",
+      zone: "X",
+      zoneSubtype: "AREA OF MINIMAL FLOOD HAZARD",
+      specialFloodHazardArea: false,
+      baseFloodElevation: "",
+      firmPanel: "",
+      firmEffectiveDate: "",
     });
   });
   it("calls a point with no FEMA polygon not mapped", () => {
@@ -108,9 +152,16 @@ describe("FLOOD.2 who may look it up", () => {
     const urls = d.fetch.mock.calls.map((c: any[]) => String(c[0]));
     expect(urls[0]).toContain(encodeURIComponent("18 Palm Ct, Orlando, FL 32801").replace(/%20/g, "+"));
     expect(urls.find((u: string) => u.startsWith(FEMA_ZONES_URL))).toContain("geometry=-81.379234%2C28.538336");
-    expect(d.save).toHaveBeenCalledWith("prop-1", "user-1", expect.objectContaining({
-      zone: "AE", matchedAddress: "18 PALM CT, ORLANDO, FL, 32801", latitude: "28.538336", longitude: "-81.379234",
-    }));
+    expect(d.save).toHaveBeenCalledWith(
+      "prop-1",
+      "user-1",
+      expect.objectContaining({
+        zone: "AE",
+        matchedAddress: "18 PALM CT, ORLANDO, FL, 32801",
+        latitude: "28.538336",
+        longitude: "-81.379234",
+      }),
+    );
     expect(r.body).toMatchObject({ cached: false, floodZone: { zone: "AE", specialFloodHazardArea: true } });
   });
 
@@ -123,15 +174,42 @@ describe("FLOOD.2 who may look it up", () => {
   it("refuses a bad id, someone not on the home and a missing home", async () => {
     expect((await lookupFloodZone({ propertyId: "bad id!" }, "user-1", kv(), deps())).status).toBe(400);
     expect((await lookupFloodZone({}, "user-1", kv(), deps())).status).toBe(400);
-    expect((await lookupFloodZone({ propertyId: "p" }, "user-1", kv(), deps({ target: jest.fn(async () => "forbidden" as const) }))).status).toBe(403);
-    expect((await lookupFloodZone({ propertyId: "p" }, "user-1", kv(), deps({ target: jest.fn(async () => "notfound" as const) }))).status).toBe(404);
+    expect(
+      (
+        await lookupFloodZone(
+          { propertyId: "p" },
+          "user-1",
+          kv(),
+          deps({ target: jest.fn(async () => "forbidden" as const) }),
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await lookupFloodZone(
+          { propertyId: "p" },
+          "user-1",
+          kv(),
+          deps({ target: jest.fn(async () => "notfound" as const) }),
+        )
+      ).status,
+    ).toBe(404);
   });
 });
 
 describe("FLOOD.3 cache", () => {
   const saved = (ageMs: number) => ({
-    status: "Mapped" as const, zone: "X", zoneSubtype: "", specialFloodHazardArea: false, baseFloodElevation: "",
-    firmPanel: "", firmEffectiveDate: "", matchedAddress: "", latitude: "", longitude: "", checkedAt: Date.now() - ageMs,
+    status: "Mapped" as const,
+    zone: "X",
+    zoneSubtype: "",
+    specialFloodHazardArea: false,
+    baseFloodElevation: "",
+    firmPanel: "",
+    firmEffectiveDate: "",
+    matchedAddress: "",
+    latitude: "",
+    longitude: "",
+    checkedAt: Date.now() - ageMs,
   });
   it("returns a result under 30 days old without calling out", async () => {
     const d = deps({ target: jest.fn(async () => ({ ...TARGET, floodZone: saved(FLOOD_CACHE_MS - 60_000) })) });
@@ -143,7 +221,9 @@ describe("FLOOD.3 cache", () => {
     const old = deps({ target: jest.fn(async () => ({ ...TARGET, floodZone: saved(FLOOD_CACHE_MS + 60_000) })) });
     expect((await lookupFloodZone({ propertyId: "p" }, "user-1", kv(), old)).body).toMatchObject({ cached: false });
     const fresh = deps({ target: jest.fn(async () => ({ ...TARGET, floodZone: saved(0) })) });
-    expect((await lookupFloodZone({ propertyId: "p", refresh: true }, "user-1", kv(), fresh)).body).toMatchObject({ cached: false });
+    expect((await lookupFloodZone({ propertyId: "p", refresh: true }, "user-1", kv(), fresh)).body).toMatchObject({
+      cached: false,
+    });
   });
 });
 
@@ -155,8 +235,26 @@ describe("FLOOD.4 failures and limits", () => {
     expect(d.save).not.toHaveBeenCalled();
   });
   it("is a 502 when FEMA or the geocoder fails", async () => {
-    expect((await lookupFloodZone({ propertyId: "p" }, "user-1", kv(), deps({ fetch: upstream(CENSUS, ZONES_AE, PANELS, 503) }))).status).toBe(502);
-    expect((await lookupFloodZone({ propertyId: "p" }, "user-1", kv(), deps({ fetch: upstream(CENSUS, { error: { code: 500 } }) }))).status).toBe(502);
+    expect(
+      (
+        await lookupFloodZone(
+          { propertyId: "p" },
+          "user-1",
+          kv(),
+          deps({ fetch: upstream(CENSUS, ZONES_AE, PANELS, 503) }),
+        )
+      ).status,
+    ).toBe(502);
+    expect(
+      (
+        await lookupFloodZone(
+          { propertyId: "p" },
+          "user-1",
+          kv(),
+          deps({ fetch: upstream(CENSUS, { error: { code: 500 } }) }),
+        )
+      ).status,
+    ).toBe(502);
   });
   it("allows a few lookups per user per day", async () => {
     const env = kv();

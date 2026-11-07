@@ -118,7 +118,8 @@ export function validateLoan(l: MortgageLoan): string | null {
   if (l.annualRatePct > 30) return "Interest rate is over 30%";
   if (Math.abs(l.annualRatePct * 1000 - Math.round(l.annualRatePct * 1000)) > 1e-6)
     return "Interest rate can have at most three decimal places";
-  if (!Number.isInteger(l.termMonths) || l.termMonths < 12 || l.termMonths > 480) return "Loan term must be 1 to 40 years";
+  if (!Number.isInteger(l.termMonths) || l.termMonths < 12 || l.termMonths > 480)
+    return "Loan term must be 1 to 40 years";
   if (!realDate(l.firstPaymentDate)) return "Enter the first payment date";
   if (badValue(l.originalValue)) return "Original home value must be more than $0";
   if (badValue(l.currentValue)) return "Current home value must be more than $0";

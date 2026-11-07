@@ -108,7 +108,8 @@ export function scheduledBalance(principal: number, annualRatePct: number, termM
   if (paid >= termMonths) return 0;
   const r = annualRatePct / 1200;
   const pmt = monthlyPayment(principal, annualRatePct, termMonths);
-  const b = r === 0 ? principal - pmt * paid : principal * Math.pow(1 + r, paid) - (pmt * (Math.pow(1 + r, paid) - 1)) / r;
+  const b =
+    r === 0 ? principal - pmt * paid : principal * Math.pow(1 + r, paid) - (pmt * (Math.pow(1 + r, paid) - 1)) / r;
   return Math.max(0, round2(b));
 }
 
@@ -124,7 +125,7 @@ function firstPaymentAtOrBelow(loan: MortgageLoan, target: number): number {
 export function pmiMilestones(loan: MortgageLoan): PmiMilestones | null {
   if (!loan.originalValue || loan.originalValue <= 0) return null;
   return {
-    requestDate:   paymentDate(loan.firstPaymentDate, firstPaymentAtOrBelow(loan, loan.originalValue * 0.8)),
+    requestDate: paymentDate(loan.firstPaymentDate, firstPaymentAtOrBelow(loan, loan.originalValue * 0.8)),
     automaticDate: paymentDate(loan.firstPaymentDate, firstPaymentAtOrBelow(loan, loan.originalValue * 0.78)),
   };
 }
@@ -154,9 +155,7 @@ export function mortgageSummary(loan: MortgageLoan, nowMs: number): MortgageSumm
     loanToValue: value === null ? null : balance / value,
     loanToOriginalValue: original === null ? null : balance / original,
     payoffDate: paymentDate(loan.firstPaymentDate, loan.termMonths),
-    pmi: milestones && original !== null
-      ? { ...milestones, reached80: balance <= original * 0.8 }
-      : null,
+    pmi: milestones && original !== null ? { ...milestones, reached80: balance <= original * 0.8 } : null,
   };
 }
 

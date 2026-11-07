@@ -100,7 +100,15 @@ export function readFemaZone(zonesBody: unknown, panelsBody: unknown): FemaZone 
   const firmPanel = text(panel.FIRM_PAN, 20);
   const firmEffectiveDate = arcDate(panel.EFF_DATE);
   if (zones.length === 0) {
-    return { status: "NotMapped", zone: "", zoneSubtype: "", specialFloodHazardArea: false, baseFloodElevation: "", firmPanel, firmEffectiveDate };
+    return {
+      status: "NotMapped",
+      zone: "",
+      zoneSubtype: "",
+      specialFloodHazardArea: false,
+      baseFloodElevation: "",
+      firmPanel,
+      firmEffectiveDate,
+    };
   }
   const z = zones.find((a) => a.SFHA_TF === "T") ?? zones[0];
   const bfe = typeof z.STATIC_BFE === "number" && z.STATIC_BFE > -9999 ? String(z.STATIC_BFE) : "";
@@ -116,7 +124,10 @@ export function readFemaZone(zonesBody: unknown, panelsBody: unknown): FemaZone 
 }
 
 async function getJson(fetchImpl: typeof fetch, url: string): Promise<any> {
-  const resp = await fetchImpl(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const resp = await fetchImpl(url, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   if (!resp.ok) throw new Error(`upstream ${resp.status}`);
   const body = await resp.text();
   if (body.length > MAX_UPSTREAM_BYTES) throw new Error("upstream response too large");
@@ -162,9 +173,14 @@ export async function lookupFloodZone(
   let lookedUp: FloodZoneInput;
   try {
     const oneLine = `${target.address}, ${target.city}, ${target.state} ${target.zipCode}`;
-    const geo = await getJson(deps.fetch, `${CENSUS_GEOCODER_URL}?${new URLSearchParams({
-      address: oneLine, benchmark: "Public_AR_Current", format: "json",
-    })}`);
+    const geo = await getJson(
+      deps.fetch,
+      `${CENSUS_GEOCODER_URL}?${new URLSearchParams({
+        address: oneLine,
+        benchmark: "Public_AR_Current",
+        format: "json",
+      })}`,
+    );
     const match = geo?.result?.addressMatches?.[0];
     const lng = Number(match?.coordinates?.x);
     const lat = Number(match?.coordinates?.y);

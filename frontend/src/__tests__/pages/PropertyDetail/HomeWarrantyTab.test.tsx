@@ -87,9 +87,16 @@ describe("HomeWarrantyTab", () => {
     fireEvent.change(screen.getByLabelText("Contract"), { target: { value: "doc-1" } });
     fireEvent.click(screen.getByRole("button", { name: "Save plan" }));
     await waitFor(() =>
-      expect(svc.savePlan).toHaveBeenCalledWith("p1", expect.objectContaining({
-        provider: "American Home Shield", serviceFee: 125, renewalDate: "2026-12-07", coverageNotes: "HVAC", contractDocId: "doc-1",
-      })),
+      expect(svc.savePlan).toHaveBeenCalledWith(
+        "p1",
+        expect.objectContaining({
+          provider: "American Home Shield",
+          serviceFee: 125,
+          renewalDate: "2026-12-07",
+          coverageNotes: "HVAC",
+          contractDocId: "doc-1",
+        }),
+      ),
     );
     expect(await screen.findByText("Renews in 30 days")).toBeInTheDocument();
   });
@@ -136,9 +143,16 @@ describe("HomeWarrantyTab", () => {
     fireEvent.change(screen.getByLabelText("Job"), { target: { value: "job-1" } });
     fireEvent.click(screen.getByRole("button", { name: "Save claim" }));
     await waitFor(() =>
-      expect(svc.addClaim).toHaveBeenCalledWith("p1", expect.objectContaining({
-        issue: "Water heater leak", dateFiled: "2026-10-01", serviceFeePaid: 125, jobId: "job-1", outcome: "Open",
-      })),
+      expect(svc.addClaim).toHaveBeenCalledWith(
+        "p1",
+        expect.objectContaining({
+          issue: "Water heater leak",
+          dateFiled: "2026-10-01",
+          serviceFeePaid: 125,
+          jobId: "job-1",
+          outcome: "Open",
+        }),
+      ),
     );
     expect(await screen.findByText("Service-call fees paid: $250 across 2 claims · 1 open")).toBeInTheDocument();
   });
@@ -150,7 +164,9 @@ describe("HomeWarrantyTab", () => {
     fireEvent.click(within(row).getByRole("button", { name: "Edit" }));
     fireEvent.change(screen.getByLabelText("Outcome"), { target: { value: "Denied" } });
     fireEvent.click(screen.getByRole("button", { name: "Save claim" }));
-    await waitFor(() => expect(svc.updateClaim).toHaveBeenCalledWith("c1", expect.objectContaining({ outcome: "Denied" })));
+    await waitFor(() =>
+      expect(svc.updateClaim).toHaveBeenCalledWith("c1", expect.objectContaining({ outcome: "Denied" })),
+    );
     const again = (await screen.findByText("AC not cooling")).closest("li")!;
     fireEvent.click(within(again).getByRole("button", { name: "Delete" }));
     fireEvent.click(within(again).getByRole("button", { name: "Yes, delete" }));

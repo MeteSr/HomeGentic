@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const store = new Map<string, any>();
 const mockActor = {
-  getMortgageLoan: vi.fn(async (pid: string) => (pid === "theirs" ? { err: { NotAuthorized: null } } : { ok: store.has(pid) ? [store.get(pid)] : [] })),
+  getMortgageLoan: vi.fn(async (pid: string) =>
+    pid === "theirs" ? { err: { NotAuthorized: null } } : { ok: store.has(pid) ? [store.get(pid)] : [] },
+  ),
   setMortgageLoan: vi.fn(async (pid: string, l: any[]) => {
     if (l.length === 0) store.delete(pid);
     else store.set(pid, { ...l[0], updatedAt: 1_700_000_000_000_000_000n });
@@ -42,8 +44,12 @@ describe("mortgageLoanService", () => {
     await mortgageLoanService.save("p1", LOAN);
     expect(mockActor.setMortgageLoan).toHaveBeenCalledWith("p1", [
       expect.objectContaining({
-        originalAmountCents: 30_000_000n, rateThousandthsPct: 6_125n, termMonths: 360n,
-        monthlyEscrowCents: [60_050n], statementBalanceCents: [], statementDate: "",
+        originalAmountCents: 30_000_000n,
+        rateThousandthsPct: 6_125n,
+        termMonths: 360n,
+        monthlyEscrowCents: [60_050n],
+        statementBalanceCents: [],
+        statementDate: "",
       }),
     ]);
     expect(await mortgageLoanService.get("p1")).toMatchObject(LOAN);
@@ -72,7 +78,9 @@ describe("validateLoan mirrors the canister", () => {
     expect(validateLoan({ ...LOAN, termMonths: 6 })).toMatch(/1 to 40 years/);
     expect(validateLoan({ ...LOAN, firstPaymentDate: "" })).toMatch(/first payment/i);
     expect(validateLoan({ ...LOAN, statementBalance: 250_000, statementDate: "" })).toMatch(/statement/i);
-    expect(validateLoan({ ...LOAN, statementBalance: 300_001, statementDate: "2025-01-01" })).toMatch(/more than the amount borrowed/i);
+    expect(validateLoan({ ...LOAN, statementBalance: 300_001, statementDate: "2025-01-01" })).toMatch(
+      /more than the amount borrowed/i,
+    );
     expect(validateLoan({ ...LOAN, currentValue: 0 })).toMatch(/current home value/i);
   });
 });

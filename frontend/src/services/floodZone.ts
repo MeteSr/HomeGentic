@@ -59,7 +59,8 @@ function e2e(): Record<string, FloodZone> | undefined {
 }
 
 const LOOKUP_ERRORS: Record<string, string> = {
-  address_not_found: "The Census Bureau's address search couldn't find this address, so FEMA's map can't be checked for it. Look it up on FEMA's map instead.",
+  address_not_found:
+    "The Census Bureau's address search couldn't find this address, so FEMA's map can't be checked for it. Look it up on FEMA's map instead.",
   daily_flood_lookup_limit_reached: "You've reached today's flood zone lookups. Try again tomorrow.",
   flood_lookup_failed: "FEMA's map service didn't answer. Try again in a few minutes.",
   flood_save_failed: "FEMA answered but the result couldn't be saved. Try again in a few minutes.",
@@ -106,7 +107,7 @@ export function describeZone(z: FloodZone): string {
     return "FEMA calls this a coastal high hazard area: a special flood hazard area (1% or more chance of flooding in any year) that also gets storm waves.";
   }
   if (z.specialFloodHazardArea || zone.startsWith("A")) {
-    return "FEMA calls this a special flood hazard area: land with a 1% or more chance of flooding in any year (the \"100-year flood\").";
+    return 'FEMA calls this a special flood hazard area: land with a 1% or more chance of flooding in any year (the "100-year flood").';
   }
   if (zone === "D") {
     return "FEMA lists the flood hazard here as undetermined: possible, but not studied.";
