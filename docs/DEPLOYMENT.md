@@ -577,6 +577,13 @@ accepting person's name, role and email, origin `https://homegentic.app`, the li
 Privacy Policy URL, and the terms version), and ask there to be added to the connector's known-app list so
 users can say "HomeGentic" instead of giving the URL.
 
+**Internet Identity app metadata.** Every build also writes `/.well-known/ii-app-metadata` (name, tagline and
+`/ii-logo.png`, from `frontend/scripts/iiAppMetadata.mjs`), which II reads from the derivation origin to show
+HomeGentic's name and logo on its sign-in screen and on notifications. The build fails if the document breaks
+a rule II applies (II would otherwise ignore all of it silently), and `scripts/smoke-deployed.sh` checks that
+the document and logo answer 200 with the right type and CORS. II caches what it reads, so a change can take a
+while to show.
+
 ## Frontend build variables
 
 `frontend/vite.config.ts` reads `.env` at the repo root (which `deploy.sh`

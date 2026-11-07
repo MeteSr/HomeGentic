@@ -22,12 +22,14 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
 import { wellKnownFiles } from "./appLinks.mjs";
 import { discoveryFiles } from "./icArchitecture.mjs";
+import { APP_METADATA, LOGO_PATH, appMetadataProblems, pngInfo } from "./iiAppMetadata.mjs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT    = resolve(__dirname, "../..");
-const DIST    = resolve(__dirname, "../dist");
+// IC_ASSETS_DIST lets a test write somewhere other than the real dist/.
+const DIST    = process.env.IC_ASSETS_DIST ? resolve(process.env.IC_ASSETS_DIST) : resolve(__dirname, "../dist");
 
 // ── Load .env from project root ───────────────────────────────────────────────
 // dfx writes CANISTER_ID_* here; VITE_VOICE_AGENT_URL must be pre-populated.
@@ -166,6 +168,28 @@ block("/.well-known/ii-alternative-origins", {
   "Access-Control-Allow-Origin": "*",
   "Content-Type": "application/json",
 });
+
+// II app metadata (iiAppMetadata.mjs): the name, tagline and logo II shows on
+// its sign-in screen and on notifications. II reads both the document and the
+// logo cross-origin, so both need CORS. An invalid document is ignored whole,
+// so the build fails on one rather than shipping it.
+{
+  const problems = appMetadataProblems(APP_METADATA);
+  const logo = resolve(__dirname, "../public", LOGO_PATH.slice(1));
+  const info = existsSync(logo) ? pngInfo(readFileSync(logo)) : null;
+  if (!info) problems.push(`logo ${LOGO_PATH} is missing from public/ or is not a PNG`);
+  if (problems.length) {
+    console.error(`[gen-ic-assets] FATAL: ii-app-metadata is invalid:\n  ${problems.join("\n  ")}`);
+    process.exit(1);
+  }
+  mkdirSync(resolve(DIST, ".well-known"), { recursive: true });
+  writeFileSync(resolve(DIST, ".well-known", "ii-app-metadata"), JSON.stringify(APP_METADATA) + "\n");
+  block("/.well-known/ii-app-metadata", {
+    "Access-Control-Allow-Origin": "*",
+    "Content-Type": "application/json",
+  });
+  block(LOGO_PATH, { "Access-Control-Allow-Origin": "*" });
+}
 
 // Universal links: iOS wants the association file served as JSON despite
 // having no extension.
