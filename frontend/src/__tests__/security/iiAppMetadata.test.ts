@@ -97,7 +97,14 @@ describe("gen-ic-assets.mjs", () => {
     env: { ...process.env, IC_ASSETS_DIST: dist, VITE_VOICE_AGENT_URL: "https://voice.example", DFX_NETWORK: "local" },
     stdio: "pipe",
   });
-  const headers = readFileSync(join(dist, "_headers"), "utf8");
+  // _headers as { pattern: ["Name: value", ...] }: a pattern line, then indented header lines.
+  const headers: Record<string, string[]> = {};
+  let current = "";
+  for (const line of readFileSync(join(dist, "_headers"), "utf8").split("\n")) {
+    if (line.startsWith("/")) headers[(current = line.trim())] = [];
+    else if (line.startsWith("  ") && current) headers[current].push(line.trim());
+    else current = "";
+  }
 
   it("writes the document under .well-known", () => {
     const file = join(dist, ".well-known", "ii-app-metadata");
@@ -108,12 +115,12 @@ describe("gen-ic-assets.mjs", () => {
   });
 
   it("serves the document as JSON with CORS", () => {
-    expect(headers).toMatch(/\/\.well-known\/ii-app-metadata\n(\s+[^\n]+\n)*?\s+Access-Control-Allow-Origin: \*/);
-    expect(headers).toMatch(/\/\.well-known\/ii-app-metadata\n(\s+[^\n]+\n)*?\s+Content-Type: application\/json/);
+    expect(headers["/.well-known/ii-app-metadata"]).toEqual(
+      expect.arrayContaining(["Access-Control-Allow-Origin: *", "Content-Type: application/json"]),
+    );
   });
 
   it("serves the logo with CORS", () => {
-    const esc = LOGO_PATH.replace(/[.]/g, "\\.");
-    expect(headers).toMatch(new RegExp(`${esc}\\n(\\s+[^\\n]+\\n)*?\\s+Access-Control-Allow-Origin: \\*`));
+    expect(headers[LOGO_PATH]).toContain("Access-Control-Allow-Origin: *");
   });
 });
