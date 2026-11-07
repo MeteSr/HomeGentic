@@ -55,6 +55,8 @@ function repo({ missing = [] } = {}) {
     }),
   );
 
+  writeFileSync(join(dir, "ii-app-metadata.json"), JSON.stringify({ name: "HomeGentic", description: "x", logo: "/ii-logo.png" }));
+
   const bin = join(dir, "bin");
   mkdirSync(bin);
   const sh = (name, body) => {
@@ -84,6 +86,10 @@ case "$url" in
   */health) printf '%s' "\${FAKE_HEALTH:-200}" ;;
   */.well-known/ic-architecture) if [ -n "\${FAKE_MANIFEST+x}" ]; then printf '%s' "$FAKE_MANIFEST"; else cat "${dir}/manifest.json"; fi ;;
   */.well-known/ii-derivation-origin) printf '%s\\n' "\${FAKE_ORIGIN:-https://frontend-id.icp0.io}" ;;
+  */.well-known/ii-app-metadata)
+    if [[ "$*" == *"%{http_code}"* ]]; then printf '%s' "\${FAKE_META_HEAD:-200 application/json *}"
+    elif [ -n "\${FAKE_META+x}" ]; then printf '%s' "$FAKE_META"; else cat "${dir}/ii-app-metadata.json"; fi ;;
+  */ii-logo.png) printf '%s' "\${FAKE_LOGO_HEAD:-200 image/png *}" ;;
   *) printf '%s' "\${FAKE_INDEX-<div id=\\"root\\"></div>}" ;;
 esac`,
   );
@@ -158,7 +164,28 @@ test("smoke: a wrong II derivation origin fails; ICP_MCP_DISABLED skips the MCP 
   res = run(r, "scripts/smoke-deployed.sh", { ICP_MCP_DISABLED: "1", FAKE_ORIGIN: "wrong" });
   assert.equal(res.code, 0, res.out);
   assert.match(res.out, /skipped: ICP_MCP_DISABLED=1/);
-  assert.doesNotMatch(log(r, "curl.log"), /well-known/);
+  assert.doesNotMatch(log(r, "curl.log"), /ic-architecture|ii-derivation-origin/);
+});
+
+test("smoke: II app metadata must name HomeGentic, be JSON with CORS, and its logo a PNG with CORS", () => {
+  let res = run(repo(), "scripts/smoke-deployed.sh");
+  assert.equal(res.code, 0, res.out);
+  assert.match(res.out, /✓ ii-app-metadata and logo/);
+  res = run(repo(), "scripts/smoke-deployed.sh", { FAKE_META: "<!doctype html>" });
+  assert.equal(res.code, 1);
+  assert.match(res.out, /ii-app-metadata is missing, not JSON, or doesn't name HomeGentic/);
+  res = run(repo(), "scripts/smoke-deployed.sh", { FAKE_META_HEAD: "200 text/html " });
+  assert.equal(res.code, 1);
+  assert.match(res.out, /ii-app-metadata answered '200 text\/html '/);
+  res = run(repo(), "scripts/smoke-deployed.sh", { FAKE_META_HEAD: "302 application/json *" });
+  assert.equal(res.code, 1);
+  res = run(repo(), "scripts/smoke-deployed.sh", { FAKE_LOGO_HEAD: "200 image/png " });
+  assert.equal(res.code, 1);
+  assert.match(res.out, /ii-logo\.png answered '200 image\/png '/);
+  // Not part of ICP MCP, so the MCP off switch doesn't skip it.
+  const r = repo();
+  res = run(r, "scripts/smoke-deployed.sh", { ICP_MCP_DISABLED: "1" });
+  assert.match(log(r, "curl.log"), /ii-app-metadata/);
 });
 
 test("smoke: the Worker check retries /health five times before failing", () => {

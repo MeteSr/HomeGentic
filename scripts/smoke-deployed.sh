@@ -11,7 +11,8 @@
 #      manifest (matching canister_ids.json), a getApiDoc() answer from each
 #      listed canister, the II derivation origin, and that the
 #      PUBLIC_CANISTER_ID variables in its ic_env cookie match
-#      canister_ids.json for every canister;
+#      canister_ids.json for every canister, and Internet Identity's
+#      app-metadata document and logo (JSON/PNG, CORS, no redirect);
 #   4. with VOICE_AGENT_URL set, the voice Worker's /health is 200 (it checks
 #      its own canister IDs and secrets).
 #
@@ -89,6 +90,23 @@ if [ "${ONLY:-}" != "worker" ]; then
       fi
       origin=$(curl -fsS --max-time 30 "https://$fe.icp0.io/.well-known/ii-derivation-origin" 2>/dev/null | head -1 || true)
       if [ "$origin" = "https://$fe.icp0.io" ]; then echo "  ✓ ii-derivation-origin"; else fail "ii-derivation-origin is '${origin}', want https://$fe.icp0.io"; fi
+    fi
+
+    # II reads these cross-origin from the derivation origin (this address)
+    # and ignores a document that redirects, so check status, type and CORS.
+    echo "▶ II app metadata"
+    meta_url="https://$fe.icp0.io/.well-known/ii-app-metadata"
+    meta=$(curl -fsS --max-time 30 "$meta_url" 2>/dev/null || true)
+    logo=$(python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["name"]=="HomeGentic" and d["logo"].startswith("/"); print(d["logo"])' "$meta" 2>/dev/null || true)
+    if [ -z "$logo" ]; then
+      fail "ii-app-metadata is missing, not JSON, or doesn't name HomeGentic"
+    else
+      head_of() { curl -sS --max-time 30 -o /dev/null -w '%{http_code} %{content_type} %header{access-control-allow-origin}' "$1" 2>/dev/null || true; }
+      meta_head=$(head_of "$meta_url")
+      logo_head=$(head_of "https://$fe.icp0.io$logo")
+      if [[ ! "$meta_head" =~ ^200\ application/json[^\ ]*\ \*$ ]]; then fail "ii-app-metadata answered '$meta_head', want 200 application/json with Access-Control-Allow-Origin *"
+      elif [[ ! "$logo_head" =~ ^200\ image/png\ \*$ ]]; then fail "$logo answered '$logo_head', want 200 image/png with Access-Control-Allow-Origin *"
+      else echo "  ✓ ii-app-metadata and logo"; fi
     fi
   fi
 fi
