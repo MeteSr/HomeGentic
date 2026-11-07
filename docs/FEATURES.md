@@ -387,9 +387,14 @@ Multi-tab page — the main workspace for a property.
 - Verification depth: share of jobs verified
 - The dashboard also applies decay for overdue maintenance; reports and certificates use the plain formula
 
+**Insurance policy** (property page → Insurance tab, #711)
+- The household's own copy of the declarations page: insurance company, policy number, renewal date, Coverage A and hurricane deductible (a percent of Coverage A, worked out in dollars, or a flat amount). Owners, co-owners and managers edit it; viewers read it
+- Stored on the property canister (`setInsurancePolicy` / `getInsurancePolicy`, side map keyed by property id); dropped when the home is transferred or the owner deletes their data. Nothing is checked with or sent to the insurer
+- Shows how many days to renewal, and flags a renewal date that has passed; the weekly Home Pulse email reminds in the 60 days before it
+
 **Weekly Home Pulse email** (`agents/notifications/pulse.ts`)
 - Mondays from 13:00 UTC, to homeowners who haven't turned it off (Settings → Notifications → Email: Weekly Home Pulse, on by default)
-- Per property: HomeGentic Score, jobs waiting on the homeowner's signature, systems past or near their rated life, warranties ending within 60 days, and the season's priorities for the climate zone with the last matching job
+- Per property: HomeGentic Score, jobs waiting on the homeowner's signature, a home insurance renewal within 60 days (from the policy saved on the Insurance tab), systems past or near their rated life, warranties ending within 60 days, and the season's priorities for the climate zone with the last matching job
 - One-click unsubscribe (RFC 8058); resumes where it stopped after a restart, never sends twice in a week
 
 ---

@@ -17,7 +17,7 @@ import {
 import { getPrefs } from "../prefs";
 import { scoreBreakdown } from "../../../packages/shared/src/score";
 import { buildApp } from "../server";
-import type { PulseJob, PulseProperty } from "../types";
+import type { PulseInsurance, PulseJob, PulseProperty } from "../types";
 
 // Monday 2026-10-19 14:00 UTC (ISO week 43); autumn.
 const MONDAY = Date.UTC(2026, 9, 19, 14);
@@ -83,6 +83,28 @@ describe("buildSection", () => {
     const w = s.items.filter((i) => i.tag === "WARRANTY");
     expect(w).toHaveLength(1);
     expect(w[0].title).toBe("Water heater: warranty ends Nov 15, 2026");
+  });
+
+  it("reminds about an insurance renewal in the next 60 days, without promising a premium", () => {
+    const policy = (renewalDate: string): PulseInsurance => ({ propertyId: "P1", carrier: "Citizens", renewalDate });
+    const tagged = (p: PulseInsurance | null) =>
+      buildSection({ ...HOUSE, yearBuilt: 2024 }, [], [], MONDAY, p).items.filter((i) => i.tag === "INSURANCE");
+
+    const [soon] = tagged(policy("2026-12-03"));
+    expect(soon.title).toBe("Home insurance renews Dec 3, 2026");
+    expect(soon.body).toContain("Citizens");
+    expect(soon.body).not.toMatch(/\$|\bsave\b|savings|lower|discount|guarantee/i);
+    // Renewing today still counts; past, too far out, unreadable or absent doesn't.
+    expect(tagged(policy("2026-10-19"))).toHaveLength(1);
+    expect(tagged(policy("2026-10-18"))).toHaveLength(0);
+    expect(tagged(policy("2026-12-19"))).toHaveLength(0);
+    expect(tagged(policy("not-a-date"))).toHaveLength(0);
+    expect(tagged(null)).toHaveLength(0);
+  });
+
+  it("puts the insurance renewal ahead of system-life items", () => {
+    const s = buildSection(HOUSE, [], [], MONDAY, { propertyId: "P1", carrier: "Citizens", renewalDate: "2026-11-01" });
+    expect(s.items[0].tag).toBe("INSURANCE");
   });
 
   it("adds this season's priorities for the climate zone, with the last matching job", () => {
@@ -151,6 +173,7 @@ describe("runPulse", () => {
       getProperties: jest.fn(async (o: string) => (o === "2vxsx-fae" ? [] : [HOUSE])),
       getJobs:       jest.fn(async () => [job()]),
       getSnapshots:  jest.fn(async () => []),
+      getInsurance:  jest.fn(async () => []),
       wantsPulse:    () => true,
       send:          jest.fn(async () => undefined),
       pause:         async () => undefined,
@@ -174,6 +197,19 @@ describe("runPulse", () => {
     expect(await runPulse(MONDAY + 3_600_000, d)).toBe(0);
     expect(await runPulse(MONDAY + 86_400_000, d)).toBe(0);
     expect(getPulseState()).toMatchObject({ week: "2026-W43", done: true });
+  });
+
+  it("adds each property's insurance renewal, and still sends when the renewals can't be read", async () => {
+    const d = deps({
+      getInsurance: jest.fn(async () => [{ propertyId: "P1", carrier: "Citizens", renewalDate: "2026-11-20" }]),
+    });
+    await runPulse(MONDAY, d);
+    expect(d.send.mock.calls[0][1].text).toContain("[INSURANCE] Home insurance renews Nov 20, 2026");
+
+    resetPulseState();
+    const broken = deps({ getInsurance: jest.fn(async () => { throw new Error("no such method"); }) });
+    expect(await runPulse(MONDAY, broken)).toBe(2);
+    expect(broken.send.mock.calls[0][1].text).not.toContain("[INSURANCE]");
   });
 
   it("doesn't run before Monday's send hour, or without email or a public URL", async () => {

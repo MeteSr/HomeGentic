@@ -2830,6 +2830,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok:vec record {id:nat; status:variant {Approved; Declined; Pending}; createdAt:int; description:text; propertyId:text; amountCents:nat; requesterName:text; requestedBy:principal}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "getInsurancePolicy": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:opt record {coverageACents:opt nat; updatedAt:int; hurricaneDeductible:opt variant {Amount:nat; PercentOfCoverageA:nat}; carrier:text; policyNumber:text; renewalDate:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "getJobPropertyAddresses": {
     "args": [
       "vec text",
@@ -3018,6 +3029,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "opt nat",
     ],
   },
+  "getPulseInsurance": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {propertyId:text; carrier:text; renewalDate:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "getPulseProperties": {
     "args": [
       "principal",
@@ -3184,6 +3206,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "text",
       "nat",
       "bool",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "setInsurancePolicy": {
+    "args": [
+      "text",
+      "opt record {coverageACents:opt nat; hurricaneDeductible:opt variant {Amount:nat; PercentOfCoverageA:nat}; carrier:text; policyNumber:text; renewalDate:text}",
     ],
     "mode": [],
     "rets": [

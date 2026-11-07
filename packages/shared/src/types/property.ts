@@ -66,6 +66,17 @@ export type PendingApprovalRequest = {
 
 export type ApprovalStatus = { Approved: null } | { Declined: null } | { Pending: null };
 
+export type InsurancePolicy = {
+  coverageACents: [] | [bigint];
+  updatedAt: bigint;
+  hurricaneDeductible: [] | [HurricaneDeductible];
+  carrier: string;
+  policyNumber: string;
+  renewalDate: string;
+};
+
+export type HurricaneDeductible = { Amount: bigint } | { PercentOfCoverageA: bigint };
+
 export type ManagerInvite = {
   token: string;
   expiresAt: bigint;
@@ -171,6 +182,14 @@ export type RegisterArgs = {
   yearBuilt: bigint;
 };
 
+export type InsurancePolicyInput = {
+  coverageACents: [] | [bigint];
+  hurricaneDeductible: [] | [HurricaneDeductible];
+  carrier: string;
+  policyNumber: string;
+  renewalDate: string;
+};
+
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
   cancelManagerInvite: ActorMethod<[string, string], { ok: null } | { err: Error }>;
@@ -199,6 +218,7 @@ export interface _SERVICE {
   >;
   getApiDoc: ActorMethod<[], string>;
   getApprovals: ActorMethod<[string], { ok: PendingApprovalRequest[] } | { err: Error }>;
+  getInsurancePolicy: ActorMethod<[string], { ok: [] | [InsurancePolicy] } | { err: Error }>;
   getJobPropertyAddresses: ActorMethod<
     [string[]],
     Array<{
@@ -224,6 +244,17 @@ export interface _SERVICE {
   getPropertyManagers: ActorMethod<[string], { ok: PropertyManager[] } | { err: Error }>;
   getPropertyOwner: ActorMethod<[string], [] | [Principal]>;
   getPropertyYearBuilt: ActorMethod<[string], [] | [bigint]>;
+  getPulseInsurance: ActorMethod<
+    [Principal],
+    | {
+        ok: Array<{
+          propertyId: string;
+          carrier: string;
+          renewalDate: string;
+        }>;
+      }
+    | { err: Error }
+  >;
   getPulseProperties: ActorMethod<
     [Principal],
     | {
@@ -253,6 +284,7 @@ export interface _SERVICE {
   requestApproval: ActorMethod<[string, string, bigint], { ok: bigint } | { err: Error }>;
   resignAsManager: ActorMethod<[string], { ok: null } | { err: Error }>;
   respondToApproval: ActorMethod<[string, bigint, boolean], { ok: null } | { err: Error }>;
+  setInsurancePolicy: ActorMethod<[string, [] | [InsurancePolicyInput]], { ok: null } | { err: Error }>;
   submitVerification: ActorMethod<[string, string, string, [] | [string]], { ok: Property } | { err: Error }>;
   updateManagerRole: ActorMethod<[string, Principal, ManagerRole, [] | [bigint]], { ok: null } | { err: Error }>;
   verifyProperty: ActorMethod<

@@ -70,6 +70,22 @@ export const idlFactory = ({ IDL }: any) => {
     squareFeet: IDL.Nat,
     tier: SubscriptionTier,
   });
+  const HurricaneDeductible = IDL.Variant({ PercentOfCoverageA: IDL.Nat, Amount: IDL.Nat });
+  const InsurancePolicyInput = IDL.Record({
+    carrier:             IDL.Text,
+    policyNumber:        IDL.Text,
+    renewalDate:         IDL.Text,
+    coverageACents:      IDL.Opt(IDL.Nat),
+    hurricaneDeductible: IDL.Opt(HurricaneDeductible),
+  });
+  const InsurancePolicy = IDL.Record({
+    carrier:             IDL.Text,
+    policyNumber:        IDL.Text,
+    renewalDate:         IDL.Text,
+    coverageACents:      IDL.Opt(IDL.Nat),
+    hurricaneDeductible: IDL.Opt(HurricaneDeductible),
+    updatedAt:           IDL.Int,
+  });
   const Error = IDL.Variant({
     NotFound: IDL.Null,
     NotAuthorized: IDL.Null,
@@ -200,6 +216,26 @@ export const idlFactory = ({ IDL }: any) => {
         ok: IDL.Vec(IDL.Record({
           id: IDL.Text, address: IDL.Text, city: IDL.Text, state: IDL.Text, zipCode: IDL.Text, yearBuilt: IDL.Nat,
         })),
+        err: Error,
+      })],
+      ["query"]
+    ),
+    // #711: the home's insurance policy (household) and renewal dates for the
+    // weekly Home Pulse email (notification relay only).
+    getInsurancePolicy: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Opt(InsurancePolicy), err: Error })],
+      ["query"]
+    ),
+    setInsurancePolicy: IDL.Func(
+      [IDL.Text, IDL.Opt(InsurancePolicyInput)],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    getPulseInsurance: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({
+        ok: IDL.Vec(IDL.Record({ propertyId: IDL.Text, carrier: IDL.Text, renewalDate: IDL.Text })),
         err: Error,
       })],
       ["query"]

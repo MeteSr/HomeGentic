@@ -16,7 +16,7 @@
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
-import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, PulseJob, PulseProperty, PulseRecipient } from "./types";
+import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, PulseInsurance, PulseJob, PulseProperty, PulseRecipient } from "./types";
 import type { ScoreJob } from "../../packages/shared/src/score";
 import { rootKeyFor } from "../../packages/shared/src/rootKey";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
@@ -233,6 +233,16 @@ export async function getPulseProperties(owner: string): Promise<PulseProperty[]
   return res.ok.map((p: any) => ({
     id: p.id, address: p.address, city: p.city, state: p.state, zipCode: p.zipCode, yearBuilt: Number(p.yearBuilt),
   }));
+}
+
+/** #711: carrier and renewal date of `owner`'s saved insurance policies (needs addNotifier on property). */
+export async function getPulseInsurance(owner: string): Promise<PulseInsurance[]> {
+  const property = Actor.createActor(propertyIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_PROPERTY"),
+  }) as any;
+  const res = await property.getPulseInsurance(Principal.fromText(owner));
+  if ("err" in res) throw new Error(`getPulseInsurance: ${Object.keys(res.err)[0]}`);
+  return res.ok.map((p: any) => ({ propertyId: p.propertyId, carrier: p.carrier, renewalDate: p.renewalDate }));
 }
 
 /** All of `owner`'s jobs (needs addNotifier on job). */

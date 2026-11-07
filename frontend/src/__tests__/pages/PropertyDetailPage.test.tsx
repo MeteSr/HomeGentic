@@ -53,6 +53,7 @@ vi.mock("@/pages/PropertyDetail/DocumentsTab", () => ({ DocumentsTab: () => <div
 vi.mock("@/pages/PropertyDetail/SettingsTab", () => ({ SettingsTab: () => <div data-testid="tab-settings" /> }));
 vi.mock("@/pages/PropertyDetail/RoomsTab", () => ({ RoomsTab: () => <div data-testid="tab-rooms" /> }));
 vi.mock("@/pages/PropertyDetail/BillsTab", () => ({ BillsTab: () => <div data-testid="tab-bills" /> }));
+vi.mock("@/pages/PropertyDetail/InsuranceTab", () => ({ InsuranceTab: () => <div data-testid="tab-insurance" /> }));
 
 function makeProperty(overrides: Partial<Property> = {}): Property {
   return {
@@ -136,6 +137,12 @@ describe("PropertyDetailPage — tabs", () => {
     fireEvent.click(screen.getByText("Jobs (2)"));
     expect(screen.getByTestId("tab-jobs")).toBeInTheDocument();
     expect(screen.queryByTestId("tab-timeline")).not.toBeInTheDocument();
+  });
+
+  it("has an Insurance tab for the home's policy", () => {
+    renderAt("prop-1");
+    fireEvent.click(screen.getByText("Insurance"));
+    expect(screen.getByTestId("tab-insurance")).toBeInTheDocument();
   });
 });
 

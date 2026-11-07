@@ -96,6 +96,13 @@ export interface PulseProperty {
   yearBuilt: number;
 }
 
+/** #711: an insurance policy's renewal, for the reminder in the weekly email. */
+export interface PulseInsurance {
+  propertyId:  string;
+  carrier:     string;
+  renewalDate: string;   // "YYYY-MM-DD"
+}
+
 /** The job fields the weekly email reads. */
 export interface PulseJob {
   id:               string;
