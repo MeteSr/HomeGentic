@@ -56,6 +56,7 @@ export interface _SERVICE {
   beginUpload: ActorMethod<[string, string, ConstructionPhase, string, string, bigint], { ok: Photo } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   deletePhoto: ActorMethod<[string], { ok: null } | { err: Error }>;
+  getGuidePhotoData: ActorMethod<[string, string], { ok: Uint8Array | number[] } | { err: Error }>;
   getListingPhotoDataBatch: ActorMethod<[string[]], Array<[string, Uint8Array | number[]]>>;
   getMyOffChainPhotoIds: ActorMethod<[], string[]>;
   getPhotoDataBatch: ActorMethod<[string[]], Array<[string, Uint8Array | number[]]>>;
@@ -63,6 +64,7 @@ export interface _SERVICE {
   getPhotosByProperty: ActorMethod<[string], Photo[]>;
   getPhotosByRoom: ActorMethod<[string], Photo[]>;
   getPublicListingPhotos: ActorMethod<[string], Photo[]>;
+  guidePhotoAccess: ActorMethod<[string, string], [] | [PhotoAccess]>;
   photoAccess: ActorMethod<[string, Principal], [] | [PhotoAccess]>;
   removePhotoRelay: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   setPropertyCanisterId: ActorMethod<[Principal], { ok: null } | { err: Error }>;

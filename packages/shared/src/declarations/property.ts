@@ -137,6 +137,95 @@ export const idlFactory = ({ IDL }: any) => {
     createdAt:    IDL.Int,
     updatedAt:    IDL.Int,
   });
+  // #725 house guide for sitters and guests.
+  const GuideContact = IDL.Record({ name: IDL.Text, role: IDL.Text, phone: IDL.Text });
+  const guideFields = {
+    wifiName:      IDL.Text,
+    wifiPassword:  IDL.Text,
+    alarm:         IDL.Text,
+    trashDay:      IDL.Text,
+    recyclingDay:  IDL.Text,
+    waterShutoff:  IDL.Text,
+    gasShutoff:    IDL.Text,
+    electricPanel: IDL.Text,
+    contacts:      IDL.Vec(GuideContact),
+    notes:         IDL.Text,
+    photoIds:      IDL.Vec(IDL.Text),
+  };
+  const HouseGuideInput = IDL.Record(guideFields);
+  const HouseGuideRecord = IDL.Record({ ...guideFields, updatedAt: IDL.Int });
+  const HouseGuideLink = IDL.Record({
+    token:      IDL.Text,
+    propertyId: IDL.Text,
+    name:       IDL.Text,
+    createdBy:  IDL.Principal,
+    createdAt:  IDL.Int,
+    expiresAt:  IDL.Int,
+    revoked:    IDL.Bool,
+  });
+  const SharedHouseGuide = IDL.Record({
+    address:   IDL.Text,
+    city:      IDL.Text,
+    state:     IDL.Text,
+    zipCode:   IDL.Text,
+    guide:     HouseGuideRecord,
+    expiresAt: IDL.Int,
+  });
+  // #726 condo and HOA paperwork.
+  const ReviewStatus = IDL.Variant({
+    Planned: IDL.Null,
+    Submitted: IDL.Null,
+    Approved: IDL.Null,
+    ApprovedWithConditions: IDL.Null,
+    Denied: IDL.Null,
+    Withdrawn: IDL.Null,
+  });
+  const reviewFields = {
+    project:       IDL.Text,
+    details:       IDL.Text,
+    submittedDate: IDL.Text,
+    status:        ReviewStatus,
+    decisionDate:  IDL.Text,
+    conditions:    IDL.Text,
+    approvalDocId: IDL.Opt(IDL.Text),
+    jobId:         IDL.Opt(IDL.Text),
+  };
+  const ReviewInput = IDL.Record(reviewFields);
+  const ArchitecturalReview = IDL.Record({
+    ...reviewFields,
+    id:         IDL.Text,
+    propertyId: IDL.Text,
+    createdAt:  IDL.Int,
+    updatedAt:  IDL.Int,
+  });
+  const assessmentFields = {
+    title:       IDL.Text,
+    amountCents: IDL.Nat,
+    dueDate:     IDL.Text,
+    paidDate:    IDL.Text,
+    notes:       IDL.Text,
+    documentId:  IDL.Opt(IDL.Text),
+  };
+  const AssessmentInput = IDL.Record(assessmentFields);
+  const SpecialAssessment = IDL.Record({
+    ...assessmentFields,
+    id:         IDL.Text,
+    propertyId: IDL.Text,
+    createdAt:  IDL.Int,
+    updatedAt:  IDL.Int,
+  });
+  const condoFields = {
+    associationName:      IDL.Text,
+    milestoneLastDate:    IDL.Text,
+    milestoneNextDue:     IDL.Text,
+    milestoneDocId:       IDL.Opt(IDL.Text),
+    reserveStudyLastDate: IDL.Text,
+    reserveStudyNextDue:  IDL.Text,
+    reserveStudyDocId:    IDL.Opt(IDL.Text),
+    notes:                IDL.Text,
+  };
+  const CondoRecordInput = IDL.Record(condoFields);
+  const CondoRecord = IDL.Record({ ...condoFields, updatedAt: IDL.Int });
   const Error = IDL.Variant({
     NotFound: IDL.Null,
     NotAuthorized: IDL.Null,
@@ -329,6 +418,60 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
+    ),
+    // #725 house guide.
+    setHouseGuide: IDL.Func([IDL.Text, IDL.Opt(HouseGuideInput)], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getHouseGuide: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Opt(HouseGuideRecord), err: Error })], ["query"]),
+    createHouseGuideLink: IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Nat],
+      [IDL.Variant({ ok: HouseGuideLink, err: Error })],
+      []
+    ),
+    listHouseGuideLinks: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(HouseGuideLink), err: Error })], ["query"]),
+    revokeHouseGuideLink: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getSharedHouseGuide: IDL.Func([IDL.Text], [IDL.Variant({ ok: SharedHouseGuide, err: Error })], ["query"]),
+    // #726 condo and HOA paperwork.
+    addArchitecturalReview: IDL.Func(
+      [IDL.Text, ReviewInput],
+      [IDL.Variant({ ok: ArchitecturalReview, err: Error })],
+      []
+    ),
+    updateArchitecturalReview: IDL.Func(
+      [IDL.Text, ReviewInput],
+      [IDL.Variant({ ok: ArchitecturalReview, err: Error })],
+      []
+    ),
+    deleteArchitecturalReview: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getArchitecturalReviews: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(ArchitecturalReview), err: Error })],
+      ["query"]
+    ),
+    addSpecialAssessment: IDL.Func(
+      [IDL.Text, AssessmentInput],
+      [IDL.Variant({ ok: SpecialAssessment, err: Error })],
+      []
+    ),
+    updateSpecialAssessment: IDL.Func(
+      [IDL.Text, AssessmentInput],
+      [IDL.Variant({ ok: SpecialAssessment, err: Error })],
+      []
+    ),
+    deleteSpecialAssessment: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getSpecialAssessments: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(SpecialAssessment), err: Error })],
+      ["query"]
+    ),
+    setCondoAssociationRecord: IDL.Func(
+      [IDL.Text, IDL.Opt(CondoRecordInput)],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    getCondoAssociationRecord: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Opt(CondoRecord), err: Error })],
+      ["query"]
     ),
     getPulseInsurance: IDL.Func(
       [IDL.Principal],

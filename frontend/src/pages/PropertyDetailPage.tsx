@@ -41,6 +41,9 @@ import { SettingsTab }  from "./PropertyDetail/SettingsTab";
 import { RoomsTab }     from "./PropertyDetail/RoomsTab";
 import { BillsTab }     from "./PropertyDetail/BillsTab";
 import { InsuranceTab } from "./PropertyDetail/InsuranceTab";
+import { HouseGuideTab } from "./PropertyDetail/HouseGuideTab";
+import { HoaTab } from "./PropertyDetail/HoaTab";
+import { formatIsoDate } from "@/utils/format";
 import { useState, useEffect } from "react";
 import { Panel, spinnerVars } from "@/components/hud";
 import { scrollBehavior } from "@/utils/motion";
@@ -50,7 +53,7 @@ const BODY = "'Hanken Grotesk',sans-serif";
 const MONO = "'JetBrains Mono',monospace";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "timeline" | "jobs" | "rooms" | "documents" | "bills" | "insurance" | "settings";
+type Tab = "timeline" | "jobs" | "rooms" | "documents" | "bills" | "insurance" | "guide" | "hoa" | "settings";
 
 interface ModalState {
   report:        boolean;
@@ -237,6 +240,8 @@ export default function PropertyDetailPage() {
     { key: "rooms",     label: `Rooms (${rooms.length})` },
     { key: "documents", label: "Documents" },
     { key: "insurance", label: "Insurance" },
+    { key: "guide",     label: "House guide" },
+    { key: "hoa",       label: "HOA" },
     { key: "settings",  label: "Settings" },
   ];
 
@@ -696,12 +701,12 @@ export default function PropertyDetailPage() {
           <h2 style={{ fontFamily: BODY, fontWeight: 700, fontSize: "1.125rem", color: "var(--hg-ink)", marginBottom: "1rem" }}>
             Property Details
           </h2>
-          <div style={{ display: "flex", borderBottom: "1px solid var(--hg-line)", marginBottom: "1.5rem" }}>
+          <div style={{ display: "flex", overflowX: "auto", borderBottom: "1px solid var(--hg-line)", marginBottom: "1.5rem" }}>
             {tabs.map(t => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                style={{ padding: "0.625rem 1.25rem", fontFamily: BODY, fontSize: "0.875rem", fontWeight: tab === t.key ? 600 : 400, color: tab === t.key ? "var(--hg-blue-ink)" : "var(--hg-muted)", background: "none", border: "none", borderBottom: tab === t.key ? "2px solid var(--hg-blue)" : "2px solid transparent", marginBottom: "-1px", cursor: "pointer", transition: "color 0.15s" }}
+                style={{ padding: "0.625rem 1.25rem", flexShrink: 0, whiteSpace: "nowrap", fontFamily: BODY, fontSize: "0.875rem", fontWeight: tab === t.key ? 600 : 400, color: tab === t.key ? "var(--hg-blue-ink)" : "var(--hg-muted)", background: "none", border: "none", borderBottom: tab === t.key ? "2px solid var(--hg-blue)" : "2px solid transparent", marginBottom: "-1px", cursor: "pointer", transition: "color 0.15s" }}
               >
                 {t.label}
               </button>
@@ -716,6 +721,8 @@ export default function PropertyDetailPage() {
           {tab === "documents" && <DocumentsTab propertyId={id!} />}
           {tab === "bills"     && <BillsTab propertyId={id!} state={property.state} zipCode={property.zipCode} />}
           {tab === "insurance" && <InsuranceTab propertyId={id!} photos={Object.values(photosByJob).flat()} rooms={rooms} />}
+          {tab === "guide"     && <HouseGuideTab propertyId={id!} photos={Object.values(photosByJob).flat()} />}
+          {tab === "hoa"       && <HoaTab propertyId={id!} propertyType={property.propertyType} jobs={jobs.map((j) => ({ id: j.id, label: `${j.serviceType} (${formatIsoDate(j.date)})` }))} />}
           {tab === "settings"  && <SettingsTab property={property} currentPrincipal={principal ?? ""} onVerifyOwnership={() => setModals(m => ({ ...m, verify: true }))} />}
         </div>
 

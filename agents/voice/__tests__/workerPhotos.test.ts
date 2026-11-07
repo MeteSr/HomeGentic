@@ -11,6 +11,8 @@
  * PHOTO.6  DELETE drops bytes only once the record is gone
  * PHOTO.7  an unreachable canister fails closed (503)
  * PHOTO.8  any PhotoStore implementation works (provider-neutral routes)
+ * PHOTO.9  GET ?guide=<token> serves a photo a house-guide link shows (#725),
+ *          checked with photo.guidePhotoAccess instead of the caller
  */
 
 import { describe, it, expect, jest } from "@jest/globals";
@@ -171,5 +173,31 @@ describe("handlePhotos", () => {
     const res = await handlePhotos(get(), "/photos/p1", fakeEnv().env, deps(store, OWNER, access()).d);
     expect(res.headers.get("Content-Type")).toBe("image/png");
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(BYTES);
+  });
+
+  it("PHOTO.9 serves a photo a house-guide link shows, to anyone with the link", async () => {
+    const TOKEN = "ab".repeat(32);
+    const { store } = fakeR2();
+    await handlePhotos(put(), "/photos/p1", fakeEnv().env, deps(store, OWNER, access()).d);
+    const guideGet = (token: string) => new Request(`https://w/photos/p1?guide=${token}`);
+
+    const { env, puts } = fakeEnv();
+    const { d, accessFn } = deps(store, null, access({ canRead: false }));
+    const guideAccess = jest.fn(async (_id: string, _token: string) => access({ canRead: true }));
+    const res = await handlePhotos(guideGet(TOKEN), "/photos/p1", env, { ...d, guideAccess });
+    expect(res.status).toBe(200);
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(BYTES);
+    expect(res.headers.get("Cache-Control")).toBe("private, no-cache");
+    expect(guideAccess).toHaveBeenCalledWith("p1", TOKEN);
+    expect(accessFn).not.toHaveBeenCalled();
+    // Cached per (photo, link), never shared with the signed-in cache.
+    expect(puts.map((p) => p.key)).toContain(`gacc:p1:${TOKEN}`);
+
+    // A link that doesn't show the photo, a malformed token, or no guide check wired: 404.
+    const refused = jest.fn(async () => access({ canRead: false }));
+    expect((await handlePhotos(guideGet(TOKEN), "/photos/p1", fakeEnv().env, { ...d, guideAccess: refused })).status).toBe(404);
+    expect((await handlePhotos(guideGet("not-a-token"), "/photos/p1", fakeEnv().env, { ...d, guideAccess })).status).toBe(404);
+    expect((await handlePhotos(guideGet(TOKEN), "/photos/p1", fakeEnv().env, d)).status).toBe(404);
+    expect(guideAccess).toHaveBeenCalledTimes(1);
   });
 });

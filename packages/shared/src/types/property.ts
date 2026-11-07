@@ -3,6 +3,51 @@
 import type { ActorMethod } from "@icp-sdk/core/agent";
 import type { Principal } from "@icp-sdk/core/principal";
 
+export type ReviewInput = {
+  submittedDate: string;
+  status: ReviewStatus;
+  decisionDate: string;
+  jobId: [] | [string];
+  approvalDocId: [] | [string];
+  details: string;
+  conditions: string;
+  project: string;
+};
+
+export type ReviewStatus =
+  | { Planned: null }
+  | { Approved: null }
+  | { Withdrawn: null }
+  | { Denied: null }
+  | { Submitted: null }
+  | { ApprovedWithConditions: null };
+
+export type ArchitecturalReview = {
+  id: string;
+  submittedDate: string;
+  status: ReviewStatus;
+  decisionDate: string;
+  createdAt: bigint;
+  jobId: [] | [string];
+  propertyId: string;
+  approvalDocId: [] | [string];
+  updatedAt: bigint;
+  details: string;
+  conditions: string;
+  project: string;
+};
+
+export type Error =
+  | { Paused: null }
+  | { InvalidInput: string }
+  | { AddressConflict: bigint }
+  | { NotFound: null }
+  | { NotAuthorized: null }
+  | { LimitReached: null }
+  | { RateLimited: null }
+  | { DuplicateAddress: null }
+  | { Unavailable: string };
+
 export type InsuranceClaim = {
   id: string;
   log: ClaimLogEntry[];
@@ -26,17 +71,6 @@ export type ClaimLogEntry = {
 };
 
 export type ClaimStatus = { Open: null } | { Closed: null };
-
-export type Error =
-  | { Paused: null }
-  | { InvalidInput: string }
-  | { AddressConflict: bigint }
-  | { NotFound: null }
-  | { NotAuthorized: null }
-  | { LimitReached: null }
-  | { RateLimited: null }
-  | { DuplicateAddress: null }
-  | { Unavailable: string };
 
 export type InventoryItemInput = {
   purchaseDate: string;
@@ -62,6 +96,28 @@ export type InventoryItem = {
   category: string;
   roomId: [] | [string];
   valueCents: [] | [bigint];
+};
+
+export type AssessmentInput = {
+  title: string;
+  dueDate: string;
+  amountCents: bigint;
+  paidDate: string;
+  notes: string;
+  documentId: [] | [string];
+};
+
+export type SpecialAssessment = {
+  id: string;
+  title: string;
+  createdAt: bigint;
+  dueDate: string;
+  propertyId: string;
+  amountCents: bigint;
+  updatedAt: bigint;
+  paidDate: string;
+  notes: string;
+  documentId: [] | [string];
 };
 
 export type ManagerRole = { CoOwner: null } | { Viewer: null } | { Manager: null };
@@ -97,6 +153,16 @@ export type SubscriptionTier = { Pro: null } | { Free: null } | { ContractorPro:
 
 export type VerificationLevel = { Premium: null } | { Basic: null } | { PendingReview: null } | { Unverified: null };
 
+export type HouseGuideLink = {
+  token: string;
+  expiresAt: bigint;
+  revoked: boolean;
+  name: string;
+  createdAt: bigint;
+  createdBy: Principal;
+  propertyId: string;
+};
+
 export type ClaimInput = {
   status: ClaimStatus;
   adjusterName: string;
@@ -126,6 +192,39 @@ export type PendingApprovalRequest = {
 };
 
 export type ApprovalStatus = { Approved: null } | { Declined: null } | { Pending: null };
+
+export type CondoRecord = {
+  associationName: string;
+  reserveStudyLastDate: string;
+  updatedAt: bigint;
+  milestoneNextDue: string;
+  milestoneDocId: [] | [string];
+  notes: string;
+  milestoneLastDate: string;
+  reserveStudyDocId: [] | [string];
+  reserveStudyNextDue: string;
+};
+
+export type HouseGuideRecord = {
+  wifiName: string;
+  alarm: string;
+  contacts: GuideContact[];
+  photoIds: string[];
+  recyclingDay: string;
+  electricPanel: string;
+  updatedAt: bigint;
+  notes: string;
+  wifiPassword: string;
+  trashDay: string;
+  gasShutoff: string;
+  waterShutoff: string;
+};
+
+export type GuideContact = {
+  name: string;
+  role: string;
+  phone: string;
+};
 
 export type InsurancePolicy = {
   coverageACents: [] | [bigint];
@@ -213,6 +312,15 @@ export type Fixture = {
   brand: string;
 };
 
+export type SharedHouseGuide = {
+  expiresAt: bigint;
+  city: string;
+  zipCode: string;
+  state: string;
+  guide: HouseGuideRecord;
+  address: string;
+};
+
 export type VerifyStatus = {
   claimStartedAt: bigint;
   identityVerified: boolean;
@@ -243,6 +351,31 @@ export type RegisterArgs = {
   yearBuilt: bigint;
 };
 
+export type CondoRecordInput = {
+  associationName: string;
+  reserveStudyLastDate: string;
+  milestoneNextDue: string;
+  milestoneDocId: [] | [string];
+  notes: string;
+  milestoneLastDate: string;
+  reserveStudyDocId: [] | [string];
+  reserveStudyNextDue: string;
+};
+
+export type HouseGuideInput = {
+  wifiName: string;
+  alarm: string;
+  contacts: GuideContact[];
+  photoIds: string[];
+  recyclingDay: string;
+  electricPanel: string;
+  notes: string;
+  wifiPassword: string;
+  trashDay: string;
+  gasShutoff: string;
+  waterShutoff: string;
+};
+
 export type InsurancePolicyInput = {
   coverageACents: [] | [bigint];
   hurricaneDeductible: [] | [HurricaneDeductible];
@@ -253,8 +386,10 @@ export type InsurancePolicyInput = {
 
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
+  addArchitecturalReview: ActorMethod<[string, ReviewInput], { ok: ArchitecturalReview } | { err: Error }>;
   addInsuranceClaimLog: ActorMethod<[string, string, string], { ok: InsuranceClaim } | { err: Error }>;
   addInventoryItem: ActorMethod<[string, InventoryItemInput], { ok: InventoryItem } | { err: Error }>;
+  addSpecialAssessment: ActorMethod<[string, AssessmentInput], { ok: SpecialAssessment } | { err: Error }>;
   cancelManagerInvite: ActorMethod<[string, string], { ok: null } | { err: Error }>;
   cancelTransfer: ActorMethod<[string], { ok: null } | { err: Error }>;
   claimManagerRole: ActorMethod<
@@ -268,10 +403,13 @@ export interface _SERVICE {
     | { err: Error }
   >;
   claimTransfer: ActorMethod<[string], { ok: Property } | { err: Error }>;
+  createHouseGuideLink: ActorMethod<[string, string, bigint], { ok: HouseGuideLink } | { err: Error }>;
   createInsuranceClaim: ActorMethod<[string, ClaimInput], { ok: InsuranceClaim } | { err: Error }>;
+  deleteArchitecturalReview: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteInsuranceClaim: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteInventoryItem: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
+  deleteSpecialAssessment: ActorMethod<[string], { ok: null } | { err: Error }>;
   dismissNotifications: ActorMethod<[string], { ok: null } | { err: Error }>;
   findPropertiesByAddress: ActorMethod<[string], AddressMatch[]>;
   getAccessRole: ActorMethod<
@@ -284,6 +422,9 @@ export interface _SERVICE {
   >;
   getApiDoc: ActorMethod<[], string>;
   getApprovals: ActorMethod<[string], { ok: PendingApprovalRequest[] } | { err: Error }>;
+  getArchitecturalReviews: ActorMethod<[string], { ok: ArchitecturalReview[] } | { err: Error }>;
+  getCondoAssociationRecord: ActorMethod<[string], { ok: [] | [CondoRecord] } | { err: Error }>;
+  getHouseGuide: ActorMethod<[string], { ok: [] | [HouseGuideRecord] } | { err: Error }>;
   getInsuranceClaims: ActorMethod<[string], { ok: InsuranceClaim[] } | { err: Error }>;
   getInsurancePolicy: ActorMethod<[string], { ok: [] | [InsurancePolicy] } | { err: Error }>;
   getInventory: ActorMethod<[string], { ok: InventoryItem[] } | { err: Error }>;
@@ -338,12 +479,15 @@ export interface _SERVICE {
     | { err: Error }
   >;
   getRoomsByProperty: ActorMethod<[string], RoomRecord[]>;
+  getSharedHouseGuide: ActorMethod<[string], { ok: SharedHouseGuide } | { err: Error }>;
+  getSpecialAssessments: ActorMethod<[string], { ok: SpecialAssessment[] } | { err: Error }>;
   getVerificationLevel: ActorMethod<[string], [] | [string]>;
   getVerifyStatus: ActorMethod<[string], { ok: VerifyStatus } | { err: Error }>;
   initiateTransfer: ActorMethod<[string], { ok: PendingTransfer } | { err: Error }>;
   inviteManager: ActorMethod<[string, ManagerRole, string, [] | [bigint]], { ok: ManagerInvite } | { err: Error }>;
   isAdminPrincipal: ActorMethod<[Principal], boolean>;
   isAuthorized: ActorMethod<[string, Principal, boolean], boolean>;
+  listHouseGuideLinks: ActorMethod<[string], { ok: HouseGuideLink[] } | { err: Error }>;
   markIdentityCleared: ActorMethod<[string, string, string], { ok: Property } | { err: Error }>;
   recordManagerActivity: ActorMethod<[string, string], { ok: null } | { err: Error }>;
   registerProperty: ActorMethod<[RegisterArgs], { ok: Property } | { err: Error }>;
@@ -352,11 +496,16 @@ export interface _SERVICE {
   requestApproval: ActorMethod<[string, string, bigint], { ok: bigint } | { err: Error }>;
   resignAsManager: ActorMethod<[string], { ok: null } | { err: Error }>;
   respondToApproval: ActorMethod<[string, bigint, boolean], { ok: null } | { err: Error }>;
+  revokeHouseGuideLink: ActorMethod<[string], { ok: null } | { err: Error }>;
+  setCondoAssociationRecord: ActorMethod<[string, [] | [CondoRecordInput]], { ok: null } | { err: Error }>;
+  setHouseGuide: ActorMethod<[string, [] | [HouseGuideInput]], { ok: null } | { err: Error }>;
   setInsurancePolicy: ActorMethod<[string, [] | [InsurancePolicyInput]], { ok: null } | { err: Error }>;
   submitVerification: ActorMethod<[string, string, string, [] | [string]], { ok: Property } | { err: Error }>;
+  updateArchitecturalReview: ActorMethod<[string, ReviewInput], { ok: ArchitecturalReview } | { err: Error }>;
   updateInsuranceClaim: ActorMethod<[string, ClaimInput], { ok: InsuranceClaim } | { err: Error }>;
   updateInventoryItem: ActorMethod<[string, InventoryItemInput], { ok: InventoryItem } | { err: Error }>;
   updateManagerRole: ActorMethod<[string, Principal, ManagerRole, [] | [bigint]], { ok: null } | { err: Error }>;
+  updateSpecialAssessment: ActorMethod<[string, AssessmentInput], { ok: SpecialAssessment } | { err: Error }>;
   verifyProperty: ActorMethod<
     [string, { Premium: null } | { Basic: null } | { PendingReview: null } | { Unverified: null }, [] | [string]],
     { ok: Property } | { err: Error }

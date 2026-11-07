@@ -2606,6 +2606,18 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; RateLimited; Unavailable:text; QuotaExceeded:text}}",
     ],
   },
+  "getGuidePhotoData": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [
+      "composite_query",
+    ],
+    "rets": [
+      "variant {ok:vec nat8; err:variant {Paused; InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; RateLimited; Unavailable:text; QuotaExceeded:text}}",
+    ],
+  },
   "getListingPhotoDataBatch": {
     "args": [
       "vec text",
@@ -2673,6 +2685,18 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
       "vec record {id:text; verified:bool; owner:principal; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}",
     ],
   },
+  "guidePhotoAccess": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [
+      "composite_query",
+    ],
+    "rets": [
+      "opt record {owner:principal; hash:text; size:nat; canRead:bool; isPublic:bool; offChain:bool}",
+    ],
+  },
   "photoAccess": {
     "args": [
       "text",
@@ -2722,6 +2746,16 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
 
 exports[`property IDL factory > full signature snapshot 1`] = `
 {
+  "addArchitecturalReview": {
+    "args": [
+      "text",
+      "record {submittedDate:text; status:variant {Planned; Approved; Withdrawn; Denied; Submitted; ApprovedWithConditions}; decisionDate:text; jobId:opt text; approvalDocId:opt text; details:text; conditions:text; project:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; submittedDate:text; status:variant {Planned; Approved; Withdrawn; Denied; Submitted; ApprovedWithConditions}; decisionDate:text; createdAt:int; jobId:opt text; propertyId:text; approvalDocId:opt text; updatedAt:int; details:text; conditions:text; project:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "addInsuranceClaimLog": {
     "args": [
       "text",
@@ -2741,6 +2775,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; purchaseDate:text; name:text; createdAt:int; propertyId:text; updatedAt:int; serialNumber:text; notes:text; quantity:nat; category:text; roomId:opt text; valueCents:opt nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "addSpecialAssessment": {
+    "args": [
+      "text",
+      "record {title:text; dueDate:text; amountCents:nat; paidDate:text; notes:text; documentId:opt text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; title:text; createdAt:int; dueDate:text; propertyId:text; amountCents:nat; updatedAt:int; paidDate:text; notes:text; documentId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "cancelManagerInvite": {
@@ -2780,6 +2824,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; verificationMethod:opt text; contestedWithId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "createHouseGuideLink": {
+    "args": [
+      "text",
+      "text",
+      "nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {token:text; expiresAt:int; revoked:bool; name:text; createdAt:int; createdBy:principal; propertyId:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "createInsuranceClaim": {
     "args": [
       "text",
@@ -2788,6 +2843,15 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; log:vec record {date:text; note:text; addedAt:int}; status:variant {Open; Closed}; adjusterName:text; adjusterContact:text; title:text; cause:text; createdAt:int; description:text; propertyId:text; updatedAt:int; dateOfLoss:text; claimNumber:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "deleteArchitecturalReview": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "deleteInsuranceClaim": {
@@ -2813,6 +2877,15 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:nat; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "deleteSpecialAssessment": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "dismissNotifications": {
@@ -2877,6 +2950,39 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:vec record {id:nat; status:variant {Approved; Declined; Pending}; createdAt:int; description:text; propertyId:text; amountCents:nat; requesterName:text; requestedBy:principal}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "getArchitecturalReviews": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {id:text; submittedDate:text; status:variant {Planned; Approved; Withdrawn; Denied; Submitted; ApprovedWithConditions}; decisionDate:text; createdAt:int; jobId:opt text; propertyId:text; approvalDocId:opt text; updatedAt:int; details:text; conditions:text; project:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "getCondoAssociationRecord": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:opt record {associationName:text; reserveStudyLastDate:text; updatedAt:int; milestoneNextDue:text; milestoneDocId:opt text; notes:text; milestoneLastDate:text; reserveStudyDocId:opt text; reserveStudyNextDue:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "getHouseGuide": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:opt record {wifiName:text; alarm:text; contacts:vec record {name:text; role:text; phone:text}; photoIds:vec text; recyclingDay:text; electricPanel:text; updatedAt:int; notes:text; wifiPassword:text; trashDay:text; gasShutoff:text; waterShutoff:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "getInsuranceClaims": {
@@ -3133,6 +3239,28 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "vec record {id:text; paintBrand:text; owner:principal; name:text; createdAt:int; propertyId:text; floorName:text; floorType:text; updatedAt:int; notes:text; paintColor:text; fixtures:vec record {id:text; model:text; serialNumber:text; installedDate:text; notes:text; warrantyExpiry:text; brand:text}; paintCode:text}",
     ],
   },
+  "getSharedHouseGuide": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:record {expiresAt:int; city:text; zipCode:text; state:text; guide:record {wifiName:text; alarm:text; contacts:vec record {name:text; role:text; phone:text}; photoIds:vec text; recyclingDay:text; electricPanel:text; updatedAt:int; notes:text; wifiPassword:text; trashDay:text; gasShutoff:text; waterShutoff:text}; address:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "getSpecialAssessments": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {id:text; title:text; createdAt:int; dueDate:text; propertyId:text; amountCents:nat; updatedAt:int; paidDate:text; notes:text; documentId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "getVerificationLevel": {
     "args": [
       "text",
@@ -3198,6 +3326,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "bool",
+    ],
+  },
+  "listHouseGuideLinks": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {token:text; expiresAt:int; revoked:bool; name:text; createdAt:int; createdBy:principal; propertyId:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "markIdentityCleared": {
@@ -3283,6 +3422,35 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "revokeHouseGuideLink": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "setCondoAssociationRecord": {
+    "args": [
+      "text",
+      "opt record {associationName:text; reserveStudyLastDate:text; milestoneNextDue:text; milestoneDocId:opt text; notes:text; milestoneLastDate:text; reserveStudyDocId:opt text; reserveStudyNextDue:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "setHouseGuide": {
+    "args": [
+      "text",
+      "opt record {wifiName:text; alarm:text; contacts:vec record {name:text; role:text; phone:text}; photoIds:vec text; recyclingDay:text; electricPanel:text; notes:text; wifiPassword:text; trashDay:text; gasShutoff:text; waterShutoff:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "setInsurancePolicy": {
     "args": [
       "text",
@@ -3303,6 +3471,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; verificationMethod:opt text; contestedWithId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "updateArchitecturalReview": {
+    "args": [
+      "text",
+      "record {submittedDate:text; status:variant {Planned; Approved; Withdrawn; Denied; Submitted; ApprovedWithConditions}; decisionDate:text; jobId:opt text; approvalDocId:opt text; details:text; conditions:text; project:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; submittedDate:text; status:variant {Planned; Approved; Withdrawn; Denied; Submitted; ApprovedWithConditions}; decisionDate:text; createdAt:int; jobId:opt text; propertyId:text; approvalDocId:opt text; updatedAt:int; details:text; conditions:text; project:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "updateInsuranceClaim": {
@@ -3335,6 +3513,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "updateSpecialAssessment": {
+    "args": [
+      "text",
+      "record {title:text; dueDate:text; amountCents:nat; paidDate:text; notes:text; documentId:opt text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; title:text; createdAt:int; dueDate:text; propertyId:text; amountCents:nat; updatedAt:int; paidDate:text; notes:text; documentId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "verifyProperty": {

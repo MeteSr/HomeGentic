@@ -56,7 +56,7 @@ import { getInvitePreview } from "./jobCanister";
 import { handlePhotos } from "./photos";
 import { handleShowingRequest, fileShowingInCanister } from "./showings";
 import { r2PhotoStore } from "./photoStore";
-import { fetchPhotoAccess } from "../photoCanister";
+import { fetchPhotoAccess, fetchGuidePhotoAccess } from "../photoCanister";
 import { markIdentityCleared } from "./propertyCanister";
 import { reportServiceError, routeKey } from "./serviceErrors";
 import {
@@ -567,6 +567,7 @@ async function route(
       store:     env.PHOTOS && photoStorageReady(env) ? r2PhotoStore(env.PHOTOS) : null,
       principal: () => callerPrincipal(request, env),
       access:    fetchPhotoAccess,
+      guideAccess: fetchGuidePhotoAccess,
     }), cors);
   }
 

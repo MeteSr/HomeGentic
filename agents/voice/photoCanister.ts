@@ -25,7 +25,10 @@ type RawAccess = {
   owner: Principal; hash: string; size: bigint;
   offChain: boolean; isPublic: boolean; canRead: boolean;
 };
-type PhotoActor = { photoAccess(photoId: string, reader: Principal): Promise<[] | [RawAccess]> };
+type PhotoActor = {
+  photoAccess(photoId: string, reader: Principal): Promise<[] | [RawAccess]>;
+  guidePhotoAccess(photoId: string, token: string): Promise<[] | [RawAccess]>;
+};
 
 const agents = new Map<string, Promise<HttpAgent>>();
 
@@ -41,16 +44,27 @@ function getAgent(): Promise<HttpAgent> {
   return agent;
 }
 
-/** What `reader` may do with a photo, or null when it doesn't exist. Throws if the canister can't be reached. */
-export async function fetchPhotoAccess(photoId: string, reader: string): Promise<PhotoAccess | null> {
+async function photoActor(): Promise<PhotoActor> {
   const canisterId = process.env.CANISTER_ID_PHOTO;
   if (!canisterId) throw new Error("CANISTER_ID_PHOTO is not set — cannot check photo access");
-  const actor = Actor.createActor(idlFactory, { agent: await getAgent(), canisterId }) as unknown as PhotoActor;
-  const res = await actor.photoAccess(photoId, Principal.fromText(reader));
+  return Actor.createActor(idlFactory, { agent: await getAgent(), canisterId }) as unknown as PhotoActor;
+}
+
+function fromRaw(res: [] | [RawAccess]): PhotoAccess | null {
   if (!res.length) return null;
   const a = res[0];
   return {
     owner: a.owner.toText(), hash: a.hash, size: Number(a.size),
     offChain: a.offChain, isPublic: a.isPublic, canRead: a.canRead,
   };
+}
+
+/** What `reader` may do with a photo, or null when it doesn't exist. Throws if the canister can't be reached. */
+export async function fetchPhotoAccess(photoId: string, reader: string): Promise<PhotoAccess | null> {
+  return fromRaw(await (await photoActor()).photoAccess(photoId, Principal.fromText(reader)));
+}
+
+/** #725: what someone holding house-guide link `token` may do with a photo. Throws if the canister can't be reached. */
+export async function fetchGuidePhotoAccess(photoId: string, token: string): Promise<PhotoAccess | null> {
+  return fromRaw(await (await photoActor()).guidePhotoAccess(photoId, token));
 }

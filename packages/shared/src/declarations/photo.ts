@@ -58,6 +58,19 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Opt(PhotoAccess)],
       ["composite_query"]
     ),
+    // #725 house-guide links: photo relays only, like photoAccess.
+    guidePhotoAccess: IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Opt(PhotoAccess)],
+      ["composite_query"]
+    ),
+    // #725: bytes for anyone holding a live guide link that shows the photo
+    // (empty when stored off-chain: GET /photos/<id>?guide=<token> on the Worker).
+    getGuidePhotoData: IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(IDL.Nat8), err: Error })],
+      ["composite_query"]
+    ),
     addPhotoRelay: IDL.Func(
       [IDL.Principal],
       [IDL.Variant({ ok: IDL.Null, err: Error })],

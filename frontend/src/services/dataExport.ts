@@ -17,6 +17,8 @@ import { roomService } from "./room";
 import { insurancePolicyService } from "./insurancePolicy";
 import { insuranceClaimService, claimIdOfPhoto } from "./insuranceClaims";
 import { inventoryService, inventoryIdOfPhoto } from "./inventory";
+import { houseGuideService } from "./houseGuide";
+import { hoaService } from "./hoaRecords";
 import { maintenanceService } from "./maintenance";
 import { sensorService } from "./sensor";
 import { billService } from "./billService";
@@ -116,6 +118,10 @@ export async function collectMyData(
         insurancePolicy: await step(at("insurance policy"), () => insurancePolicyService.get(id)),
         insuranceClaims: await step(at("insurance claims"), () => insuranceClaimService.list(id)),
         inventory: await step(at("contents inventory"), () => inventoryService.list(id)),
+        houseGuide: await step(at("house guide"), () => houseGuideService.get(id)),
+        architecturalReviews: await step(at("architectural review requests"), () => hoaService.listReviews(id)),
+        specialAssessments: await step(at("special assessments"), () => hoaService.listAssessments(id)),
+        condoAssociation: await step(at("condo association record"), () => hoaService.getCondo(id)),
       };
       const ph = await step(at("photos"), () => photoService.getByProperty(id));
       if ("ok" in ph) {
