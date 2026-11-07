@@ -164,6 +164,17 @@ describe("PropertyDetailPage — tabs", () => {
     expect(tab.textContent).toMatch(/^SingleFamily:/);
     expect(tab.textContent).toMatch(/\(\w{3} \d{1,2}, \d{4}\)/);
   });
+
+  it("scrolls the tab row sideways instead of clipping the last tabs on narrow screens", () => {
+    renderAt("prop-1");
+    const settings = screen.getByText("Settings");
+    expect(settings.parentElement!.style.overflowX).toBe("auto");
+    for (const label of ["House guide", "Settings"]) {
+      const btn = screen.getByText(label);
+      expect(btn.style.whiteSpace).toBe("nowrap");
+      expect(btn.style.flexShrink).toBe("0");
+    }
+  });
 });
 
 describe("PropertyDetailPage — hero photo", () => {
