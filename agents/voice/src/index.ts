@@ -50,6 +50,7 @@ import { canisterLedger, startCardSetup, saveCardFromSession, markInvoicePaid, m
 import { handleInbound, addDraftInCanister, checkTokenInCanister, MAX_RAW_BYTES } from "./inbox";
 import { checkLicense } from "./dbpr";
 import { findRecalls } from "./recalls";
+import { lookupFloodZone } from "./floodZone";
 import { suggestAddresses, placeAddress } from "./addressSuggest";
 import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead, sendGiftEmail } from "./offchainOutcalls";
 import { getInvitePreview } from "./jobCanister";
@@ -57,7 +58,7 @@ import { handlePhotos } from "./photos";
 import { handleShowingRequest, fileShowingInCanister } from "./showings";
 import { r2PhotoStore } from "./photoStore";
 import { fetchPhotoAccess, fetchGuidePhotoAccess } from "../photoCanister";
-import { markIdentityCleared } from "./propertyCanister";
+import { markIdentityCleared, floodTarget, saveFloodZone } from "./propertyCanister";
 import { reportServiceError, routeKey } from "./serviceErrors";
 import {
   gateAiCall, gatePaidCall, verifyHuman, strike, blockedSeconds, slowDownBody, isFreeTier, recordFreeUsage,
@@ -1283,6 +1284,7 @@ Rules:
     const p    = sessionPrincipal!;
     const r =
       path === "/api/recalls"                 ? await findRecalls(body, env) :
+      path === "/api/risk/flood"              ? await lookupFloodZone(body, p, env, { target: floodTarget, save: saveFloodZone, fetch }) :
       path === "/api/license/check"           ? await checkLicense(p, env) :
       path === "/api/property/details"        ? await lookupPropertyDetails(body, p, env, fetch, sessionTier) :
       path === "/api/permits/import"          ? await importPermits(body, p, env, fetch, sessionTier) :
@@ -1825,6 +1827,7 @@ const OFFCHAIN_OUTCALL_ROUTES = new Set([
   "/api/email/contractor-invite", "/api/email/broker-lead",
   "/api/recalls",   // CPSC recall check (src/recalls.ts); free API, cached per brand
   "/api/license/check",   // Florida DBPR licence lookup (src/dbpr.ts); public file, throttled per caller
+  "/api/risk/flood",      // #718 FEMA flood zone (src/floodZone.ts); free Census + FEMA APIs, cached per property
 ]);
 
 /** Paid Google Places calls behind the Add Property address field. */

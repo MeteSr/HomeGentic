@@ -62,7 +62,7 @@ export interface JobRef {
   id: string;
   label: string;
 }
-interface DocRef {
+export interface DocRef {
   id: string;
   label: string;
 }
@@ -86,7 +86,7 @@ function parseAmount(t: string): number {
   return s === "" ? NaN : Number(s);
 }
 
-function Problem({ text }: { text: string | null }) {
+export function Problem({ text }: { text: string | null }) {
   if (!text) return null;
   return (
     <p role="alert" style={{ fontFamily: BODY, fontSize: "0.8125rem", color: "var(--hg-bad)", margin: 0 }}>
@@ -95,7 +95,7 @@ function Problem({ text }: { text: string | null }) {
   );
 }
 
-function DateInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+export function DateInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label style={field}>
       <span style={labelText}>{label}</span>
@@ -110,7 +110,7 @@ function DateInput({ label, value, onChange }: { label: string; value: string; o
   );
 }
 
-function DocSelect({
+export function DocSelect({
   label,
   docs,
   value,
@@ -141,7 +141,7 @@ function DocSelect({
   );
 }
 
-function ConfirmDelete({ onConfirm }: { onConfirm: () => void }) {
+export function ConfirmDelete({ onConfirm }: { onConfirm: () => void }) {
   const [asking, setAsking] = useState(false);
   return asking ? (
     <>

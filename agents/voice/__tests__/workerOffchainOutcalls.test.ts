@@ -86,7 +86,7 @@ const TOKEN = "INV_" + "ab".repeat(32);
 beforeEach(() => jest.clearAllMocks());
 
 describe("OFF.1 — session required", () => {
-  it.each(["/api/property/details", "/api/permits/import", "/api/email/contractor-invite", "/api/email/broker-lead"])(
+  it.each(["/api/property/details", "/api/permits/import", "/api/email/contractor-invite", "/api/email/broker-lead", "/api/risk/flood"])(
     "%s → 401 without x-agent-session", async (path) => {
       const res = await worker.fetch(new Request(`https://w.test${path}`, {
         method: "POST", headers: { "Content-Type": "application/json", "x-api-key": "pubkey" }, body: "{}",

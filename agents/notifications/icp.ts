@@ -16,7 +16,7 @@
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
-import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, PulseInsurance, PulseJob, PulseProperty, PulseRecipient } from "./types";
+import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulseRecipient } from "./types";
 import type { ScoreJob } from "../../packages/shared/src/score";
 import { rootKeyFor } from "../../packages/shared/src/rootKey";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
@@ -243,6 +243,30 @@ export async function getPulseInsurance(owner: string): Promise<PulseInsurance[]
   const res = await property.getPulseInsurance(Principal.fromText(owner));
   if ("err" in res) throw new Error(`getPulseInsurance: ${Object.keys(res.err)[0]}`);
   return res.ok.map((p: any) => ({ propertyId: p.propertyId, carrier: p.carrier, renewalDate: p.renewalDate }));
+}
+
+/** #719 / #722: home warranty renewals and loan terms for `owner`'s homes (needs addNotifier on property). */
+export async function getPulseHomeFinance(owner: string): Promise<PulseHomeFinance[]> {
+  const property = Actor.createActor(propertyIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_PROPERTY"),
+  }) as any;
+  const res = await property.getPulseHomeFinance(Principal.fromText(owner));
+  if ("err" in res) throw new Error(`getPulseHomeFinance: ${Object.keys(res.err)[0]}`);
+  const optNat = (o: bigint[]) => (o.length ? Number(o[0]) : null);
+  return res.ok.map((f: any) => ({
+    propertyId: f.propertyId,
+    warranty: f.warranty.length ? { provider: f.warranty[0].provider, renewalDate: f.warranty[0].renewalDate } : null,
+    loan: f.loan.length
+      ? {
+          originalAmountCents: Number(f.loan[0].originalAmountCents),
+          rateThousandthsPct:  Number(f.loan[0].rateThousandthsPct),
+          termMonths:          Number(f.loan[0].termMonths),
+          firstPaymentDate:    f.loan[0].firstPaymentDate,
+          originalValueCents:  optNat(f.loan[0].originalValueCents),
+          monthlyPmiCents:     optNat(f.loan[0].monthlyPmiCents),
+        }
+      : null,
+  }));
 }
 
 /** All of `owner`'s jobs (needs addNotifier on job). */

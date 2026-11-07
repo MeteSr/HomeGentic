@@ -48,6 +48,33 @@ export type Error =
   | { DuplicateAddress: null }
   | { Unavailable: string };
 
+export type HomeWarrantyClaimInput = {
+  outcomeNotes: string;
+  jobId: [] | [string];
+  serviceFeePaidCents: [] | [bigint];
+  issue: string;
+  outcome: WarrantyClaimOutcome;
+  dateFiled: string;
+  claimNumber: string;
+};
+
+export type WarrantyClaimOutcome =
+  { PartlyApproved: null } | { Open: null } | { Approved: null } | { Withdrawn: null } | { Denied: null };
+
+export type HomeWarrantyClaim = {
+  id: string;
+  outcomeNotes: string;
+  createdAt: bigint;
+  jobId: [] | [string];
+  propertyId: string;
+  updatedAt: bigint;
+  serviceFeePaidCents: [] | [bigint];
+  issue: string;
+  outcome: WarrantyClaimOutcome;
+  dateFiled: string;
+  claimNumber: string;
+};
+
 export type InsuranceClaim = {
   id: string;
   log: ClaimLogEntry[];
@@ -205,6 +232,36 @@ export type CondoRecord = {
   reserveStudyNextDue: string;
 };
 
+export type FloodZoneRecord = {
+  status: FloodZoneStatus;
+  latitude: string;
+  matchedAddress: string;
+  specialFloodHazardArea: boolean;
+  zone: string;
+  firmEffectiveDate: string;
+  longitude: string;
+  checkedAt: bigint;
+  baseFloodElevation: string;
+  firmPanel: string;
+  zoneSubtype: string;
+};
+
+export type FloodZoneStatus = { NotMapped: null } | { Mapped: null };
+
+export type HomeWarrantyPlan = {
+  provider: string;
+  claimContact: string;
+  contractDocId: [] | [string];
+  updatedAt: bigint;
+  contractNumber: string;
+  exclusionNotes: string;
+  coverageNotes: string;
+  serviceFeeCents: [] | [bigint];
+  planName: string;
+  renewalDate: string;
+  startDate: string;
+};
+
 export type HouseGuideRecord = {
   wifiName: string;
   alarm: string;
@@ -248,6 +305,21 @@ export type ManagerInvite = {
   spendLimitCents: [] | [bigint];
 };
 
+export type MortgageLoan = {
+  statementDate: string;
+  rateThousandthsPct: bigint;
+  statementBalanceCents: [] | [bigint];
+  monthlyPmiCents: [] | [bigint];
+  originalAmountCents: bigint;
+  updatedAt: bigint;
+  termMonths: bigint;
+  lender: string;
+  currentValueCents: [] | [bigint];
+  firstPaymentDate: string;
+  monthlyEscrowCents: [] | [bigint];
+  originalValueCents: [] | [bigint];
+};
+
 export type ManagedProperty = {
   role: ManagerRole;
   property: Property;
@@ -284,6 +356,30 @@ export type PropertyManager = {
   role: ManagerRole;
   spendLimitCents: [] | [bigint];
   addedAt: bigint;
+};
+
+export type PulseHomeFinance = {
+  loan:
+    | []
+    | [
+        {
+          rateThousandthsPct: bigint;
+          monthlyPmiCents: [] | [bigint];
+          originalAmountCents: bigint;
+          termMonths: bigint;
+          firstPaymentDate: string;
+          originalValueCents: [] | [bigint];
+        },
+      ];
+  propertyId: string;
+  warranty:
+    | []
+    | [
+        {
+          provider: string;
+          renewalDate: string;
+        },
+      ];
 };
 
 export type RoomRecord = {
@@ -351,6 +447,27 @@ export type RegisterArgs = {
   yearBuilt: bigint;
 };
 
+export type FloodTarget = {
+  city: string;
+  floodZone: [] | [FloodZoneRecord];
+  zipCode: string;
+  state: string;
+  address: string;
+};
+
+export type FloodZoneInput = {
+  status: FloodZoneStatus;
+  latitude: string;
+  matchedAddress: string;
+  specialFloodHazardArea: boolean;
+  zone: string;
+  firmEffectiveDate: string;
+  longitude: string;
+  baseFloodElevation: string;
+  firmPanel: string;
+  zoneSubtype: string;
+};
+
 export type CondoRecordInput = {
   associationName: string;
   reserveStudyLastDate: string;
@@ -360,6 +477,19 @@ export type CondoRecordInput = {
   milestoneLastDate: string;
   reserveStudyDocId: [] | [string];
   reserveStudyNextDue: string;
+};
+
+export type HomeWarrantyPlanInput = {
+  provider: string;
+  claimContact: string;
+  contractDocId: [] | [string];
+  contractNumber: string;
+  exclusionNotes: string;
+  coverageNotes: string;
+  serviceFeeCents: [] | [bigint];
+  planName: string;
+  renewalDate: string;
+  startDate: string;
 };
 
 export type HouseGuideInput = {
@@ -384,9 +514,24 @@ export type InsurancePolicyInput = {
   renewalDate: string;
 };
 
+export type MortgageLoanInput = {
+  statementDate: string;
+  rateThousandthsPct: bigint;
+  statementBalanceCents: [] | [bigint];
+  monthlyPmiCents: [] | [bigint];
+  originalAmountCents: bigint;
+  termMonths: bigint;
+  lender: string;
+  currentValueCents: [] | [bigint];
+  firstPaymentDate: string;
+  monthlyEscrowCents: [] | [bigint];
+  originalValueCents: [] | [bigint];
+};
+
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
   addArchitecturalReview: ActorMethod<[string, ReviewInput], { ok: ArchitecturalReview } | { err: Error }>;
+  addHomeWarrantyClaim: ActorMethod<[string, HomeWarrantyClaimInput], { ok: HomeWarrantyClaim } | { err: Error }>;
   addInsuranceClaimLog: ActorMethod<[string, string, string], { ok: InsuranceClaim } | { err: Error }>;
   addInventoryItem: ActorMethod<[string, InventoryItemInput], { ok: InventoryItem } | { err: Error }>;
   addSpecialAssessment: ActorMethod<[string, AssessmentInput], { ok: SpecialAssessment } | { err: Error }>;
@@ -406,6 +551,7 @@ export interface _SERVICE {
   createHouseGuideLink: ActorMethod<[string, string, bigint], { ok: HouseGuideLink } | { err: Error }>;
   createInsuranceClaim: ActorMethod<[string, ClaimInput], { ok: InsuranceClaim } | { err: Error }>;
   deleteArchitecturalReview: ActorMethod<[string], { ok: null } | { err: Error }>;
+  deleteHomeWarrantyClaim: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteInsuranceClaim: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteInventoryItem: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
@@ -424,6 +570,9 @@ export interface _SERVICE {
   getApprovals: ActorMethod<[string], { ok: PendingApprovalRequest[] } | { err: Error }>;
   getArchitecturalReviews: ActorMethod<[string], { ok: ArchitecturalReview[] } | { err: Error }>;
   getCondoAssociationRecord: ActorMethod<[string], { ok: [] | [CondoRecord] } | { err: Error }>;
+  getFloodZone: ActorMethod<[string], { ok: [] | [FloodZoneRecord] } | { err: Error }>;
+  getHomeWarrantyClaims: ActorMethod<[string], { ok: HomeWarrantyClaim[] } | { err: Error }>;
+  getHomeWarrantyPlan: ActorMethod<[string], { ok: [] | [HomeWarrantyPlan] } | { err: Error }>;
   getHouseGuide: ActorMethod<[string], { ok: [] | [HouseGuideRecord] } | { err: Error }>;
   getInsuranceClaims: ActorMethod<[string], { ok: InsuranceClaim[] } | { err: Error }>;
   getInsurancePolicy: ActorMethod<[string], { ok: [] | [InsurancePolicy] } | { err: Error }>;
@@ -437,6 +586,7 @@ export interface _SERVICE {
     }>
   >;
   getManagerInviteByToken: ActorMethod<[string], [] | [ManagerInvite]>;
+  getMortgageLoan: ActorMethod<[string], { ok: [] | [MortgageLoan] } | { err: Error }>;
   getMyManagedProperties: ActorMethod<[], ManagedProperty[]>;
   getMyProperties: ActorMethod<[], Property[]>;
   getOwnerNotifications: ActorMethod<[string], { ok: OwnerNotification[] } | { err: Error }>;
@@ -453,6 +603,7 @@ export interface _SERVICE {
   getPropertyManagers: ActorMethod<[string], { ok: PropertyManager[] } | { err: Error }>;
   getPropertyOwner: ActorMethod<[string], [] | [Principal]>;
   getPropertyYearBuilt: ActorMethod<[string], [] | [bigint]>;
+  getPulseHomeFinance: ActorMethod<[Principal], { ok: PulseHomeFinance[] } | { err: Error }>;
   getPulseInsurance: ActorMethod<
     [Principal],
     | {
@@ -491,17 +642,22 @@ export interface _SERVICE {
   markIdentityCleared: ActorMethod<[string, string, string], { ok: Property } | { err: Error }>;
   recordManagerActivity: ActorMethod<[string, string], { ok: null } | { err: Error }>;
   registerProperty: ActorMethod<[RegisterArgs], { ok: Property } | { err: Error }>;
+  relayFloodTarget: ActorMethod<[string, Principal], { ok: FloodTarget } | { err: Error }>;
   relayMarkIdentityCleared: ActorMethod<[string, Principal, string, string], { ok: null } | { err: Error }>;
+  relaySetFloodZone: ActorMethod<[string, Principal, FloodZoneInput], { ok: FloodZoneRecord } | { err: Error }>;
   removeManager: ActorMethod<[string, Principal], { ok: null } | { err: Error }>;
   requestApproval: ActorMethod<[string, string, bigint], { ok: bigint } | { err: Error }>;
   resignAsManager: ActorMethod<[string], { ok: null } | { err: Error }>;
   respondToApproval: ActorMethod<[string, bigint, boolean], { ok: null } | { err: Error }>;
   revokeHouseGuideLink: ActorMethod<[string], { ok: null } | { err: Error }>;
   setCondoAssociationRecord: ActorMethod<[string, [] | [CondoRecordInput]], { ok: null } | { err: Error }>;
+  setHomeWarrantyPlan: ActorMethod<[string, [] | [HomeWarrantyPlanInput]], { ok: null } | { err: Error }>;
   setHouseGuide: ActorMethod<[string, [] | [HouseGuideInput]], { ok: null } | { err: Error }>;
   setInsurancePolicy: ActorMethod<[string, [] | [InsurancePolicyInput]], { ok: null } | { err: Error }>;
+  setMortgageLoan: ActorMethod<[string, [] | [MortgageLoanInput]], { ok: null } | { err: Error }>;
   submitVerification: ActorMethod<[string, string, string, [] | [string]], { ok: Property } | { err: Error }>;
   updateArchitecturalReview: ActorMethod<[string, ReviewInput], { ok: ArchitecturalReview } | { err: Error }>;
+  updateHomeWarrantyClaim: ActorMethod<[string, HomeWarrantyClaimInput], { ok: HomeWarrantyClaim } | { err: Error }>;
   updateInsuranceClaim: ActorMethod<[string, ClaimInput], { ok: InsuranceClaim } | { err: Error }>;
   updateInventoryItem: ActorMethod<[string, InventoryItemInput], { ok: InventoryItem } | { err: Error }>;
   updateManagerRole: ActorMethod<[string, Principal, ManagerRole, [] | [bigint]], { ok: null } | { err: Error }>;

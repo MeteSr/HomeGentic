@@ -56,6 +56,8 @@ import ApiDoc "ApiDoc";
 import Insurance "Insurance";
 import HouseGuide "HouseGuide";
 import Hoa "Hoa";
+import HomeFinance "HomeFinance";
+import FloodZone "FloodZone";
 
 persistent actor Property {
 
@@ -197,6 +199,18 @@ persistent actor Property {
   public type SpecialAssessment   = Hoa.SpecialAssessment;
   public type CondoRecordInput    = Hoa.CondoRecordInput;
   public type CondoRecord         = Hoa.CondoRecord;
+  public type HomeWarrantyPlanInput  = HomeFinance.PlanInput;
+  public type HomeWarrantyPlan       = HomeFinance.Plan;
+  public type WarrantyClaimOutcome   = HomeFinance.ClaimOutcome;
+  public type HomeWarrantyClaimInput = HomeFinance.ClaimInput;
+  public type HomeWarrantyClaim      = HomeFinance.Claim;
+  public type MortgageLoanInput      = HomeFinance.LoanInput;
+  public type MortgageLoan           = HomeFinance.Loan;
+  public type PulseHomeFinance       = HomeFinance.PulseHomeFinance;
+  public type FloodZoneStatus        = FloodZone.Status;
+  public type FloodZoneInput         = FloodZone.Input;
+  public type FloodZoneRecord        = FloodZone.FloodZone;
+  public type FloodTarget            = FloodZone.Target;
 
   public type RegisterPropertyArgs = {
     address      : Text;
@@ -562,6 +576,31 @@ persistent actor Property {
     if (condoRecords.get(propertyId) != null) { condoRecords.remove(propertyId); n += 1 };
     n
   };
+
+  /// #719: propertyId → the home warranty plan (service contract), and
+  /// claimId → a claim filed under it, indexed by property. The plan is the
+  /// seller's contract, so it goes on claimTransfer; the claim history stays
+  /// with the home like its jobs. deleteMyData drops both.
+  private let homeWarrantyPlans = Map.empty<Text, HomeFinance.Plan>();
+  private let homeWarrantyClaims = Map.empty<Text, HomeFinance.Claim>();
+  private transient let hwClaimsByProperty = Index.empty();
+  private transient let hwClaimIndexes : [Index.Keyed<HomeFinance.Claim>] = Index.indexed(homeWarrantyClaims, [
+    (hwClaimsByProperty, func(c : HomeFinance.Claim) : ?Text { ?c.propertyId }),
+  ]);
+  private func dropWarrantyClaims(propertyId : Text) : Nat {
+    let ids = Index.ids(hwClaimsByProperty, propertyId).toArray();
+    for (id in ids.values()) { Index.delete(homeWarrantyClaims, hwClaimIndexes, id) };
+    ids.size()
+  };
+
+  /// #722: propertyId → the owner's mortgage details. Owner and co-owners
+  /// only. Dropped on claimTransfer and deleteMyData.
+  private let mortgageLoans = Map.empty<Text, HomeFinance.Loan>();
+
+  /// #718: propertyId → the FEMA flood zone the Worker last read for the
+  /// address. It describes the land, so it stays on claimTransfer;
+  /// deleteMyData drops it with the home.
+  private let floodZones = Map.empty<Text, FloodZone.FloodZone>();
 
   private func putProperty(p : Property) { Index.put(properties, propertyIndexes, p.id, p) };
   private func putRoom(r : RoomRecord)   { Index.put(rooms, roomIndexes, r.id, r) };
@@ -1611,6 +1650,9 @@ persistent actor Property {
                 ignore dropInventory(propertyId);
                 // #725: the seller's house guide (Wi-Fi, alarm) and its links.
                 ignore dropGuide(propertyId);
+                // #719 / #722: the seller's home warranty contract and mortgage.
+                homeWarrantyPlans.remove(propertyId);
+                mortgageLoans.remove(propertyId);
 
                 // Append immutable record to ownership history. L-3: take a
                 // fresh key per claim so two claims never share a record slot.
@@ -2954,6 +2996,180 @@ persistent actor Property {
     #ok(condoRecords.get(propertyId))
   };
 
+  // ─── Home warranty plan (#719) ────────────────────────────────────────────
+
+  /// #719: save the home warranty plan, or clear it with null. Needs write
+  /// access. Records what the owner enters; nothing is checked with the company.
+  public shared(msg) func setHomeWarrantyPlan(propertyId: Text, plan: ?HomeWarrantyPlanInput) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    switch (plan) {
+      case null { homeWarrantyPlans.remove(propertyId) };
+      case (?raw) {
+        let p = HomeFinance.cleanPlan(raw);
+        switch (HomeFinance.validatePlan(p)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+        homeWarrantyPlans.add(propertyId, HomeFinance.toPlan(p, Time.now()));
+      };
+    };
+    #ok(())
+  };
+
+  /// #719: the home warranty plan, or null. Anyone with a role on the home and admins.
+  public query(msg) func getHomeWarrantyPlan(propertyId: Text) : async Result.Result<?HomeWarrantyPlan, Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(homeWarrantyPlans.get(propertyId))
+  };
+
+  /// #719: log a claim filed with the home warranty company. Needs write
+  /// access; at most 100 per home.
+  public shared(msg) func addHomeWarrantyClaim(propertyId: Text, input: HomeWarrantyClaimInput) : async Result.Result<HomeWarrantyClaim, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    let c = HomeFinance.cleanClaim(input);
+    switch (HomeFinance.validateClaim(c)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let id = Uuid.fromBlob(await Random.blob());
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    if (Index.ids(hwClaimsByProperty, propertyId).size() >= HomeFinance.MAX_CLAIMS_PER_PROPERTY)
+      return #err(#InvalidInput("This home already has 100 home warranty claims; delete an old one first"));
+    let now = Time.now();
+    let rec : HomeWarrantyClaim = {
+      id; propertyId;
+      dateFiled = c.dateFiled; issue = c.issue; claimNumber = c.claimNumber; jobId = c.jobId;
+      serviceFeePaidCents = c.serviceFeePaidCents; outcome = c.outcome; outcomeNotes = c.outcomeNotes;
+      createdAt = now; updatedAt = now;
+    };
+    Index.put(homeWarrantyClaims, hwClaimIndexes, id, rec);
+    #ok(rec)
+  };
+
+  /// #719: change a home warranty claim (for example, record the outcome).
+  public shared(msg) func updateHomeWarrantyClaim(claimId: Text, input: HomeWarrantyClaimInput) : async Result.Result<HomeWarrantyClaim, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let existing = switch (homeWarrantyClaims.get(claimId)) { case null return #err(#NotFound); case (?x) x };
+    if (not checkAuthorized(existing.propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    let c = HomeFinance.cleanClaim(input);
+    switch (HomeFinance.validateClaim(c)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let rec : HomeWarrantyClaim = {
+      existing with
+      dateFiled = c.dateFiled; issue = c.issue; claimNumber = c.claimNumber; jobId = c.jobId;
+      serviceFeePaidCents = c.serviceFeePaidCents; outcome = c.outcome; outcomeNotes = c.outcomeNotes;
+      updatedAt = Time.now();
+    };
+    Index.put(homeWarrantyClaims, hwClaimIndexes, claimId, rec);
+    #ok(rec)
+  };
+
+  /// #719: delete a home warranty claim. Can't be undone.
+  public shared(msg) func deleteHomeWarrantyClaim(claimId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let existing = switch (homeWarrantyClaims.get(claimId)) { case null return #err(#NotFound); case (?x) x };
+    if (not checkAuthorized(existing.propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    Index.delete(homeWarrantyClaims, hwClaimIndexes, claimId);
+    #ok(())
+  };
+
+  /// #719: the home's warranty claims, latest filed first.
+  public query(msg) func getHomeWarrantyClaims(propertyId: Text) : async Result.Result<[HomeWarrantyClaim], Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let list = Index.records(hwClaimsByProperty, propertyId, homeWarrantyClaims).toArray();
+    #ok(list.sort(func(a : HomeWarrantyClaim, b : HomeWarrantyClaim) : Order.Order {
+      switch (Text.compare(b.dateFiled, a.dateFiled)) { case (#equal) Int.compare(b.createdAt, a.createdAt); case o o }
+    }))
+  };
+
+  // ─── Mortgage details (#722) ──────────────────────────────────────────────
+
+  /// Owner or co-owner: the people who see the mortgage (bills canister's rule too).
+  private func hasFullControl(propertyId : Text, caller : Principal) : Bool {
+    switch (properties.get(propertyId)) {
+      case null false;
+      case (?prop) {
+        if (prop.owner == caller) return true;
+        let mgrs = switch (managersMap.get(propertyId)) { case null []; case (?list) list };
+        mgrs.find(func(m : PropertyManager) : Bool { m.principal == caller and m.role == #CoOwner }) != null
+      };
+    }
+  };
+
+  /// #722: save the owner's mortgage details, or clear them with null. Owner
+  /// and co-owners only. A calculator's inputs; nothing goes to the lender.
+  public shared(msg) func setMortgageLoan(propertyId: Text, loan: ?MortgageLoanInput) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not hasFullControl(propertyId, msg.caller)) return #err(#NotAuthorized);
+    switch (loan) {
+      case null { mortgageLoans.remove(propertyId) };
+      case (?raw) {
+        let l = HomeFinance.cleanLoan(raw);
+        switch (HomeFinance.validateLoan(l)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+        mortgageLoans.add(propertyId, HomeFinance.toLoan(l, Time.now()));
+      };
+    };
+    #ok(())
+  };
+
+  /// #722: the mortgage details, or null. Owner and co-owners only.
+  public query(msg) func getMortgageLoan(propertyId: Text) : async Result.Result<?MortgageLoan, Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not hasFullControl(propertyId, msg.caller)) return #err(#NotAuthorized);
+    #ok(mortgageLoans.get(propertyId))
+  };
+
+  /// #719 / #722: for the weekly Home Pulse email, each of `owner`'s active
+  /// homes with a home warranty renewal or a loan on record: the warranty
+  /// company and renewal date, and the loan terms the PMI reminder needs (no
+  /// lender, balance or value). Notifiers and admins only.
+  public query(msg) func getPulseHomeFinance(owner: Principal) : async Result.Result<[PulseHomeFinance], Error> {
+    if (not Admin.contains(notifierEntries, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let out = List.empty<PulseHomeFinance>();
+    for (p in ownedBy(owner)) {
+      if (p.isActive) {
+        let warranty = switch (homeWarrantyPlans.get(p.id)) {
+          case (?w) ?{ provider = w.provider; renewalDate = w.renewalDate };
+          case null null;
+        };
+        let loan = switch (mortgageLoans.get(p.id)) { case (?l) ?HomeFinance.pulseLoan(l); case null null };
+        if (warranty != null or loan != null) out.add({ propertyId = p.id; warranty; loan });
+      };
+    };
+    #ok(out.toArray())
+  };
+
+  // ─── FEMA flood zone (#718) ───────────────────────────────────────────────
+
+  /// #718: the flood zone FEMA's map showed for the address when it was last
+  /// looked up, or null. Anyone with a role on the home and admins.
+  public query(msg) func getFloodZone(propertyId: Text) : async Result.Result<?FloodZoneRecord, Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(floodZones.get(propertyId))
+  };
+
+  /// #718: the Worker (an identity relay) reads the address to look up, and
+  /// any saved result, for `user`, who must have a role on the home.
+  public query(msg) func relayFloodTarget(propertyId: Text, user: Principal) : async Result.Result<FloodTarget, Error> {
+    if (not isIdentityRelay(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let p = switch (properties.get(propertyId)) { case null return #err(#NotFound); case (?x) x };
+    if (not checkAuthorized(propertyId, user, false)) return #err(#NotAuthorized);
+    #ok({ address = p.address; city = p.city; state = p.state; zipCode = p.zipCode; floodZone = floodZones.get(propertyId) })
+  };
+
+  /// #718: the Worker saves what FEMA's map shows for the address, for `user`,
+  /// who must have a role on the home.
+  public shared(msg) func relaySetFloodZone(propertyId: Text, user: Principal, input: FloodZoneInput) : async Result.Result<FloodZoneRecord, Error> {
+    if (not isIdentityRelay(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, user, false)) return #err(#NotAuthorized);
+    switch (FloodZone.validate(input)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let rec = FloodZone.toRecord(input, Time.now());
+    floodZones.add(propertyId, rec);
+    #ok(rec)
+  };
+
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
@@ -3040,6 +3256,11 @@ persistent actor Property {
       // #725 house guide and links; #726 HOA paperwork.
       removed += dropGuide(pid);
       removed += dropHoa(pid);
+      // #719 home warranty plan and claims, #722 mortgage, #718 flood zone.
+      if (homeWarrantyPlans.get(pid) != null) { homeWarrantyPlans.remove(pid); removed += 1 };
+      removed += dropWarrantyClaims(pid);
+      if (mortgageLoans.get(pid) != null) { mortgageLoans.remove(pid); removed += 1 };
+      if (floodZones.get(pid) != null) { floodZones.remove(pid); removed += 1 };
 
       // Pending transfer and its token index.
       switch (pendingTransfers.get(pid)) {
