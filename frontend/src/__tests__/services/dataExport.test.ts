@@ -56,6 +56,16 @@ vi.mock("@/services/inventory", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/inventory")>()),
   inventoryService: { list: async () => [{ id: "I1", name: "65-inch TV", valueCents: 129900 }] },
 }));
+vi.mock("@/services/houseGuide", () => ({
+  houseGuideService: { get: async () => ({ wifiName: "Lake House", contacts: [], photoIds: [] }) },
+}));
+vi.mock("@/services/hoaRecords", () => ({
+  hoaService: {
+    listReviews: async () => [{ id: "R1", project: "Fence" }],
+    listAssessments: async () => [{ id: "A1", title: "Roof", amount: 4500 }],
+    getCondo: async () => null,
+  },
+}));
 vi.mock("@/services/room", () => ({ roomService: { getRoomsByProperty: async () => [] } }));
 vi.mock("@/services/maintenance", () => ({ maintenanceService: { getScheduleByProperty: async () => [] } }));
 vi.mock("@/services/sensor", () => ({
@@ -136,7 +146,10 @@ describe("data export", () => {
     const home = data.properties.ok[0];
     expect(home.property).toEqual({ id: "7", address: "12 Elm St" });
     expect(Object.keys(home.sections).sort()).toEqual([
+      "architecturalReviews",
       "bills",
+      "condoAssociation",
+      "houseGuide",
       "insuranceClaims",
       "insurancePolicy",
       "inventory",
@@ -150,6 +163,7 @@ describe("data export", () => {
       "rooms",
       "smartHomeDevices",
       "smartHomeEvents",
+      "specialAssessments",
     ]);
     expect(home.sections.jobs.ok[0].amount).toBe("12000");
     expect(home.sections.photos.ok.map((p: any) => [p.id, p.file, p.url])).toEqual([
@@ -157,6 +171,11 @@ describe("data export", () => {
       ["PHOTO_2", null, undefined],
     ]);
     expect(home.sections.insurancePolicy.ok.carrier).toBe("Citizens");
+    // #725 and #726: the house guide and HOA paperwork.
+    expect(home.sections.houseGuide.ok.wifiName).toBe("Lake House");
+    expect(home.sections.architecturalReviews.ok[0].project).toBe("Fence");
+    expect(home.sections.specialAssessments.ok[0].amount).toBe(4500);
+    expect(home.sections.condoAssociation.ok).toBeNull();
     expect(home.sections.insuranceClaims.ok[0].id).toBe("C1");
     // Claim damage photos are marked with the claim they were taken for.
     expect(home.sections.photos.ok.map((p: any) => p.insuranceClaimId)).toEqual([undefined, "C1"]);

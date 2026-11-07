@@ -61,6 +61,7 @@ module {
     getAccessRoles       : shared query ([Text], Principal) -> async [?AccessRole];
     getPropertyOwner     : shared query Text -> async ?Principal;
     getVerificationLevel : shared query Text -> async ?Text;
+    guideSharesPhoto     : shared query (Text, Text, Text) -> async Bool;
   };
 
   public func property(id : Text) : Property = actor (id);

@@ -8,7 +8,9 @@
  *      the caller uploaded that photo and the bytes are `size` bytes hashing
  *      to `hash`, so R2 always holds exactly what the canister approved
  *   3. GET /photos/<id>: served when photoAccess says the reader may see it
- *      (listing photos are public)
+ *      (listing photos are public). GET /photos/<id>?guide=<token> is for a
+ *      house-guide link (#725): guidePhotoAccess says whether that link shows
+ *      the photo, whoever is asking
  *   4. DELETE /photos/<id>: after photo.deletePhoto, drops the bytes; refused
  *      while the canister still has the photo
  *
@@ -30,10 +32,14 @@ export interface PhotoDeps {
   principal: () => Promise<string | null>;
   /** photo.photoAccess (null = no such photo). */
   access: (photoId: string, reader: string) => Promise<PhotoAccess | null>;
+  /** photo.guidePhotoAccess (#725): what a house-guide link may see. Absent = guide photos off. */
+  guideAccess?: (photoId: string, token: string) => Promise<PhotoAccess | null>;
 }
 
 export const ANONYMOUS_PRINCIPAL = "2vxsx-fae";
 export const PHOTO_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+/** A house-guide link token: 32 random bytes as hex (property.createHouseGuideLink). */
+export const GUIDE_TOKEN_RE = /^[0-9a-f]{64}$/;
 /** Matches MAX_PHOTO_BYTES in backend/photo/main.mo. */
 export const MAX_PHOTO_BYTES = 1_500_000;
 export const ACCESS_CACHE_TTL_SECONDS = 60;
@@ -52,12 +58,11 @@ async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** photoAccess for a read, cached briefly per (photo, reader) so a gallery costs one query per photo. */
-async function cachedAccess(env: KVEnv, deps: PhotoDeps, id: string, reader: string): Promise<PhotoAccess | null> {
-  const key = `pacc:${id}:${reader}`;
+/** An access check, cached briefly under `key` so a gallery costs one query per photo. */
+async function cached(env: KVEnv, key: string, check: () => Promise<PhotoAccess | null>): Promise<PhotoAccess | null> {
   const hit = await env.RATE_LIMIT.get(key);
   if (hit) return hit === "none" ? null : JSON.parse(hit) as PhotoAccess;
-  const access = await deps.access(id, reader);
+  const access = await check();
   await env.RATE_LIMIT.put(key, access ? JSON.stringify(access) : "none", { expirationTtl: ACCESS_CACHE_TTL_SECONDS });
   return access;
 }
@@ -87,9 +92,17 @@ async function getPhoto(request: Request, id: string, env: KVEnv, deps: PhotoDep
   if (!(await hitCounter(env, `photo-read:${ip}:${minute}`, READS_PER_MINUTE_PER_IP, 60)).allowed) {
     return reply(429, { error: "too_many_requests" });
   }
-  const caller = await deps.principal();
-  const reader = caller && caller !== "anon" ? caller : ANONYMOUS_PRINCIPAL;
-  const access = await cachedAccess(env, deps, id, reader);
+  const guide = new URL(request.url).searchParams.get("guide");
+  let access: PhotoAccess | null;
+  if (guide !== null) {
+    const guideAccess = deps.guideAccess;
+    if (!guideAccess || !GUIDE_TOKEN_RE.test(guide)) return reply(404, { error: "not_found" });
+    access = await cached(env, `gacc:${id}:${guide}`, () => guideAccess(id, guide));
+  } else {
+    const caller = await deps.principal();
+    const reader = caller && caller !== "anon" ? caller : ANONYMOUS_PRINCIPAL;
+    access = await cached(env, `pacc:${id}:${reader}`, () => deps.access(id, reader));
+  }
   // Same answer for "missing" and "not yours", so ids can't be probed.
   if (!access || !access.canRead) return reply(404, { error: "not_found" });
   // Bytes still on-chain: the client reads them with getPhotoDataBatch.

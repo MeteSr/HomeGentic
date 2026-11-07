@@ -54,6 +54,8 @@ import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
 import ApiDoc "ApiDoc";
 import Insurance "Insurance";
+import HouseGuide "HouseGuide";
+import Hoa "Hoa";
 
 persistent actor Property {
 
@@ -183,6 +185,18 @@ persistent actor Property {
   public type InsuranceClaim = Insurance.InsuranceClaim;
   public type InventoryItemInput = Insurance.InventoryItemInput;
   public type InventoryItem      = Insurance.InventoryItem;
+  public type GuideContact       = HouseGuide.GuideContact;
+  public type HouseGuideInput    = HouseGuide.GuideInput;
+  public type HouseGuideRecord   = HouseGuide.HouseGuide;
+  public type HouseGuideLink     = HouseGuide.GuideLink;
+  public type SharedHouseGuide   = HouseGuide.SharedHouseGuide;
+  public type ReviewStatus        = Hoa.ReviewStatus;
+  public type ReviewInput         = Hoa.ReviewInput;
+  public type ArchitecturalReview = Hoa.ArchitecturalReview;
+  public type AssessmentInput     = Hoa.AssessmentInput;
+  public type SpecialAssessment   = Hoa.SpecialAssessment;
+  public type CondoRecordInput    = Hoa.CondoRecordInput;
+  public type CondoRecord         = Hoa.CondoRecord;
 
   public type RegisterPropertyArgs = {
     address      : Text;
@@ -503,6 +517,50 @@ persistent actor Property {
     let ids = Index.ids(inventoryByProperty, propertyId).toArray();
     for (id in ids.values()) { Index.delete(inventoryItems, inventoryIndexes, id) };
     ids.size()
+  };
+
+  /// #725 house guide: propertyId → the guide the household wrote for
+  /// sitters and guests. Dropped (with its links) on claimTransfer and
+  /// deleteMyData: Wi-Fi and alarm details are the seller's.
+  private let houseGuides = Map.empty<Text, HouseGuide.HouseGuide>();
+  /// #725: token → a link that shares one home's guide. Indexed by property.
+  private let guideLinks = Map.empty<Text, HouseGuide.GuideLink>();
+  private transient let guideLinksByProperty = Index.empty();
+  private transient let guideLinkIndexes : [Index.Keyed<HouseGuide.GuideLink>] = Index.indexed(guideLinks, [
+    (guideLinksByProperty, func(l : HouseGuide.GuideLink) : ?Text { ?l.propertyId }),
+  ]);
+  /// Removes a home's guide and every link to it; returns how many records.
+  private func dropGuide(propertyId : Text) : Nat {
+    var n = 0;
+    if (houseGuides.get(propertyId) != null) { houseGuides.remove(propertyId); n += 1 };
+    let tokens = Index.ids(guideLinksByProperty, propertyId).toArray();
+    for (t in tokens.values()) { Index.delete(guideLinks, guideLinkIndexes, t) };
+    n + tokens.size()
+  };
+
+  /// #726 HOA paperwork: review requests and special assessments by id,
+  /// indexed by property, and propertyId → the condo association record.
+  /// These stay with the home when it changes hands (an approval runs with
+  /// the property); deleteMyData drops them.
+  private let archReviews = Map.empty<Text, Hoa.ArchitecturalReview>();
+  private transient let reviewsByProperty = Index.empty();
+  private transient let reviewIndexes : [Index.Keyed<Hoa.ArchitecturalReview>] = Index.indexed(archReviews, [
+    (reviewsByProperty, func(r : Hoa.ArchitecturalReview) : ?Text { ?r.propertyId }),
+  ]);
+  private let specialAssessments = Map.empty<Text, Hoa.SpecialAssessment>();
+  private transient let assessmentsByProperty = Index.empty();
+  private transient let assessmentIndexes : [Index.Keyed<Hoa.SpecialAssessment>] = Index.indexed(specialAssessments, [
+    (assessmentsByProperty, func(a : Hoa.SpecialAssessment) : ?Text { ?a.propertyId }),
+  ]);
+  private let condoRecords = Map.empty<Text, Hoa.CondoRecord>();
+  private func dropHoa(propertyId : Text) : Nat {
+    let r = Index.ids(reviewsByProperty, propertyId).toArray();
+    for (id in r.values()) { Index.delete(archReviews, reviewIndexes, id) };
+    let a = Index.ids(assessmentsByProperty, propertyId).toArray();
+    for (id in a.values()) { Index.delete(specialAssessments, assessmentIndexes, id) };
+    var n = r.size() + a.size();
+    if (condoRecords.get(propertyId) != null) { condoRecords.remove(propertyId); n += 1 };
+    n
   };
 
   private func putProperty(p : Property) { Index.put(properties, propertyIndexes, p.id, p) };
@@ -1551,6 +1609,8 @@ persistent actor Property {
                 insurancePolicies.remove(propertyId);
                 ignore dropClaims(propertyId);
                 ignore dropInventory(propertyId);
+                // #725: the seller's house guide (Wi-Fi, alarm) and its links.
+                ignore dropGuide(propertyId);
 
                 // Append immutable record to ownership history. L-3: take a
                 // fresh key per claim so two claims never share a record slot.
@@ -2617,6 +2677,283 @@ persistent actor Property {
     #ok(insurancePolicies.get(propertyId))
   };
 
+  // ─── House guide (#725) ───────────────────────────────────────────────────
+
+  private transient let DAY_NS : Int = 24 * 3600 * 1_000_000_000;
+
+  /// #725: save the home's house guide, or clear it with null (which also
+  /// ends every link to it). Needs write access to the home. Text is stored
+  /// as typed, Wi-Fi passwords and alarm codes included.
+  public shared(msg) func setHouseGuide(propertyId: Text, guide: ?HouseGuideInput) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    switch (guide) {
+      case null { ignore dropGuide(propertyId) };
+      case (?raw) {
+        let g = HouseGuide.clean(raw);
+        switch (HouseGuide.validate(g)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+        houseGuides.add(propertyId, {
+          wifiName = g.wifiName; wifiPassword = g.wifiPassword; alarm = g.alarm;
+          trashDay = g.trashDay; recyclingDay = g.recyclingDay;
+          waterShutoff = g.waterShutoff; gasShutoff = g.gasShutoff; electricPanel = g.electricPanel;
+          contacts = g.contacts; notes = g.notes; photoIds = g.photoIds;
+          updatedAt = Time.now();
+        });
+      };
+    };
+    #ok(())
+  };
+
+  /// #725: the home's house guide, or null. Anyone with a role on the home and admins.
+  public query(msg) func getHouseGuide(propertyId: Text) : async Result.Result<?HouseGuideRecord, Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(houseGuides.get(propertyId))
+  };
+
+  /// #725: a link that shows the home's guide (and address) to anyone who has
+  /// it, for 1 to 90 days. Needs write access and a saved guide; at most 10
+  /// live links per home.
+  public shared(msg) func createHouseGuideLink(propertyId: Text, name: Text, expiryDays: Nat) : async Result.Result<HouseGuideLink, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    let n = HouseGuide.cleanName(name);
+    if (n.size() > HouseGuide.MAX_LINK_NAME) return #err(#InvalidInput("Link name is over 60 characters"));
+    if (expiryDays < 1 or expiryDays > HouseGuide.MAX_LINK_DAYS)
+      return #err(#InvalidInput("A guide link lasts 1 to 90 days"));
+    if (houseGuides.get(propertyId) == null) return #err(#InvalidInput("Write the house guide before sharing it"));
+    let token = blobToHex(await Random.blob());
+    // Re-check after the await: the home may have changed hands meanwhile.
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    if (houseGuides.get(propertyId) == null) return #err(#InvalidInput("Write the house guide before sharing it"));
+    let now = Time.now();
+    let all = Index.records(guideLinksByProperty, propertyId, guideLinks).toArray();
+    let live = all.filter(func(l : HouseGuide.GuideLink) : Bool { HouseGuide.isLive(l, now) }).size();
+    if (live >= HouseGuide.MAX_LIVE_LINKS)
+      return #err(#InvalidInput("This home already has 10 live guide links; revoke one first"));
+    // Keep only the newest dead (expired or revoked) links, so storage per
+    // home stays bounded however many links are made and turned off.
+    let dead = all
+      .filter(func(l : HouseGuide.GuideLink) : Bool { not HouseGuide.isLive(l, now) })
+      .sort(func(a : HouseGuide.GuideLink, b : HouseGuide.GuideLink) : Order.Order { Int.compare(b.createdAt, a.createdAt) });
+    // The new link makes room for itself: keep at most MAX_DEAD_LINKS - 1 dead ones.
+    var kept = 0;
+    for (l in dead.values()) {
+      kept += 1;
+      if (kept >= HouseGuide.MAX_DEAD_LINKS) Index.delete(guideLinks, guideLinkIndexes, l.token);
+    };
+    let link : HouseGuideLink = {
+      token; propertyId; name = n; createdBy = msg.caller;
+      createdAt = now; expiresAt = now + expiryDays * DAY_NS; revoked = false;
+    };
+    Index.put(guideLinks, guideLinkIndexes, token, link);
+    #ok(link)
+  };
+
+  /// #725: the home's guide links, newest first, live or not. Links are bearer
+  /// tokens, so only those with write access to the home (and admins) see them.
+  public query(msg) func listHouseGuideLinks(propertyId: Text) : async Result.Result<[HouseGuideLink], Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let list = Index.records(guideLinksByProperty, propertyId, guideLinks).toArray();
+    #ok(list.sort(func(a : HouseGuideLink, b : HouseGuideLink) : Order.Order { Int.compare(b.createdAt, a.createdAt) }))
+  };
+
+  /// #725: end a guide link now. Needs write access to its home.
+  public shared(msg) func revokeHouseGuideLink(token: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let link = switch (guideLinks.get(token)) { case null return #err(#NotFound); case (?l) l };
+    if (not checkAuthorized(link.propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    Index.put(guideLinks, guideLinkIndexes, token, { link with revoked = true });
+    #ok(())
+  };
+
+  /// The live link for `token` and its home's guide, if any.
+  private func liveGuide(token : Text) : ?(HouseGuideLink, HouseGuideRecord) {
+    switch (guideLinks.get(token)) {
+      case null null;
+      case (?link) {
+        if (not HouseGuide.isLive(link, Time.now())) return null;
+        switch (houseGuides.get(link.propertyId)) { case null null; case (?g) ?(link, g) };
+      };
+    }
+  };
+
+  /// #725: what a guide link shows: the guide and the home's address. Anyone
+  /// may call it; unknown, revoked and expired links are all #NotFound.
+  public query func getSharedHouseGuide(token: Text) : async Result.Result<SharedHouseGuide, Error> {
+    switch (liveGuide(token)) {
+      case null #err(#NotFound);
+      case (?(link, guide)) {
+        switch (properties.get(link.propertyId)) {
+          case null #err(#NotFound);
+          case (?p) #ok({ address = p.address; city = p.city; state = p.state; zipCode = p.zipCode; guide; expiresAt = link.expiresAt });
+        }
+      };
+    }
+  };
+
+  /// #725: for the photo canister: true when `token` is a live link to the
+  /// guide of `propertyId` and that guide shows `photoId`.
+  public query func guideSharesPhoto(token: Text, propertyId: Text, photoId: Text) : async Bool {
+    switch (liveGuide(token)) {
+      case null false;
+      case (?(link, guide)) {
+        link.propertyId == propertyId and guide.photoIds.find(func(id : Text) : Bool { id == photoId }) != null
+      };
+    }
+  };
+
+  // ─── HOA and condo paperwork (#726) ───────────────────────────────────────
+
+  /// #726: log an architectural review request to the association. Needs
+  /// write access to the home; at most 100 per home. Nothing is sent to the
+  /// association.
+  public shared(msg) func addArchitecturalReview(propertyId: Text, input: ReviewInput) : async Result.Result<ArchitecturalReview, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    let r = Hoa.cleanReview(input);
+    switch (Hoa.validateReview(r)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let id = Uuid.fromBlob(await Random.blob());
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    if (Index.ids(reviewsByProperty, propertyId).size() >= Hoa.MAX_REVIEWS_PER_PROPERTY)
+      return #err(#InvalidInput("This home already has 100 review requests; delete an old one first"));
+    let now = Time.now();
+    let rec : ArchitecturalReview = {
+      id; propertyId;
+      project = r.project; details = r.details; submittedDate = r.submittedDate; status = r.status;
+      decisionDate = r.decisionDate; conditions = r.conditions; approvalDocId = r.approvalDocId; jobId = r.jobId;
+      createdAt = now; updatedAt = now;
+    };
+    Index.put(archReviews, reviewIndexes, id, rec);
+    #ok(rec)
+  };
+
+  /// #726: change a review request (for example, record the decision).
+  public shared(msg) func updateArchitecturalReview(reviewId: Text, input: ReviewInput) : async Result.Result<ArchitecturalReview, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let existing = switch (archReviews.get(reviewId)) { case null return #err(#NotFound); case (?x) x };
+    if (not checkAuthorized(existing.propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    let r = Hoa.cleanReview(input);
+    switch (Hoa.validateReview(r)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let rec : ArchitecturalReview = {
+      existing with
+      project = r.project; details = r.details; submittedDate = r.submittedDate; status = r.status;
+      decisionDate = r.decisionDate; conditions = r.conditions; approvalDocId = r.approvalDocId; jobId = r.jobId;
+      updatedAt = Time.now();
+    };
+    Index.put(archReviews, reviewIndexes, reviewId, rec);
+    #ok(rec)
+  };
+
+  /// #726: delete a review request. Can't be undone.
+  public shared(msg) func deleteArchitecturalReview(reviewId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let existing = switch (archReviews.get(reviewId)) { case null return #err(#NotFound); case (?x) x };
+    if (not checkAuthorized(existing.propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    Index.delete(archReviews, reviewIndexes, reviewId);
+    #ok(())
+  };
+
+  /// #726: the home's review requests, newest first. Anyone with a role on the home and admins.
+  public query(msg) func getArchitecturalReviews(propertyId: Text) : async Result.Result<[ArchitecturalReview], Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let list = Index.records(reviewsByProperty, propertyId, archReviews).toArray();
+    #ok(list.sort(func(a : ArchitecturalReview, b : ArchitecturalReview) : Order.Order { Int.compare(b.createdAt, a.createdAt) }))
+  };
+
+  /// #726: record a special assessment (a dated cost). Needs write access; at most 100 per home.
+  public shared(msg) func addSpecialAssessment(propertyId: Text, input: AssessmentInput) : async Result.Result<SpecialAssessment, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    let a = Hoa.cleanAssessment(input);
+    switch (Hoa.validateAssessment(a)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let id = Uuid.fromBlob(await Random.blob());
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    if (Index.ids(assessmentsByProperty, propertyId).size() >= Hoa.MAX_ASSESSMENTS_PER_PROPERTY)
+      return #err(#InvalidInput("This home already has 100 special assessments; delete an old one first"));
+    let now = Time.now();
+    let rec : SpecialAssessment = {
+      id; propertyId;
+      title = a.title; amountCents = a.amountCents; dueDate = a.dueDate; paidDate = a.paidDate;
+      notes = a.notes; documentId = a.documentId; createdAt = now; updatedAt = now;
+    };
+    Index.put(specialAssessments, assessmentIndexes, id, rec);
+    #ok(rec)
+  };
+
+  /// #726: change a special assessment (for example, mark it paid).
+  public shared(msg) func updateSpecialAssessment(assessmentId: Text, input: AssessmentInput) : async Result.Result<SpecialAssessment, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let existing = switch (specialAssessments.get(assessmentId)) { case null return #err(#NotFound); case (?x) x };
+    if (not checkAuthorized(existing.propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    let a = Hoa.cleanAssessment(input);
+    switch (Hoa.validateAssessment(a)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let rec : SpecialAssessment = {
+      existing with
+      title = a.title; amountCents = a.amountCents; dueDate = a.dueDate; paidDate = a.paidDate;
+      notes = a.notes; documentId = a.documentId; updatedAt = Time.now();
+    };
+    Index.put(specialAssessments, assessmentIndexes, assessmentId, rec);
+    #ok(rec)
+  };
+
+  /// #726: delete a special assessment. Can't be undone.
+  public shared(msg) func deleteSpecialAssessment(assessmentId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let existing = switch (specialAssessments.get(assessmentId)) { case null return #err(#NotFound); case (?x) x };
+    if (not checkAuthorized(existing.propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    Index.delete(specialAssessments, assessmentIndexes, assessmentId);
+    #ok(())
+  };
+
+  /// #726: the home's special assessments, latest due date first.
+  public query(msg) func getSpecialAssessments(propertyId: Text) : async Result.Result<[SpecialAssessment], Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let list = Index.records(assessmentsByProperty, propertyId, specialAssessments).toArray();
+    #ok(list.sort(func(a : SpecialAssessment, b : SpecialAssessment) : Order.Order {
+      switch (Text.compare(b.dueDate, a.dueDate)) { case (#equal) Int.compare(b.createdAt, a.createdAt); case o o }
+    }))
+  };
+
+  /// #726: save what the owner knows of the condo association's milestone
+  /// inspection and reserve study, or clear it with null. Condo homes only;
+  /// needs write access. HomeGentic doesn't check any of it.
+  public shared(msg) func setCondoAssociationRecord(propertyId: Text, record: ?CondoRecordInput) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let prop = switch (properties.get(propertyId)) { case null return #err(#NotFound); case (?p) p };
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    switch (record) {
+      case null { condoRecords.remove(propertyId) };
+      case (?raw) {
+        if (prop.propertyType != #Condo)
+          return #err(#InvalidInput("Milestone inspection and reserve study records are for condo homes"));
+        let c = Hoa.cleanCondo(raw);
+        switch (Hoa.validateCondo(c)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+        condoRecords.add(propertyId, {
+          associationName = c.associationName;
+          milestoneLastDate = c.milestoneLastDate; milestoneNextDue = c.milestoneNextDue; milestoneDocId = c.milestoneDocId;
+          reserveStudyLastDate = c.reserveStudyLastDate; reserveStudyNextDue = c.reserveStudyNextDue; reserveStudyDocId = c.reserveStudyDocId;
+          notes = c.notes; updatedAt = Time.now();
+        });
+      };
+    };
+    #ok(())
+  };
+
+  /// #726: the condo association record, or null. Anyone with a role on the home and admins.
+  public query(msg) func getCondoAssociationRecord(propertyId: Text) : async Result.Result<?CondoRecord, Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(condoRecords.get(propertyId))
+  };
+
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := true;
@@ -2700,6 +3037,9 @@ persistent actor Property {
       if (insurancePolicies.get(pid) != null) { insurancePolicies.remove(pid); removed += 1 };
       removed += dropClaims(pid);
       removed += dropInventory(pid);
+      // #725 house guide and links; #726 HOA paperwork.
+      removed += dropGuide(pid);
+      removed += dropHoa(pid);
 
       // Pending transfer and its token index.
       switch (pendingTransfers.get(pid)) {

@@ -54,6 +54,12 @@ vi.mock("@/pages/PropertyDetail/SettingsTab", () => ({ SettingsTab: () => <div d
 vi.mock("@/pages/PropertyDetail/RoomsTab", () => ({ RoomsTab: () => <div data-testid="tab-rooms" /> }));
 vi.mock("@/pages/PropertyDetail/BillsTab", () => ({ BillsTab: () => <div data-testid="tab-bills" /> }));
 vi.mock("@/pages/PropertyDetail/InsuranceTab", () => ({ InsuranceTab: () => <div data-testid="tab-insurance" /> }));
+vi.mock("@/pages/PropertyDetail/HouseGuideTab", () => ({ HouseGuideTab: () => <div data-testid="tab-guide" /> }));
+vi.mock("@/pages/PropertyDetail/HoaTab", () => ({
+  HoaTab: ({ propertyType, jobs }: { propertyType: string; jobs: { id: string; label: string }[] }) => (
+    <div data-testid="tab-hoa">{`${propertyType}:${jobs.map((j) => j.label).join("|")}`}</div>
+  ),
+}));
 
 function makeProperty(overrides: Partial<Property> = {}): Property {
   return {
@@ -143,6 +149,20 @@ describe("PropertyDetailPage — tabs", () => {
     renderAt("prop-1");
     fireEvent.click(screen.getByText("Insurance"));
     expect(screen.getByTestId("tab-insurance")).toBeInTheDocument();
+  });
+
+  it("has a House guide tab for sitters and guests (#725)", () => {
+    renderAt("prop-1");
+    fireEvent.click(screen.getByText("House guide"));
+    expect(screen.getByTestId("tab-guide")).toBeInTheDocument();
+  });
+
+  it("has an HOA tab that knows the home type and its jobs (#726)", () => {
+    renderAt("prop-1");
+    fireEvent.click(screen.getByText("HOA"));
+    const tab = screen.getByTestId("tab-hoa");
+    expect(tab.textContent).toMatch(/^SingleFamily:/);
+    expect(tab.textContent).toMatch(/\(\w{3} \d{1,2}, \d{4}\)/);
   });
 });
 

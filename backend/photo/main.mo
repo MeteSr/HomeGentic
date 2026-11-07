@@ -280,6 +280,7 @@ persistent actor Photo {
       #beginUpload : Any;
       #deleteMyData : Any;
       #deletePhoto : Any;
+      #getGuidePhotoData : Any;
       #getListingPhotoDataBatch : Any;
       #getMetrics : Any;
       #getMyOffChainPhotoIds : Any;
@@ -292,6 +293,7 @@ persistent actor Photo {
       #getPhotosByProperty : Any;
       #getPhotosByRoom : Any;
       #getPublicListingPhotos : Any;
+      #guidePhotoAccess : Any;
       #pause : Any;
       #photoAccess : Any;
       #removeAdmin : Any;
@@ -680,6 +682,47 @@ persistent actor Photo {
             try { await propActor.isAuthorized(p.propertyId, reader, false) } catch (_) { false }
           };
         ?{ owner = p.owner; hash = p.hash; size = p.size; offChain = offChainIds.containsKey(p.id); isPublic; canRead }
+      };
+    }
+  };
+
+  /// #725: whether a photo may be shown through a house guide at all.
+  /// Documents never are, and nothing is without the property canister.
+  private func guideEligible(p : Photo) : Bool {
+    not isDocumentJob(p.jobId, p.propertyId) and Text.size(propCanisterId) > 0
+  };
+
+  /// #725: for the voice Worker (a photo relay): photoAccess for someone
+  /// holding a house-guide link instead of a signed-in reader. Null for other
+  /// callers and for photos that don't exist.
+  public composite query(msg) func guidePhotoAccess(photoId: Text, token: Text) : async ?PhotoAccess {
+    if (not Admin.contains(photoRelays, msg.caller) and not isAdmin(msg.caller)) return null;
+    switch (photoStore.get(photoId)) {
+      case null { null };
+      case (?p) {
+        // A composite query can't call a private async helper, so the
+        // property check (guideSharesPhoto) is written out in both methods.
+        let canRead = guideEligible(p) and (try {
+          await Canisters.property(propCanisterId).guideSharesPhoto(token, p.propertyId, p.id)
+        } catch (_) { false });
+        ?{ owner = p.owner; hash = p.hash; size = p.size; offChain = offChainIds.containsKey(p.id); isPublic = false; canRead }
+      };
+    }
+  };
+
+  /// #725: a photo's bytes for anyone holding a live house-guide link that
+  /// shows it. Empty when the bytes are stored off-chain (the voice Worker
+  /// serves those at /photos/<id>?guide=<token>). #NotFound otherwise, the
+  /// same answer for a missing photo and one the link doesn't show.
+  public composite query func getGuidePhotoData(token: Text, photoId: Text) : async Result.Result<Blob, Error> {
+    switch (photoStore.get(photoId)) {
+      case null #err(#NotFound);
+      case (?p) {
+        if (not guideEligible(p)) return #err(#NotFound);
+        let shows = try {
+          await Canisters.property(propCanisterId).guideSharesPhoto(token, p.propertyId, p.id)
+        } catch (_) { false };
+        if (shows) #ok(p.data) else #err(#NotFound)
       };
     }
   };
