@@ -14,6 +14,9 @@ import { propertyService } from "./property";
 import { jobService } from "./job";
 import { photoService, type Photo } from "./photo";
 import { roomService } from "./room";
+import { insurancePolicyService } from "./insurancePolicy";
+import { insuranceClaimService, claimIdOfPhoto } from "./insuranceClaims";
+import { inventoryService, inventoryIdOfPhoto } from "./inventory";
 import { maintenanceService } from "./maintenance";
 import { sensorService } from "./sensor";
 import { billService } from "./billService";
@@ -110,11 +113,23 @@ export async function collectMyData(
         smartHomeEvents: await step(at("smart-home events"), () => sensorService.getEventsForProperty(id, 1000)),
         reportShareLinks: await step(at("report links"), () => reportService.listShareLinks(id)),
         ownershipHistory: await step(at("ownership history"), () => propertyService.getOwnershipHistory(id)),
+        insurancePolicy: await step(at("insurance policy"), () => insurancePolicyService.get(id)),
+        insuranceClaims: await step(at("insurance claims"), () => insuranceClaimService.list(id)),
+        inventory: await step(at("contents inventory"), () => inventoryService.list(id)),
       };
       const ph = await step(at("photos"), () => photoService.getByProperty(id));
       if ("ok" in ph) {
         photos.push(...ph.ok);
-        sections.photos = { ok: ph.ok.map(({ url: _url, ...meta }) => ({ ...meta, file: `photos/${id}/${meta.id}` })) };
+        sections.photos = {
+          ok: ph.ok.map(({ url: _url, ...meta }) => ({
+            ...meta,
+            file: `photos/${id}/${meta.id}`,
+            // Damage photos for an insurance claim say which claim they were for.
+            ...(claimIdOfPhoto(meta) ? { insuranceClaimId: claimIdOfPhoto(meta) } : {}),
+            // Inventory photos and receipts say which item they belong to.
+            ...(inventoryIdOfPhoto(meta) ? { inventoryItemId: inventoryIdOfPhoto(meta) } : {}),
+          })),
+        };
       } else {
         sections.photos = ph;
       }

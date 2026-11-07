@@ -27,7 +27,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "How does HomeGentic help with home insurance claims?",
-    a: "An up-to-date maintenance record demonstrates due diligence. HomeGentic's Insurance Defense report compiles your verified job history into a shareable document insurers can reference during claims.",
+    a: "An up-to-date maintenance record demonstrates due diligence. HomeGentic's Insurance Defense report compiles your verified job history into a shareable document insurers can reference during claims. Each home's Insurance tab also keeps your policy details, your own dated record of a claim with damage photos, and a room-by-room contents inventory with values and receipts that you can download as a CSV. HomeGentic doesn't file claims or contact your insurer.",
   },
   {
     q: "Is my maintenance data private?",

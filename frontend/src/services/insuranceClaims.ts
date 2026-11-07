@@ -74,6 +74,21 @@ export function claimPhotoJobId(claimId: string): string {
   return `claim_${claimId}`;
 }
 
+/** The claim a photo was filed under, or null if it isn't a claim photo. */
+export function claimIdOfPhoto(photo: { jobId: string }): string | null {
+  return photo.jobId.startsWith("claim_") && photo.jobId.length > 6 ? photo.jobId.slice(6) : null;
+}
+
+/**
+ * The description a damage photo is stored with, so it reads as a claim photo
+ * wherever the home's photos show up, even after its claim record is gone
+ * (deleted, or the home transferred). Kept short of the canister's limit.
+ */
+export function claimPhotoDescription(claimTitle: string, fileName: string): string {
+  const cut = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
+  return `Insurance claim photo: ${cut(claimTitle, 100)} (${cut(fileName, 70)})`;
+}
+
 /** location.state.prefill for /quotes/new: the home, a starting trade, and what happened. */
 export function repairQuotePrefill(c: InsuranceClaim): Record<string, string> {
   const trade = CLAIM_CAUSES.find((x) => x.label === c.cause)?.trade ?? "Other";

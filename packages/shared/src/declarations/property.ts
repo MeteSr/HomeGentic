@@ -113,6 +113,30 @@ export const idlFactory = ({ IDL }: any) => {
     createdAt:       IDL.Int,
     updatedAt:       IDL.Int,
   });
+  const InventoryItemInput = IDL.Record({
+    roomId:       IDL.Opt(IDL.Text),
+    name:         IDL.Text,
+    category:     IDL.Text,
+    quantity:     IDL.Nat,
+    valueCents:   IDL.Opt(IDL.Nat),
+    purchaseDate: IDL.Text,
+    serialNumber: IDL.Text,
+    notes:        IDL.Text,
+  });
+  const InventoryItem = IDL.Record({
+    id:           IDL.Text,
+    propertyId:   IDL.Text,
+    roomId:       IDL.Opt(IDL.Text),
+    name:         IDL.Text,
+    category:     IDL.Text,
+    quantity:     IDL.Nat,
+    valueCents:   IDL.Opt(IDL.Nat),
+    purchaseDate: IDL.Text,
+    serialNumber: IDL.Text,
+    notes:        IDL.Text,
+    createdAt:    IDL.Int,
+    updatedAt:    IDL.Int,
+  });
   const Error = IDL.Variant({
     NotFound: IDL.Null,
     NotAuthorized: IDL.Null,
@@ -281,6 +305,27 @@ export const idlFactory = ({ IDL }: any) => {
       []
     ),
     deleteInsuranceClaim: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    // #711 contents inventory: what's in the home, room by room, for a claim.
+    getInventory: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(InventoryItem), err: Error })],
+      ["query"]
+    ),
+    addInventoryItem: IDL.Func(
+      [IDL.Text, InventoryItemInput],
+      [IDL.Variant({ ok: InventoryItem, err: Error })],
+      []
+    ),
+    updateInventoryItem: IDL.Func(
+      [IDL.Text, InventoryItemInput],
+      [IDL.Variant({ ok: InventoryItem, err: Error })],
+      []
+    ),
+    deleteInventoryItem: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []

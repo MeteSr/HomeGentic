@@ -2733,6 +2733,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; log:vec record {date:text; note:text; addedAt:int}; status:variant {Open; Closed}; adjusterName:text; adjusterContact:text; title:text; cause:text; createdAt:int; description:text; propertyId:text; updatedAt:int; dateOfLoss:text; claimNumber:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "addInventoryItem": {
+    "args": [
+      "text",
+      "record {purchaseDate:text; name:text; serialNumber:text; notes:text; quantity:nat; category:text; roomId:opt text; valueCents:opt nat}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; purchaseDate:text; name:text; createdAt:int; propertyId:text; updatedAt:int; serialNumber:text; notes:text; quantity:nat; category:text; roomId:opt text; valueCents:opt nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "cancelManagerInvite": {
     "args": [
       "text",
@@ -2781,6 +2791,15 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
   },
   "deleteInsuranceClaim": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "deleteInventoryItem": {
     "args": [
       "text",
     ],
@@ -2880,6 +2899,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:opt record {coverageACents:opt nat; updatedAt:int; hurricaneDeductible:opt variant {Amount:nat; PercentOfCoverageA:nat}; carrier:text; policyNumber:text; renewalDate:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "getInventory": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {id:text; purchaseDate:text; name:text; createdAt:int; propertyId:text; updatedAt:int; serialNumber:text; notes:text; quantity:nat; category:text; roomId:opt text; valueCents:opt nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "getJobPropertyAddresses": {
@@ -3283,6 +3313,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; log:vec record {date:text; note:text; addedAt:int}; status:variant {Open; Closed}; adjusterName:text; adjusterContact:text; title:text; cause:text; createdAt:int; description:text; propertyId:text; updatedAt:int; dateOfLoss:text; claimNumber:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "updateInventoryItem": {
+    "args": [
+      "text",
+      "record {purchaseDate:text; name:text; serialNumber:text; notes:text; quantity:nat; category:text; roomId:opt text; valueCents:opt nat}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; purchaseDate:text; name:text; createdAt:int; propertyId:text; updatedAt:int; serialNumber:text; notes:text; quantity:nat; category:text; roomId:opt text; valueCents:opt nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "updateManagerRole": {
