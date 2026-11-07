@@ -45,3 +45,13 @@ describe("ANNUAL_PLANS", () => {
     expect(ANNUAL_PLANS).toBe(PLANS);
   });
 });
+
+describe("document vault limits", () => {
+  // Must match docLimitFor in backend/photo/main.mo.
+  it.each([
+    ["Free", "25 documents per home"],
+    ["Pro", "250 documents per home"],
+  ] as const)("%s lists %s", (tier, line) => {
+    expect(PLANS.find((p) => p.tier === tier)!.features).toContain(line);
+  });
+});

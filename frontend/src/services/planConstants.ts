@@ -55,6 +55,7 @@ export const PLANS: Plan[] = [
     features: [
       "1 property",
       "5 photos per job",
+      "25 documents per home",
       "Up to 3 open quote requests",
       "Job logging (DIY + contractor)",
       "Bid to List access",
@@ -76,6 +77,7 @@ export const PLANS: Plan[] = [
     features: [
       "20 properties",
       "30 photos per job",
+      "250 documents per home",
       "Unlimited quote requests",
       "10 AI agent calls/day",
       "Blockchain-backed maintenance record",

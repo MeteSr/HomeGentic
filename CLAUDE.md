@@ -156,12 +156,12 @@ All 20 canisters use `persistent actor` (Motoko mo:core) — all variables are i
 
 Two homeowner tiers — **Free** and **Pro ($59/year, annual only)** — plus two contractor tiers. A principal with no subscription is Free. `payment` is the single source of truth: `property`, `quote`, `photo` and `bills` read the caller's tier live with `getTierForPrincipal` (no local caches; fail closed to Free if `payment` isn't wired).
 
-| Tier | Properties | Photos/Job | Open Quotes | Price |
-|---|---|---|---|---|
-| Free | 1 | 5 | 3 | $0 |
-| Pro | 20 | 30 | unlimited | $59/yr |
-| ContractorFree | 0 | 5 | unlimited | $0 + 3% referral fee per winning bid, $20 min |
-| ContractorPro | unlimited | 50 | unlimited | $40/mo (or yearly) |
+| Tier | Properties | Photos/Job | Documents/Home | Open Quotes | Price |
+|---|---|---|---|---|---|
+| Free | 1 | 5 | 25 | 3 | $0 |
+| Pro | 20 | 30 | 250 | unlimited | $59/yr |
+| ContractorFree | 0 | 5 | 25 | unlimited | $0 + 3% referral fee per winning bid, $20 min |
+| ContractorPro | unlimited | 50 | 250 | unlimited | $40/mo (or yearly) |
 
 Realtors have no subscription tier: the winning agent in a Bid to List auction pays a one-time platform fee (`listing.getPlatformFee()`, $399 default), tracked in the `fee` canister.
 

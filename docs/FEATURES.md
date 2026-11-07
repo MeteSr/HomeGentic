@@ -183,7 +183,7 @@ Multi-tab page — the main workspace for a property.
 
 **Tab: Documents** (home document vault)
 - Document types, grouped: Ownership and closing (deed, closing papers, title policy, survey) · Insurance and risk (insurance policy, elevation certificate) · Home and HOA (HOA documents, manuals) · Work records (receipts, invoices, permits, inspection reports, warranties) · Other (`services/documentVault.ts`)
-- The type travels in the file's description (`[Type] filename`) on the photo canister, so new types need no canister change; files count toward the plan's photo quota (Free: 5 per property in this tab)
+- The type travels in the file's description (`[Type] filename`) on the photo canister, so new types need no canister change; documents have their own per-home limit (Free 25, Pro 250; photo canister `docLimitFor`), separate from the per-job photo limit, and don't count toward the home's photo limit; the per-account storage totals still apply. A `docs_` id must match the property it's uploaded to
 - Permit and inspection uploads carry their number/authority/status or inspector/result
 - Says who can see the files: the owner, everyone added on People (co-owners, managers, viewers) and a buyer who claims the record at closing
 - Owners, co-owners and managers can remove files (with a confirm); viewers can only open them
@@ -520,6 +520,7 @@ People). Only Insurance Defense and Resale Ready stay Pro-only.
 |---|---|---|
 | Properties | 1 | 20 |
 | Photos per job | 5 | 30 |
+| Documents per home | 25 | 250 |
 | Open quote requests | 3 | Unlimited |
 | Job logging (DIY + contractor) | ✓ | ✓ |
 | Bid to List access | ✓ | ✓ |

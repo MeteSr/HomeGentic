@@ -254,6 +254,16 @@ persistent actor Photo {
 
   private func listingJobId(propertyId: Text) : Text { "LISTING_" # propertyId };
 
+  /// Home document vault (the Documents tab): files are stored under the
+  /// synthetic jobId "docs_<propertyId>"; "receipts_<propertyId>" is the
+  /// older id for the same tab. Documents have their own per-home limit
+  /// (docLimitFor) instead of the per-job photo limit, and don't count
+  /// toward the home's photo limit.
+  private func docsJobId(propertyId: Text) : Text { "docs_" # propertyId };
+  private func isDocumentJob(jobId: Text, propertyId: Text) : Bool {
+    jobId == docsJobId(propertyId) or jobId == "receipts_" # propertyId
+  };
+
   // ─── Ingress Inspection ───────────────────────────────────────────────────────
 
   /// Refuse anonymous, empty and oversized ingress before it is charged
@@ -388,7 +398,25 @@ persistent actor Photo {
     Index.records(photosByJob, jobId, photoStore).filter(func(p : Photo) : Bool { p.propertyId == propertyId }).size()
   };
 
-  private func countByProperty(propertyId: Text) : Nat { Index.count(photosByProperty, propertyId) };
+  /// Documents in the home's vault (both ids the Documents tab has used).
+  private func countDocuments(propertyId: Text) : Nat {
+    countByJob(docsJobId(propertyId), propertyId) + countByJob("receipts_" # propertyId, propertyId)
+  };
+
+  /// The home's photos, leaving out its documents, for the per-home photo limit.
+  private func countPhotosOnProperty(propertyId: Text) : Nat {
+    Index.records(photosByProperty, propertyId, photoStore)
+      .filter(func p = not isDocumentJob(p.jobId, propertyId))
+      .size()
+  };
+
+  /// Documents per home. The per-account totals (ownerCapFor) still apply.
+  private func docLimitFor(tier: SubscriptionTier) : Nat {
+    switch (tier) {
+      case (#Free or #ContractorFree) { 25 };
+      case (#Pro or #ContractorPro)   { 250 };
+    }
+  };
 
 
   private transient let oneMinuteNs      : Int = 60 * 1_000_000_000;
@@ -448,6 +476,9 @@ persistent actor Photo {
     // FSBO page, so it may only be filed under the property it is uploaded for.
     if (jobId.startsWith(#text "LISTING_") and jobId != listingJobId(propertyId))
       return ?#InvalidInput("listing photos must be uploaded to their own property");
+    // Same for documents, so one home's files can't be listed under another's.
+    if (jobId.startsWith(#text "docs_") and jobId != docsJobId(propertyId))
+      return ?#InvalidInput("documents must be uploaded to their own property");
 
     // Per-minute rate limit: 10 uploads/min regardless of tier
     if (not tryConsumePhotoSlot(caller)) {
@@ -500,13 +531,26 @@ persistent actor Photo {
       };
     };
 
-    if (quota.maxPerJob > 0 and countByJob(jobId, propertyId) >= quota.maxPerJob) {
-      return ?#QuotaExceeded(
-        "Job photo limit (" # quota.maxPerJob.toText() # ") reached for your plan." # upgradeHint
-      );
+    if (isDocumentJob(jobId, propertyId)) {
+      let limit = docLimitFor(callerTier);
+      if (countDocuments(propertyId) >= limit) {
+        let docHint = switch (callerTier) {
+          case (#Free) { " Upgrade to Pro ($59/year) for up to " # docLimitFor(#Pro).toText() # " documents per home." };
+          case _       { "" };
+        };
+        return ?#QuotaExceeded(
+          "Document limit (" # limit.toText() # ") reached for this home on your plan." # docHint
+        );
+      };
+    } else {
+      if (quota.maxPerJob > 0 and countByJob(jobId, propertyId) >= quota.maxPerJob) {
+        return ?#QuotaExceeded(
+          "Job photo limit (" # quota.maxPerJob.toText() # ") reached for your plan." # upgradeHint
+        );
+      };
     };
 
-    if (quota.maxPerProperty > 0 and countByProperty(propertyId) >= quota.maxPerProperty) {
+    if (not isDocumentJob(jobId, propertyId) and quota.maxPerProperty > 0 and countPhotosOnProperty(propertyId) >= quota.maxPerProperty) {
       return ?#QuotaExceeded(
         "Property photo limit (" # quota.maxPerProperty.toText() # ") reached for your plan." # upgradeHint
       );
