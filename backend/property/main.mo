@@ -38,8 +38,8 @@ import Iter      "mo:core/Iter";
 import List      "mo:core/List";
 import Nat       "mo:core/Nat";
 import Nat8      "mo:core/Nat8";
-import Nat32     "mo:core/Nat32";
 import Option    "mo:core/Option";
+import Order     "mo:core/Order";
 import Principal "mo:core/Principal";
 import Random    "mo:core/Random";
 import Result    "mo:core/Result";
@@ -53,6 +53,7 @@ import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
 import ApiDoc "ApiDoc";
+import Insurance "Insurance";
 
 persistent actor Property {
 
@@ -175,6 +176,11 @@ persistent actor Property {
     carrier     : Text;
     renewalDate : Text;
   };
+
+  public type ClaimStatus    = Insurance.ClaimStatus;
+  public type ClaimInput     = Insurance.ClaimInput;
+  public type ClaimLogEntry  = Insurance.ClaimLogEntry;
+  public type InsuranceClaim = Insurance.InsuranceClaim;
 
   public type RegisterPropertyArgs = {
     address      : Text;
@@ -466,6 +472,22 @@ persistent actor Property {
   private transient let roomIndexes : [Index.Keyed<RoomRecord>] = Index.indexed(rooms, [
     (roomsByProperty, func(r : RoomRecord) : ?Text { ?r.propertyId }),
   ]);
+
+  /// #711 claim kit: claimId → the household's record of an insurance claim
+  /// on the home. Indexed by property (transient, rebuilt on upgrade). Dropped
+  /// with the policy on claimTransfer and deleteMyData.
+  private let insuranceClaims = Map.empty<Text, InsuranceClaim>();
+  private transient let claimsByProperty = Index.empty();
+  private transient let claimIndexes : [Index.Keyed<InsuranceClaim>] = Index.indexed(insuranceClaims, [
+    (claimsByProperty, func(c : InsuranceClaim) : ?Text { ?c.propertyId }),
+  ]);
+  private func putClaim(c : InsuranceClaim) { Index.put(insuranceClaims, claimIndexes, c.id, c) };
+  /// Removes every claim on a property; returns how many.
+  private func dropClaims(propertyId : Text) : Nat {
+    let ids = Index.ids(claimsByProperty, propertyId).toArray();
+    for (id in ids.values()) { Index.delete(insuranceClaims, claimIndexes, id) };
+    ids.size()
+  };
 
   private func putProperty(p : Property) { Index.put(properties, propertyIndexes, p.id, p) };
   private func putRoom(r : RoomRecord)   { Index.put(rooms, roomIndexes, r.id, r) };
@@ -1509,8 +1531,9 @@ persistent actor Property {
                 // M-3: the previous owner's delegates (managers, co-owners,
                 // pending invites) must not keep access to the buyer's home.
                 clearDelegatedAccess(propertyId);
-                // #711: the seller's insurance policy isn't the buyer's.
+                // #711: the seller's insurance policy and claims aren't the buyer's.
                 insurancePolicies.remove(propertyId);
+                ignore dropClaims(propertyId);
 
                 // Append immutable record to ownership history. L-3: take a
                 // fresh key per claim so two claims never share a record slot.
@@ -2357,41 +2380,12 @@ persistent actor Property {
   /// Most a Coverage A limit or dollar deductible may be: $100,000,000.
   private transient let MAX_INSURANCE_CENTS : Nat = 10_000_000_000;
 
-  private func digitsOf(chars : [Char], from : Nat, len : Nat) : ?Nat {
-    var n = 0;
-    for (i in Nat.range(from, from + len)) {
-      let c = chars[i];
-      if (c < '0' or c > '9') return null;
-      n := n * 10 + (c.toNat32() - '0'.toNat32()).toNat();
-    };
-    ?n
-  };
-
-  /// True for a real calendar date written "YYYY-MM-DD", years 2000–2100.
-  private func isIsoDate(t : Text) : Bool {
-    let chars = t.toArray();
-    if (chars.size() != 10 or chars[4] != '-' or chars[7] != '-') return false;
-    switch (digitsOf(chars, 0, 4), digitsOf(chars, 5, 2), digitsOf(chars, 8, 2)) {
-      case (?y, ?m, ?d) {
-        if (y < 2000 or y > 2100 or m < 1 or m > 12 or d < 1) return false;
-        let leap = (y % 4 == 0 and y % 100 != 0) or y % 400 == 0;
-        let days = switch m {
-          case 2 { if leap 29 else 28 };
-          case (4 or 6 or 9 or 11) { 30 };
-          case _ { 31 };
-        };
-        d <= days
-      };
-      case _ false;
-    }
-  };
-
   private func validatePolicy(p : InsurancePolicyInput) : ?Text {
     let carrier = p.carrier.trim(#char ' ');
     if (carrier.size() == 0)        return ?"Enter the insurance company";
     if (p.carrier.size() > 100)     return ?"Insurance company name is over 100 characters";
     if (p.policyNumber.size() > 60) return ?"Policy number is over 60 characters";
-    if (not isIsoDate(p.renewalDate)) return ?"Renewal date must be a real date written YYYY-MM-DD";
+    if (not Insurance.isIsoDate(p.renewalDate)) return ?"Renewal date must be a real date written YYYY-MM-DD";
     switch (p.coverageACents) {
       case (?c) { if (c > MAX_INSURANCE_CENTS) return ?"Coverage A is over $100,000,000" };
       case null {};
@@ -2425,6 +2419,101 @@ persistent actor Property {
       };
     };
     #ok(())
+  };
+
+  // ─── Insurance claim kit (#711) ───────────────────────────────────────────
+
+  /// The claim and its property, when `caller` may change it. NotFound comes
+  /// before NotAuthorized, as elsewhere in this canister.
+  private func writableClaim(claimId : Text, caller : Principal) : Result.Result<InsuranceClaim, Error> {
+    switch (insuranceClaims.get(claimId)) {
+      case null #err(#NotFound);
+      case (?c) {
+        if (not checkAuthorized(c.propertyId, caller, true)) #err(#NotAuthorized) else #ok(c)
+      };
+    }
+  };
+
+  /// #711: start a record of an insurance claim on the home. Needs write
+  /// access to the home. Records only what the household enters: nothing is
+  /// filed with the insurer.
+  public shared(msg) func createInsuranceClaim(propertyId: Text, input: ClaimInput) : async Result.Result<InsuranceClaim, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    let c = Insurance.clean(input);
+    switch (Insurance.validateClaim(c)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let id = Uuid.fromBlob(await Random.blob());
+    // Re-check after the await: the home may have changed hands meanwhile.
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    if (Index.ids(claimsByProperty, propertyId).size() >= Insurance.MAX_CLAIMS_PER_PROPERTY)
+      return #err(#InvalidInput("This home already has " # Insurance.MAX_CLAIMS_PER_PROPERTY.toText() # " claim records; delete an old one first"));
+    let now = Time.now();
+    let claim : InsuranceClaim = {
+      id; propertyId;
+      title = c.title; dateOfLoss = c.dateOfLoss; cause = c.cause; description = c.description;
+      claimNumber = c.claimNumber; adjusterName = c.adjusterName; adjusterContact = c.adjusterContact;
+      status = c.status; log = []; createdAt = now; updatedAt = now;
+    };
+    putClaim(claim);
+    #ok(claim)
+  };
+
+  /// #711: change a claim's details (not its log). Needs write access to the home.
+  public shared(msg) func updateInsuranceClaim(claimId: Text, input: ClaimInput) : async Result.Result<InsuranceClaim, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let existing = switch (writableClaim(claimId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(c)) c };
+    let c = Insurance.clean(input);
+    switch (Insurance.validateClaim(c)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let updated : InsuranceClaim = {
+      existing with
+      title = c.title; dateOfLoss = c.dateOfLoss; cause = c.cause; description = c.description;
+      claimNumber = c.claimNumber; adjusterName = c.adjusterName; adjusterContact = c.adjusterContact;
+      status = c.status; updatedAt = Time.now();
+    };
+    putClaim(updated);
+    #ok(updated)
+  };
+
+  /// #711: add a dated line to a claim's log. Needs write access to the home.
+  public shared(msg) func addInsuranceClaimLog(claimId: Text, date: Text, note: Text) : async Result.Result<InsuranceClaim, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let existing = switch (writableClaim(claimId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(c)) c };
+    let n = Insurance.trim(note);
+    switch (Insurance.validateLogEntry(date, n)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    if (existing.log.size() >= Insurance.MAX_LOG_ENTRIES)
+      return #err(#InvalidInput("This claim's log is full (" # Insurance.MAX_LOG_ENTRIES.toText() # " entries)"));
+    let now = Time.now();
+    let updated : InsuranceClaim = {
+      existing with
+      log = existing.log.concat([{ date; note = n; addedAt = now }]);
+      updatedAt = now;
+    };
+    putClaim(updated);
+    #ok(updated)
+  };
+
+  /// #711: delete a claim record and its log. Can't be undone. Needs write
+  /// access to the home. Damage photos stay in the photo canister.
+  public shared(msg) func deleteInsuranceClaim(claimId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (writableClaim(claimId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
+    Index.delete(insuranceClaims, claimIndexes, claimId);
+    #ok(())
+  };
+
+  /// #711: the home's claim records, newest date of loss first. Anyone with a
+  /// role on the home and admins.
+  public query(msg) func getInsuranceClaims(propertyId: Text) : async Result.Result<[InsuranceClaim], Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let list = Index.records(claimsByProperty, propertyId, insuranceClaims).toArray();
+    #ok(list.sort(func(a : InsuranceClaim, b : InsuranceClaim) : Order.Order {
+      switch (Text.compare(b.dateOfLoss, a.dateOfLoss)) {
+        case (#equal) Int.compare(b.createdAt, a.createdAt);
+        case o o;
+      }
+    }))
   };
 
   /// #711: the home's insurance policy, or null when none is on record. Anyone
@@ -2516,6 +2605,7 @@ persistent actor Property {
 
       // #711: the home's insurance policy.
       if (insurancePolicies.get(pid) != null) { insurancePolicies.remove(pid); removed += 1 };
+      removed += dropClaims(pid);
 
       // Pending transfer and its token index.
       switch (pendingTransfers.get(pid)) {

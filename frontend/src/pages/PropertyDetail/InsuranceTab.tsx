@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/Button";
 import { Panel, Pill, SectionHeader, hudButtonStyle, hudInputStyle, type PillTone } from "@/components/hud";
 import { LoadError } from "@/components/LoadError";
+import { ClaimKit } from "./ClaimKit";
 import { errorMessage } from "@/services/candid";
 import { propertyService, type AccessRole } from "@/services/property";
 import { canEditDocuments } from "@/services/documentVault";
@@ -360,6 +361,8 @@ export function InsuranceTab({ propertyId }: { propertyId: string }) {
         If the weekly Home Pulse email is on, it reminds you in the {RENEWAL_WINDOW_DAYS} days before the renewal date.
         Keep the declarations page itself in Documents.
       </p>
+
+      <ClaimKit propertyId={propertyId} canEdit={canEdit} />
     </div>
   );
 }

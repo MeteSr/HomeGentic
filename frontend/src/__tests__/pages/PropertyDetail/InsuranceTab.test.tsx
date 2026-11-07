@@ -18,6 +18,11 @@ vi.mock("@/store/authStore", () => ({
   useAuthStore: (sel: (s: { principal: string }) => unknown) => sel({ principal: "me" }),
 }));
 vi.mock("react-hot-toast", () => ({ default: mockToast }));
+vi.mock("@/pages/PropertyDetail/ClaimKit", () => ({
+  ClaimKit: ({ propertyId, canEdit }: { propertyId: string; canEdit: boolean }) => (
+    <div data-testid="claim-kit">{`${propertyId}:${canEdit ? "edit" : "read"}`}</div>
+  ),
+}));
 
 import { InsuranceTab } from "@/pages/PropertyDetail/InsuranceTab";
 
@@ -75,6 +80,17 @@ describe("InsuranceTab", () => {
     mockGet.mockResolvedValue({ ...POLICY, renewalDate: "2026-11-01" });
     render(<InsuranceTab propertyId="p1" />);
     expect(await screen.findByText(/renewal date has passed/i)).toBeInTheDocument();
+  });
+
+  it("includes the claim kit, editable for the owner", async () => {
+    render(<InsuranceTab propertyId="p1" />);
+    expect(await screen.findByTestId("claim-kit")).toHaveTextContent("p1:edit");
+  });
+
+  it("gives a viewer a read-only claim kit", async () => {
+    mockGetAccessRole.mockResolvedValue("Viewer");
+    render(<InsuranceTab propertyId="p1" />);
+    await waitFor(() => expect(screen.getByTestId("claim-kit")).toHaveTextContent("p1:read"));
   });
 
   it("is read-only for a viewer", async () => {
