@@ -54,6 +54,12 @@ vi.mock("@/services/room", async (importOriginal) => {
   return { ...actual, roomService: { getRoomsByProperty: mockGetRooms, createRoom: mockCreateRoom, addFixture: mockAddFixture } };
 });
 
+const { mockGetPlan } = vi.hoisted(() => ({ mockGetPlan: vi.fn() }));
+vi.mock("@/services/homeWarranty", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/homeWarranty")>()),
+  homeWarrantyService: { getPlan: mockGetPlan },
+}));
+
 function makeJob(overrides: Partial<Job> = {}): Job {
   return {
     id: "job-1", propertyId: "prop-1", homeowner: "p-owner", serviceType: "HVAC",
@@ -90,6 +96,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockGetMyProperties.mockResolvedValue([makeProperty()]);
   mockGetRooms.mockResolvedValue([]);
+  mockGetPlan.mockResolvedValue(null);
 });
 
 describe("WarrantyWalletPage — grouping", () => {
@@ -196,5 +203,34 @@ describe("WarrantyWalletPage — document scan", () => {
 
     expect(await screen.findByText("Could not read document")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: /Scan Document/ })).toBeInTheDocument());
+  });
+});
+
+describe("WarrantyWalletPage — home warranty plans (#719)", () => {
+  it("lists each home's plan with its renewal, and links to the Home warranty tab", async () => {
+    mockGetAllJobs.mockResolvedValue([]);
+    mockGetMyProperties.mockResolvedValue([makeProperty(), makeProperty({ id: "prop-2", address: "9 Oak Ave" })]);
+    const soon = new Date(Date.now() + 20 * 86_400_000).toISOString().slice(0, 10);
+    mockGetPlan.mockImplementation(async (id: string) =>
+      id === "prop-1"
+        ? { provider: "American Home Shield", planName: "ShieldGold", contractNumber: "", claimContact: "", serviceFee: 125,
+            startDate: "", renewalDate: soon, coverageNotes: "", exclusionNotes: "", contractDocId: null }
+        : null,
+    );
+    renderPage();
+    expect(await screen.findByText("Home warranty plans")).toBeInTheDocument();
+    expect(screen.getByText("American Home Shield · ShieldGold")).toBeInTheDocument();
+    expect(screen.getByText(/Renews in (19|20) days/)).toBeInTheDocument();
+    expect(screen.getByText(/123 Main St/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /open American Home Shield/i }));
+    expect(screen.queryByText("9 Oak Ave")).not.toBeInTheDocument();
+  });
+
+  it("leaves the section out when no home has a plan, and survives a failed read", async () => {
+    mockGetAllJobs.mockResolvedValue([]);
+    mockGetPlan.mockRejectedValue(new Error("down"));
+    renderPage();
+    await screen.findByText("No warranties logged yet");
+    expect(screen.queryByText("Home warranty plans")).not.toBeInTheDocument();
   });
 });

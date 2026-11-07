@@ -6,7 +6,9 @@
  * preference, on by default) one digest built from their own record:
  *
  *   1. jobs waiting on their signature
- *   2. a home insurance renewal in the next 60 days (the policy they saved)
+ *   2. a home insurance renewal in the next 60 days (the policy they saved),
+ *      a home warranty renewal in the next 60 days, and a PMI note when the
+ *      loan's original schedule is within 60 days of 80% of the original value
  *   3. systems past their rated life (age counted the way the score counts it)
  *   4. warranties that end in the next 60 days
  *   5. systems within two years of their rated life
@@ -32,7 +34,8 @@ import { loadSection, saveSection } from "./persist";
 import { emailUnsubscribeId, unsubscribeTokenFor } from "./unsubscribe";
 import { SYSTEM_LIFESPANS, REPLACEMENT_MIN_CENTS, scoreBreakdown, type ScoreJob } from "../../packages/shared/src/score";
 import { climateService, type Season } from "../../packages/shared/src/climate";
-import type { PulseInsurance, PulseJob, PulseProperty, PulseRecipient } from "./types";
+import type { PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulseRecipient } from "./types";
+import { pmiReminder } from "../../packages/shared/src/mortgage";
 import { reportFailure, errorCode } from "./opsReport";
 
 export const PULSE_PREF = "weekly_pulse";
@@ -88,7 +91,7 @@ function addMonths(ms: number, months: number): number {
 
 // ── Digest ────────────────────────────────────────────────────────────────────
 
-export type PulseTag = "SIGN OFF" | "INSURANCE" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL";
+export type PulseTag = "SIGN OFF" | "INSURANCE" | "HOME WARRANTY" | "PMI" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL";
 
 export interface PulseItem {
   tag:   PulseTag;
@@ -153,6 +156,45 @@ export function insuranceItem(policy: PulseInsurance | null, nowMs: number): Pul
   };
 }
 
+/** Whole days from today (UTC) to a "YYYY-MM-DD" date, or null. */
+function daysUntil(date: string, nowMs: number): number | null {
+  const at = isoDateMs(date);
+  if (at === null) return null;
+  const now = new Date(nowMs);
+  return Math.round((at - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86_400_000);
+}
+
+/** #719: a reminder when the home warranty plan renews in the next 60 days (today included). */
+export function homeWarrantyItem(finance: PulseHomeFinance | null, nowMs: number): PulseItem | null {
+  const w = finance?.warranty;
+  const days = w ? daysUntil(w.renewalDate, nowMs) : null;
+  if (!w || days === null || days < 0 || days > RENEWAL_WINDOW_DAYS) return null;
+  return {
+    tag:   "HOME WARRANTY",
+    title: `Home warranty renews ${dayMonth(isoDateMs(w.renewalDate)!)}`,
+    body:  `Your ${w.provider} plan, by the renewal date you saved. Before it renews, read the renewal terms and decide whether to keep it; your claim history is on the property's Home warranty tab.`,
+  };
+}
+
+/** #722: a note when the loan's original schedule is within 60 days of 80% of the original value. */
+export function pmiItem(finance: PulseHomeFinance | null, nowMs: number): PulseItem | null {
+  const l = finance?.loan;
+  if (!l) return null;
+  const due = pmiReminder({
+    lender: "", originalAmount: l.originalAmountCents / 100, annualRatePct: l.rateThousandthsPct / 1000,
+    termMonths: l.termMonths, firstPaymentDate: l.firstPaymentDate,
+    originalValue: l.originalValueCents === null ? null : l.originalValueCents / 100,
+    currentValue: null, monthlyPmi: l.monthlyPmiCents === null ? null : l.monthlyPmiCents / 100,
+    monthlyEscrow: null, statementBalance: null, statementDate: "",
+  }, nowMs);
+  if (!due) return null;
+  return {
+    tag:   "PMI",
+    title: `PMI: your loan's schedule reaches 80% of the original value ${dayMonth(isoDateMs(due.requestDate)!)}`,
+    body:  "Worked out from the loan numbers you saved. For many conventional loans you can ask the lender to cancel PMI at that point if your payments are current; the rule depends on your loan and your lender decides.",
+  };
+}
+
 /**
  * One property's section. `jobs` are that property's jobs; `snapshots` are
  * the job canister's score inputs for it; `insurance` is its saved policy.
@@ -160,6 +202,7 @@ export function insuranceItem(policy: PulseInsurance | null, nowMs: number): Pul
 export function buildSection(
   property: PulseProperty, jobs: PulseJob[], snapshots: ScoreJob[], nowMs: number,
   insurance: PulseInsurance | null = null,
+  finance: PulseHomeFinance | null = null,
 ): PulseSection {
   const currentYear = new Date(nowMs).getUTCFullYear();
   const zone   = climateService.getZone(property.zipCode);
@@ -182,6 +225,8 @@ export function buildSection(
   // Insurance renewal
   const renewal = insuranceItem(insurance, nowMs);
   if (renewal) items.push(renewal);
+  // Home warranty renewal and PMI milestone
+  for (const item of [homeWarrantyItem(finance, nowMs), pmiItem(finance, nowMs)]) if (item) items.push(item);
 
   // 2 + 4. System life, counted like the score's modernization part.
   const past: PulseItem[] = [];
@@ -263,6 +308,8 @@ export interface PulseLinks {
 const TAG_COLOR: Record<PulseTag, string> = {
   "SIGN OFF":           "#2B34FF",
   "INSURANCE":          "#8A6800",
+  "HOME WARRANTY":      "#8A6800",
+  "PMI":                "#2B34FF",
   "PAST RATED LIFE":    "#C94C2E",
   "WARRANTY":           "#8A6800",
   "NEARING RATED LIFE": "#8A6800",
@@ -326,6 +373,8 @@ export interface PulseDeps {
   getSnapshots:  (propertyId: string) => Promise<ScoreJob[]>;
   /** #711: renewal dates of the owner's saved insurance policies. */
   getInsurance:  (owner: string) => Promise<PulseInsurance[]>;
+  /** #719 / #722: home warranty renewals and loan terms for the PMI note. */
+  getHomeFinance: (owner: string) => Promise<PulseHomeFinance[]>;
   wantsPulse:    (principal: string) => boolean;
   send:          (to: string, msg: EmailMessage, idempotencyKey: string, headers: Record<string, string>) => Promise<void>;
   /** Pause between sends (Resend's default limit is a few requests a second). */
@@ -342,6 +391,7 @@ const defaultDeps: PulseDeps = {
   getJobs:       icp.getJobsByOwner,
   getSnapshots:  icp.getJobSnapshots,
   getInsurance:  icp.getPulseInsurance,
+  getHomeFinance: icp.getPulseHomeFinance,
   wantsPulse:    (p) => getPrefs(p).email.weekly_pulse,
   send:          sendRawEmail,
   pause:         () => new Promise((r) => setTimeout(r, sendGapMs())),
@@ -390,12 +440,19 @@ export async function sendPulseTo(r: PulseRecipient, week: string, nowMs: number
   } catch (err) {
     console.warn("[pulse] insurance renewals unavailable:", err instanceof Error ? err.message : err);
   }
+  let finance: PulseHomeFinance[] = [];
+  try {
+    finance = await deps.getHomeFinance(r.principal);
+  } catch (err) {
+    console.warn("[pulse] home warranty and loan reminders unavailable:", err instanceof Error ? err.message : err);
+  }
   const shown = properties.slice(0, MAX_PROPERTIES);
   const sections: PulseSection[] = [];
   for (const p of shown) {
     const snapshots = await deps.getSnapshots(p.id);
     const policy = insurance.find((i) => i.propertyId === p.id) ?? null;
-    sections.push(buildSection(p, jobs.filter((j) => j.propertyId === p.id), snapshots, nowMs, policy));
+    const fin = finance.find((f) => f.propertyId === p.id) ?? null;
+    sections.push(buildSection(p, jobs.filter((j) => j.propertyId === p.id), snapshots, nowMs, policy, fin));
   }
   const unsubscribe = unsubscribeUrl(base, r.principal);
   const msg = renderPulse(sections, properties.length - shown.length, {

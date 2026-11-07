@@ -54,6 +54,11 @@ vi.mock("@/pages/PropertyDetail/SettingsTab", () => ({ SettingsTab: () => <div d
 vi.mock("@/pages/PropertyDetail/RoomsTab", () => ({ RoomsTab: () => <div data-testid="tab-rooms" /> }));
 vi.mock("@/pages/PropertyDetail/BillsTab", () => ({ BillsTab: () => <div data-testid="tab-bills" /> }));
 vi.mock("@/pages/PropertyDetail/InsuranceTab", () => ({ InsuranceTab: () => <div data-testid="tab-insurance" /> }));
+vi.mock("@/pages/PropertyDetail/HomeWarrantyTab", () => ({
+  HomeWarrantyTab: ({ jobs }: { jobs: { id: string; label: string }[] }) => (
+    <div data-testid="tab-home-warranty">{jobs.length}</div>
+  ),
+}));
 vi.mock("@/pages/PropertyDetail/HouseGuideTab", () => ({ HouseGuideTab: () => <div data-testid="tab-guide" /> }));
 vi.mock("@/pages/PropertyDetail/HoaTab", () => ({
   HoaTab: ({ propertyType, jobs }: { propertyType: string; jobs: { id: string; label: string }[] }) => (
@@ -149,6 +154,12 @@ describe("PropertyDetailPage — tabs", () => {
     renderAt("prop-1");
     fireEvent.click(screen.getByText("Insurance"));
     expect(screen.getByTestId("tab-insurance")).toBeInTheDocument();
+  });
+
+  it("has a Home warranty tab for the plan and its claims (#719)", () => {
+    renderAt("prop-1");
+    fireEvent.click(screen.getByText("Home warranty"));
+    expect(screen.getByTestId("tab-home-warranty")).toBeInTheDocument();
   });
 
   it("has a House guide tab for sitters and guests (#725)", () => {

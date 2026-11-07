@@ -7,6 +7,8 @@ import { propertyService, Property } from "@/services/property";
 import { warrantyStatus, warrantyExpiry, daysRemaining, type WarrantyStatus } from "@/services/warranty";
 import { extractDocument, fileToBase64, type DocumentExtraction } from "@/services/documentOcr";
 import { roomService, type Room } from "@/services/room";
+import { homeWarrantyService, type HomeWarrantyPlan } from "@/services/homeWarranty";
+import { renewalStatus } from "@/services/insurancePolicy";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
@@ -334,6 +336,44 @@ function ScanDocumentPanel({ properties }: { properties: Property[] }) {
   );
 }
 
+// ─── Home warranty plans (#719) ─────────────────────────────────────────────
+
+function HomePlans({ plans }: { plans: Array<{ property: Property; plan: HomeWarrantyPlan }> }) {
+  const navigate = useNavigate();
+  if (plans.length === 0) return null;
+  return (
+    <div style={{ marginBottom: "2rem" }}>
+      <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
+        Home warranty plans
+      </div>
+      <div style={{ border: `1px solid ${UI.rule}` }}>
+        {plans.map(({ property, plan }, i) => {
+          const status = renewalStatus(plan.renewalDate, Date.now());
+          const name = [plan.provider, plan.planName].filter(Boolean).join(" · ");
+          return (
+            <div key={String(property.id)} style={{ display: "flex", alignItems: "flex-start", gap: "1rem", padding: "1rem 1.25rem", borderTop: i ? `1px solid ${UI.rule}` : "none", background: V2_COLORS.paper }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.875rem", color: UI.ink }}>{name}</div>
+                <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginTop: "0.25rem" }}>
+                  {property.address}, {property.city} ·{" "}
+                  {!status ? "" : status.tone === "passed" ? "Renewal date passed" : status.days === 0 ? "Renews today" : `Renews in ${status.days} day${status.days === 1 ? "" : "s"}`}
+                </div>
+              </div>
+              <button
+                aria-label={`Open ${plan.provider} plan`}
+                onClick={() => navigate(`/properties/${property.id}?tab=homeWarranty`)}
+                style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.rust, background: "none", border: "none", cursor: "pointer", minHeight: 44 }}
+              >
+                Claims →
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function WarrantyWalletPage() {
@@ -341,6 +381,7 @@ export default function WarrantyWalletPage() {
   const [warrantyJobs, setWarrantyJobs] = useState<WarrantyJob[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [homePlans, setHomePlans] = useState<Array<{ property: Property; plan: HomeWarrantyPlan }>>([]);
 
   useEffect(() => {
     Promise.all([
@@ -348,6 +389,10 @@ export default function WarrantyWalletPage() {
       propertyService.getMyProperties(),
     ]).then(([jobs, properties]) => {
       setProperties(properties);
+      // #719: each home's warranty plan; one unreadable home never hides the rest.
+      void Promise.all(
+        properties.map((p) => homeWarrantyService.getPlan(String(p.id)).then((plan) => (plan ? { property: p, plan } : null)).catch(() => null)),
+      ).then((rows) => setHomePlans(rows.filter((r): r is { property: Property; plan: HomeWarrantyPlan } => r !== null)));
       const propMap = Object.fromEntries(properties.map((p) => [String(p.id), p]));
       const withWarranty = jobs
         .filter((j) => j.warrantyMonths && j.warrantyMonths > 0)
@@ -389,6 +434,8 @@ export default function WarrantyWalletPage() {
         </p>
 
         <ScanDocumentPanel properties={properties} />
+
+        <HomePlans plans={homePlans} />
 
         {!loaded ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>

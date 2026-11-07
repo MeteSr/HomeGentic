@@ -25,7 +25,7 @@ import * as payment from "../../agents/voice/paymentCanister";
 import { resolveAgentSessionOwner } from "../../agents/voice/authCanister";
 import { fetchPhotoAccess } from "../../agents/voice/photoCanister";
 import { recordFrontendError, recordServiceError, getCriticalCycleAlerts } from "../../agents/voice/monitoringCanister";
-import { markIdentityCleared } from "../../agents/voice/src/propertyCanister";
+import { markIdentityCleared, floodTarget, saveFloodZone } from "../../agents/voice/src/propertyCanister";
 import { getInvitePreview } from "../../agents/voice/src/jobCanister";
 
 type R<T> = { ok: T } | { err: Record<string, unknown> };
@@ -177,6 +177,24 @@ describe("voice Worker canister clients on real canisters", () => {
       expect(p.identityVerified).toEqual([true]);
       await expect(markIdentityCleared(propertyId, other.getPrincipal().toText(), "vs_test_2", "Mallory"))
         .rejects.toThrow("NotAuthorized");
+    });
+  });
+
+  describe("property (FEMA flood zone, #718)", () => {
+    it("reads the address for someone on the home, saves the result and reads it back", async () => {
+      const t = await floodTarget(propertyId, owner.getPrincipal().toText());
+      expect(t).toMatchObject({ address: expect.any(String), floodZone: null });
+      const saved = await saveFloodZone(propertyId, owner.getPrincipal().toText(), {
+        status: "Mapped", zone: "AE", zoneSubtype: "", specialFloodHazardArea: true, baseFloodElevation: "8",
+        firmPanel: "12095C0430F", firmEffectiveDate: "2009-09-25", matchedAddress: "MATCHED", latitude: "28.5", longitude: "-81.3",
+      });
+      expect(saved).toMatchObject({ zone: "AE", specialFloodHazardArea: true });
+      expect(saved.checkedAt).toBeGreaterThan(0);
+      const again = await floodTarget(propertyId, owner.getPrincipal().toText());
+      expect(again).not.toBe("forbidden");
+      expect((again as any).floodZone).toMatchObject({ zone: "AE", status: "Mapped", checkedAt: saved.checkedAt });
+      expect(await floodTarget(propertyId, other.getPrincipal().toText())).toBe("forbidden");
+      expect(await floodTarget("no-such-home", owner.getPrincipal().toText())).toBe("notfound");
     });
   });
 

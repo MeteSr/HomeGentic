@@ -226,6 +226,92 @@ export const idlFactory = ({ IDL }: any) => {
   };
   const CondoRecordInput = IDL.Record(condoFields);
   const CondoRecord = IDL.Record({ ...condoFields, updatedAt: IDL.Int });
+  // #719 home warranty plan and claims
+  const planFields = {
+    provider:        IDL.Text,
+    planName:        IDL.Text,
+    contractNumber:  IDL.Text,
+    claimContact:    IDL.Text,
+    serviceFeeCents: IDL.Opt(IDL.Nat),
+    startDate:       IDL.Text,
+    renewalDate:     IDL.Text,
+    coverageNotes:   IDL.Text,
+    exclusionNotes:  IDL.Text,
+    contractDocId:   IDL.Opt(IDL.Text),
+  };
+  const HomeWarrantyPlanInput = IDL.Record(planFields);
+  const HomeWarrantyPlan = IDL.Record({ ...planFields, updatedAt: IDL.Int });
+  const WarrantyClaimOutcome = IDL.Variant({
+    Open: IDL.Null, Approved: IDL.Null, PartlyApproved: IDL.Null, Denied: IDL.Null, Withdrawn: IDL.Null,
+  });
+  const hwClaimFields = {
+    dateFiled:           IDL.Text,
+    issue:               IDL.Text,
+    claimNumber:         IDL.Text,
+    jobId:               IDL.Opt(IDL.Text),
+    serviceFeePaidCents: IDL.Opt(IDL.Nat),
+    outcome:             WarrantyClaimOutcome,
+    outcomeNotes:        IDL.Text,
+  };
+  const HomeWarrantyClaimInput = IDL.Record(hwClaimFields);
+  const HomeWarrantyClaim = IDL.Record({
+    ...hwClaimFields,
+    id:         IDL.Text,
+    propertyId: IDL.Text,
+    createdAt:  IDL.Int,
+    updatedAt:  IDL.Int,
+  });
+  // #722 mortgage details
+  const loanFields = {
+    lender:                IDL.Text,
+    originalAmountCents:   IDL.Nat,
+    rateThousandthsPct:    IDL.Nat,
+    termMonths:            IDL.Nat,
+    firstPaymentDate:      IDL.Text,
+    originalValueCents:    IDL.Opt(IDL.Nat),
+    currentValueCents:     IDL.Opt(IDL.Nat),
+    monthlyPmiCents:       IDL.Opt(IDL.Nat),
+    monthlyEscrowCents:    IDL.Opt(IDL.Nat),
+    statementBalanceCents: IDL.Opt(IDL.Nat),
+    statementDate:         IDL.Text,
+  };
+  const MortgageLoanInput = IDL.Record(loanFields);
+  const MortgageLoan = IDL.Record({ ...loanFields, updatedAt: IDL.Int });
+  const PulseHomeFinance = IDL.Record({
+    propertyId: IDL.Text,
+    warranty:   IDL.Opt(IDL.Record({ provider: IDL.Text, renewalDate: IDL.Text })),
+    loan:       IDL.Opt(IDL.Record({
+      originalAmountCents: IDL.Nat,
+      rateThousandthsPct:  IDL.Nat,
+      termMonths:          IDL.Nat,
+      firstPaymentDate:    IDL.Text,
+      originalValueCents:  IDL.Opt(IDL.Nat),
+      monthlyPmiCents:     IDL.Opt(IDL.Nat),
+    })),
+  });
+  // #718 FEMA flood zone
+  const FloodZoneStatus = IDL.Variant({ Mapped: IDL.Null, NotMapped: IDL.Null });
+  const floodFields = {
+    status:                 FloodZoneStatus,
+    zone:                   IDL.Text,
+    zoneSubtype:            IDL.Text,
+    specialFloodHazardArea: IDL.Bool,
+    baseFloodElevation:     IDL.Text,
+    firmPanel:              IDL.Text,
+    firmEffectiveDate:      IDL.Text,
+    matchedAddress:         IDL.Text,
+    latitude:               IDL.Text,
+    longitude:              IDL.Text,
+  };
+  const FloodZoneInput = IDL.Record(floodFields);
+  const FloodZoneRecord = IDL.Record({ ...floodFields, checkedAt: IDL.Int });
+  const FloodTarget = IDL.Record({
+    address:   IDL.Text,
+    city:      IDL.Text,
+    state:     IDL.Text,
+    zipCode:   IDL.Text,
+    floodZone: IDL.Opt(FloodZoneRecord),
+  });
   const Error = IDL.Variant({
     NotFound: IDL.Null,
     NotAuthorized: IDL.Null,
@@ -472,6 +558,66 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Opt(CondoRecord), err: Error })],
       ["query"]
+    ),
+    // #719 home warranty plan and claims
+    setHomeWarrantyPlan: IDL.Func(
+      [IDL.Text, IDL.Opt(HomeWarrantyPlanInput)],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    getHomeWarrantyPlan: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Opt(HomeWarrantyPlan), err: Error })],
+      ["query"]
+    ),
+    addHomeWarrantyClaim: IDL.Func(
+      [IDL.Text, HomeWarrantyClaimInput],
+      [IDL.Variant({ ok: HomeWarrantyClaim, err: Error })],
+      []
+    ),
+    updateHomeWarrantyClaim: IDL.Func(
+      [IDL.Text, HomeWarrantyClaimInput],
+      [IDL.Variant({ ok: HomeWarrantyClaim, err: Error })],
+      []
+    ),
+    deleteHomeWarrantyClaim: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getHomeWarrantyClaims: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(HomeWarrantyClaim), err: Error })],
+      ["query"]
+    ),
+    // #722 mortgage details (owner and co-owners)
+    setMortgageLoan: IDL.Func(
+      [IDL.Text, IDL.Opt(MortgageLoanInput)],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    getMortgageLoan: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Opt(MortgageLoan), err: Error })],
+      ["query"]
+    ),
+    // #719 / #722 weekly Home Pulse email (notification relay only)
+    getPulseHomeFinance: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Vec(PulseHomeFinance), err: Error })],
+      ["query"]
+    ),
+    // #718 FEMA flood zone (the household reads; the voice Worker looks it up and saves)
+    getFloodZone: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Opt(FloodZoneRecord), err: Error })],
+      ["query"]
+    ),
+    relayFloodTarget: IDL.Func(
+      [IDL.Text, IDL.Principal],
+      [IDL.Variant({ ok: FloodTarget, err: Error })],
+      ["query"]
+    ),
+    relaySetFloodZone: IDL.Func(
+      [IDL.Text, IDL.Principal, FloodZoneInput],
+      [IDL.Variant({ ok: FloodZoneRecord, err: Error })],
+      []
     ),
     getPulseInsurance: IDL.Func(
       [IDL.Principal],

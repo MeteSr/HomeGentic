@@ -17,7 +17,7 @@ import {
 import { getPrefs } from "../prefs";
 import { scoreBreakdown } from "../../../packages/shared/src/score";
 import { buildApp } from "../server";
-import type { PulseInsurance, PulseJob, PulseProperty } from "../types";
+import type { PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty } from "../types";
 
 // Monday 2026-10-19 14:00 UTC (ISO week 43); autumn.
 const MONDAY = Date.UTC(2026, 9, 19, 14);
@@ -102,6 +102,47 @@ describe("buildSection", () => {
     expect(tagged(null)).toHaveLength(0);
   });
 
+  it("reminds about a home warranty renewal in the next 60 days, without rating the plan", () => {
+    const fin = (renewalDate: string): PulseHomeFinance => ({
+      propertyId: "P1", warranty: { provider: "American Home Shield", renewalDate }, loan: null,
+    });
+    const tagged = (f: PulseHomeFinance | null) =>
+      buildSection({ ...HOUSE, yearBuilt: 2024 }, [], [], MONDAY, null, f).items.filter((i) => i.tag === "HOME WARRANTY");
+
+    const [soon] = tagged(fin("2026-11-30"));
+    expect(soon.title).toBe("Home warranty renews Nov 30, 2026");
+    expect(soon.body).toContain("American Home Shield");
+    expect(soon.body).not.toMatch(/\$|\bsave\b|savings|best|recommend|covers|guarantee/i);
+    expect(tagged(fin("2026-10-19"))).toHaveLength(1);
+    expect(tagged(fin("2026-10-18"))).toHaveLength(0);
+    expect(tagged(fin("2026-12-19"))).toHaveLength(0);
+    expect(tagged(fin("bad"))).toHaveLength(0);
+    expect(tagged(null)).toHaveLength(0);
+  });
+
+  it("says when the loan's schedule nears 80% of the original value, and that the lender decides", () => {
+    // $300,000 at 6.5% over 30 years, first payment 2018-07-01, on a $330,000
+    // home: the original schedule reaches $264,000 (80%) at payment 101, 2026-11-01.
+    const loan: NonNullable<PulseHomeFinance["loan"]> = {
+      originalAmountCents: 30_000_000, rateThousandthsPct: 6_500, termMonths: 360,
+      firstPaymentDate: "2018-07-01", originalValueCents: 33_000_000, monthlyPmiCents: 11_000,
+    };
+    const pmi = (over: Partial<typeof loan> | null) =>
+      buildSection({ ...HOUSE, yearBuilt: 2024 }, [], [], MONDAY, null,
+        over === null ? null : { propertyId: "P1", warranty: null, loan: { ...loan, ...over } },
+      ).items.filter((i) => i.tag === "PMI");
+
+    const [item] = pmi({});
+    expect(item.title).toBe("PMI: your loan's schedule reaches 80% of the original value Nov 1, 2026");
+    expect(item.body).toMatch(/lender decides/i);
+    expect(item.body).not.toMatch(/refinanc|guarantee|will be removed|\bsave\b/i);
+    expect(pmi({ monthlyPmiCents: null })).toHaveLength(0);
+    expect(pmi({ monthlyPmiCents: 0 })).toHaveLength(0);
+    expect(pmi({ originalValueCents: null })).toHaveLength(0);
+    expect(pmi({ firstPaymentDate: "2014-01-01" })).toHaveLength(0); // long past
+    expect(pmi(null)).toHaveLength(0);
+  });
+
   it("puts the insurance renewal ahead of system-life items", () => {
     const s = buildSection(HOUSE, [], [], MONDAY, { propertyId: "P1", carrier: "Citizens", renewalDate: "2026-11-01" });
     expect(s.items[0].tag).toBe("INSURANCE");
@@ -174,6 +215,7 @@ describe("runPulse", () => {
       getJobs:       jest.fn(async () => [job()]),
       getSnapshots:  jest.fn(async () => []),
       getInsurance:  jest.fn(async () => []),
+      getHomeFinance: jest.fn(async () => []),
       wantsPulse:    () => true,
       send:          jest.fn(async () => undefined),
       pause:         async () => undefined,
@@ -210,6 +252,21 @@ describe("runPulse", () => {
     const broken = deps({ getInsurance: jest.fn(async () => { throw new Error("no such method"); }) });
     expect(await runPulse(MONDAY, broken)).toBe(2);
     expect(broken.send.mock.calls[0][1].text).not.toContain("[INSURANCE]");
+  });
+
+  it("adds each property's home warranty renewal, and still sends when it can't be read", async () => {
+    const d = deps({
+      getHomeFinance: jest.fn(async () => [{
+        propertyId: "P1", warranty: { provider: "Choice Home Warranty", renewalDate: "2026-11-10" }, loan: null,
+      }]),
+    });
+    await runPulse(MONDAY, d);
+    expect(d.send.mock.calls[0][1].text).toContain("[HOME WARRANTY] Home warranty renews Nov 10, 2026");
+
+    resetPulseState();
+    const broken = deps({ getHomeFinance: jest.fn(async () => { throw new Error("no such method"); }) });
+    expect(await runPulse(MONDAY, broken)).toBe(2);
+    expect(broken.send.mock.calls[0][1].text).not.toContain("[HOME WARRANTY]");
   });
 
   it("doesn't run before Monday's send hour, or without email or a public URL", async () => {

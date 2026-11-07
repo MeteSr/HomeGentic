@@ -5,6 +5,7 @@ import { Panel, Pill, SectionHeader, hudButtonStyle, hudInputStyle, type PillTon
 import { LoadError } from "@/components/LoadError";
 import { ClaimKit } from "./ClaimKit";
 import { ContentsInventory } from "./ContentsInventory";
+import { FloodZoneCard } from "./FloodZoneCard";
 import type { RoomRef } from "@/services/inventory";
 import type { Photo } from "@/services/photo";
 import { errorMessage } from "@/services/candid";
@@ -111,10 +112,13 @@ export function InsuranceTab({
   propertyId,
   photos = [],
   rooms = [],
+  address = "",
 }: {
   propertyId: string;
   photos?: Photo[];
   rooms?: RoomRef[];
+  /** One-line street address, for the FEMA map link (#718). */
+  address?: string;
 }) {
   const principal = useAuthStore((s) => s.principal);
   const [role, setRole] = useState<AccessRole | null>(null);
@@ -372,6 +376,8 @@ export function InsuranceTab({
         If the weekly Home Pulse email is on, it reminds you in the {RENEWAL_WINDOW_DAYS} days before the renewal date.
         Keep the declarations page itself in Documents.
       </p>
+
+      <FloodZoneCard propertyId={propertyId} address={address} />
 
       <ClaimKit propertyId={propertyId} canEdit={canEdit} propertyPhotos={photos} />
 

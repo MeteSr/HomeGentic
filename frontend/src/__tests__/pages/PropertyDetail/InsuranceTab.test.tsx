@@ -30,6 +30,12 @@ vi.mock("@/pages/PropertyDetail/ContentsInventory", () => ({
   ),
 }));
 
+vi.mock("@/pages/PropertyDetail/FloodZoneCard", () => ({
+  FloodZoneCard: ({ propertyId, address }: { propertyId: string; address: string }) => (
+    <div data-testid="flood-zone">{`${propertyId}:${address}`}</div>
+  ),
+}));
+
 import { InsuranceTab } from "@/pages/PropertyDetail/InsuranceTab";
 
 const POLICY: InsurancePolicy = {

@@ -103,6 +103,20 @@ export interface PulseInsurance {
   renewalDate: string;   // "YYYY-MM-DD"
 }
 
+/** #719 / #722: a home warranty renewal and the loan terms for the PMI note. */
+export interface PulseHomeFinance {
+  propertyId: string;
+  warranty:   { provider: string; renewalDate: string } | null;
+  loan: {
+    originalAmountCents: number;
+    rateThousandthsPct:  number;
+    termMonths:          number;
+    firstPaymentDate:    string;
+    originalValueCents:  number | null;
+    monthlyPmiCents:     number | null;
+  } | null;
+}
+
 /** The job fields the weekly email reads. */
 export interface PulseJob {
   id:               string;
