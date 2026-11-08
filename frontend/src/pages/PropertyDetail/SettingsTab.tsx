@@ -273,6 +273,22 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
       </Panel>
       </div>
 
+      {/* #724: who can claim the record if the owner dies or the home passes to a trust or heir */}
+      <Panel style={{ overflow: "hidden" }}>
+        {section("Successor")}
+        <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+          <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", fontWeight: 300, lineHeight: 1.6 }}>
+            Name the person who can ask for this home's record if you die or the home passes to a trust or heir. A claim needs a document HomeGentic reviews and a 30-day wait, and you can cancel it. HomeGentic passes on the record only, not the property.
+          </p>
+          <button
+            onClick={() => navigate(`/properties/${property.id}/successor`)}
+            style={{ alignSelf: "flex-start", fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.6rem 1.1rem", border: "1px solid var(--hg-line-2)", background: "var(--hg-fill)", color: "var(--hg-ink)", borderRadius: 100, cursor: "pointer" }}
+          >
+            Successor and claims →
+          </button>
+        </div>
+      </Panel>
+
       {/* Ownership History */}
       {historyRecords.length > 0 && (
         <Panel style={{ overflow: "hidden" }}>

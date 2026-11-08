@@ -23,20 +23,21 @@ import { smsPhoneFor, wantsEmail, wantsPush } from "./prefs";
 import { emailConfigured, sendEmail } from "./email";
 import { sendSms, smsConfigured } from "./sms";
 import { PUSH_KINDS } from "./channels";
-import type { ContractorInfo, NotificationEvent, OutboxPage, PushPayload, QuoteRequestInfo } from "./types";
+import type { ContractorInfo, NotificationEvent, OutboxPage, PushPayload, QuoteRequestInfo, SuccessionNoticeInfo } from "./types";
 import { reportFailure, errorCode } from "./opsReport";
 
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 30_000;
 const PAGE_SIZE = 200; // the canister's MAX_PAGE
 
 /** Canisters with an outbox, by the env var holding each one's ID. */
-const OUTBOX_CANISTERS = ["CANISTER_ID_JOB", "CANISTER_ID_QUOTE", "CANISTER_ID_LISTING"];
+export const OUTBOX_CANISTERS = ["CANISTER_ID_JOB", "CANISTER_ID_QUOTE", "CANISTER_ID_LISTING", "CANISTER_ID_PROPERTY"];
 
 export interface PollerDeps {
   readOutbox:      (canisterId: string, afterSeq: number) => Promise<OutboxPage>;
   getQuoteRequest: (requestId: string) => Promise<QuoteRequestInfo | null>;
   getContractors:  () => Promise<ContractorInfo[]>;
   isPro:           (principal: string) => Promise<boolean>;
+  getSuccessionNotice: (claimId: string) => Promise<SuccessionNoticeInfo | null>;
   dispatch:        (principal: string, payload: PushPayload) => Promise<void>;
   wantsPush:       (principal: string, kind: string) => boolean;
   // Email and SMS (optional channels — off when not configured)
@@ -54,6 +55,7 @@ const defaultDeps: PollerDeps = {
   getQuoteRequest: icp.getQuoteRequest,
   getContractors:  icp.getContractors,
   isPro:           icp.isContractorPro,
+  getSuccessionNotice: icp.getSuccessionNotice,
   dispatch:        dispatchToUser,
   wantsPush,
   emailEnabled:    emailConfigured,
@@ -76,7 +78,10 @@ export function getCursor(canisterId: string): number | undefined {
   return cursors[canisterId];
 }
 
-/** A notification held until its notBefore time. requestId is the lead's quote request. */
+/**
+ * A notification held until its notBefore time. requestId is the lead's quote
+ * request, or for a #724 successor-claim reminder the claim id.
+ */
 interface Held { key: string; requestId: string; n: NotificationEvent }
 
 let held: Held[] = loadSection<Held[]>("heldLeads", []);
@@ -153,12 +158,21 @@ export async function flushHeld(deps: PollerDeps = defaultDeps, now: number = Da
   if (due.length === 0) return 0;
   const emailFor = emailCache(deps);
   const requests = new Map<string, Promise<QuoteRequestInfo | null>>();
+  const notices = new Map<string, Promise<SuccessionNoticeInfo | null>>();
   let sent = 0;
   for (const h of due) {
     try {
-      if (!requests.has(h.requestId)) requests.set(h.requestId, deps.getQuoteRequest(h.requestId));
-      const req = await requests.get(h.requestId)!;
-      if (req && (req.status === "Open" || req.status === "Quoted")) sent += await deliver(deps, emailFor, h.n, h.key);
+      if (h.n.type === "succession_claim_reminder") {
+        // Only while the claim is open and the recipient is still in the household.
+        if (!notices.has(h.requestId)) notices.set(h.requestId, deps.getSuccessionNotice(h.requestId));
+        const notice = await notices.get(h.requestId)!;
+        const open = notice && (notice.status === "AwaitingReview" || notice.status === "Approved");
+        if (open && notice.household.includes(h.n.principal)) sent += await deliver(deps, emailFor, h.n, `${h.key}:${h.n.notBefore}`);
+      } else {
+        if (!requests.has(h.requestId)) requests.set(h.requestId, deps.getQuoteRequest(h.requestId));
+        const req = await requests.get(h.requestId)!;
+        if (req && (req.status === "Open" || req.status === "Quoted")) sent += await deliver(deps, emailFor, h.n, h.key);
+      }
       held = held.filter((x) => x !== h);
       saveHeld();
     } catch (err) {
@@ -189,6 +203,7 @@ export async function pollCanister(canisterId: string, deps: PollerDeps = defaul
     getQuoteRequest: deps.getQuoteRequest,
     getContractors:  () => (contractors ??= deps.getContractors()),
     isPro:           deps.isPro,
+    getSuccessionNotice: deps.getSuccessionNotice,
   };
   const emailFor = emailCache(deps);
 
@@ -201,7 +216,7 @@ export async function pollCanister(canisterId: string, deps: PollerDeps = defaul
       for (const n of notifications) {
         if (n.notBefore !== undefined && n.notBefore > now) {
           // A crash before the cursor moved replays the event; don't hold it twice.
-          if (!held.some((h) => h.key === key && h.n.principal === n.principal)) held.push({ key, requestId: event.refId, n });
+          if (!held.some((h) => h.key === key && h.n.principal === n.principal && h.n.notBefore === n.notBefore)) held.push({ key, requestId: event.refId, n });
         }
         else sent += await deliver(deps, emailFor, n, key);
       }
@@ -248,7 +263,7 @@ export function startPoller(): void {
   if (intervalHandle) return; // already running
   const configured = OUTBOX_CANISTERS.filter((v) => process.env[v]);
   if (configured.length === 0) {
-    console.warn("[poller] none of CANISTER_ID_JOB, CANISTER_ID_QUOTE, CANISTER_ID_LISTING is set — not polling");
+    console.warn(`[poller] none of ${OUTBOX_CANISTERS.join(", ")} is set — not polling`);
     return;
   }
   console.log(`[poller] polling ${configured.join(", ")} every ${POLL_INTERVAL_MS}ms`);

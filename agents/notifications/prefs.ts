@@ -9,7 +9,7 @@
  * `notifyPush` flag on the contractor's profile.
  */
 import {
-  EMAIL_DEFAULTS, EMAIL_PREF_KEYS, PUSH_KINDS, PUSH_PREF_KINDS, SMS_KINDS, emailGroupFor,
+  EMAIL_DEFAULTS, EMAIL_PREF_KEYS, PUSH_KINDS, PUSH_PREF_KINDS, REQUIRED_EMAIL_KINDS, SMS_KINDS, emailGroupFor,
   type EmailPrefKey, type PushPrefKind,
 } from "./channels";
 import { loadSection, saveSection } from "./persist";
@@ -119,6 +119,7 @@ export function wantsPush(principal: string, kind: string): boolean {
 }
 
 export function wantsEmail(principal: string, kind: string): boolean {
+  if ((REQUIRED_EMAIL_KINDS as readonly string[]).includes(kind)) return true;
   const group = emailGroupFor(kind);
   return group !== null && getPrefs(principal).email[group];
 }

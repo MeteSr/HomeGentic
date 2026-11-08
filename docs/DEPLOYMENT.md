@@ -264,7 +264,7 @@ Each channel is off until its variables are set; Settings hides its rows while i
 | `NOTIFY_EMAIL_FROM` | Sender, on a domain verified in Resend (default `HomeGentic <notifications@homegentic.app>`) |
 | `APP_URL` | Web app origin used for links in emails and texts (default `https://homegentic.app`) |
 | `NOTIFICATIONS_PUBLIC_URL` | This relay's public HTTPS origin (e.g. `https://notify.homegentic.app`). Needed for the weekly Home Pulse email: each one carries a one-click unsubscribe link to `/api/email/unsubscribe`. Without it the weekly email is off |
-| `CANISTER_ID_PROPERTY` | Property canister — the weekly Home Pulse email reads each homeowner's properties |
+| `CANISTER_ID_PROPERTY` | Property canister — the weekly Home Pulse email reads each homeowner's properties, and its outbox carries successor-claim emails (#724) |
 | `PULSE_HOUR_UTC` | Hour (UTC) on Mondays the weekly Home Pulse starts sending (default `13`) |
 | `PULSE_SEND_INTERVAL_MS` | Pause between weekly emails, to stay under Resend's rate limit (default `600`) |
 | `CANISTER_ID_REPORT` | Report canister — buyer report alerts from the public `/check` page ("notify me"). The relay checks each saved address hourly and emails the buyer once a public report exists. Needs `RESEND_API_KEY` too; without either the page says the request couldn't be saved |

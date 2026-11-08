@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { SuccessionReviewTab } from "@/components/admin/SuccessionReviewTab";
 import { Layout } from "@/components/Layout";
 import { propertyService, Property, VerificationLevel, SubscriptionTier } from "@/services/property";
 import { monitoringService, CanisterMetrics, CycleLevelResult, runwayDays, cyclesToUsd } from "@/services/monitoringService";
@@ -24,7 +25,7 @@ const UI = {
   mono:     V2_FONTS.body,
 };
 
-type Tab = "verifications" | "contractors" | "tiers" | "cycles" | "referrals";
+type Tab = "verifications" | "successors" | "contractors" | "tiers" | "cycles" | "referrals";
 // Basic/Premium are grandfathered-only — not offered here so admin grants
 // don't create new holders of a retired tier. Pro is the single homeowner plan.
 const TIERS: SubscriptionTier[] = ["Pro", "ContractorFree", "ContractorPro"];
@@ -819,6 +820,7 @@ export default function AdminDashboardPage() {
         <div style={{ display: "flex", borderBottom: `1px solid ${UI.rule}`, marginBottom: "1.5rem" }}>
           {([
             { id: "verifications", label: `Verifications${pending.length > 0 ? ` (${pending.length})` : ""}` },
+            { id: "successors",    label: "Successor Claims" },
             { id: "contractors",   label: "Contractors" },
             { id: "tiers",         label: "Subscription Tiers" },
             { id: "cycles",        label: "Cycles & Health" },
@@ -875,6 +877,8 @@ export default function AdminDashboardPage() {
             )}
           </div>
         )}
+
+        {tab === "successors" && <SuccessionReviewTab />}
 
         {tab === "contractors" && <ContractorVerificationTab />}
 

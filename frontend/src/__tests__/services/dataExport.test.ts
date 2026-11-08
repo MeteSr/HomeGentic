@@ -62,6 +62,12 @@ vi.mock("@/services/houseGuide", () => ({
 vi.mock("@/services/moveInPlan", () => ({
   moveInPlanService: { get: async () => ({ startedAt: 1, doneSteps: ["locks"], tasks: [], updatedAt: 1 }) },
 }));
+vi.mock("@/services/succession", () => ({
+  successionService: {
+    getSuccessor: async () => ({ name: "Jordan Rivera", email: "jordan@example.com", relationship: "", token: "t", namedAt: 1 }),
+    getMyClaims: async () => [{ id: "sc-1", status: { tag: "AwaitingReview" } }],
+  },
+}));
 vi.mock("@/services/hoaRecords", () => ({
   hoaService: {
     listReviews: async () => [{ id: "R1", project: "Fence" }],
@@ -145,6 +151,7 @@ describe("data export", () => {
       "listingProposals",
       "contractorProfile",
       "agentProfile",
+      "successorClaims",
     ]);
     const home = data.properties.ok[0];
     expect(home.property).toEqual({ id: "7", address: "12 Elm St" });
@@ -168,6 +175,7 @@ describe("data export", () => {
       "smartHomeDevices",
       "smartHomeEvents",
       "specialAssessments",
+      "successor",
     ]);
     expect(home.sections.jobs.ok[0].amount).toBe("12000");
     expect(home.sections.photos.ok.map((p: any) => [p.id, p.file, p.url])).toEqual([
@@ -182,6 +190,9 @@ describe("data export", () => {
     expect(home.sections.condoAssociation.ok).toBeNull();
     // #712: the move-in plan.
     expect(home.sections.moveInPlan.ok.doneSteps).toEqual(["locks"]);
+    // #724: the successor the owner named, and claims the user sent.
+    expect(home.sections.successor.ok.name).toBe("Jordan Rivera");
+    expect(data.account.successorClaims.ok[0].id).toBe("sc-1");
     expect(home.sections.insuranceClaims.ok[0].id).toBe("C1");
     // Claim damage photos are marked with the claim they were taken for.
     expect(home.sections.photos.ok.map((p: any) => p.insuranceClaimId)).toEqual([undefined, "C1"]);

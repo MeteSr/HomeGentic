@@ -300,9 +300,11 @@ addInventoryItem(2) -> (1)
 addMoveInTasks(2) -> (1)
 addSpecialAssessment(2) -> (1)
 cancelManagerInvite(2) -> (1)
+cancelSuccessionClaim(1) -> (1)
 cancelTransfer(1) -> (1)
 claimManagerRole(1) -> (1)
 claimTransfer(1) -> (1)
+completeSuccessionClaim(1) -> (1)
 createHouseGuideLink(3) -> (1)
 createInsuranceClaim(2) -> (1)
 deleteArchitecturalReview(1) -> (1)
@@ -335,6 +337,9 @@ getMortgageLoan(1) -> (1) [query]
 getMoveInPlan(1) -> (1) [query]
 getMyManagedProperties(0) -> (1) [query]
 getMyProperties(0) -> (1) [query]
+getMySuccessionClaims(0) -> (1) [query]
+getNotificationEvents(2) -> (1) [query]
+getOpenSuccessionClaim(1) -> (1) [query]
 getOwnerNotifications(1) -> (1) [query]
 getOwnershipHistory(1) -> (1) [query]
 getPendingInvitesForProperty(1) -> (1) [query]
@@ -357,6 +362,10 @@ getPulsePropertyTax(1) -> (1) [query]
 getRoomsByProperty(1) -> (1) [query]
 getSharedHouseGuide(1) -> (1) [query]
 getSpecialAssessments(1) -> (1) [query]
+getSuccessionInvite(1) -> (1) [query]
+getSuccessionNotice(1) -> (1) [query]
+getSuccessionProof(1) -> (1) [query]
+getSuccessor(1) -> (1) [query]
 getVerificationLevel(1) -> (1) [query]
 getVerifyStatus(1) -> (1) [query]
 initiateTransfer(1) -> (1)
@@ -364,16 +373,20 @@ inviteManager(4) -> (1)
 isAdminPrincipal(1) -> (1) [query]
 isAuthorized(3) -> (1) [query]
 listHouseGuideLinks(1) -> (1) [query]
+listSuccessionClaimsForReview(0) -> (1) [query]
 markIdentityCleared(3) -> (1)
+openSuccessionClaim(3) -> (1)
 recordManagerActivity(2) -> (1)
 registerProperty(1) -> (1)
 relayFloodTarget(2) -> (1) [query]
 relayMarkIdentityCleared(4) -> (1)
 relaySetFloodZone(3) -> (1)
 removeManager(2) -> (1)
+removeSuccessor(1) -> (1)
 requestApproval(3) -> (1)
 resignAsManager(1) -> (1)
 respondToApproval(3) -> (1)
+reviewSuccessionClaim(3) -> (1)
 revokeHouseGuideLink(1) -> (1)
 setCondoAssociationRecord(2) -> (1)
 setHomeWarrantyPlan(2) -> (1)
@@ -382,6 +395,7 @@ setInsurancePolicy(2) -> (1)
 setMortgageLoan(2) -> (1)
 setMoveInStep(3) -> (1)
 setPropertyTaxYear(2) -> (1)
+setSuccessor(2) -> (1)
 startMoveInPlan(1) -> (1)
 submitVerification(4) -> (1)
 updateArchitecturalReview(2) -> (1)

@@ -32,18 +32,25 @@ export interface EmailMessage {
 export function renderEmail(payload: PushPayload): EmailMessage {
   const link     = `${appUrl()}${webPathFor(payload.route)}`;
   const settings = `${appUrl()}/settings?tab=notifications`;
+  // #724: successor-claim emails go out whatever the settings say.
+  const footerText = payload.required
+    ? "This is about a successor claim on a home record, so HomeGentic sends it whatever your notification settings are."
+    : `You're getting this because of your notification settings. Change them: ${settings}`;
+  const footerHtml = payload.required
+    ? escapeHtml(footerText)
+    : `You're getting this because of your notification settings.
+<a href="${escapeHtml(settings)}" style="color:#6B6B6B">Change them</a>.`;
   const text = [
     payload.body,
     "",
     `Open HomeGentic: ${link}`,
     "",
-    `You're getting this because of your notification settings. Change them: ${settings}`,
+    footerText,
   ].join("\n");
   const html = `<!doctype html><html><body style="font-family:system-ui,sans-serif;color:#141414;line-height:1.5">
 <p style="font-size:16px;margin:0 0 16px">${escapeHtml(payload.body)}</p>
 <p style="margin:0 0 24px"><a href="${escapeHtml(link)}" style="color:#2B34FF">Open HomeGentic</a></p>
-<p style="font-size:12px;color:#6B6B6B;margin:0">You're getting this because of your notification settings.
-<a href="${escapeHtml(settings)}" style="color:#6B6B6B">Change them</a>.</p>
+<p style="font-size:12px;color:#6B6B6B;margin:0">${footerHtml}</p>
 </body></html>`;
   return { subject: payload.title, text, html };
 }
