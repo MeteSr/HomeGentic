@@ -4,6 +4,7 @@ import { TRADE_LABELS } from "@homegentic/shared/serviceTypes";
 import { Briefcase, Star, Zap, Clock, ChevronDown, ChevronUp, X, Send, UserCog, PenLine, CheckCircle2, Lock } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
+import { LienWaiverUpload } from "@/components/LienWaiverUpload";
 import { Badge } from "@/components/Badge";
 import { contractorService, ContractorProfile } from "@/services/contractor";
 import { quoteService, QuoteRequest, Quote } from "@/services/quote";
@@ -323,6 +324,8 @@ export default function ContractorDashboardPage() {
   const [pendingJobs,   setPendingJobs]   = useState<Job[]>([]);
   const [myBids,        setMyBids]        = useState<Quote[]>([]);
   const [signingJobId,  setSigningJobId]  = useState<string | null>(null);
+  // #716: jobs signed in this visit, offered a final lien waiver upload.
+  const [justSigned,    setJustSigned]    = useState<Job[]>([]);
   const [verifiedAnim,  setVerifiedAnim]  = useState(false);
   const [submittedIds,  setSubmittedIds]  = useState<Set<string>>(new Set());
   const [filterType,    setFilterType]    = useState("All");
@@ -387,6 +390,8 @@ export default function ContractorDashboardPage() {
     setSigningJobId(jobId);
     try {
       await jobService.verifyJob(jobId);
+      const signed = pendingJobs.find((j) => j.id === jobId);
+      if (signed && !signed.isDiy) setJustSigned((prev) => [...prev, signed]);
       setPendingJobs((prev) => prev.filter((j) => j.id !== jobId));
       setVerifiedAnim(true);
       setTimeout(() => setVerifiedAnim(false), 2800);
@@ -541,6 +546,26 @@ export default function ContractorDashboardPage() {
 
           {/* Pending Signatures */}
           <div>
+            {justSigned.length > 0 && (
+              <div style={{ marginBottom: "2rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
+                  Just signed
+                </p>
+                {justSigned.map((job) => (
+                  <div key={job.id} style={{ background: V2_COLORS.paper, padding: "1.25rem", borderRadius: V2_RADIUS.sm, boxShadow: V2_SHADOWS.card, marginBottom: "1rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                      <p style={{ fontWeight: 600, fontSize: "0.875rem", margin: 0 }}>
+                        {job.serviceType} · {job.date}
+                      </p>
+                      <Button size="sm" variant="ghost" onClick={() => setJustSigned((prev) => prev.filter((j) => j.id !== job.id))}>
+                        Done
+                      </Button>
+                    </div>
+                    <LienWaiverUpload jobId={job.id} />
+                  </div>
+                ))}
+              </div>
+            )}
             {pendingJobs.length > 0 && (
               <div style={{ marginBottom: "2rem" }}>
                 <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>

@@ -859,6 +859,10 @@ if [ -n "$PHOTO_ID" ]    && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> photo..."
   bg_call photo    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" -e "$ENV"
 fi
+if [ -n "$PHOTO_ID" ]    && [ -n "$JOB_ID" ];        then
+  echo "  Wiring job -> photo (#716 contractor lien waiver uploads)..."
+  bg_call photo    setJobCanisterId        "(principal \"$JOB_ID\")"    -e "$ENV"
+fi
 if [ -n "$QUOTE_ID" ]    && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> quote..."
   bg_call quote    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" -e "$ENV"
@@ -1083,6 +1087,10 @@ fi
 if [ -n "$SENSOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting sensor ($SENSOR_ID)..."
   bg_call job addTrustedCanister "(principal \"$SENSOR_ID\")"       -e "$ENV"
+fi
+if [ -n "$PHOTO_ID" ] && [ -n "$JOB_ID" ]; then
+  echo "  job: trusting photo ($PHOTO_ID) (photo asks which contractor may upload a job's lien waiver)..."
+  bg_call job addTrustedCanister "(principal \"$PHOTO_ID\")"        -e "$ENV"
 fi
 if [ -n "$REPORT_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting report ($REPORT_ID) (reports read jobs from the job canister)..."

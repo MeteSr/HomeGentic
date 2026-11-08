@@ -39,6 +39,11 @@ describe("JobsTab", () => {
     expect(screen.getByText("Roofing")).toBeInTheDocument();
   });
 
+  it("links to the home's permits and lien waivers (#716)", () => {
+    renderTab([job]);
+    expect(screen.getByRole("link", { name: /permits and lien waivers/i })).toHaveAttribute("href", "/properties/prop-9/closeout");
+  });
+
   it("shows the empty state with no link when there are no jobs", () => {
     renderTab([]);
     expect(screen.getByText(/no jobs found/i)).toBeInTheDocument();

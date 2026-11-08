@@ -197,6 +197,7 @@ describe("job IDL factory", () => {
     const svc = extractService(jobIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
       "addInboxRelay",
+      "addJobPaper",
       "approveJobProposal",
       "createInviteToken",
       "createJob",
@@ -207,6 +208,7 @@ describe("job IDL factory", () => {
       "getCertificationData",
       "getJob",
       "getJobByInviteToken",
+      "getJobCloseouts",
       "getJobCostCategories",
       "getJobSnapshotsForProperty",
       "getJobsByOwner",
@@ -226,9 +228,11 @@ describe("job IDL factory", () => {
       "relayAddEmailDraft",
       "relayCheckInboxToken",
       "removeInboxRelay",
+      "removeJobPaper",
       "resetMyInboxToken",
       "setFeeCanisterId",
       "setJobCostCategory",
+      "setPermitStatus",
       "setPropertyCanisterId",
       "updateJob",
       "updateJobStatus",
@@ -743,6 +747,7 @@ describe("photo IDL factory", () => {
     expect(Object.keys(svc).sort()).toEqual([
       "addPhotoRelay",
       "beginUpload",
+      "beginWaiverUpload",
       "deleteMyData",
       "deletePhoto",
       "getGuidePhotoData",
@@ -758,6 +763,7 @@ describe("photo IDL factory", () => {
       "removePhotoRelay",
       "setPropertyCanisterId",
       "uploadPhoto",
+      "uploadWaiver",
     ]);
   });
 
@@ -798,6 +804,7 @@ describe("report IDL factory", () => {
       "getCertAttestation",
       "getReport",
       "getReportAttestation",
+      "getReportCloseout",
       "getReportScore",
       "getRiskProfile",
       "hasActivePublicShareLink",

@@ -12,6 +12,8 @@ export const DOC_TYPES = [
   "Permit",
   "Inspection",
   "Warranty",
+  "LienWaiver",
+  "NOC",
   "Deed",
   "Closing",
   "Title",
@@ -30,6 +32,8 @@ export const DOC_TYPE_LABELS: Record<DocType, string> = {
   Permit: "Permit",
   Inspection: "Inspection report",
   Warranty: "Warranty",
+  LienWaiver: "Final lien waiver",
+  NOC: "Notice of Commencement",
   Deed: "Deed",
   Closing: "Closing papers",
   Title: "Title policy",
@@ -51,7 +55,7 @@ export const DOC_GROUPS: readonly DocGroup[] = [
   { key: "ownership", label: "Ownership and closing", types: ["Deed", "Closing", "Title", "Survey"] },
   { key: "insurance", label: "Insurance and risk", types: ["Insurance", "Elevation"] },
   { key: "home", label: "Home and HOA", types: ["HOA", "Manual"] },
-  { key: "work", label: "Work records", types: ["Receipt", "Invoice", "Permit", "Inspection", "Warranty"] },
+  { key: "work", label: "Work records", types: ["Receipt", "Invoice", "Permit", "Inspection", "Warranty", "LienWaiver", "NOC"] },
   { key: "other", label: "Other", types: ["Other"] },
 ];
 
@@ -61,6 +65,11 @@ export function docGroupOf(type: DocType): DocGroup {
 
 export function encodeDoc(type: DocType, filename: string): string {
   return `[${type}] ${filename}`;
+}
+
+/** #716: a close-out paper filed against one job ("[LienWaiver] jobId|filename"). */
+export function encodeJobPaper(type: "LienWaiver" | "NOC", jobId: string, filename: string): string {
+  return `[${type}] ${jobId}|${filename}`;
 }
 
 export function encodePermit(permitNumber: string, authority: string, status: string, filename: string): string {
@@ -78,6 +87,8 @@ export interface ParsedDoc {
   authority?: string;
   inspector?: string;
   status?: string;
+  /** #716: the job a lien waiver or Notice of Commencement belongs to. */
+  jobId?: string;
 }
 
 export function parseDoc(description: string): ParsedDoc {
@@ -97,6 +108,10 @@ export function parseDoc(description: string): ParsedDoc {
         status: parts[2],
         filename: parts.slice(3).join("|"),
       };
+  }
+  if (type === "LienWaiver" || type === "NOC") {
+    const bar = rest.indexOf("|");
+    if (bar > 0) return { type, jobId: rest.slice(0, bar), filename: rest.slice(bar + 1) };
   }
   if (type === "Inspection") {
     const parts = rest.split("|");

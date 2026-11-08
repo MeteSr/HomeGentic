@@ -48,6 +48,14 @@ function makeRawPhoto(overrides: any = {}): any {
 }
 
 const mockPhotoActor = {
+  // #716: a contractor's final lien waiver (on-chain path; tests have no Worker).
+  uploadWaiver: vi.fn(async (jobId: string, filename: string, hash: string, data: Uint8Array) => {
+    if (jobId === "not-mine") return { err: { NotAuthorized: null } };
+    const raw = makeRawPhoto({ jobId: "docs_prop-1", description: `[LienWaiver] ${jobId}|${filename}`, hash, size: BigInt(data.length) });
+    _mockPhotos.push(raw);
+    return { ok: raw };
+  }),
+  beginWaiverUpload: vi.fn(async () => ({ err: { Unavailable: "not in tests" } })),
   uploadPhoto: vi.fn(async (jobId: string, propertyId: string, phase: any, description: string, hash: string, data: number[]) => {
     const raw = makeRawPhoto({ jobId, propertyId, phase, description, hash, data, size: BigInt(data.length) });
     _mockPhotos.push(raw);
@@ -452,5 +460,30 @@ describe("photoService — off-chain photos", () => {
     const [photo] = await photoService.getByJob("job-off");
     expect(photo.url).toBe("");
     expect(mockFetchWithAgentSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("photoService.uploadWaiver (#716)", () => {
+  it("files a contractor's waiver against the job and returns the vault record's id", async () => {
+    const file = new File([new Uint8Array([37, 80, 68, 70])], "final-waiver.pdf", { type: "application/pdf" });
+    const id = await photoService.uploadWaiver(file, "job-42");
+    const stored = _mockPhotos.find((p) => p.id === id);
+    expect(stored.description).toBe("[LienWaiver] job-42|final-waiver.pdf");
+    expect(stored.jobId).toBe("docs_prop-1");
+    const [jobId, filename, hash, data] = mockPhotoActor.uploadWaiver.mock.calls[mockPhotoActor.uploadWaiver.mock.calls.length - 1];
+    expect([jobId, filename]).toEqual(["job-42", "final-waiver.pdf"]);
+    expect(hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(Array.from(data as Uint8Array)).toEqual([37, 80, 68, 70]);
+  });
+
+  it("drops a | from the file name, which the canister refuses", async () => {
+    const file = new File([new Uint8Array([1])], "a|b.pdf", { type: "application/pdf" });
+    await photoService.uploadWaiver(file, "job-43");
+    expect(mockPhotoActor.uploadWaiver.mock.calls[mockPhotoActor.uploadWaiver.mock.calls.length - 1][1]).toBe("a-b.pdf");
+  });
+
+  it("throws the canister's refusal", async () => {
+    const file = new File([new Uint8Array([2])], "w.pdf", { type: "application/pdf" });
+    await expect(photoService.uploadWaiver(file, "not-mine")).rejects.toMatchObject({ code: "NotAuthorized" });
   });
 });

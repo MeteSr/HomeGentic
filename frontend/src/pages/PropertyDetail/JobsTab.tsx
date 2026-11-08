@@ -13,7 +13,13 @@ export function JobsTab({ propertyId, jobs }: { propertyId: string; jobs: Job[] 
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.75rem" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: "1.25rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
+        <Link
+          to={`/properties/${propertyId}/closeout`}
+          style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", letterSpacing: "0.06em", color: "var(--hg-blue-ink)", textDecoration: "none" }}
+        >
+          Permits and lien waivers →
+        </Link>
         <Link
           to={`/properties/${propertyId}/improvements`}
           style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", letterSpacing: "0.06em", color: "var(--hg-blue-ink)", textDecoration: "none" }}

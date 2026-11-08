@@ -79,6 +79,18 @@ export const idlFactory = ({ IDL }: any) => {
     createdAt:  IDL.Int,
   });
 
+  const PermitCounts = IDL.Record({
+    open:       IDL.Nat,
+    closed:     IDL.Nat,
+    expired:    IDL.Nat,
+    unrecorded: IDL.Nat,
+  });
+  const CloseoutView = IDL.Record({
+    permits:             IDL.Opt(PermitCounts),
+    largeJobs:           IDL.Nat,
+    largeJobsWithWaiver: IDL.Nat,
+    thresholdCents:      IDL.Nat,
+  });
   const Error = IDL.Variant({
     NotFound:            IDL.Null,
     Expired:             IDL.Null,
@@ -173,6 +185,8 @@ export const idlFactory = ({ IDL }: any) => {
       []
     ),
     getBillsSummary: IDL.Func([IDL.Text], [IDL.Opt(BillsSummary)], ["query"]),
+    // #716: permit counts and larger contractor jobs with a lien waiver on file.
+    getReportCloseout: IDL.Func([IDL.Text], [IDL.Opt(CloseoutView)], ["query"]),
     hasActivePublicShareLink: IDL.Func([IDL.Text], [IDL.Bool], ["query"]),
     findPublicReport: IDL.Func([IDL.Text], [IDL.Opt(IDL.Record({
       token:             IDL.Text,

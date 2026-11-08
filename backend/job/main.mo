@@ -87,6 +87,25 @@ persistent actor Job {
   /// was. HomeGentic doesn't decide which applies: the owner's tax preparer does.
   public type CostCategory = { #Improvement; #Repair };
 
+  /// #716: where a job's building permit stands, as the household records it
+  /// (or as a permit import found it). HomeGentic doesn't check it with the
+  /// permit office: the record says what the owner filed.
+  public type PermitStatus = { #Open; #Closed; #Expired };
+  /// #716: close-out papers filed on a job. The file itself is a document in
+  /// the home's vault (photo canister); `photoId` points at it.
+  public type PaperKind = { #FinalLienWaiver; #NoticeOfCommencement };
+  public type JobPaper = {
+    kind    : PaperKind;
+    photoId : Text;
+    addedBy : Principal;
+    addedAt : Int;
+  };
+  public type JobCloseout = {
+    jobId        : Text;
+    permitStatus : ?PermitStatus;
+    papers       : [JobPaper];
+  };
+
   public type Error = Errors.Common or {
     #AlreadyVerified;
     #TierLimitReached: Text;
@@ -182,6 +201,11 @@ persistent actor Job {
   /// stable-compatible. Absent = not marked yet; clients show a suggestion.
   /// Entries go when their job is deleted (rejectJobProposal, deleteMyData).
   private let costCategories = Map.empty<Text, CostCategory>();
+  /// #716: jobId → permit status (setPermitStatus), and jobId → close-out
+  /// papers (addJobPaper). Side maps for the same reason as costCategories;
+  /// entries go with their job (rejectJobProposal, deleteMyData).
+  private let permitStatuses = Map.empty<Text, PermitStatus>();
+  private let jobPapers = Map.empty<Text, [JobPaper]>();
 
   // Secondary indexes over `jobs` (transient, rebuilt on every upgrade).
   // Writes go through putJob / Index.delete so they stay in step.
@@ -653,6 +677,125 @@ persistent actor Job {
       };
     };
     out.toArray()
+  };
+
+  // ─── #716: permit close-out and lien waivers ──────────────────────────────
+
+  private transient let MAX_PAPERS_PER_JOB : Nat = 10;
+
+  private func isProposal(j : Job) : Bool {
+    j.status == #PendingHomeownerApproval or j.status == #RejectedByHomeowner
+  };
+
+  private func dropCloseout(jobId : Text) {
+    permitStatuses.remove(jobId);
+    jobPapers.remove(jobId);
+  };
+
+  private func closeoutOf(jobId : Text) : ?JobCloseout {
+    let permitStatus = permitStatuses.get(jobId);
+    let papers = jobPapers.get(jobId) ?? [];
+    if (permitStatus == null and papers.size() == 0) null
+    else ?{ jobId; permitStatus; papers }
+  };
+
+  /// #716: record where a job's permit stands, or clear it with null. Write
+  /// access to the home (owner, co-owner, manager). Works on verified jobs:
+  /// a permit usually closes after the work is signed.
+  public shared(msg) func setPermitStatus(jobId: Text, status: ?PermitStatus) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let before = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
+    switch (await* authorize(before.propertyId, before.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
+    let j = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
+    if (isProposal(j)) return #err(#InvalidInput("Accept this proposed job before recording its permit"));
+    switch (status) {
+      case null  { permitStatuses.remove(jobId) };
+      case (?s)  { permitStatuses.add(jobId, s) };
+    };
+    #ok(())
+  };
+
+  /// #716: file a close-out paper (a vault document id) on a job. The
+  /// household's writers may file either kind; the contractor who signed the
+  /// job may file its final lien waiver. Filing the same document again
+  /// replaces the entry. A DIY job has no contractor, so no lien waiver.
+  public shared(msg) func addJobPaper(jobId: Text, kind: PaperKind, photoId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (Text.size(photoId) == 0 or Text.size(photoId) > 100) return #err(#InvalidInput("Choose a document to file"));
+    let before = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
+    let byContractor = before.contractor == ?msg.caller and before.contractorSigned and kind == #FinalLienWaiver;
+    if (not byContractor) {
+      switch (await* authorize(before.propertyId, before.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
+    };
+    let j = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
+    if (isProposal(j)) return #err(#InvalidInput("Accept this proposed job before filing papers on it"));
+    if (j.isDiy and kind == #FinalLienWaiver) return #err(#InvalidInput("A DIY job has no contractor to sign a lien waiver"));
+    let kept = (jobPapers.get(jobId) ?? []).filter(func p = p.photoId != photoId);
+    if (kept.size() >= MAX_PAPERS_PER_JOB) return #err(#InvalidInput("A job can hold up to " # MAX_PAPERS_PER_JOB.toText() # " close-out papers"));
+    let paper : JobPaper = { kind; photoId; addedBy = msg.caller; addedAt = Time.now() };
+    jobPapers.add(jobId, kept.concat([paper]));
+    #ok(())
+  };
+
+  /// #716: take a paper off a job (the vault document itself stays). The
+  /// household's writers, or whoever filed it.
+  public shared(msg) func removeJobPaper(jobId: Text, photoId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let before = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
+    let filedByCaller = (jobPapers.get(jobId) ?? []).any(func p = p.photoId == photoId and p.addedBy == msg.caller);
+    if (not filedByCaller) {
+      switch (await* authorize(before.propertyId, before.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
+    };
+    let papers = jobPapers.get(jobId) ?? [];
+    let kept = papers.filter(func p = p.photoId != photoId);
+    if (kept.size() == papers.size()) return #err(#NotFound);
+    if (kept.size() == 0) jobPapers.remove(jobId) else jobPapers.add(jobId, kept);
+    #ok(())
+  };
+
+  /// #716: permit statuses and close-out papers for the jobs of several
+  /// properties. Same access rule as getJobsForProperties. Jobs with neither
+  /// are left out.
+  public composite query(msg) func getJobCloseouts(propertyIds: [Text]) : async [JobCloseout] {
+    if (msg.caller.isAnonymous()) return [];
+    let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
+    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller) or Text.size(propCanisterId) == 0;
+    let roles : [?Canisters.AccessRole] =
+      if (open) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
+    let out = List.empty<JobCloseout>();
+    for (i in ids.keys()) {
+      if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
+        for (jobId in Index.ids(jobsByProperty, ids[i])) {
+          switch (closeoutOf(jobId)) { case (?c) out.add(c); case null {} };
+        };
+      };
+    };
+    out.toArray()
+  };
+
+  /// #716: the same for one property, for the report canister (a plain
+  /// query, so an update call can make it). Trusted canisters and admins only.
+  public query(msg) func getCloseoutsForProperty(propertyId: Text) : async [JobCloseout] {
+    if (not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return [];
+    let out = List.empty<JobCloseout>();
+    for (jobId in Index.ids(jobsByProperty, propertyId)) {
+      switch (closeoutOf(jobId)) { case (?c) out.add(c); case null {} };
+    };
+    out.toArray()
+  };
+
+  /// #716: for the photo canister. The property id when `uploader` is the
+  /// contractor who signed this (non-DIY) job, so their final lien waiver can
+  /// go straight into the home's document vault. Trusted canisters and
+  /// admins only; null for everyone else.
+  public query(msg) func waiverUploadTarget(jobId: Text, uploader: Principal) : async ?Text {
+    if (not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return null;
+    switch (jobs.get(jobId)) {
+      case (?j) {
+        if (not j.isDiy and j.contractorSigned and j.contractor == ?uploader and not isProposal(j)) ?j.propertyId else null
+      };
+      case null null;
+    }
   };
 
   /// Returns a lightweight snapshot of all jobs for a property, suitable for
@@ -1809,6 +1952,7 @@ persistent actor Job {
     Index.delete(jobs, jobIndexes, jobId);
     contractorAttest.remove(jobId);
     costCategories.remove(jobId);
+    dropCloseout(jobId);
     #ok(())
   };
 
@@ -2023,6 +2167,7 @@ persistent actor Job {
       Index.delete(jobs, jobIndexes, id);
       contractorAttest.remove(id);
       costCategories.remove(id);
+      dropCloseout(id);
       idSet.add(id, ());
     };
 

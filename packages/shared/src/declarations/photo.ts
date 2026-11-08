@@ -52,6 +52,19 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: Photo, err: Error })],
       []
     ),
+    // #716: the contractor who signed a job files its final lien waiver in the
+    // home's document vault (jobId, filename, hash, size); bytes then go to the Worker.
+    beginWaiverUpload: IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Nat],
+      [IDL.Variant({ ok: Photo, err: Error })],
+      []
+    ),
+    // #716: the same with the bytes on-chain (PDFs, or no off-chain storage).
+    uploadWaiver: IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8)],
+      [IDL.Variant({ ok: Photo, err: Error })],
+      []
+    ),
     // Photo relays (the voice Worker) only.
     photoAccess: IDL.Func(
       [IDL.Text, IDL.Principal],

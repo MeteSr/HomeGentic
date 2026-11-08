@@ -13,6 +13,8 @@
  * PHOTO.8  any PhotoStore implementation works (provider-neutral routes)
  * PHOTO.9  GET ?guide=<token> serves a photo a house-guide link shows (#725),
  *          checked with photo.guidePhotoAccess instead of the caller
+ * PHOTO.10 PUT also takes a PDF (vault documents, lien waivers) when the bytes
+ *          really are one; anything served carries a sandbox CSP
  */
 
 import { describe, it, expect, jest } from "@jest/globals";
@@ -199,5 +201,27 @@ describe("handlePhotos", () => {
     expect((await handlePhotos(guideGet("not-a-token"), "/photos/p1", fakeEnv().env, { ...d, guideAccess })).status).toBe(404);
     expect((await handlePhotos(guideGet(TOKEN), "/photos/p1", fakeEnv().env, d)).status).toBe(404);
     expect(guideAccess).toHaveBeenCalledTimes(1);
+  });
+  it("PHOTO.10 stores a real PDF and serves it sandboxed", async () => {
+    const pdf = new TextEncoder().encode("%PDF-1.7\n1 0 obj<<>>endobj\n%%EOF");
+    const pdfHash = createHash("sha256").update(pdf).digest("hex");
+    const pdfAccess = access({ hash: pdfHash, size: pdf.byteLength });
+    const { store, objects } = fakeR2();
+
+    // Labelled PDF but not one: refused, nothing stored.
+    const fake = new TextEncoder().encode("<html>x</html>");
+    const fakeAccess = access({ hash: createHash("sha256").update(fake).digest("hex"), size: fake.byteLength });
+    expect((await handlePhotos(put(fake, "application/pdf"), "/photos/p1", fakeEnv().env, deps(store, OWNER, fakeAccess).d)).status).toBe(415);
+    expect(objects.size).toBe(0);
+
+    const res = await handlePhotos(put(pdf, "application/pdf"), "/photos/p1", fakeEnv().env, deps(store, OWNER, pdfAccess).d);
+    expect(res.status).toBe(201);
+    expect(objects.get("photos/p1")!.contentType).toBe("application/pdf");
+
+    const got = await handlePhotos(get(), "/photos/p1", fakeEnv().env, deps(store, OWNER, pdfAccess).d);
+    expect(got.status).toBe(200);
+    expect(got.headers.get("Content-Type")).toBe("application/pdf");
+    expect(got.headers.get("Content-Security-Policy")).toBe("sandbox");
+    expect(new Uint8Array(await got.arrayBuffer())).toEqual(pdf);
   });
 });

@@ -1,6 +1,6 @@
 import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/photo";
-import { uploadPhotoPreferOffChain, offChainPhotosEnabled, type OffChainDeps } from "@homegentic/shared/photoUpload";
+import { uploadPhotoPreferOffChain, uploadWaiverPreferOffChain, offChainPhotosEnabled, type OffChainDeps } from "@homegentic/shared/photoUpload";
 import { getAgentSessionToken, fetchWithAgentSession } from "./agentSession";
 import type { _SERVICE as PhotoCanister } from "@homegentic/shared/types/photo";
 import { canisterError } from "./candid";
@@ -237,6 +237,29 @@ function createPhotoService() {
       offChain,
     );
     if ("ok" in result) return fromPhoto(result.ok, bytes);
+    throw canisterError(result.err);
+  },
+
+  /**
+   * #716: the contractor who signed `jobId` uploads its final lien waiver
+   * into the home's document vault. A photo of the signed paper is resized
+   * like any photo; a PDF goes as is. File it on the job afterwards with
+   * jobService.addPaper(jobId, "lienWaiver", id). Returns the document's id.
+   */
+  async uploadWaiver(file: File, jobId: string): Promise<string> {
+    const prepared = file.type.startsWith("image/") ? await compressImage(file, "PostConstruction") : file;
+    const buffer = (await prepared.arrayBuffer()) as ArrayBuffer;
+    const bytes = new Uint8Array(buffer);
+    const hash = await computeHash(buffer);
+    const filename = (file.name || "lien-waiver").replace(/\|/g, "-").slice(0, 200);
+    const a = await getActor();
+    const result = await uploadWaiverPreferOffChain(
+      a,
+      { jobId, filename, hash, bytes, contentType: prepared.type || "application/octet-stream" },
+      offChain,
+    );
+    if ("putFailed" in result) throw new Error("The upload didn't finish. Please try again.");
+    if ("ok" in result) return result.ok.id as string;
     throw canisterError(result.err);
   },
 

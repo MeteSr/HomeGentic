@@ -51,6 +51,9 @@ vi.mock("@/services/payment", () => ({
     getTierFor:        vi.fn(async () => "ContractorFree"),
   },
 }));
+vi.mock("@/components/LienWaiverUpload", () => ({
+  LienWaiverUpload: ({ jobId }: { jobId: string }) => <div data-testid="waiver-upload">{jobId}</div>,
+}));
 vi.mock("@/store/authStore", () => ({ useAuthStore: mockUseAuthStore }));
 vi.mock("@/hooks/useBreakpoint", () => ({ useBreakpoint: mockUseBreakpoint }));
 vi.mock("@/components/Layout", () => ({ Layout: ({ children }: any) => <div data-testid="layout">{children}</div> }));
@@ -217,5 +220,33 @@ describe("ContractorDashboardPage — homeowner's shared usage", () => {
     await waitFor(() => expect(mockGetUsage).toHaveBeenCalled());
     expect(screen.queryByText("Homeowner's utility usage")).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText("e.g. 850")).toBeInTheDocument();
+  });
+});
+
+describe("ContractorDashboardPage — final lien waiver after signing (#716)", () => {
+  const pending = {
+    id: "job-9", propertyId: "prop-1", homeowner: "owner", serviceType: "Roofing", contractorName: "Me",
+    amount: 1_800_000, date: "2026-04-01", description: "Roof", isDiy: false, status: "completed",
+    verified: false, homeownerSigned: true, contractorSigned: false, photos: [], createdAt: 0,
+  } as Job;
+
+  it("offers to attach the final lien waiver for a job just signed, until dismissed", async () => {
+    mockGetJobsPendingMySignature.mockResolvedValue([pending]);
+    mockVerifyJob.mockResolvedValue({ ...pending, contractorSigned: true });
+    renderPage();
+    fireEvent.click(await screen.findByText("Sign Job"));
+    expect(await screen.findByTestId("waiver-upload")).toHaveTextContent("job-9");
+    expect(mockVerifyJob).toHaveBeenCalledWith("job-9");
+    fireEvent.click(screen.getByRole("button", { name: /done/i }));
+    expect(screen.queryByTestId("waiver-upload")).not.toBeInTheDocument();
+  });
+
+  it("offers nothing when signing fails", async () => {
+    mockGetJobsPendingMySignature.mockResolvedValue([pending]);
+    mockVerifyJob.mockRejectedValue(new Error("nope"));
+    renderPage();
+    fireEvent.click(await screen.findByText("Sign Job"));
+    await waitFor(() => expect(mockVerifyJob).toHaveBeenCalled());
+    expect(screen.queryByTestId("waiver-upload")).not.toBeInTheDocument();
   });
 });

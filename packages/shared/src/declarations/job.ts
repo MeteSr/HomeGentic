@@ -32,6 +32,20 @@ export const idlFactory = ({ IDL }: any) => {
     sourceQuoteId:    IDL.Opt(IDL.Text),
   });
   const CostCategory = IDL.Variant({ Improvement: IDL.Null, Repair: IDL.Null });
+  // #716: permit close-out and lien waivers.
+  const PermitStatus = IDL.Variant({ Open: IDL.Null, Closed: IDL.Null, Expired: IDL.Null });
+  const PaperKind = IDL.Variant({ FinalLienWaiver: IDL.Null, NoticeOfCommencement: IDL.Null });
+  const JobPaper = IDL.Record({
+    kind:    PaperKind,
+    photoId: IDL.Text,
+    addedBy: IDL.Principal,
+    addedAt: IDL.Int,
+  });
+  const JobCloseout = IDL.Record({
+    jobId:        IDL.Text,
+    permitStatus: IDL.Opt(PermitStatus),
+    papers:       IDL.Vec(JobPaper),
+  });
   const Error = IDL.Variant({
     NotFound:        IDL.Null,
     NotAuthorized:   IDL.Null,
@@ -145,6 +159,23 @@ export const idlFactory = ({ IDL }: any) => {
     // The owner, admins, trusted canisters and the notification relay (weekly Home Pulse email).
     getJobsByOwner: IDL.Func([IDL.Principal], [IDL.Vec(Job)], ["query"]),
     getJobsForProperties: IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(Job)], ["composite_query"]),
+    // #716: permit status and close-out papers per job.
+    getJobCloseouts: IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(JobCloseout)], ["composite_query"]),
+    setPermitStatus: IDL.Func(
+      [IDL.Text, IDL.Opt(PermitStatus)],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    addJobPaper: IDL.Func(
+      [IDL.Text, PaperKind, IDL.Text],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    removeJobPaper: IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
     // #713: the owner's improvement/repair marks, as (jobId, category) pairs.
     getJobCostCategories: IDL.Func(
       [IDL.Vec(IDL.Text)],

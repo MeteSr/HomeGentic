@@ -10,7 +10,7 @@
  *   - both share buttons are disabled when there's no property yet
  */
 
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import ResaleReadyPage from "@/pages/ResaleReadyPage";
@@ -29,10 +29,10 @@ vi.mock("@/services/property", async (importOriginal) => {
   return { ...actual, propertyService: { getMyProperties: mockGetMyProperties } };
 });
 
-const { mockGetAllJobs } = vi.hoisted(() => ({ mockGetAllJobs: vi.fn() }));
+const { mockGetAllJobs, mockGetCloseouts } = vi.hoisted(() => ({ mockGetAllJobs: vi.fn(), mockGetCloseouts: vi.fn() }));
 vi.mock("@/services/job", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/job")>();
-  return { ...actual, jobService: { getAll: mockGetAllJobs } };
+  return { ...actual, jobService: { getAll: mockGetAllJobs, getCloseouts: mockGetCloseouts } };
 });
 
 const { mockGenerateReport } = vi.hoisted(() => ({ mockGenerateReport: vi.fn() }));
@@ -111,6 +111,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockGetMyProperties.mockResolvedValue([makeProperty()]);
   mockGetAllJobs.mockResolvedValue([]);
+  mockGetCloseouts.mockResolvedValue([]);
   mockComputeScore.mockReturnValue(80);
   mockComputeBreakdown.mockReturnValue({});
   mockGetScoreGrade.mockReturnValue("Great");
@@ -230,5 +231,43 @@ describe("ResaleReadyPage — share actions", () => {
     await waitFor(() => expect(screen.getByText("Generate & Copy Link")).toBeInTheDocument());
     expect(screen.getByText("Generate & Copy Link").closest("button")).toBeDisabled();
     expect(screen.getByText("Copy Certificate Link").closest("button")).toBeDisabled();
+  });
+});
+
+describe("ResaleReadyPage — permits and lien waivers (#716)", () => {
+  const roof = makeJob({ id: "roof", serviceType: "Roofing", description: "New roof", amount: 1_800_000, permitNumber: "BLD-1" });
+  const fence = makeJob({ id: "fence", serviceType: "Fencing", description: "Fence", amount: 400_000 });
+  const deck = makeJob({ id: "deck", serviceType: "Other", description: "Deck", amount: 900_000, permitNumber: "BLD-2" });
+
+  it("lists open and expired permits and larger jobs with no waiver on file", async () => {
+    mockGetAllJobs.mockResolvedValue([roof, fence, deck]);
+    mockGetCloseouts.mockResolvedValue([
+      { jobId: "roof", permitStatus: "open", papers: [{ kind: "lienWaiver", photoId: "P", addedBy: "x", addedAt: 1 }] },
+      { jobId: "deck", permitStatus: "expired", papers: [] },
+    ]);
+    renderPage();
+    const section = (await screen.findByRole("heading", { name: /permits and lien waivers/i })).closest("section") as HTMLElement;
+    await waitFor(() => expect(within(section).getByText(/1 open permit\b/i)).toBeInTheDocument());
+    expect(within(section).getByText(/1 expired permit\b/i)).toBeInTheDocument();
+    expect(within(section).getByText(/2 contractor jobs over \$2,500 with no final lien waiver on file/i)).toBeInTheDocument();
+    expect(within(section).getByText(/title search/i)).toBeInTheDocument();
+    expect(within(section).getByRole("link", { name: /review permits and lien waivers/i })).toHaveAttribute("href", "/properties/prop-1/closeout");
+    expect(mockGetCloseouts).toHaveBeenCalledWith(["prop-1"]);
+  });
+
+  it("says what's on file when nothing is outstanding, without calling the home lien-free", async () => {
+    mockGetAllJobs.mockResolvedValue([roof]);
+    mockGetCloseouts.mockResolvedValue([
+      { jobId: "roof", permitStatus: "closed", papers: [{ kind: "lienWaiver", photoId: "P", addedBy: "x", addedAt: 1 }] },
+    ]);
+    renderPage();
+    expect(await screen.findByText(/no open or expired permits recorded/i)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/lien[- ]free/i);
+  });
+
+  it("counts permit numbers with no status yet", async () => {
+    mockGetAllJobs.mockResolvedValue([roof]);
+    renderPage();
+    expect(await screen.findByText(/1 permit with no status recorded/i)).toBeInTheDocument();
   });
 });
