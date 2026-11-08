@@ -128,6 +128,12 @@ jobs:
           VOICE_WORKER_PRINCIPAL: ${{ vars.VOICE_WORKER_PRINCIPAL || secrets.VOICE_WORKER_PRINCIPAL }}
           # Unset, sensor accepts self-asserted device IDs for every platform.
           IOT_GATEWAY_PRINCIPAL: ${{ vars.IOT_GATEWAY_PRINCIPAL || secrets.IOT_GATEWAY_PRINCIPAL }}
+          # deploy.sh deploys the voice Worker after the canisters and before
+          # the frontend (scripts/deploy-voice-worker.sh), so the frontend never
+          # calls a Worker older than itself.
+          DEPLOY_VOICE_WORKER: '1'
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          VOICE_AGENT_URL: ${{ secrets.VITE_VOICE_AGENT_URL }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_ADDRESS: ${{ secrets.RESEND_FROM_ADDRESS }}
           OPEN_PERMIT_API_KEY: ${{ secrets.OPEN_PERMIT_API_KEY }}
@@ -235,33 +241,6 @@ jobs:
         run: bash scripts/check-cycle-health.sh
         env:
           ICP_ENV: ic
-
-  deploy-voice-worker:
-    runs-on: ubuntu-latest
-    environment: production
-    needs: deploy
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22  # wrangler 4 requires Node >= 22
-          cache: npm
-          cache-dependency-path: agents/voice/package-lock.json
-      - name: Install voice agent dependencies
-        working-directory: agents/voice
-        run: npm ci
-      - name: Deploy voice agent to Cloudflare Workers
-        working-directory: agents/voice
-        run: npx wrangler deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      - name: Post-deploy Worker health
-        # /health is 503 when a secret or canister ID the Worker needs is missing.
-        run: ONLY=worker bash scripts/smoke-deployed.sh
-        env:
-          VOICE_AGENT_URL: ${{ secrets.VITE_VOICE_AGENT_URL }}
 
   deploy-email-worker:
     runs-on: ubuntu-latest

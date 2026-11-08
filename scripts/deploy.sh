@@ -1187,6 +1187,19 @@ if [ -n "$AI_PROXY_ID" ]; then
   done
 fi
 
+# ── Voice Worker (deploy workflows only) ─────────────────────────────────────
+# Canisters → voice Worker → frontend: the Worker goes out after every canister
+# it calls is upgraded and wired, and before the frontend that calls it, so an
+# older Worker never meets a newer frontend (PR #742's waiver uploads, the
+# routes #737–#739 added). The workflows set DEPLOY_VOICE_WORKER=1 together
+# with CLOUDFLARE_API_TOKEN and VOICE_AGENT_URL; local deploys leave it unset.
+if [ "${DEPLOY_VOICE_WORKER:-}" = "1" ]; then
+  if ! bash "$(dirname "${BASH_SOURCE[0]}")/deploy-voice-worker.sh" "$ENV"; then
+    echo "❌ Voice Worker deploy or /health check failed; the frontend was not deployed."
+    exit 1
+  fi
+fi
+
 # Internet Identity is managed by icp-cli via ii: true in icp.yaml.
 # icp network start -d deploys it automatically. Local URL: http://id.ai.localhost:8000
 
