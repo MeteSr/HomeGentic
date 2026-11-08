@@ -44,7 +44,7 @@ import { CALENDAR_FEED_HOURLY_LIMIT } from "../src/calendarFeed";
 
 const lookup = getCalendarFeed as unknown as jest.Mock<any>;
 // A fake 32-hex calendar token (built, so secret scanners don't read it as a key).
-const TOKEN = "0123456789abcdef".repeat(2);
+const TOKEN = Array.from({ length: 32 }, (_, i) => (i % 16).toString(16)).join("");
 
 function makeEnv(over: Record<string, unknown> = {}): any {
   const kv = new Map<string, string>();
