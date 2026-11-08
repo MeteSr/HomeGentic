@@ -107,6 +107,19 @@ jest.mock("../../services/contractorService", () => {
   };
 });
 
+const mockLoadEmergencyCard = jest.fn(async (_propertyId: string, _scope: string) => ({
+  card: jest.requireActual("@homegentic/shared/emergency").buildEmergencyCard({
+    guide: { waterShutoff: "Side yard, by the hose bib", gasShutoff: "", electricPanel: "", alarm: "", contacts: [], photoIds: [] },
+    policy: null,
+    photos: [],
+  }),
+  savedAt: 0,
+  fromPhone: false,
+}));
+jest.mock("../../services/emergencyCardService", () => ({
+  loadEmergencyCard: (propertyId: string, scope: string) => mockLoadEmergencyCard(propertyId, scope),
+}));
+
 jest.mock("../../services/bidService", () => ({ getMyBidRequestIds: jest.fn(async () => new Set<string>()) }));
 
 // ── Harness ──────────────────────────────────────────────────────────────────
@@ -182,6 +195,16 @@ describe("homeowner tabs", () => {
     expect(await screen.findByText("Ask about 412 Grandview Ave.")).toBeTruthy();
     expect(screen.getByText("What's dragging my score down?")).toBeTruthy();
     expect(screen.getByText("10 AI CALLS A WEEK ON FREE · 6 LEFT")).toBeTruthy();
+  });
+
+  it("NAV.6 the Property tab saves the emergency card to the phone and opens it (#715)", async () => {
+    await renderApp();
+    await tab("Property");
+    // Fetched in the background so the card is on the phone before the network goes down.
+    await waitFor(() => expect(mockLoadEmergencyCard).toHaveBeenCalledWith("p1", "p-1"));
+    await fireEvent.press(await screen.findByLabelText("Emergency card. Shutoffs, insurer and who to call, saved on this phone"));
+    expect(await screen.findByText("Side yard, by the hose bib")).toBeTruthy();
+    expect(screen.getByText("BEFORE A STORM")).toBeTruthy();
   });
 
   it("NAV.5 the plan card opens the web hand-off", async () => {

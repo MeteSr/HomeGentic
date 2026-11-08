@@ -67,7 +67,8 @@ export default function QuoteRequestPage() {
     propertyId:       prefill?.propertyId ?? (properties[0] ? String(properties[0].id) : ""),
     serviceType:      prefill?.serviceType ?? SERVICE_TYPES[0],
     subCategory:      "",
-    urgency:          "medium" as Urgency,
+    // The emergency card's "Get emergency help" opens this with urgency "emergency".
+    urgency:          (URGENCY_OPTIONS.find((o) => o.value === prefill?.urgency)?.value ?? "medium") as Urgency,
     description:      prefill?.description ?? "",
     budgetMin:        "",
     budgetMax:        "",

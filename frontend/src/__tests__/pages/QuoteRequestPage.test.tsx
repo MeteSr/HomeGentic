@@ -14,14 +14,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import QuoteRequestPage from "@/pages/QuoteRequestPage";
 
-const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }));
+const { mockNavigate, mockLocation } = vi.hoisted(() => ({
+  mockNavigate: vi.fn(),
+  mockLocation: vi.fn(() => ({ state: null as any })),
+}));
 
 vi.mock("react-router-dom", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-router-dom")>();
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useLocation: () => ({ state: null }),
+    useLocation: () => mockLocation(),
   };
 });
 
@@ -104,6 +107,7 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockLocation.mockReturnValue({ state: null });
   mockGetRequests.mockResolvedValue([]);
   mockGetMySubscription.mockResolvedValue({ tier: "Free" });
 });
@@ -240,5 +244,20 @@ describe("QuoteRequestPage — subtypes of Other (#721)", () => {
     await waitFor(() => expect(mockCreateRequest).toHaveBeenCalledWith(expect.objectContaining({ serviceType: "Septic" })));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/quotes/req-7"));
     expect(mockToastSuccess).toHaveBeenCalledWith("Quote request posted");
+  });
+});
+
+describe("QuoteRequestPage — emergency shortcut (#715)", () => {
+  it("starts with Emergency selected when the emergency card opens it", async () => {
+    mockLocation.mockReturnValue({ state: { prefill: { propertyId: "prop-1", urgency: "emergency" } } });
+    renderPage();
+    expect(await screen.findByRole("button", { name: /Emergency/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Medium/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("ignores an urgency it doesn't know", async () => {
+    mockLocation.mockReturnValue({ state: { prefill: { urgency: "panic" } } });
+    renderPage();
+    expect(await screen.findByRole("button", { name: /Medium/ })).toHaveAttribute("aria-pressed", "true");
   });
 });

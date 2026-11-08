@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { clearSavedEmergencyCards } from "../services/emergencyCardService";
 
 const DELEGATION_KEY = "hf_delegation_chain";
 const PUBKEY_KEY     = "hf_user_pubkey";
@@ -32,4 +33,6 @@ export async function clearAuth(): Promise<void> {
   await SecureStore.deleteItemAsync(DELEGATION_KEY);
   await SecureStore.deleteItemAsync(PUBKEY_KEY);
   await SecureStore.deleteItemAsync(SESSION_KEY);
+  // The emergency cards saved for offline use go with the sign-in (#715).
+  await clearSavedEmergencyCards().catch(() => {});
 }

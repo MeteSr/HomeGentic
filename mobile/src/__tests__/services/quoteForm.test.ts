@@ -5,6 +5,7 @@ import {
   validateQuoteForm,
   buildQuotePayload,
   urgencyLabel,
+  initialQuoteForm,
   type QuoteForm,
 } from "../../services/quoteFormService";
 
@@ -69,4 +70,15 @@ describe("urgencyLabel", () => {
   it("capitalises medium", ()    => expect(urgencyLabel("medium")).toBe("Medium"));
   it("capitalises high", ()      => expect(urgencyLabel("high")).toBe("High"));
   it("capitalises emergency", () => expect(urgencyLabel("emergency")).toBe("Emergency"));
+});
+
+// ── initialQuoteForm (#715) ──────────────────────────────────────────────────
+
+describe("initialQuoteForm", () => {
+  it("starts blank", () => {
+    expect(initialQuoteForm()).toEqual({ serviceType: "", urgency: "", description: "" });
+  });
+  it("starts with Emergency when the emergency card opens it", () => {
+    expect(initialQuoteForm("emergency").urgency).toBe("emergency");
+  });
 });

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { isWaterEmergency } from "@homegentic/shared/emergency";
 import { Layout } from "@/components/Layout";
 import { SHELL_PAGE_MIN_HEIGHT } from "@/components/dashboardV3/chrome";
 import { RegisterDeviceModal } from "@/components/RegisterDeviceModal";
@@ -165,6 +166,11 @@ export default function SensorPage() {
               <button style={{ fontFamily: BODY, fontSize: 13, fontWeight: 600, color: "var(--hg-bad)", background: "var(--hg-surface)", border: "1px solid rgba(255,92,57,0.4)", borderRadius: 100, padding: "8px 16px", cursor: "pointer" }}>
                 Mute 24h
               </button>
+              {isWaterEmergency(criticalAlert.eventType) && (
+                <Link to={`/properties/${criticalAlert.propertyId}/emergency`} style={{ fontFamily: BODY, fontSize: 13, fontWeight: 600, color: "var(--hg-ink)", background: "var(--hg-surface)", border: "1px solid var(--hg-line-2)", borderRadius: 100, padding: "8px 16px", textDecoration: "none" }}>
+                  Where's the water shut-off?
+                </Link>
+              )}
               <button onClick={() => navigate("/jobs/new")} style={{ fontFamily: BODY, fontSize: 13, fontWeight: 700, color: "#FCFCFD", background: "var(--hg-blue)", border: "none", borderRadius: 100, padding: "8px 16px", cursor: "pointer" }}>
                 Book a plumber
               </button>

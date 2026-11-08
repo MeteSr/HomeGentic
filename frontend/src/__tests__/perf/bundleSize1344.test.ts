@@ -69,6 +69,8 @@ describe("13.4.4: Bundle size audit", () => {
     // 700.3KB: two property tabs and the public /guide/:token route, app code only.
     // Raised 725 → 750KB for permits and lien waivers (#716, 730.9KB): a new
     // lazily-loaded route plus Resale Ready and report sections, app code only.
+    // The emergency card (#715) adds a few KB on top (another lazily-loaded
+    // route, app code only) and still fits under 750KB.
     expect(
       totalGzip,
       `Total JS bundle is ${totalKB.toFixed(1)}KB gzipped — exceeds 750KB target. ` +

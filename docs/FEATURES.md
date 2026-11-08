@@ -77,6 +77,7 @@ rewiring screens.
 | `/properties/:id/systems` | SystemAgesPage | Manage system ages |
 | `/properties/:id/improvements` | ImprovementsRecordPage | Improvements record for the owner's tax preparer |
 | `/properties/:id/move-in` | MoveInPlanPage | Move-in plan for a new owner's first weeks |
+| `/properties/:id/emergency` | EmergencyCardPage | Printable storm and emergency card for one home |
 | `/properties/:id/successor` | SuccessorPage | Name a successor for the home record; cancel a claim |
 | `/successor-claims` | SuccessorClaimsPage | Successor claims the user sent, and the final step |
 | `/jobs/new` | JobCreatePage | Log a maintenance job |
@@ -422,6 +423,14 @@ Multi-tab page — the main workspace for a property.
 - The page says the steps are suggestions, not an inspection, and nothing on it says a home is safe or up to code
 - A buyer who claims a home through a transfer gets a fresh plan (the seller's isn't passed on) and the claim page takes them to it; any owner can start one from the property page's **Move-in plan** button. While a plan has unfinished steps, the dashboard brief shows "Your move-in plan: N of M steps done" and opens it
 - Stored on the property canister (`startMoveInPlan` / `getMoveInPlan` / `setMoveInStep` / `addMoveInTasks` / `deleteMoveInTask` / `endMoveInPlan`, side map keyed by property id): finished step ids and up to 60 tasks. Owners, co-owners and managers change it; viewers read it. Dropped on deleteMyData; in Download My Data
+
+**Storm and emergency card** (`/properties/:id/emergency`, #715)
+- One printable page per home, built in `packages/shared/src/emergency.ts` from what's already saved: the water and gas shutoffs and electrical panel (house guide text plus the onboarding photos of the shut-off and panel), alarm notes, the insurer and policy number, the claim line (a house guide contact whose role mentions insurance or claims) and the other guide contacts, with tap-to-call. It lists what's missing and links to the house guide and Insurance tab. Never shows the Wi-Fi details
+- Opens from the property page's **Emergency card** button, and from the sensor page's critical-alert banner for leak and flood events ("Where's the water shut-off?")
+- **Get emergency help** opens the quote form for the home with urgency set to Emergency
+- Homes in hurricane states (Atlantic and Gulf coast states, Hawaii, the territories) also get a before-the-storm checklist (ticks kept in this browser, fresh each year), after-the-storm steps ending in the claim kit (photograph damage before cleanup, start a claim, call the claim line), and links to the National Hurricane Center, Ready.gov and, for Florida, the county emergency management list. Copy is practical steps only; the page leaves evacuation and safety calls to local emergency officials
+- Mobile: the Property tab has an **Emergency card** row. The card is fetched whenever the Property tab loads and a copy is kept on the phone (per signed-in person, wiped on sign-out), so it opens without a network; the phone copy leaves out alarm notes and photos
+- No canister changes: reads `getHouseGuide`, `getInsurancePolicy` and the `baseline_<propertyId>` photos
 
 **Successor / legacy contact** (`/properties/:id/successor`, property page → Settings → Successor, #724)
 - The owner names the person who can ask for the home's record if the owner dies or the home passes to a trust or heir (name, email, relationship) and gets a **successor link** (`/successor/<token>`) to give them or keep with their estate papers. HomeGentic doesn't email the successor; the email is for the reviewer. Saving again makes a new link and the old one stops working; neither renaming nor removing is allowed while a claim is open

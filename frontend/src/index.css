@@ -464,6 +464,9 @@ table { border-collapse: collapse; }
 
 @media print {
   .no-print { display: none !important; }
+  /* App chrome stays off paper (the emergency card prints from inside Layout). */
+  .hf-shell-header, .hf-sidebar, .hf-mobile-header, .hf-mobile-fab, .hf-bottom-nav { display: none !important; }
+  .hf-main--shell { margin-left: 0 !important; padding-top: 0 !important; }
   body { background-color: white; }
   #homegentic-report { max-width: 100% !important; padding: 0 !important; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

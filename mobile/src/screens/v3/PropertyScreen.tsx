@@ -2,6 +2,8 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useAppData } from "../../context/AppData";
+import { useAuthContext } from "../../auth/AuthContext";
+import { loadEmergencyCard } from "../../services/emergencyCardService";
 import { useLoad } from "../../hooks/useLoad";
 import {
   getManagers, getRooms, Property, propertyTypeLabel, Room,
@@ -51,9 +53,13 @@ export default function PropertyScreen() {
   const app = useAppData();
   const navigation = useNavigation<any>();
   const prop = app.activeProperty;
+  const { authState } = useAuthContext();
+  const scope = authState.status === "authenticated" ? authState.principal : "";
 
   const data = useLoad(async () => {
     if (!prop) return null;
+    // Save the emergency card to the phone now, so it opens when the network is down (#715).
+    if (scope) loadEmergencyCard(prop.id, scope).catch(() => {});
     const [rooms, sensors, managers, listing] = await Promise.all([
       getRooms(prop.id).catch(() => null),
       getSensorSummaries(prop.id).catch(() => []),
@@ -117,6 +123,17 @@ export default function PropertyScreen() {
           </Row>
         </Card>
       )}
+
+      <Card style={{ marginTop: 12 }} onPress={() => navigation.navigate("EmergencyCard", { propertyId: prop.id, propertyAddress: prop.address, state: prop.state })} accessibilityLabel="Emergency card. Shutoffs, insurer and who to call, saved on this phone">
+        <Row last style={{ paddingVertical: 16 }}>
+          <IconTile abbr="EC" bg={v3.redTint} color={v3.red} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={type.rowTitle}>Emergency card</Text>
+            <Text style={[type.meta, { marginTop: 5 }]}>SHUTOFFS · INSURER · WHO TO CALL</Text>
+          </View>
+          <Icon name="chevronRight" size={16} color={v3.muted} strokeWidth={2.4} />
+        </Row>
+      </Card>
 
       <SectionLabel>ADD TO THE RECORD</SectionLabel>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>

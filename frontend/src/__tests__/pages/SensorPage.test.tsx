@@ -159,3 +159,21 @@ describe("SensorPage — remove device", () => {
     expect(screen.getByText("Kitchen sensor")).toBeInTheDocument();
   });
 });
+
+describe("SensorPage — emergency card (#715)", () => {
+  it("offers the home's emergency card for a critical leak", async () => {
+    mockGetDevices.mockResolvedValue([makeDevice()]);
+    mockGetAlerts.mockResolvedValue([makeAlert({ eventType: "WaterLeak" as any, propertyId: "prop-7" })]);
+    renderPage();
+    const link = await screen.findByRole("link", { name: "Where's the water shut-off?" });
+    expect(link).toHaveAttribute("href", "/properties/prop-7/emergency");
+  });
+
+  it("doesn't for a critical alert that isn't water", async () => {
+    mockGetDevices.mockResolvedValue([makeDevice()]);
+    mockGetAlerts.mockResolvedValue([makeAlert({ eventType: "LowTemperature" as any })]);
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Book a plumber")).toBeInTheDocument());
+    expect(screen.queryByRole("link", { name: "Where's the water shut-off?" })).not.toBeInTheDocument();
+  });
+});

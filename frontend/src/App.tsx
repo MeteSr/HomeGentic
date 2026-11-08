@@ -70,6 +70,7 @@ const BadgePage                  = React.lazy(() => import("@/pages/BadgePage"))
 const ScoreCertPage              = React.lazy(() => import("@/pages/ScoreCertPage"));
 const VerifyRecordPage           = React.lazy(() => import("@/pages/VerifyRecordPage"));
 const SharedHouseGuidePage       = React.lazy(() => import("@/pages/SharedHouseGuidePage"));
+const EmergencyCardPage          = React.lazy(() => import("@/pages/EmergencyCardPage"));
 const PredictiveMaintenancePage  = React.lazy(() => import("@/pages/PredictiveMaintenancePage"));
 const AdminDashboardPage         = React.lazy(() => import("@/pages/AdminDashboardPage"));
 const SensorPage                 = React.lazy(() => import("@/pages/SensorPage"));
@@ -226,6 +227,7 @@ export default function App() {
           <Route path="/properties/:id/improvements" element={<ProtectedRoute><ImprovementsRecordPage /></ProtectedRoute>} />
           <Route path="/properties/:id/closeout" element={<ProtectedRoute><JobCloseoutPage /></ProtectedRoute>} />
           <Route path="/properties/:id/move-in" element={<ProtectedRoute><MoveInPlanPage /></ProtectedRoute>} />
+          <Route path="/properties/:id/emergency" element={<ProtectedRoute><EmergencyCardPage /></ProtectedRoute>} />
           <Route path="/properties/:id/successor" element={<ProtectedRoute><SuccessorPage /></ProtectedRoute>} />
           <Route path="/jobs"         element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
           <Route path="/jobs/new"     element={<ProtectedRoute><JobCreatePage /></ProtectedRoute>} />
