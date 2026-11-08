@@ -25,7 +25,9 @@ export type RootStackParamList = {
   AddRecurring:   { propertyId: string };
   PropertyDetail: { property: Property };
   LogJob:         { propertyId: string; propertyAddress: string; prefill?: Partial<import("../services/jobFormService").JobForm> };
-  QuoteRequest:   { propertyId: string; propertyAddress: string };
+  QuoteRequest:   { propertyId: string; propertyAddress: string; urgency?: import("../services/quoteFormService").Urgency };
+  /** #715: the home's emergency card; opens from the phone's saved copy when offline. */
+  EmergencyCard:  { propertyId: string; propertyAddress: string; state: string };
   MyQuotes:       { propertyId?: string; propertyAddress?: string; requestId?: string };
   CompareBids:    { requestId: string; title: string };
   SignJob:        { job: SignableJob; currentRole: SignRole };

@@ -19,6 +19,7 @@ import {
   urgencyLabel,
   validateQuoteForm,
   buildQuotePayload,
+  initialQuoteForm,
   type QuoteForm,
   type Urgency,
 } from "../services/quoteFormService";
@@ -35,20 +36,14 @@ const URGENCY_COLORS: Record<Urgency, string> = {
   emergency: "#8B1A1A",
 };
 
-const EMPTY_FORM: QuoteForm = {
-  serviceType: "",
-  urgency:     "",
-  description: "",
-};
-
 function Label({ children }: { children: string }) {
   return <Text style={styles.label}>{children}</Text>;
 }
 
 export default function QuoteRequestScreen({ route, navigation }: Props) {
-  const { propertyId, propertyAddress } = route.params;
+  const { propertyId, propertyAddress, urgency } = route.params;
 
-  const [form,       setForm]       = useState<QuoteForm>(EMPTY_FORM);
+  const [form,       setForm]       = useState<QuoteForm>(() => initialQuoteForm(urgency));
   const [submitting, setSubmitting] = useState(false);
 
   function update<K extends keyof QuoteForm>(key: K, value: QuoteForm[K]) {

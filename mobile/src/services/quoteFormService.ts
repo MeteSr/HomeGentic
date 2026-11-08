@@ -10,6 +10,11 @@ export interface QuoteForm {
 
 export const URGENCY_LEVELS: Urgency[] = ["low", "medium", "high", "emergency"];
 
+/** Pure — the form a new request starts with; the emergency card passes "emergency". */
+export function initialQuoteForm(urgency?: Urgency): QuoteForm {
+  return { serviceType: "", urgency: urgency ?? "", description: "" };
+}
+
 /** Pure — capitalises first letter for display */
 export function urgencyLabel(u: Urgency): string {
   return u.charAt(0).toUpperCase() + u.slice(1);

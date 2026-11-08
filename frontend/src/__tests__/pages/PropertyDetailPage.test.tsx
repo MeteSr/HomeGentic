@@ -91,6 +91,7 @@ function renderAt(id: string) {
       <Routes>
         <Route path="/properties/:id" element={<PropertyDetailPage />} />
         <Route path="/properties/:id/move-in" element={<div data-testid="move-in-route" />} />
+        <Route path="/properties/:id/emergency" element={<div data-testid="emergency-route" />} />
       </Routes>
     </MemoryRouter>
   );
@@ -157,6 +158,12 @@ describe("PropertyDetailPage — tabs", () => {
     renderAt("prop-1");
     fireEvent.click(screen.getByRole("button", { name: /move-in plan/i }));
     expect(screen.getByTestId("move-in-route")).toBeInTheDocument();
+  });
+
+  it("opens the emergency card (#715)", () => {
+    renderAt("prop-1");
+    fireEvent.click(screen.getByRole("button", { name: /emergency card/i }));
+    expect(screen.getByTestId("emergency-route")).toBeInTheDocument();
   });
 
   it("has an Insurance tab for the home's policy", () => {
