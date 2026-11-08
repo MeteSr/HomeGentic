@@ -1,3 +1,5 @@
+import type { TaxYearStatus } from "../../packages/shared/src/propertyTax";
+
 export type Platform = "ios" | "android";
 
 export interface TokenRecord {
@@ -115,6 +117,12 @@ export interface PulseHomeFinance {
     originalValueCents:  number | null;
     monthlyPmiCents:     number | null;
   } | null;
+}
+
+/** #714: the property-tax years an owner saved (status only), for the Florida reminders. */
+export interface PulsePropertyTax {
+  propertyId: string;
+  years:      TaxYearStatus[];
 }
 
 /** The job fields the weekly email reads. */

@@ -305,6 +305,7 @@ deleteInsuranceClaim(1) -> (1)
 deleteInventoryItem(1) -> (1)
 deleteMoveInTask(2) -> (1)
 deleteMyData(0) -> (1)
+deletePropertyTaxYear(2) -> (1)
 deleteSpecialAssessment(1) -> (1)
 dismissNotifications(1) -> (1)
 endMoveInPlan(1) -> (1)
@@ -341,10 +342,12 @@ getPropertyByTransferToken(1) -> (1) [query]
 getPropertyLimitForTier(1) -> (1) [query]
 getPropertyManagers(1) -> (1) [query]
 getPropertyOwner(1) -> (1) [query]
+getPropertyTaxYears(1) -> (1) [query]
 getPropertyYearBuilt(1) -> (1) [query]
 getPulseHomeFinance(1) -> (1) [query]
 getPulseInsurance(1) -> (1) [query]
 getPulseProperties(1) -> (1) [query]
+getPulsePropertyTax(1) -> (1) [query]
 getRoomsByProperty(1) -> (1) [query]
 getSharedHouseGuide(1) -> (1) [query]
 getSpecialAssessments(1) -> (1) [query]
@@ -372,6 +375,7 @@ setHouseGuide(2) -> (1)
 setInsurancePolicy(2) -> (1)
 setMortgageLoan(2) -> (1)
 setMoveInStep(3) -> (1)
+setPropertyTaxYear(2) -> (1)
 startMoveInPlan(1) -> (1)
 submitVerification(4) -> (1)
 updateArchitecturalReview(2) -> (1)

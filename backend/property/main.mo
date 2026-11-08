@@ -59,6 +59,7 @@ import Hoa "Hoa";
 import HomeFinance "HomeFinance";
 import FloodZone "FloodZone";
 import MoveIn "MoveIn";
+import PropertyTax "PropertyTax";
 
 persistent actor Property {
 
@@ -213,6 +214,10 @@ persistent actor Property {
   public type FloodZoneRecord        = FloodZone.FloodZone;
   public type FloodTarget            = FloodZone.Target;
   public type MoveInTaskUrgency      = MoveIn.TaskUrgency;
+  public type TaxExemption           = PropertyTax.Exemption;
+  public type PropertyTaxYearInput   = PropertyTax.YearInput;
+  public type PropertyTaxYear        = PropertyTax.Year;
+  public type PulsePropertyTax       = PropertyTax.PulsePropertyTax;
   public type MoveInTaskInput        = MoveIn.TaskInput;
   public type MoveInTask             = MoveIn.Task;
   public type MoveInPlan             = MoveIn.Plan;
@@ -606,6 +611,11 @@ persistent actor Property {
   /// address. It describes the land, so it stays on claimTransfer;
   /// deleteMyData drops it with the home.
   private let floodZones = Map.empty<Text, FloodZone.FloodZone>();
+
+  /// #714: propertyId → the owner's property-tax years, newest first, one
+  /// per tax year. Owner and co-owners only (the exemption is the owner's).
+  /// Dropped on claimTransfer and deleteMyData.
+  private let propertyTaxYears = Map.empty<Text, [PropertyTax.Year]>();
 
   /// #712: propertyId → the household's move-in plan (steps done, tasks from
   /// the purchase inspection). A buyer gets a fresh one on claimTransfer (the
@@ -1665,6 +1675,8 @@ persistent actor Property {
                 // #719 / #722: the seller's home warranty contract and mortgage.
                 homeWarrantyPlans.remove(propertyId);
                 mortgageLoans.remove(propertyId);
+                // #714: the seller's tax years and exemption status.
+                propertyTaxYears.remove(propertyId);
                 // #712: a fresh move-in plan for the buyer; the seller's goes.
                 moveInPlans.add(propertyId, MoveIn.fresh(now));
 
@@ -3184,6 +3196,65 @@ persistent actor Property {
     #ok(rec)
   };
 
+  // ─── Property-tax years (#714) ────────────────────────────────────────────
+
+  /// #714: save one tax year's values and exemption status, replacing that
+  /// year if it's already saved. Owner and co-owners only; at most 60 years
+  /// per home. Records what the owner enters; nothing is checked with the county.
+  public shared(msg) func setPropertyTaxYear(propertyId: Text, input: PropertyTaxYearInput) : async Result.Result<PropertyTaxYear, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not hasFullControl(propertyId, msg.caller)) return #err(#NotAuthorized);
+    let y = PropertyTax.clean(input);
+    switch (PropertyTax.validate(y)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let existing = propertyTaxYears.get(propertyId) ?? [];
+    let others = existing.filter(func(r : PropertyTax.Year) : Bool { r.year != y.year });
+    if (others.size() >= PropertyTax.MAX_YEARS)
+      return #err(#InvalidInput("This home already has 60 tax years; delete an old one first"));
+    let rec = PropertyTax.toYear(y, Time.now());
+    propertyTaxYears.add(propertyId, others.concat([rec]).sort(PropertyTax.newestFirst));
+    #ok(rec)
+  };
+
+  /// #714: delete one saved tax year. Owner and co-owners only. Can't be undone.
+  public shared(msg) func deletePropertyTaxYear(propertyId: Text, year: Nat) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not hasFullControl(propertyId, msg.caller)) return #err(#NotAuthorized);
+    let existing = propertyTaxYears.get(propertyId) ?? [];
+    let kept = existing.filter(func(r : PropertyTax.Year) : Bool { r.year != year });
+    if (kept.size() == existing.size()) return #err(#NotFound);
+    if (kept.size() == 0) propertyTaxYears.remove(propertyId) else propertyTaxYears.add(propertyId, kept);
+    #ok(())
+  };
+
+  /// #714: the saved tax years, newest first. Owner and co-owners only.
+  public query(msg) func getPropertyTaxYears(propertyId: Text) : async Result.Result<[PropertyTaxYear], Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not hasFullControl(propertyId, msg.caller)) return #err(#NotAuthorized);
+    #ok(propertyTaxYears.get(propertyId) ?? [])
+  };
+
+  /// #714: for the weekly Home Pulse email, each of `owner`'s active homes
+  /// with tax years saved: the two newest years' exemption status and
+  /// petition deadline (no values or notes). Notifiers and admins only.
+  public query(msg) func getPulsePropertyTax(owner: Principal) : async Result.Result<[PulsePropertyTax], Error> {
+    if (not Admin.contains(notifierEntries, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let out = List.empty<PulsePropertyTax>();
+    for (p in ownedBy(owner)) {
+      if (p.isActive) {
+        switch (propertyTaxYears.get(p.id)) {
+          case (?ys) {
+            let newest = ys.sliceToArray(0, Nat.min(ys.size(), PropertyTax.PULSE_YEARS));
+            out.add({ propertyId = p.id; years = newest.map(PropertyTax.pulseYear) });
+          };
+          case null {};
+        };
+      };
+    };
+    #ok(out.toArray())
+  };
+
   // ─── Move-in plan (#712) ──────────────────────────────────────────────────
 
   /// The plan on a home the caller can change, or the error to return.
@@ -3360,6 +3431,11 @@ persistent actor Property {
       removed += dropWarrantyClaims(pid);
       if (mortgageLoans.get(pid) != null) { mortgageLoans.remove(pid); removed += 1 };
       if (floodZones.get(pid) != null) { floodZones.remove(pid); removed += 1 };
+      // #714 property-tax years.
+      switch (propertyTaxYears.get(pid)) {
+        case (?ys) { propertyTaxYears.remove(pid); removed += ys.size() };
+        case null {};
+      };
       // #712 move-in plan.
       if (moveInPlans.get(pid) != null) { moveInPlans.remove(pid); removed += 1 };
 
