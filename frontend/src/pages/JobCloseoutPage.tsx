@@ -225,10 +225,11 @@ export default function JobCloseoutPage() {
               margin: "0 0 0.75rem",
             }}
           >
-            Open permits and unpaid contractors are common surprises when a home sells. Record where each job's permit
-            stands, and keep a final lien waiver from the contractor on larger jobs. In Florida, a Notice of
-            Commencement is generally required before work on a contract over $2,500 starts ($15,000 for heating or
-            air-conditioning repair or replacement); your permit office can confirm.
+            Open permits and unpaid contractors are common surprises when a home sells. Many jobs don't need a permit;
+            for the ones that had one, record where it stands, and keep a final lien waiver from the contractor on
+            larger jobs. In Florida, a Notice of Commencement is generally required before work on a contract over
+            $2,500 starts ($15,000 for heating or air-conditioning repair or replacement); your permit office can
+            confirm.
           </p>
           <p
             style={{
@@ -324,7 +325,7 @@ export default function JobCloseoutPage() {
                             onChange={(e) => void changeStatus(job.id, e.target.value)}
                             style={{ ...hudInputStyle, width: "auto", padding: "0.35rem 0.5rem" }}
                           >
-                            <option value="">{job.permitNumber ? "Not recorded" : "No permit recorded"}</option>
+                            <option value="">{job.permitNumber ? "Status not recorded" : "No permit"}</option>
                             {(Object.keys(PERMIT_STATUS_LABELS) as PermitStatus[]).map((s) => (
                               <option key={s} value={s}>
                                 {PERMIT_STATUS_LABELS[s]}

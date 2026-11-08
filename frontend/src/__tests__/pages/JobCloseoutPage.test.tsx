@@ -174,6 +174,17 @@ describe("JobCloseoutPage", () => {
     await waitFor(() => expect(svc.setPermitStatus).toHaveBeenLastCalledWith("roof", null));
   });
 
+  it("treats a job with no permit number as having no permit, not a missing one", async () => {
+    svc.getCloseouts.mockResolvedValue([]);
+    renderPage();
+    const fenceSelect = within(await row("Fence")).getByLabelText(/permit status for fence/i);
+    expect(fenceSelect).toHaveDisplayValue("No permit");
+    const roofSelect = within(await row("New roof")).getByLabelText(/permit status for new roof/i);
+    expect(roofSelect).toHaveDisplayValue("Status not recorded");
+    expect(screen.getByTestId("open-permits")).toHaveTextContent("0");
+    expect(screen.getByTestId("expired-permits")).toHaveTextContent("0");
+  });
+
   it("puts the status back and says so when saving fails", async () => {
     svc.setPermitStatus.mockRejectedValue(new Error("boom"));
     renderPage();
