@@ -87,12 +87,54 @@ export async function uploadPhotoPreferOffChain(
   return actor.uploadPhoto(args.jobId, args.propertyId, phase, args.description, args.hash, args.bytes);
 }
 
+/** The parts of the photo canister actor a contractor's waiver upload needs (#716). */
+export interface WaiverUploadActor {
+  beginWaiverUpload(jobId: string, filename: string, hash: string, size: bigint): Promise<any>;
+  uploadWaiver(jobId: string, filename: string, hash: string, data: Uint8Array): Promise<any>;
+}
+
+export interface WaiverUploadArgs {
+  jobId: string;
+  filename: string;
+  hash: string;
+  bytes: Uint8Array;
+  contentType: string;
+}
+
+/** What the Worker stores (its PUT /photos accepts images only). */
+const OFF_CHAIN_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+
+/**
+ * #716: uploads the final lien waiver of a job the caller signed, as a
+ * contractor, into the home's document vault. Images go off-chain when the
+ * Worker stores photos; PDFs and everything else go on-chain. Returns the
+ * canister's Result, or `{ putFailed: true }` when the bytes didn't reach the
+ * Worker: the contractor can't delete the record (they have no access to the
+ * home), so a retry re-sends the bytes to it (beginWaiverUpload answers
+ * #Duplicate with its id).
+ */
+export async function uploadWaiverPreferOffChain(
+  actor: WaiverUploadActor,
+  args: WaiverUploadArgs,
+  deps: OffChainDeps,
+): Promise<any> {
+  const token = OFF_CHAIN_TYPES.has(args.contentType) ? await offChainToken(deps) : null;
+  if (!token) return actor.uploadWaiver(args.jobId, args.filename, args.hash, args.bytes);
+  const begun = await actor.beginWaiverUpload(args.jobId, args.filename, args.hash, BigInt(args.bytes.length));
+  let id: string;
+  if ("ok" in begun) id = begun.ok.id;
+  else if (begun.err && typeof begun.err.Duplicate === "string") id = begun.err.Duplicate;
+  else return begun;
+  const sent = await putBytes(deps, token, id, args);
+  return sent ? ("ok" in begun ? begun : { ok: { id } }) : { putFailed: true };
+}
+
 async function offChainToken(deps: OffChainDeps): Promise<string | null> {
   if (!(await offChainPhotosEnabled(deps))) return null;
   try { return await deps.sessionToken(); } catch { return null; }
 }
 
-async function putBytes(deps: OffChainDeps, token: string, id: string, args: PhotoUploadArgs): Promise<boolean> {
+async function putBytes(deps: OffChainDeps, token: string, id: string, args: { bytes: Uint8Array; contentType: string }): Promise<boolean> {
   const fetchFn = deps.fetchFn ?? fetch;   // offChainPhotosEnabled already confirmed fetch exists
   try {
     const res = await fetchFn(`${deps.workerUrl}/photos/${encodeURIComponent(id)}`, {

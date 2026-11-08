@@ -1177,6 +1177,17 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
     ],
   },
+  "addJobPaper": {
+    "args": [
+      "text",
+      "variant {NoticeOfCommencement; FinalLienWaiver}",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
   "approveJobProposal": {
     "args": [
       "text",
@@ -1288,6 +1299,17 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:record {completedDate:int; title:text; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; expiresAt:int; alreadySigned:bool; jobId:text; description:text; propertyAddress:text; amount:nat; contractorName:opt text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
+  "getJobCloseouts": {
+    "args": [
+      "vec text",
+    ],
+    "mode": [
+      "composite_query",
+    ],
+    "rets": [
+      "vec record {jobId:text; permitStatus:opt variant {Open; Closed; Expired}; papers:vec record {kind:variant {NoticeOfCommencement; FinalLienWaiver}; addedAt:int; addedBy:principal; photoId:text}}",
     ],
   },
   "getJobCostCategories": {
@@ -1475,6 +1497,16 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
     ],
   },
+  "removeJobPaper": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
   "resetMyInboxToken": {
     "args": [],
     "mode": [],
@@ -1495,6 +1527,16 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     "args": [
       "text",
       "opt variant {Improvement; Repair}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
+  "setPermitStatus": {
+    "args": [
+      "text",
+      "opt variant {Open; Closed; Expired}",
     ],
     "mode": [],
     "rets": [
@@ -2590,6 +2632,18 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; verified:bool; owner:principal; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}; err:variant {Paused; InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; RateLimited; Unavailable:text; QuotaExceeded:text}}",
     ],
   },
+  "beginWaiverUpload": {
+    "args": [
+      "text",
+      "text",
+      "text",
+      "nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; verified:bool; owner:principal; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}; err:variant {Paused; InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; RateLimited; Unavailable:text; QuotaExceeded:text}}",
+    ],
+  },
   "deleteMyData": {
     "args": [],
     "mode": [],
@@ -2732,6 +2786,18 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
       "text",
       "text",
       "variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}",
+      "text",
+      "text",
+      "vec nat8",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; verified:bool; owner:principal; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}; err:variant {Paused; InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; RateLimited; Unavailable:text; QuotaExceeded:text}}",
+    ],
+  },
+  "uploadWaiver": {
+    "args": [
+      "text",
       "text",
       "text",
       "vec nat8",
@@ -4187,6 +4253,17 @@ exports[`report IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "opt record {signature:vec nat8; publicKey:vec nat8; signedAt:int; message:text; keyName:text}",
+    ],
+  },
+  "getReportCloseout": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {permits:opt record {closed:nat; expired:nat; unrecorded:nat; open:nat}; largeJobsWithWaiver:nat; largeJobs:nat; thresholdCents:nat}",
     ],
   },
   "getReportScore": {

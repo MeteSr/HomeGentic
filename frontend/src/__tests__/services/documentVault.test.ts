@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { encodeDoc, encodePermit, encodeInspection, parseDoc, DOC_TYPES, DOC_TYPE_LABELS, DOC_GROUPS, docGroupOf, docTypeFromOnboardingLabel, canEditDocuments } from "@/services/documentVault";
+import { encodeDoc, encodeJobPaper, encodePermit, encodeInspection, parseDoc, DOC_TYPES, DOC_TYPE_LABELS, DOC_GROUPS, docGroupOf, docTypeFromOnboardingLabel, canEditDocuments } from "@/services/documentVault";
 
 describe("DocumentsTab encoding — plain doc round-trip", () => {
   it("round-trips a Receipt filename", () => {
@@ -131,5 +131,26 @@ describe("document vault — who can change files", () => {
     ["Viewer", false], ["NoAccess", false],
   ] as const)("%s → %s", (role, allowed) => {
     expect(canEditDocuments(role)).toBe(allowed);
+  });
+});
+
+describe("#716 job close-out papers in the vault", () => {
+  it("files a final lien waiver and a Notice of Commencement against a job", () => {
+    const waiver = encodeJobPaper("LienWaiver", "job-9", "final-waiver.pdf");
+    expect(waiver).toBe("[LienWaiver] job-9|final-waiver.pdf");
+    expect(parseDoc(waiver)).toEqual({ type: "LienWaiver", jobId: "job-9", filename: "final-waiver.pdf" });
+    expect(parseDoc(encodeJobPaper("NOC", "job-9", "noc.pdf"))).toEqual({ type: "NOC", jobId: "job-9", filename: "noc.pdf" });
+  });
+
+  it("keeps a pipe in the file name and reads a paper with no job as plain", () => {
+    expect(parseDoc(encodeJobPaper("LienWaiver", "job-1", "a|b.pdf"))).toEqual({ type: "LienWaiver", jobId: "job-1", filename: "a|b.pdf" });
+    expect(parseDoc("[LienWaiver] loose.pdf")).toEqual({ type: "LienWaiver", filename: "loose.pdf" });
+  });
+
+  it("labels the new types and groups them with work records", () => {
+    expect(DOC_TYPE_LABELS.LienWaiver).toBe("Final lien waiver");
+    expect(DOC_TYPE_LABELS.NOC).toBe("Notice of Commencement");
+    expect(docGroupOf("LienWaiver").key).toBe("work");
+    expect(docGroupOf("NOC").key).toBe("work");
   });
 });

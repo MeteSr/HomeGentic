@@ -80,6 +80,7 @@
     "dismissEmailDraft",
     "getApiDoc",
     "getCertificationData",
+    "getCloseoutsForProperty",
     "getJobByInviteToken",
     "getJobSnapshotsForProperty",
     "getJobsByOwner",
@@ -108,7 +109,8 @@
     "setPaymentCanisterId",
     "setPropertyCanisterId",
     "setUpdateRateLimit",
-    "unpause"
+    "unpause",
+    "waiverUploadTarget"
   ],
   "maintenance": [
     "addAdmin",

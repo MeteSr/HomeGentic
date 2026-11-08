@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   uploadPhotoPreferOffChain,
+  uploadWaiverPreferOffChain,
   resetOffChainPhotoConfig,
   type OffChainDeps,
   type PhotoUploadActor,
@@ -104,5 +105,73 @@ describe("uploadPhotoPreferOffChain", () => {
     await uploadPhotoPreferOffChain(actor(), ARGS, d);
     await uploadPhotoPreferOffChain(actor(), ARGS, d);
     expect(fetchFn.mock.calls.filter(([url]) => String(url).endsWith("/photos-config"))).toHaveLength(1);
+  });
+});
+
+/**
+ * #716: a contractor's final lien waiver. Photos of the signed paper go to
+ * off-chain storage (photo.beginWaiverUpload, then the Worker PUT); PDFs,
+ * which the Worker doesn't store, and uploads with no off-chain storage go
+ * on-chain (photo.uploadWaiver).
+ *
+ * PWAIV.1 an image begins off-chain with the job id and file name, then PUTs the bytes
+ * PWAIV.2 without off-chain storage or a session it goes on-chain
+ * PWAIV.3 a PDF goes on-chain even when off-chain storage is on
+ * PWAIV.4 a canister refusal is returned as is
+ * PWAIV.5 a retry after a failed PUT sends the bytes to the record already made
+ * PWAIV.6 a failed PUT is reported, not hidden (the contractor can't delete the record)
+ */
+describe("uploadWaiverPreferOffChain", () => {
+  const W = { jobId: "job-7", filename: "waiver.jpg", hash: "h", bytes: new Uint8Array([4, 5]), contentType: "image/jpeg" };
+  const PDF = { ...W, filename: "waiver.pdf", contentType: "application/pdf" };
+  const waiverActor = (begin: (...args: any[]) => Promise<any> = async () => ({ ok: { id: "PHOTO_W" } })) => ({
+    beginWaiverUpload: vi.fn(begin),
+    uploadWaiver: vi.fn(async () => ({ ok: { id: "ONCHAIN_W" } })),
+  });
+
+  it("PWAIV.1 begins an image upload off-chain and PUTs the bytes", async () => {
+    const a = waiverActor();
+    const fetchFn = worker();
+    expect(await uploadWaiverPreferOffChain(a, W, deps(fetchFn))).toEqual({ ok: { id: "PHOTO_W" } });
+    expect(a.beginWaiverUpload).toHaveBeenCalledWith("job-7", "waiver.jpg", "h", 2n);
+    const put = fetchFn.mock.calls.find(([, init]) => init?.method === "PUT")!;
+    expect(put[0]).toBe("https://w.test/photos/PHOTO_W");
+    expect((put[1] as RequestInit).headers).toMatchObject({ "Content-Type": "image/jpeg" });
+    expect(a.uploadWaiver).not.toHaveBeenCalled();
+  });
+
+  it("PWAIV.2 goes on-chain without off-chain storage or a session", async () => {
+    for (const d of [deps(worker(), { workerUrl: "" }), deps(worker({ offChain: false })), deps(worker(), { sessionToken: async () => null })]) {
+      resetOffChainPhotoConfig();
+      const a = waiverActor();
+      expect(await uploadWaiverPreferOffChain(a, W, d)).toEqual({ ok: { id: "ONCHAIN_W" } });
+      expect(a.beginWaiverUpload).not.toHaveBeenCalled();
+      expect(a.uploadWaiver).toHaveBeenCalledWith("job-7", "waiver.jpg", "h", W.bytes);
+    }
+  });
+
+  it("PWAIV.3 sends a PDF on-chain", async () => {
+    const a = waiverActor();
+    expect(await uploadWaiverPreferOffChain(a, PDF, deps(worker()))).toEqual({ ok: { id: "ONCHAIN_W" } });
+    expect(a.beginWaiverUpload).not.toHaveBeenCalled();
+  });
+
+  it("PWAIV.4 returns a canister refusal as is", async () => {
+    const a = waiverActor(async () => ({ err: { NotAuthorized: null } }));
+    expect(await uploadWaiverPreferOffChain(a, W, deps(worker()))).toEqual({ err: { NotAuthorized: null } });
+    expect(a.uploadWaiver).not.toHaveBeenCalled();
+  });
+
+  it("PWAIV.5 sends a retry's bytes to the record a failed attempt made", async () => {
+    const a = waiverActor(async () => ({ err: { Duplicate: "PHOTO_OLD" } }));
+    const fetchFn = worker();
+    expect(await uploadWaiverPreferOffChain(a, W, deps(fetchFn))).toEqual({ ok: { id: "PHOTO_OLD" } });
+    expect(fetchFn.mock.calls.some(([url]) => url === "https://w.test/photos/PHOTO_OLD")).toBe(true);
+  });
+
+  it("PWAIV.6 reports a failed PUT", async () => {
+    const a = waiverActor();
+    expect(await uploadWaiverPreferOffChain(a, W, deps(worker({ putStatus: 500 })))).toEqual({ putFailed: true });
+    expect(a.uploadWaiver).not.toHaveBeenCalled();
   });
 });

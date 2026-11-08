@@ -134,6 +134,10 @@ persistent actor Photo {
   /// When set, uploadPhoto() uses the property owner's tier when the caller
   /// is a delegated manager, so managers don't need their own subscription.
   private var propCanisterId: Text = "";
+  /// #716: job canister ID (setJobCanisterId / PUBLIC_CANISTER_ID:job). It
+  /// vouches for a contractor uploading the final lien waiver of a job they
+  /// signed (beginWaiverUpload). Empty = that path is off.
+  private var jobCanisterId: Text = "";
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   /// Legacy store, kept only so upgrades stay compatible; always empty after
@@ -278,6 +282,7 @@ persistent actor Photo {
       #addAdmin : Any;
       #addPhotoRelay : Any;
       #beginUpload : Any;
+      #beginWaiverUpload : Any;
       #deleteMyData : Any;
       #deletePhoto : Any;
       #getGuidePhotoData : Any;
@@ -300,17 +305,20 @@ persistent actor Photo {
       #removePhotoRelay : Any;
       #setAuditCanisterId : Any;
       #setBootstrapNonce : Any;
+      #setJobCanisterId : Any;
       #setOnChainUploadsEnabled : Any;
       #setPaymentCanisterId : Any;
       #setPropertyCanisterId : Any;
       #setUpdateRateLimit : Any;
       #unpause : Any;
       #uploadPhoto : Any;
+      #uploadWaiver : Any;
       #verifyPhoto : Any;
     };
   }) : Bool {
     let max = switch msg {
       case (#uploadPhoto _) Inspect.MAX_UPLOAD_ARG_BYTES;
+      case (#uploadWaiver _) Inspect.MAX_UPLOAD_ARG_BYTES;
       case _ Inspect.MAX_ARG_BYTES;
     };
     Inspect.accept(caller, arg, max)
@@ -461,7 +469,8 @@ persistent actor Photo {
     propertyId: Text,
     description: Text,
     hash: Text,
-    size: Nat
+    size: Nat,
+    vouched: Bool   // #716: the job canister vouched for the caller instead of the property
   ) : async* ?Error {
     if (Text.size(jobId) == 0)      return ?#InvalidInput("jobId cannot be empty");
     if (Text.size(propertyId) == 0) return ?#InvalidInput("propertyId cannot be empty");
@@ -526,7 +535,7 @@ persistent actor Photo {
     };
 
     // H-11: Verify caller is authorized for this property before storing the photo.
-    if (not isAdmin(caller)) {
+    if (not isAdmin(caller) and not vouched) {
       switch (await* checkPropertyAuth(propertyId, effectivePrincipal, caller, true)) {
         case (#err(e)) return ?e;
         case (#ok(_)) {};
@@ -624,7 +633,7 @@ persistent actor Photo {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (not onChainUploadsEnabled and not isAdmin(msg.caller))
       return #err(#InvalidInput("On-chain photo uploads are off. Please update the app to upload photos."));
-    switch (await* admitUpload(msg.caller, jobId, propertyId, description, hash, data.size())) {
+    switch (await* admitUpload(msg.caller, jobId, propertyId, description, hash, data.size(), false)) {
       case (?e) return #err(e);
       case null {};
     };
@@ -647,13 +656,84 @@ persistent actor Photo {
     size: Nat
   ) : async Result.Result<PhotoMeta, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (await* admitUpload(msg.caller, jobId, propertyId, description, hash, size)) {
+    switch (await* admitUpload(msg.caller, jobId, propertyId, description, hash, size, false)) {
       case (?e) return #err(e);
       case null {};
     };
     let photo = addPhoto(msg.caller, jobId, propertyId, phase, description, hash, "", size);
     offChainIds.add(photo.id, ());
     #ok(meta(photo))
+  };
+
+  /// #716: where a contractor's final lien waiver for `jobId` goes, or why
+  /// it can't. The job canister says whether the caller signed that job
+  /// (waiverUploadTarget) and which home it is on. Returns the home's id, the
+  /// document job id and the vault description "[LienWaiver] <jobId>|<file>".
+  private func waiverTarget(caller : Principal, jobId : Text, filename : Text) : async* Result.Result<(Text, Text, Text), Error> {
+    if (Text.size(filename) == 0 or Text.size(filename) > 200)
+      return #err(#InvalidInput("The file name must be 1 to 200 characters"));
+    if (filename.contains(#char '|')) return #err(#InvalidInput("The file name can't contain |"));
+    if (Text.size(jobId) == 0 or Text.size(jobId) > MAX_ID_CHARS) return #err(#NotFound);
+    if (Text.size(jobCanisterId) == 0)
+      return #err(#Unavailable("Waiver uploads are unavailable right now. Please try again later."));
+    let jobActor = actor (jobCanisterId) : actor { waiverUploadTarget : shared query (Text, Principal) -> async ?Text };
+    let target = try { await jobActor.waiverUploadTarget(jobId, caller) }
+                 catch (_) { return #err(#Unavailable(Canisters.unavailable("job"))) };
+    switch (target) {
+      case null #err(#NotAuthorized);
+      case (?propertyId) #ok((propertyId, docsJobId(propertyId), "[LienWaiver] " # jobId # "|" # filename));
+    }
+  };
+
+  /// #716: beginUpload for the contractor who signed a job, filing its final
+  /// lien waiver in the home's document vault (see waiverTarget). The record
+  /// is owned by the contractor, so their upload to the Worker is accepted.
+  /// Every other uploadPhoto check runs, with the home owner's plan for the
+  /// document limit. The contractor then files the returned id on the job
+  /// with job.addJobPaper.
+  public shared(msg) func beginWaiverUpload(
+    jobId: Text,
+    filename: Text,
+    hash: Text,
+    size: Nat
+  ) : async Result.Result<PhotoMeta, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let (propertyId, docs, description) = switch (await* waiverTarget(msg.caller, jobId, filename)) {
+      case (#err(e)) return #err(e);
+      case (#ok(t)) t;
+    };
+    switch (await* admitUpload(msg.caller, docs, propertyId, description, hash, size, true)) {
+      case (?e) return #err(e);
+      case null {};
+    };
+    let photo = addPhoto(msg.caller, docs, propertyId, #PostConstruction, description, hash, "", size);
+    offChainIds.add(photo.id, ());
+    #ok(meta(photo))
+  };
+
+  /// #716: the same with the bytes, stored on this canister, for files the
+  /// Worker doesn't take (PDFs) or when off-chain storage is off. Follows the
+  /// on-chain switch like uploadPhoto.
+  public shared(msg) func uploadWaiver(
+    jobId: Text,
+    filename: Text,
+    hash: Text,
+    data: Blob
+  ) : async Result.Result<PhotoMeta, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not onChainUploadsEnabled and not isAdmin(msg.caller))
+      return #err(#InvalidInput("PDF uploads are off right now. Upload a photo of the signed waiver instead."));
+    let (propertyId, docs, description) = switch (await* waiverTarget(msg.caller, jobId, filename)) {
+      case (#err(e)) return #err(e);
+      case (#ok(t)) t;
+    };
+    switch (await* admitUpload(msg.caller, docs, propertyId, description, hash, data.size(), true)) {
+      case (?e) return #err(e);
+      case null {};
+    };
+    if (not isAdmin(msg.caller) and not takeOnChainBytes(data.size()))
+      return #err(#InvalidInput("Photo storage is busy today. Please try again tomorrow."));
+    #ok(meta(addPhoto(msg.caller, docs, propertyId, #PostConstruction, description, hash, data, data.size())))
   };
 
   public type PhotoAccess = {
@@ -1018,6 +1098,13 @@ persistent actor Photo {
     #ok(())
   };
 
+  /// #716: wire the job canister (vouches for contractor waiver uploads).
+  public shared(msg) func setJobCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    jobCanisterId := id.toText();
+    #ok(())
+  };
+
   /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
@@ -1101,6 +1188,7 @@ persistent actor Photo {
     auditCanisterId := Canisters.envPrincipal<system>("audit", auditCanisterId);
     payCanisterId := Canisters.envId<system>("payment", payCanisterId);
     propCanisterId := Canisters.envId<system>("property", propCanisterId);
+    jobCanisterId := Canisters.envId<system>("job", jobCanisterId);
   };
   syncCanisterIds<system>();
 }

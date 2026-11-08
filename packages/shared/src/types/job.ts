@@ -15,6 +15,8 @@ export type Error =
   | { TierLimitReached: string }
   | { Unavailable: string };
 
+export type PaperKind = { NoticeOfCommencement: null } | { FinalLienWaiver: null };
+
 export type Job = {
   id: string;
   completedDate: bigint;
@@ -68,6 +70,21 @@ export type ServiceType =
   | { KitchenRemodel: null }
   | { GeneralHandyman: null };
 
+export type JobCloseout = {
+  jobId: string;
+  permitStatus: [] | [PermitStatus];
+  papers: JobPaper[];
+};
+
+export type PermitStatus = { Open: null } | { Closed: null } | { Expired: null };
+
+export type JobPaper = {
+  kind: PaperKind;
+  addedAt: bigint;
+  addedBy: Principal;
+  photoId: string;
+};
+
 export type CostCategory = { Improvement: null } | { Repair: null };
 
 export type EmailDraft = {
@@ -102,6 +119,7 @@ export type EmailDraftInput = {
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
   addInboxRelay: ActorMethod<[Principal], UnitResult>;
+  addJobPaper: ActorMethod<[string, PaperKind, string], { ok: null } | { err: Error }>;
   approveJobProposal: ActorMethod<[string], { ok: Job } | { err: Error }>;
   createInviteToken: ActorMethod<[string, string], { ok: string } | { err: Error }>;
   createJob: ActorMethod<
@@ -154,6 +172,7 @@ export interface _SERVICE {
       }
     | { err: Error }
   >;
+  getJobCloseouts: ActorMethod<[string[]], JobCloseout[]>;
   getJobCostCategories: ActorMethod<[string[]], Array<[string, CostCategory]>>;
   getJobSnapshotsForProperty: ActorMethod<
     [string],
@@ -192,9 +211,11 @@ export interface _SERVICE {
   relayAddEmailDraft: ActorMethod<[string, EmailDraftInput], TextResult>;
   relayCheckInboxToken: ActorMethod<[string], { full: null } | { accepting: null } | { unknown: null }>;
   removeInboxRelay: ActorMethod<[Principal], UnitResult>;
+  removeJobPaper: ActorMethod<[string, string], { ok: null } | { err: Error }>;
   resetMyInboxToken: ActorMethod<[], TextResult>;
   setFeeCanisterId: ActorMethod<[string], { ok: null } | { err: Error }>;
   setJobCostCategory: ActorMethod<[string, [] | [CostCategory]], { ok: null } | { err: Error }>;
+  setPermitStatus: ActorMethod<[string, [] | [PermitStatus]], { ok: null } | { err: Error }>;
   setPropertyCanisterId: ActorMethod<[string], { ok: null } | { err: Error }>;
   updateJob: ActorMethod<
     [string, string, ServiceType, string, [] | [string], bigint, bigint, [] | [string], [] | [bigint], boolean],

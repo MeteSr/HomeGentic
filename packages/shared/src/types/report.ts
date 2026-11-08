@@ -160,6 +160,20 @@ export type ReportSnapshot = {
   recurringServices: RecurringServiceInput[];
 };
 
+export type CloseoutView = {
+  permits: [] | [PermitCounts];
+  largeJobsWithWaiver: bigint;
+  largeJobs: bigint;
+  thresholdCents: bigint;
+};
+
+export type PermitCounts = {
+  closed: bigint;
+  expired: bigint;
+  unrecorded: bigint;
+  open: bigint;
+};
+
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
@@ -213,6 +227,7 @@ export interface _SERVICE {
   getCertAttestation: ActorMethod<[string], [] | [Attestation]>;
   getReport: ActorMethod<[string], { ok: [ShareLink, ReportSnapshot] } | { err: Error }>;
   getReportAttestation: ActorMethod<[string], [] | [Attestation]>;
+  getReportCloseout: ActorMethod<[string], [] | [CloseoutView]>;
   getReportScore: ActorMethod<[string], [] | [bigint]>;
   getRiskProfile: ActorMethod<[string], { ok: RiskProfile } | { err: RiskProfileError }>;
   hasActivePublicShareLink: ActorMethod<[string], boolean>;

@@ -6,12 +6,13 @@
  */
 
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Share2, ExternalLink, Trophy, TrendingUp, Shield } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { propertyService, Property } from "@/services/property";
-import { jobService, Job } from "@/services/job";
+import { jobService, Job, type JobCloseout } from "@/services/job";
+import { closeoutReview } from "@/services/jobCloseout";
 import { reportService, propertyToInput, jobToInput } from "@/services/report";
 import { computeScore, computeBreakdown, getScoreGrade, premiumEstimate, isCertified, loadHistory } from "@/services/scoreService";
 import { certService } from "@/services/cert";
@@ -60,6 +61,7 @@ export default function ResaleReadyPage() {
   const [jobs,       setJobs]       = useState<Job[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [shareLink,  setShareLink]  = useState<string | null>(null);
+  const [closeouts,  setCloseouts]  = useState<JobCloseout[]>([]);
 
   useEffect(() => {
     Promise.all([
@@ -68,6 +70,10 @@ export default function ResaleReadyPage() {
     ]).then(([props, js]) => {
       setProperties(props);
       setJobs(js);
+      // #716: permit statuses and lien waivers on file.
+      if (props.length > 0) {
+        jobService.getCloseouts(props.map((p) => String(p.id))).then(setCloseouts).catch(() => setCloseouts([]));
+      }
     }).finally(() => setLoading(false));
   }, []);
 
@@ -314,6 +320,15 @@ export default function ResaleReadyPage() {
           </div>
         </div>
 
+        {/* #716 — permits and lien waivers on record for the first home */}
+        {property && (
+          <CloseoutSummary
+            propertyId={String(property.id)}
+            jobs={jobs.filter((j) => j.propertyId === String(property.id))}
+            closeouts={closeouts}
+          />
+        )}
+
         {/* What a buyer sees preview */}
         {property && (
           <div style={{ border: `1px solid ${UI.rule}` }}>
@@ -384,5 +399,57 @@ export default function ResaleReadyPage() {
 
       </div>
     </Layout>
+  );
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * #716: open or expired permits and larger contractor jobs with no final lien
+ * waiver on file, from the household's own record. Never says the home is
+ * lien-free: a title search is what shows recorded liens.
+ */
+function CloseoutSummary({ propertyId, jobs, closeouts }: { propertyId: string; jobs: Job[]; closeouts: JobCloseout[] }) {
+  const r = closeoutReview(jobs, closeouts);
+  const lines: { text: string; names: Job[] }[] = [
+    { text: `${plural(r.openPermits.length, "open permit", "open permits")}`, names: r.openPermits },
+    { text: `${plural(r.expiredPermits.length, "expired permit", "expired permits")}`, names: r.expiredPermits },
+    { text: `${plural(r.unrecordedPermits.length, "permit with no status recorded", "permits with no status recorded")}`, names: r.unrecordedPermits },
+    {
+      text: `${plural(r.missingWaiver.length, "contractor job", "contractor jobs")} over $2,500 with no final lien waiver on file`,
+      names: r.missingWaiver,
+    },
+  ].filter((l) => l.names.length > 0);
+  return (
+    <section style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.25rem 1.5rem" }}>
+      <h2 style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, margin: "0 0 0.75rem", fontWeight: 500 }}>
+        Permits and lien waivers
+      </h2>
+      {lines.length === 0 ? (
+        <p style={{ fontSize: "0.875rem", color: UI.ink, margin: "0 0 0.5rem", lineHeight: 1.5 }}>
+          No open or expired permits recorded, and every contractor job over $2,500 has a final lien waiver on file.
+        </p>
+      ) : (
+        <ul style={{ margin: "0 0 0.5rem", paddingLeft: "1.1rem", fontSize: "0.875rem", color: UI.ink, lineHeight: 1.6 }}>
+          {lines.map((l) => (
+            <li key={l.text}>
+              {l.text}
+              <span style={{ color: UI.inkLight }}>
+                {": "}
+                {l.names.slice(0, 5).map((j) => j.description || j.serviceType).join(", ")}
+                {l.names.length > 5 ? ", …" : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p style={{ fontSize: "0.75rem", color: UI.inkLight, margin: "0 0 0.75rem", lineHeight: 1.5 }}>
+        From what you&apos;ve recorded on your jobs. A buyer&apos;s title search is what shows whether a lien was recorded,
+        and your permit office can confirm a permit&apos;s status.
+      </p>
+      <Link to={`/properties/${propertyId}/closeout`} style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.rust, textDecoration: "none" }}>
+        Review permits and lien waivers →
+      </Link>
+    </section>
   );
 }

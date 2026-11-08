@@ -208,6 +208,34 @@ const mockJobActor = {
       .map((j) => [j.id, mockJobActor._costCategories.get(j.id)])
   ),
 
+  // #716: permit status and close-out papers, keyed by job id.
+  _closeouts: new Map<string, { permitStatus: any[]; papers: any[] }>(),
+  setPermitStatus: vi.fn(async (jobId: string, status: any[]) => {
+    if (!_mockJobs.some((j) => j.id === jobId)) return { err: { NotFound: null } };
+    const c = mockJobActor._closeouts.get(jobId) ?? { permitStatus: [], papers: [] };
+    mockJobActor._closeouts.set(jobId, { ...c, permitStatus: status });
+    return { ok: null };
+  }),
+  addJobPaper: vi.fn(async (jobId: string, kind: any, photoId: string) => {
+    if (!_mockJobs.some((j) => j.id === jobId)) return { err: { NotFound: null } };
+    const c = mockJobActor._closeouts.get(jobId) ?? { permitStatus: [], papers: [] };
+    const paper = { kind, photoId, addedBy: { toText: () => "local" }, addedAt: 1_700_000_000_000_000_000n };
+    mockJobActor._closeouts.set(jobId, { ...c, papers: [...c.papers.filter((p) => p.photoId !== photoId), paper] });
+    return { ok: null };
+  }),
+  removeJobPaper: vi.fn(async (jobId: string, photoId: string) => {
+    const c = mockJobActor._closeouts.get(jobId);
+    if (!c || !c.papers.some((p) => p.photoId === photoId)) return { err: { NotFound: null } };
+    mockJobActor._closeouts.set(jobId, { ...c, papers: c.papers.filter((p) => p.photoId !== photoId) });
+    return { ok: null };
+  }),
+  getJobCloseouts: vi.fn(async (propertyIds: string[]) =>
+    _mockJobs
+      .filter((j) => propertyIds.includes(j.propertyId) && mockJobActor._closeouts.has(j.id))
+      .map((j) => ({ jobId: j.id, ...mockJobActor._closeouts.get(j.id)! }))
+      .filter((c) => c.permitStatus.length > 0 || c.papers.length > 0)
+  ),
+
   getJobSnapshotsForProperty: vi.fn(async (propertyId: string) => {
     const secsPerYear = 31_536_000;
     return _mockJobs
@@ -1090,5 +1118,66 @@ describe("jobService subtypes of Other (#721)", () => {
     });
     expect(mockJobActor.createJobProposal.mock.lastCall![2]).toEqual({ Other: null });
     expect(proposed.serviceType).toBe("Garage Door");
+  });
+});
+
+describe("jobService close-out (#716)", () => {
+  beforeEach(() => { jobService.reset(); mockJobActor._closeouts.clear(); delete (window as any).__e2e_job_closeouts; });
+
+  const create = (propertyId: string) => jobService.create({
+    propertyId, serviceType: "Roofing", amount: 1_500_000, date: "2024-01-01", description: "New roof", isDiy: false, contractorName: "Acme Roofing",
+  });
+
+  it("sends the permit status as a Candid variant and reads it back", async () => {
+    const roof = await create("co-A");
+    await jobService.setPermitStatus(roof.id, "closed");
+    expect(mockJobActor.setPermitStatus).toHaveBeenCalledWith(roof.id, [{ Closed: null }]);
+    expect(await jobService.getCloseouts(["co-A"])).toEqual([{ jobId: roof.id, permitStatus: "closed", papers: [] }]);
+    await jobService.setPermitStatus(roof.id, null);
+    expect(mockJobActor.setPermitStatus).toHaveBeenLastCalledWith(roof.id, []);
+    expect(await jobService.getCloseouts(["co-A"])).toEqual([]);
+  });
+
+  it("files and removes a lien waiver and a Notice of Commencement", async () => {
+    const roof = await create("co-B");
+    await jobService.addPaper(roof.id, "lienWaiver", "PHOTO_1");
+    await jobService.addPaper(roof.id, "noticeOfCommencement", "PHOTO_2");
+    expect(mockJobActor.addJobPaper).toHaveBeenCalledWith(roof.id, { FinalLienWaiver: null }, "PHOTO_1");
+    expect(mockJobActor.addJobPaper).toHaveBeenCalledWith(roof.id, { NoticeOfCommencement: null }, "PHOTO_2");
+    const [c] = await jobService.getCloseouts(["co-B"]);
+    expect(c.permitStatus).toBeUndefined();
+    expect(c.papers).toEqual([
+      { kind: "lienWaiver", photoId: "PHOTO_1", addedBy: "local", addedAt: 1_700_000_000_000 },
+      { kind: "noticeOfCommencement", photoId: "PHOTO_2", addedBy: "local", addedAt: 1_700_000_000_000 },
+    ]);
+    await jobService.removePaper(roof.id, "PHOTO_1");
+    expect((await jobService.getCloseouts(["co-B"]))[0].papers.map((p) => p.photoId)).toEqual(["PHOTO_2"]);
+  });
+
+  it("throws a canister error when the canister refuses", async () => {
+    await expect(jobService.setPermitStatus("missing", "open")).rejects.toMatchObject({ code: "NotFound" });
+    await expect(jobService.addPaper("missing", "lienWaiver", "P")).rejects.toMatchObject({ code: "NotFound" });
+    await expect(jobService.removePaper("missing", "P")).rejects.toMatchObject({ code: "NotFound" });
+  });
+
+  it("reads nothing without a call for an empty list, and nothing from an older canister", async () => {
+    mockJobActor.getJobCloseouts.mockClear();
+    expect(await jobService.getCloseouts([])).toEqual([]);
+    expect(mockJobActor.getJobCloseouts).not.toHaveBeenCalled();
+    mockJobActor.getJobCloseouts.mockRejectedValueOnce(new Error("no such method"));
+    expect(await jobService.getCloseouts(["co-C"])).toEqual([]);
+  });
+
+  it("uses window.__e2e_job_closeouts when a test sets it", async () => {
+    (window as any).__e2e_job_closeouts = [{ jobId: "j1", papers: [] }];
+    await jobService.setPermitStatus("j1", "expired");
+    await jobService.addPaper("j1", "lienWaiver", "PHOTO_9");
+    expect(await jobService.getCloseouts(["anything"])).toEqual([
+      { jobId: "j1", permitStatus: "expired", papers: [expect.objectContaining({ kind: "lienWaiver", photoId: "PHOTO_9" })] },
+    ]);
+    await jobService.removePaper("j1", "PHOTO_9");
+    await jobService.setPermitStatus("j1", null);
+    expect(await jobService.getCloseouts(["anything"])).toEqual([]);
+    expect(mockJobActor.setPermitStatus).not.toHaveBeenCalledWith("j1", expect.anything());
   });
 });
