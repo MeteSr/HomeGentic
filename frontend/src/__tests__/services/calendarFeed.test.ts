@@ -6,6 +6,8 @@
  *  FD.3 sync publishes only when the feed is on and the events changed
  *  FD.4 canister errors surface as canisterError, not raw objects
  *  FD.5 the e2e mock keeps state in memory
+ *  FD.6 collectMyCalendarEvents reads each home's insurance policy and tax
+ *       years, and one home's failed read doesn't drop the others
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
@@ -20,8 +22,39 @@ const mockActor = {
 
 vi.mock("@/services/actor", () => ({ getAgent: vi.fn().mockResolvedValue({}) }));
 vi.mock("@icp-sdk/core/agent", () => ({ Actor: { createActor: vi.fn(() => mockActor) } }));
+vi.mock("@/services/property", () => ({
+  propertyService: {
+    getMyProperties: vi.fn(async () => [
+      { id: "P1", address: "9 Basis Lane", state: "FL", yearBuilt: 1990n },
+      { id: "P2", address: "4 Oak St", state: "FL", yearBuilt: 1990n },
+    ]),
+  },
+}));
+vi.mock("@/services/job", () => ({ jobService: { getAll: vi.fn(async () => []) } }));
+vi.mock("@/services/systemAges", () => ({ systemAgesService: { get: () => ({}) } }));
+vi.mock("@/services/insurancePolicy", () => ({
+  insurancePolicyService: {
+    get: vi.fn(async (pid: string) => {
+      if (pid === "P2") throw new Error("canister stopped");
+      return {
+        carrier: "Citizens",
+        policyNumber: "X",
+        renewalDate: "2027-01-20",
+        coverageA: null,
+        hurricaneDeductible: null,
+      };
+    }),
+  },
+}));
+vi.mock("@/services/propertyTax", () => ({
+  propertyTaxService: {
+    list: vi.fn(async (pid: string) =>
+      pid === "P1" ? [{ year: 2027, exemption: "Applied", petitionDeadline: "2027-09-15" }] : [],
+    ),
+  },
+}));
 
-import { calendarFeedService, CALENDAR_FEED_COPY } from "@/services/calendarFeed";
+import { calendarFeedService, CALENDAR_FEED_COPY, collectMyCalendarEvents } from "@/services/calendarFeed";
 import { feedVersion } from "@/services/calendarEvents";
 import type { IcsEvent } from "@homegentic/shared/ics";
 
@@ -95,6 +128,21 @@ describe("calendarFeedService", () => {
     expect(CALENDAR_FEED_COPY).toMatch(/maintenance/i);
     expect(CALENDAR_FEED_COPY).toMatch(/warrant/i);
     expect(CALENDAR_FEED_COPY).toMatch(/recurring/i);
+    expect(CALENDAR_FEED_COPY).toMatch(/insurance renewal/i);
+    expect(CALENDAR_FEED_COPY).toMatch(/Florida property-tax deadlines/i);
     expect(CALENDAR_FEED_COPY).toMatch(/anyone with the link/i);
+  });
+});
+
+describe("collectMyCalendarEvents", () => {
+  it("FD.6 adds each home's insurance renewal and tax deadlines, and survives one home's failed read", async () => {
+    const uids = (await collectMyCalendarEvents(new Date(2026, 10, 8, 12))).map((e) => e.uid);
+    expect(uids).toContain("insurance-P1");
+    expect(uids).not.toContain("insurance-P2");
+    expect(uids).toContain("tax-P1-petition-2027");
+    expect(uids).not.toContain("tax-P1-homestead-2027");
+    expect(uids).not.toContain("tax-P1-trim-2027");
+    expect(uids).toContain("tax-P2-homestead-2027");
+    expect(uids).toContain("tax-P2-trim-2027");
   });
 });

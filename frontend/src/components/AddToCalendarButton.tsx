@@ -1,5 +1,5 @@
 /**
- * "Add to calendar" (#717, step 1): downloads a one-event .ics file that any
+ * "Add to calendar" (#717, step 1): downloads an .ics file that any
  * calendar app imports. The file is written in the browser; nothing is sent.
  */
 import React from "react";
@@ -20,7 +20,8 @@ export function downloadIcs(filename: string, events: IcsEvent[], name = "HomeGe
 }
 
 interface Props {
-  event: IcsEvent | null;
+  /** One event, or several that go into the same file. */
+  event: IcsEvent | IcsEvent[] | null;
   filename: string;
   /** What is added, for the accessible name: "Add <label> to calendar". */
   label: string;
@@ -28,13 +29,14 @@ interface Props {
 }
 
 export function AddToCalendarButton({ event, filename, label, style }: Props) {
-  if (!event) return null;
+  const events = event === null ? [] : Array.isArray(event) ? event : [event];
+  if (events.length === 0) return null;
   return (
     <button
       type="button"
       aria-label={`Add ${label} to calendar`}
       title={`Add ${label} to your calendar`}
-      onClick={() => downloadIcs(filename, [event])}
+      onClick={() => downloadIcs(filename, events)}
       style={{
         display: "inline-flex",
         alignItems: "center",

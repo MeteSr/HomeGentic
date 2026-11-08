@@ -21,13 +21,16 @@ import { propertyService } from "./property";
 import { jobService } from "./job";
 import { recurringService, type RecurringService, type VisitLog } from "./recurringService";
 import { systemAgesService } from "./systemAges";
+import { insurancePolicyService, type InsurancePolicy } from "./insurancePolicy";
+import { propertyTaxService } from "./propertyTax";
+import type { TaxYearStatus } from "@homegentic/shared/propertyTax";
 
 const JOB_CANISTER_ID = (process.env as any).JOB_CANISTER_ID || "";
 const VOICE_AGENT_URL: string = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 
 export const CALENDAR_FEED_COPY =
-  "Add your home's dates to Google Calendar, Apple Calendar or Outlook: maintenance tasks, warranty end dates and " +
-  "recurring service visits. Anyone with the link can see those dates, so share it only with people you trust. " +
+  "Add your home's dates to Google Calendar, Apple Calendar or Outlook: maintenance tasks, warranty end dates, " +
+  "recurring service visits, your insurance renewal and Florida property-tax deadlines. Anyone with the link can see those dates, so share it only with people you trust. " +
   "Your calendar app checks for changes on its own schedule; the dates update each time you open Maintenance here.";
 
 export interface CalendarFeedStatus {
@@ -163,5 +166,26 @@ export async function collectMyCalendarEvents(now: Date = new Date()): Promise<I
   }));
   const recurring: Record<string, { service: RecurringService; visits: VisitLog[] }[]> = {};
   for (const s of services) (recurring[s.propertyId] ??= []).push({ service: s, visits: visitLogs[s.id] ?? [] });
-  return collectCalendarEvents({ properties, jobs, recurring, systemAges: (pid) => systemAgesService.get(pid), now });
+  // One home's failed read leaves its dates out rather than the whole feed.
+  const insurance: Record<string, InsurancePolicy | null> = {};
+  const taxYears: Record<string, TaxYearStatus[]> = {};
+  await Promise.all(
+    ids.map(async (pid) => {
+      const [policy, years] = await Promise.all([
+        insurancePolicyService.get(pid).catch(() => null),
+        propertyTaxService.list(pid).catch(() => []),
+      ]);
+      insurance[pid] = policy;
+      taxYears[pid] = years;
+    }),
+  );
+  return collectCalendarEvents({
+    properties,
+    jobs,
+    recurring,
+    systemAges: (pid) => systemAgesService.get(pid),
+    insurance,
+    taxYears,
+    now,
+  });
 }

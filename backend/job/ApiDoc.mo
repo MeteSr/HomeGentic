@@ -23,7 +23,7 @@ module {
     "- `addJobPaper(jobId, kind, photoId)`: files a vault document on a job as its `#FinalLienWaiver` or `#NoticeOfCommencement`; filing the same document again replaces it, and a job holds up to 10. Needs write access to the home, except that the contractor who signed the job may file its final lien waiver. A DIY job takes no lien waiver. `removeJobPaper(jobId, photoId)` takes it off the job again (the document stays in the vault).\n" #
     "- `approveJobProposal(jobId)` / `rejectJobProposal(jobId)` accept or decline a job a contractor proposed. Rejecting deletes the proposal.\n\n" #
     "## Calendar link\n" #
-    "A private subscribe link the owner can add to a calendar app. It holds the dated events the app publishes: maintenance task dates, warranty end dates and recurring service visits. Anyone with the link can read those events, so treat it like a password. It costs nothing.\n" #
+    "A private subscribe link the owner can add to a calendar app. It holds the dated events the app publishes: maintenance task dates, warranty end dates, recurring service visits, insurance renewal dates and Florida property-tax deadlines. Anyone with the link can read those events, so treat it like a password. It costs nothing.\n" #
     "- `getMyCalendarFeed()` (query): the caller's link token, event count and last update, or null when the link is off.\n" #
     "- `enableMyCalendarFeed()`: turns the link on and returns its token (the same one if it's already on). The app turns the token into the link.\n" #
     "- `resetMyCalendarFeed()`: replaces the token. The old link stops working at once and can't be brought back; calendars subscribed to it stop updating.\n" #

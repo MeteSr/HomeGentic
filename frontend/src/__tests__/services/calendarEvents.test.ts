@@ -10,6 +10,13 @@
  *  CE.5 collectCalendarEvents gathers every home, skips ended warranties,
  *       sorts by date and caps the list
  *  CE.6 feedVersion changes only when the events do
+ *  CE.7 an insurance policy gives a renewal event on its renewal date, without
+ *       the policy number (anyone with the link can read the feed); none once
+ *       the date has passed or when it isn't a real date
+ *  CE.8 a Florida home gets the homestead deadline, the TRIM notice month and
+ *       a saved petition deadline, each from today on, and skips what the
+ *       owner has already settled; other states get nothing
+ *  CE.9 collectCalendarEvents adds insurance renewals and tax deadlines
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -17,6 +24,8 @@ import {
   maintenanceTaskEvent,
   warrantyEndEvent,
   recurringVisitEvent,
+  insuranceRenewalEvent,
+  floridaTaxEvents,
   collectCalendarEvents,
   feedVersion,
   MAX_FEED_EVENTS,
@@ -25,6 +34,7 @@ import type { AnnualTask } from "@/services/maintenance";
 import type { Job } from "@/services/job";
 import type { RecurringService } from "@/services/recurringService";
 import type { Property } from "@/services/property";
+import type { InsurancePolicy } from "@/services/insurancePolicy";
 
 const NOW = new Date(2026, 10, 8, 12, 0, 0); // Nov 8 2026, local
 
@@ -162,5 +172,94 @@ describe("collectCalendarEvents", () => {
     expect(feedVersion(a)).toBe(feedVersion([{ ...a[0] }]));
     expect(feedVersion(a)).not.toBe(feedVersion([{ ...a[0], date: "2028-01-16" }]));
     expect(feedVersion([])).toMatch(/^[0-9a-f]{8,}$/);
+  });
+});
+
+const policy = (over: Partial<InsurancePolicy> = {}): InsurancePolicy => ({
+  carrier: "Citizens",
+  policyNumber: "HO3-1234567",
+  renewalDate: "2027-01-20",
+  coverageA: 350_000,
+  hurricaneDeductible: { kind: "percent", percent: 2 },
+  ...over,
+});
+
+describe("insurance renewals", () => {
+  it("CE.7 gives one renewal event, without the policy number, and none once it has passed", () => {
+    const e = insuranceRenewalEvent("P1", "9 Basis Lane", policy(), NOW)!;
+    expect(e).toMatchObject({ uid: "insurance-P1", date: "2027-01-20", title: "Home insurance renews (Citizens)" });
+    expect(e.description).toContain("9 Basis Lane");
+    expect(e.description).not.toContain("HO3-1234567");
+    expect(e.rrule).toBeUndefined();
+    expect(insuranceRenewalEvent("P1", "", policy({ carrier: "" }), NOW)!.title).toBe("Home insurance renews");
+    expect(insuranceRenewalEvent("P1", "", policy({ renewalDate: "2026-11-08" }), NOW)?.date).toBe("2026-11-08");
+    expect(insuranceRenewalEvent("P1", "", policy({ renewalDate: "2026-11-07" }), NOW)).toBeNull();
+    expect(insuranceRenewalEvent("P1", "", policy({ renewalDate: "" }), NOW)).toBeNull();
+    expect(insuranceRenewalEvent("P1", "", policy({ renewalDate: "2027-02-30" }), NOW)).toBeNull();
+    expect(insuranceRenewalEvent("P1", "", null, NOW)).toBeNull();
+  });
+});
+
+describe("Florida tax deadlines", () => {
+  it("CE.8 dates the homestead deadline, the TRIM month and a saved petition deadline from today on", () => {
+    const events = floridaTaxEvents("P1", "9 Basis Lane", "FL", [], NOW);
+    expect(events.map((e) => [e.uid, e.date])).toEqual([
+      ["tax-P1-homestead-2027", "2027-03-01"],
+      ["tax-P1-trim-2027", "2027-08-01"],
+    ]);
+    const [homestead, trim] = events;
+    expect(homestead.title).toBe("Homestead exemption deadline");
+    expect(homestead.description).toContain("9 Basis Lane");
+    expect(homestead.description).toContain("https://www.flsenate.gov/Laws/Statutes/2026/196.011");
+    expect(homestead.description).toMatch(/not tax advice/i);
+    expect(trim.title).toBe("Proposed property tax notice (TRIM) due this month");
+    expect(trim.description).toContain("https://floridarevenue.com/property/Documents/pt101.pdf");
+
+    // A homestead already applied for, or granted last year, needs no reminder.
+    expect(
+      floridaTaxEvents("P1", "", "Florida", [{ year: 2027, exemption: "Applied", petitionDeadline: "" }], NOW).map(
+        (e) => e.uid,
+      ),
+    ).toEqual(["tax-P1-trim-2027"]);
+    expect(
+      floridaTaxEvents("P1", "", "FL", [{ year: 2026, exemption: "Granted", petitionDeadline: "" }], NOW).map(
+        (e) => e.uid,
+      ),
+    ).toEqual(["tax-P1-trim-2027"]);
+
+    // A saved petition deadline replaces that year's TRIM reminder.
+    const saved = floridaTaxEvents(
+      "P1",
+      "",
+      "FL",
+      [
+        { year: 2027, exemption: "Granted", petitionDeadline: "2027-09-15" },
+        { year: 2026, exemption: "Granted", petitionDeadline: "2026-09-12" },
+      ],
+      NOW,
+    );
+    expect(saved.map((e) => [e.uid, e.date])).toEqual([["tax-P1-petition-2027", "2027-09-15"]]);
+    expect(saved[0].title).toBe("Property tax petition deadline");
+
+    expect(floridaTaxEvents("P1", "", "GA", [], NOW)).toEqual([]);
+  });
+});
+
+describe("collectCalendarEvents with insurance and taxes", () => {
+  it("CE.9 adds insurance renewals and Florida tax deadlines", () => {
+    const uids = collectCalendarEvents({
+      properties: [prop("P1", "9 Basis Lane"), { ...prop("P2", "4 Oak St"), state: "GA" } as Property],
+      jobs: [],
+      recurring: {},
+      systemAges: () => ({}),
+      insurance: { P1: policy(), P2: null },
+      taxYears: { P1: [] },
+      now: NOW,
+    }).map((e) => e.uid);
+    expect(uids).toContain("insurance-P1");
+    expect(uids).toContain("tax-P1-homestead-2027");
+    expect(uids).toContain("tax-P1-trim-2027");
+    expect(uids.some((u) => u.startsWith("tax-P2-"))).toBe(false);
+    expect(uids).not.toContain("insurance-P2");
   });
 });

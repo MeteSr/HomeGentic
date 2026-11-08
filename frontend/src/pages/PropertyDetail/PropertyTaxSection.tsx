@@ -4,6 +4,9 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/Button";
 import { Panel, SectionHeader, hudButtonStyle, hudInputStyle } from "@/components/hud";
 import { LoadError } from "@/components/LoadError";
+import { AddToCalendarButton } from "@/components/AddToCalendarButton";
+import type { IcsEvent } from "@homegentic/shared/ics";
+import { floridaTaxEvents } from "@/services/calendarEvents";
 import { errorMessage } from "@/services/candid";
 import {
   propertyTaxService,
@@ -134,7 +137,7 @@ function dueNow(r: TaxReminder): string {
 }
 
 /** #714: Florida's filing dates, from the checked table, with the official sources. */
-function FloridaDates({ reminders }: { reminders: TaxReminder[] }) {
+function FloridaDates({ reminders, calendar }: { reminders: TaxReminder[]; calendar: IcsEvent[] }) {
   const link = (s: { label: string; url: string }) => (
     <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--hg-blue)" }}>
       {s.label}
@@ -171,6 +174,12 @@ function FloridaDates({ reminders }: { reminders: TaxReminder[] }) {
           {dueNow(r)}
         </p>
       ))}
+      <AddToCalendarButton
+        event={calendar}
+        filename="florida-tax-dates"
+        label="Florida tax dates"
+        style={{ marginTop: "0.75rem" }}
+      />
     </section>
   );
 }
@@ -247,7 +256,12 @@ export function PropertyTaxSection({ propertyId, state }: { propertyId: string; 
         enter: it doesn't check them with the county, doesn't file anything for you and doesn't estimate savings. Not
         tax advice.
       </p>
-      {florida && <FloridaDates reminders={reminders} />}
+      {florida && (
+        <FloridaDates
+          reminders={reminders}
+          calendar={load === "ready" ? floridaTaxEvents(propertyId, "", state, years, new Date()) : []}
+        />
+      )}
       {load === "loading" && <p style={muted}>Loading your tax years…</p>}
       {load === "error" && <LoadError what="your tax years" onRetry={fetchYears} compact />}
       {load === "ready" && !f && (

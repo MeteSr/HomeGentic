@@ -1,13 +1,22 @@
 /**
  * What goes on the owner's calendar (#717): maintenance tasks, warranty end
- * dates and recurring-service visits, as all-day IcsEvents.
+ * dates, recurring-service visits, insurance renewals (#711) and Florida
+ * property-tax deadlines (#714), as all-day IcsEvents.
  *
  * Pure builders shared by the "Add to calendar" downloads and the private
  * subscribe feed (services/calendarFeed.ts). Dates match what the app shows:
  * maintenanceTaskDueDate is the Maintenance page's own scheduling rule.
  */
 import type { IcsEvent } from "@homegentic/shared/ics";
-import { rruleForFrequency } from "@homegentic/shared/ics";
+import { isIcsDate, rruleForFrequency } from "@homegentic/shared/ics";
+import {
+  FLORIDA_TAX_CALENDAR,
+  FLORIDA_TAX_SOURCES,
+  isFloridaState,
+  type TaxSource,
+  type TaxYearStatus,
+} from "@homegentic/shared/propertyTax";
+import type { InsurancePolicy } from "./insurancePolicy";
 import { maintenanceService, type AnnualTask } from "./maintenance";
 import type { Job } from "./job";
 import type { Property } from "./property";
@@ -109,12 +118,102 @@ export function recurringVisitEvent(service: RecurringService, visits: VisitLog[
   };
 }
 
+/**
+ * The policy's next renewal, or null once that date has passed. The policy
+ * number stays out: anyone with the subscribe link can read the feed.
+ */
+export function insuranceRenewalEvent(
+  propertyId: string,
+  address: string,
+  policy: InsurancePolicy | null,
+  now: Date = new Date(),
+): IcsEvent | null {
+  if (!policy || !isIcsDate(policy.renewalDate) || policy.renewalDate < localIso(now)) return null;
+  return {
+    uid: `insurance-${propertyId}`,
+    date: policy.renewalDate,
+    title: `Home insurance renews${policy.carrier ? ` (${policy.carrier})` : ""}`,
+    description: [address, "Check your coverage and premium before the policy renews."].filter(Boolean).join("\n"),
+  };
+}
+
+const TAX_NOTE = "A reminder from the dates you keep in HomeGentic, not tax advice.";
+const taxDescription = (address: string, text: string, source: TaxSource) =>
+  [address, text, `${source.label}: ${source.url}`, TAX_NOTE].filter(Boolean).join("\n");
+
+/**
+ * Florida property-tax dates from today on (the same rules as the Home Pulse
+ * reminders, without their reminder windows): the homestead exemption
+ * deadline unless that year is marked or last year's exemption was granted,
+ * the month the TRIM notice is mailed until that year's petition deadline is
+ * saved, and each saved petition deadline. Other states get nothing.
+ */
+export function floridaTaxEvents(
+  propertyId: string,
+  address: string,
+  state: string,
+  years: TaxYearStatus[],
+  now: Date = new Date(),
+): IcsEvent[] {
+  if (!isFloridaState(state)) return [];
+  const today = localIso(now);
+  const byYear = new Map(years.map((y) => [y.year, y]));
+  const out: IcsEvent[] = [];
+  for (const cal of Object.values(FLORIDA_TAX_CALENDAR)) {
+    const saved = byYear.get(cal.year);
+    const marked = saved !== undefined && saved.exemption !== "Unknown";
+    if (cal.homesteadDeadline >= today && !marked && byYear.get(cal.year - 1)?.exemption !== "Granted") {
+      out.push({
+        uid: `tax-${propertyId}-homestead-${cal.year}`,
+        date: cal.homesteadDeadline,
+        title: "Homestead exemption deadline",
+        description: taxDescription(
+          address,
+          `Apply with your county property appraiser by this date for the ${cal.year} tax year.`,
+          FLORIDA_TAX_SOURCES.homestead,
+        ),
+      });
+    }
+    const trim = `${cal.year}-${pad(cal.trimMonth)}-01`;
+    if (trim >= today && !saved?.petitionDeadline) {
+      out.push({
+        uid: `tax-${propertyId}-trim-${cal.year}`,
+        date: trim,
+        title: "Proposed property tax notice (TRIM) due this month",
+        description: taxDescription(
+          address,
+          "Your county mails the notice this month. The deadline to petition your value is printed on it; save it in HomeGentic to add it here.",
+          FLORIDA_TAX_SOURCES.petition,
+        ),
+      });
+    }
+  }
+  for (const y of years) {
+    if (!isIcsDate(y.petitionDeadline) || y.petitionDeadline < today) continue;
+    out.push({
+      uid: `tax-${propertyId}-petition-${y.year}`,
+      date: y.petitionDeadline,
+      title: "Property tax petition deadline",
+      description: taxDescription(
+        address,
+        "Last day to file a petition with the Value Adjustment Board, from your notice.",
+        FLORIDA_TAX_SOURCES.petition,
+      ),
+    });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export interface CalendarSources {
   properties: Property[];
   jobs: Job[];
   /** propertyId → its recurring services with their visit logs. */
   recurring: Record<string, { service: RecurringService; visits: VisitLog[] }[]>;
   systemAges: (propertyId: string) => SystemAges;
+  /** propertyId → its insurance policy on record. */
+  insurance?: Record<string, InsurancePolicy | null>;
+  /** propertyId → its saved tax years. */
+  taxYears?: Record<string, TaxYearStatus[]>;
   now?: Date;
 }
 
@@ -139,6 +238,9 @@ export function collectCalendarEvents(src: CalendarSources): IcsEvent[] {
       const e = recurringVisitEvent(service, visits, p.address);
       if (e) events.push(e);
     }
+    const renewal = insuranceRenewalEvent(pid, p.address, src.insurance?.[pid] ?? null, now);
+    if (renewal) events.push(renewal);
+    events.push(...floridaTaxEvents(pid, p.address, String(p.state), src.taxYears?.[pid] ?? [], now));
   }
   for (const j of src.jobs) {
     if (j.warrantyMonths && warrantyExpiry(j) < now.getTime()) continue;

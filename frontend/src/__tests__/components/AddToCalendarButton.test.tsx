@@ -4,6 +4,7 @@
  *  AC.1 clicking downloads <name>.ics holding the event
  *  AC.2 the button names what it adds, for screen readers
  *  AC.3 nothing to add renders nothing
+ *  AC.4 a list of events goes into one file
  */
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -53,5 +54,24 @@ describe("AddToCalendarButton", () => {
   it("AC.3 renders nothing without an event", () => {
     const { container } = render(<AddToCalendarButton event={null} filename="a" label="x" />);
     expect(container).toBeEmptyDOMElement();
+    const empty = render(<AddToCalendarButton event={[]} filename="a" label="x" />);
+    expect(empty.container).toBeEmptyDOMElement();
+  });
+
+  it("AC.4 puts a list of events in one file", async () => {
+    render(
+      <AddToCalendarButton
+        event={[
+          { uid: "tax-P1-homestead-2027", date: "2027-03-01", title: "Homestead exemption deadline" },
+          { uid: "tax-P1-trim-2027", date: "2027-08-01", title: "TRIM notice" },
+        ]}
+        filename="tax-dates"
+        label="tax dates"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add tax dates to calendar" }));
+    const text = await blobs[0].text();
+    expect(text.match(/BEGIN:VEVENT/g)).toHaveLength(2);
+    expect(clicked[0].download).toBe("tax-dates.ics");
   });
 });
