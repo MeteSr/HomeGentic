@@ -1,5 +1,7 @@
 /**
- * Off-chain photo bytes, kept in a PhotoStore (R2 in production).
+ * Off-chain photo bytes, kept in a PhotoStore (R2 in production). Besides
+ * images it takes PDFs (vault documents and lien waivers, #716), checked by
+ * their leading "%PDF-" bytes and served under a sandbox CSP.
  *
  * The photo canister keeps each photo's record, its SHA-256 and the access
  * rules; only the bytes live here. Flow:
@@ -46,6 +48,14 @@ export const ACCESS_CACHE_TTL_SECONDS = 60;
 export const READS_PER_MINUTE_PER_IP = 600;
 export const WRITES_PER_MINUTE_PER_PRINCIPAL = 30;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+/** Vault documents and lien waivers (#716). Stored only when the bytes start with "%PDF-". */
+const PDF_TYPE = "application/pdf";
+const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46, 0x2d];
+
+const isPdf = (bytes: ArrayBuffer) => {
+  const head = new Uint8Array(bytes, 0, Math.min(PDF_MAGIC.length, bytes.byteLength));
+  return head.length === PDF_MAGIC.length && PDF_MAGIC.every((b, i) => head[i] === b);
+};
 
 const objectKey = (id: string) => `photos/${id}`;
 
@@ -123,6 +133,8 @@ async function getPhoto(request: Request, id: string, env: KVEnv, deps: PhotoDep
       "Cache-Control": cacheControl,
       ETag: etag,
       "X-Content-Type-Options": "nosniff",
+      // A PDF opened straight from this origin gets no script or same-origin rights.
+      "Content-Security-Policy": "sandbox",
     },
   });
 }
@@ -134,7 +146,7 @@ async function putPhoto(request: Request, id: string, env: KVEnv, deps: PhotoDep
     return reply(429, { error: "too_many_requests" });
   }
   const contentType = (request.headers.get("Content-Type") ?? "").split(";")[0].trim().toLowerCase();
-  if (!IMAGE_TYPES.has(contentType)) return reply(415, { error: "unsupported_type" });
+  if (!IMAGE_TYPES.has(contentType) && contentType !== PDF_TYPE) return reply(415, { error: "unsupported_type" });
   const declared = Number(request.headers.get("Content-Length") ?? "0");
   if (declared > MAX_PHOTO_BYTES) return reply(413, { error: "too_large" });
 
@@ -147,6 +159,7 @@ async function putPhoto(request: Request, id: string, env: KVEnv, deps: PhotoDep
   if (bytes.byteLength > MAX_PHOTO_BYTES) return reply(413, { error: "too_large" });
   if (bytes.byteLength !== access.size) return reply(400, { error: "size_mismatch" });
   if ((await sha256Hex(bytes)) !== access.hash) return reply(400, { error: "hash_mismatch" });
+  if (contentType === PDF_TYPE && !isPdf(bytes)) return reply(415, { error: "unsupported_type" });
 
   // The same id always holds the same bytes, so a retried PUT is harmless.
   await store.put(objectKey(id), bytes, { contentType, sha256: access.hash, uploader: caller });

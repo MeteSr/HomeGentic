@@ -712,7 +712,7 @@ persistent actor Photo {
   };
 
   /// #716: the same with the bytes, stored on this canister, for files the
-  /// Worker doesn't take (PDFs) or when off-chain storage is off. Follows the
+  /// Worker doesn't take or when off-chain storage is off. Follows the
   /// on-chain switch like uploadPhoto.
   public shared(msg) func uploadWaiver(
     jobId: Text,
@@ -722,7 +722,7 @@ persistent actor Photo {
   ) : async Result.Result<PhotoMeta, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (not onChainUploadsEnabled and not isAdmin(msg.caller))
-      return #err(#InvalidInput("PDF uploads are off right now. Upload a photo of the signed waiver instead."));
+      return #err(#InvalidInput("That file type can't be uploaded right now. Upload the signed waiver as a PDF or a photo."));
     let (propertyId, docs, description) = switch (await* waiverTarget(msg.caller, jobId, filename)) {
       case (#err(e)) return #err(e);
       case (#ok(t)) t;

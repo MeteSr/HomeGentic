@@ -250,7 +250,7 @@ Multi-tab page — the main workspace for a property.
 
 - Per job: permit status Open / Closed / Expired (job canister `setPermitStatus`) and close-out papers, a final lien waiver or a Notice of Commencement, each a document in the home's vault filed on the job (`addJobPaper` / `removeJobPaper`, read with `getJobCloseouts`; side maps keyed by job id)
 - Contractor jobs over $2,500 without a final lien waiver on file are flagged; on Florida homes, jobs over $2,500 (HVAC: $15,000) note that a Notice of Commencement is generally expected (`services/jobCloseout.ts`)
-- The contractor who signed a job can attach its final lien waiver from the sign-off page (`/verify/:token`) or right after signing in the contractor dashboard: `photo.beginWaiverUpload` (photos, off-chain) or `photo.uploadWaiver` (PDFs, on-chain), vouched for by `job.waiverUploadTarget`
+- The contractor who signed a job can attach its final lien waiver from the sign-off page (`/verify/:token`) or right after signing in the contractor dashboard: `photo.beginWaiverUpload` (photos and PDFs, off-chain) or `photo.uploadWaiver` (on-chain, when off-chain storage isn't set up), vouched for by `job.waiverUploadTarget`
 - Resale Ready lists open and expired permits and larger jobs with no waiver; shared reports show permit counts (hidden with permits) and waivers on file (`report.getReportCloseout`, saved when the report is made)
 - Copy: the household's own record; never says a home is lien-free or a permit is closed unless recorded; a title search shows recorded liens; not legal advice
 

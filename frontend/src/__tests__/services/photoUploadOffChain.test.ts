@@ -109,14 +109,14 @@ describe("uploadPhotoPreferOffChain", () => {
 });
 
 /**
- * #716: a contractor's final lien waiver. Photos of the signed paper go to
- * off-chain storage (photo.beginWaiverUpload, then the Worker PUT); PDFs,
- * which the Worker doesn't store, and uploads with no off-chain storage go
- * on-chain (photo.uploadWaiver).
+ * #716: a contractor's final lien waiver. Photos and PDFs of the signed paper
+ * go to off-chain storage (photo.beginWaiverUpload, then the Worker PUT);
+ * other file types, and uploads with no off-chain storage, go on-chain
+ * (photo.uploadWaiver).
  *
  * PWAIV.1 an image begins off-chain with the job id and file name, then PUTs the bytes
  * PWAIV.2 without off-chain storage or a session it goes on-chain
- * PWAIV.3 a PDF goes on-chain even when off-chain storage is on
+ * PWAIV.3 a PDF goes off-chain too; a type the Worker doesn't store goes on-chain
  * PWAIV.4 a canister refusal is returned as is
  * PWAIV.5 a retry after a failed PUT sends the bytes to the record already made
  * PWAIV.6 a failed PUT is reported, not hidden (the contractor can't delete the record)
@@ -150,10 +150,18 @@ describe("uploadWaiverPreferOffChain", () => {
     }
   });
 
-  it("PWAIV.3 sends a PDF on-chain", async () => {
+  it("PWAIV.3 sends a PDF off-chain and other types on-chain", async () => {
     const a = waiverActor();
-    expect(await uploadWaiverPreferOffChain(a, PDF, deps(worker()))).toEqual({ ok: { id: "ONCHAIN_W" } });
-    expect(a.beginWaiverUpload).not.toHaveBeenCalled();
+    const fetchFn = worker();
+    expect(await uploadWaiverPreferOffChain(a, PDF, deps(fetchFn))).toEqual({ ok: { id: "PHOTO_W" } });
+    const put = fetchFn.mock.calls.find(([, init]) => init?.method === "PUT")!;
+    expect((put[1] as RequestInit).headers).toMatchObject({ "Content-Type": "application/pdf" });
+    expect(a.uploadWaiver).not.toHaveBeenCalled();
+
+    const b = waiverActor();
+    const doc = { ...W, filename: "waiver.docx", contentType: "application/octet-stream" };
+    expect(await uploadWaiverPreferOffChain(b, doc, deps(worker()))).toEqual({ ok: { id: "ONCHAIN_W" } });
+    expect(b.beginWaiverUpload).not.toHaveBeenCalled();
   });
 
   it("PWAIV.4 returns a canister refusal as is", async () => {

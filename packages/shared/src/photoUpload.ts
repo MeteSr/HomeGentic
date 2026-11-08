@@ -101,13 +101,13 @@ export interface WaiverUploadArgs {
   contentType: string;
 }
 
-/** What the Worker stores (its PUT /photos accepts images only). */
-const OFF_CHAIN_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+/** What the Worker's PUT /photos stores: images, and PDFs that really are PDFs. */
+const OFF_CHAIN_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"]);
 
 /**
  * #716: uploads the final lien waiver of a job the caller signed, as a
- * contractor, into the home's document vault. Images go off-chain when the
- * Worker stores photos; PDFs and everything else go on-chain. Returns the
+ * contractor, into the home's document vault. Images and PDFs go off-chain
+ * when the Worker stores photos; anything else goes on-chain. Returns the
  * canister's Result, or `{ putFailed: true }` when the bytes didn't reach the
  * Worker: the contractor can't delete the record (they have no access to the
  * home), so a retry re-sends the bytes to it (beginWaiverUpload answers
