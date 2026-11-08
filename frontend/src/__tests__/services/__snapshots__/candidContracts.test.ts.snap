@@ -99,6 +99,7 @@ verifyContractor(1) -> (1)"
 
 exports[`Candid contract snapshots — method arity > job 1`] = `
 "addInboxRelay(1) -> (1)
+addJobPaper(3) -> (1)
 approveJobProposal(1) -> (1)
 createInviteToken(2) -> (1)
 createJob(11) -> (1)
@@ -109,6 +110,7 @@ getApiDoc(0) -> (1) [query]
 getCertificationData(1) -> (1) [query]
 getJob(1) -> (1) [query]
 getJobByInviteToken(1) -> (1) [query]
+getJobCloseouts(1) -> (1) [composite_query]
 getJobCostCategories(1) -> (1) [composite_query]
 getJobsByOwner(1) -> (1) [query]
 getJobsForProperties(1) -> (1) [composite_query]
@@ -128,9 +130,11 @@ rejectJobProposal(1) -> (1)
 relayAddEmailDraft(2) -> (1)
 relayCheckInboxToken(1) -> (1) [query]
 removeInboxRelay(1) -> (1)
+removeJobPaper(2) -> (1)
 resetMyInboxToken(0) -> (1)
 setFeeCanisterId(1) -> (1)
 setJobCostCategory(2) -> (1)
+setPermitStatus(2) -> (1)
 setPropertyCanisterId(1) -> (1)
 updateJob(10) -> (1)
 updateJobStatus(2) -> (1)
@@ -269,6 +273,7 @@ verifyStripeSession(1) -> (1)"
 exports[`Candid contract snapshots — method arity > photo 1`] = `
 "addPhotoRelay(1) -> (1)
 beginUpload(6) -> (1)
+beginWaiverUpload(4) -> (1)
 deleteMyData(0) -> (1)
 deletePhoto(1) -> (1)
 getGuidePhotoData(2) -> (1) [composite_query]
@@ -283,7 +288,8 @@ guidePhotoAccess(2) -> (1) [composite_query]
 photoAccess(2) -> (1) [composite_query]
 removePhotoRelay(1) -> (1)
 setPropertyCanisterId(1) -> (1)
-uploadPhoto(6) -> (1)"
+uploadPhoto(6) -> (1)
+uploadWaiver(4) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > property 1`] = `
@@ -294,9 +300,11 @@ addInventoryItem(2) -> (1)
 addMoveInTasks(2) -> (1)
 addSpecialAssessment(2) -> (1)
 cancelManagerInvite(2) -> (1)
+cancelSuccessionClaim(1) -> (1)
 cancelTransfer(1) -> (1)
 claimManagerRole(1) -> (1)
 claimTransfer(1) -> (1)
+completeSuccessionClaim(1) -> (1)
 createHouseGuideLink(3) -> (1)
 createInsuranceClaim(2) -> (1)
 deleteArchitecturalReview(1) -> (1)
@@ -305,6 +313,7 @@ deleteInsuranceClaim(1) -> (1)
 deleteInventoryItem(1) -> (1)
 deleteMoveInTask(2) -> (1)
 deleteMyData(0) -> (1)
+deletePropertyTaxYear(2) -> (1)
 deleteSpecialAssessment(1) -> (1)
 dismissNotifications(1) -> (1)
 endMoveInPlan(1) -> (1)
@@ -328,6 +337,9 @@ getMortgageLoan(1) -> (1) [query]
 getMoveInPlan(1) -> (1) [query]
 getMyManagedProperties(0) -> (1) [query]
 getMyProperties(0) -> (1) [query]
+getMySuccessionClaims(0) -> (1) [query]
+getNotificationEvents(2) -> (1) [query]
+getOpenSuccessionClaim(1) -> (1) [query]
 getOwnerNotifications(1) -> (1) [query]
 getOwnershipHistory(1) -> (1) [query]
 getPendingInvitesForProperty(1) -> (1) [query]
@@ -341,13 +353,19 @@ getPropertyByTransferToken(1) -> (1) [query]
 getPropertyLimitForTier(1) -> (1) [query]
 getPropertyManagers(1) -> (1) [query]
 getPropertyOwner(1) -> (1) [query]
+getPropertyTaxYears(1) -> (1) [query]
 getPropertyYearBuilt(1) -> (1) [query]
 getPulseHomeFinance(1) -> (1) [query]
 getPulseInsurance(1) -> (1) [query]
 getPulseProperties(1) -> (1) [query]
+getPulsePropertyTax(1) -> (1) [query]
 getRoomsByProperty(1) -> (1) [query]
 getSharedHouseGuide(1) -> (1) [query]
 getSpecialAssessments(1) -> (1) [query]
+getSuccessionInvite(1) -> (1) [query]
+getSuccessionNotice(1) -> (1) [query]
+getSuccessionProof(1) -> (1) [query]
+getSuccessor(1) -> (1) [query]
 getVerificationLevel(1) -> (1) [query]
 getVerifyStatus(1) -> (1) [query]
 initiateTransfer(1) -> (1)
@@ -355,16 +373,20 @@ inviteManager(4) -> (1)
 isAdminPrincipal(1) -> (1) [query]
 isAuthorized(3) -> (1) [query]
 listHouseGuideLinks(1) -> (1) [query]
+listSuccessionClaimsForReview(0) -> (1) [query]
 markIdentityCleared(3) -> (1)
+openSuccessionClaim(3) -> (1)
 recordManagerActivity(2) -> (1)
 registerProperty(1) -> (1)
 relayFloodTarget(2) -> (1) [query]
 relayMarkIdentityCleared(4) -> (1)
 relaySetFloodZone(3) -> (1)
 removeManager(2) -> (1)
+removeSuccessor(1) -> (1)
 requestApproval(3) -> (1)
 resignAsManager(1) -> (1)
 respondToApproval(3) -> (1)
+reviewSuccessionClaim(3) -> (1)
 revokeHouseGuideLink(1) -> (1)
 setCondoAssociationRecord(2) -> (1)
 setHomeWarrantyPlan(2) -> (1)
@@ -372,6 +394,8 @@ setHouseGuide(2) -> (1)
 setInsurancePolicy(2) -> (1)
 setMortgageLoan(2) -> (1)
 setMoveInStep(3) -> (1)
+setPropertyTaxYear(2) -> (1)
+setSuccessor(2) -> (1)
 startMoveInPlan(1) -> (1)
 submitVerification(4) -> (1)
 updateArchitecturalReview(2) -> (1)
@@ -441,6 +465,7 @@ getBillsSummary(1) -> (1) [query]
 getCertAttestation(1) -> (1) [query]
 getReport(1) -> (1)
 getReportAttestation(1) -> (1) [query]
+getReportCloseout(1) -> (1) [query]
 getReportScore(1) -> (1) [query]
 getRiskProfile(1) -> (1) [query]
 hasActivePublicShareLink(1) -> (1) [query]

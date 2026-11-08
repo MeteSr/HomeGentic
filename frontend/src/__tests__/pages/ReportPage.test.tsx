@@ -15,14 +15,15 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import ReportPage from "@/pages/ReportPage";
 import type { ReportSnapshot, ShareLink, JobInput } from "@/services/report";
 
-const { mockGetReport, mockGetBillsSummary, mockExpiryLabel } = vi.hoisted(() => ({
+const { mockGetReport, mockGetBillsSummary, mockExpiryLabel, mockGetCloseout } = vi.hoisted(() => ({
   mockGetReport: vi.fn(),
+  mockGetCloseout: vi.fn(async (): Promise<any> => null),
   mockGetBillsSummary: vi.fn(async (): Promise<any> => null),
   mockExpiryLabel: vi.fn(() => "Expires in 30 days"),
 }));
 vi.mock("@/services/report", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/report")>();
-  return { ...actual, reportService: { getReport: mockGetReport, getBillsSummary: mockGetBillsSummary, expiryLabel: mockExpiryLabel } };
+  return { ...actual, reportService: { getReport: mockGetReport, getBillsSummary: mockGetBillsSummary, getCloseout: mockGetCloseout, expiryLabel: mockExpiryLabel } };
 });
 vi.mock("@/components/DocumentedValueSection", () => ({ DocumentedValueSection: () => <div data-testid="value-section" /> }));
 
@@ -193,5 +194,40 @@ describe("ReportPage — monthly costs", () => {
     expect(mockGetBillsSummary).not.toHaveBeenCalled();
     expect(screen.queryByText("Monthly Costs")).not.toBeInTheDocument();
     mockGetBillsSummary.mockImplementation(async () => null);
+  });
+});
+
+describe("ReportPage — permits and lien waivers (#716)", () => {
+  const closeout = (over: any = {}) => ({
+    permits: { open: 1, closed: 2, expired: 0, unrecorded: 1 },
+    largeJobs: 3, largeJobsWithWaiver: 2, thresholdCents: 250_000, ...over,
+  });
+
+  it("shows permit counts and waivers on file as the homeowner's record", async () => {
+    mockGetReport.mockResolvedValue({ link: makeLink(), snapshot: makeSnapshot() });
+    mockGetCloseout.mockResolvedValue(closeout());
+    renderAt("/report/tok-1");
+    expect(await screen.findByText("Permits and Lien Waivers")).toBeInTheDocument();
+    expect(screen.getByText(/2 closed, 1 open, 1 with no status recorded/i)).toBeInTheDocument();
+    expect(screen.getByText(/final lien waiver on file for 2 of 3 contractor jobs over \$2,500/i)).toBeInTheDocument();
+    expect(screen.getByText(/title search/i)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/lien[- ]free/i);
+    expect(mockGetCloseout).toHaveBeenCalledWith("tok-1");
+  });
+
+  it("leaves out permit counts when the link hides them", async () => {
+    mockGetReport.mockResolvedValue({ link: makeLink(), snapshot: makeSnapshot() });
+    mockGetCloseout.mockResolvedValue(closeout({ permits: null }));
+    renderAt("/report/tok-1");
+    expect(await screen.findByText(/final lien waiver on file for 2 of 3/i)).toBeInTheDocument();
+    expect(screen.queryByText(/with no status recorded/i)).not.toBeInTheDocument();
+  });
+
+  it("shows nothing for an older report or when there is nothing to show", async () => {
+    mockGetReport.mockResolvedValue({ link: makeLink(), snapshot: makeSnapshot() });
+    mockGetCloseout.mockResolvedValue(closeout({ permits: { open: 0, closed: 0, expired: 0, unrecorded: 0 }, largeJobs: 0, largeJobsWithWaiver: 0 }));
+    renderAt("/report/tok-1");
+    await screen.findByText("123 Main St", { exact: false });
+    expect(screen.queryByText("Permits and Lien Waivers")).not.toBeInTheDocument();
   });
 });

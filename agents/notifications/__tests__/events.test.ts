@@ -108,6 +108,7 @@ describe("notificationsFor", () => {
     getQuoteRequest: jest.fn(async () => req),
     getContractors:  jest.fn(async () => contractors),
     isPro:           jest.fn(pro),
+    getSuccessionNotice: jest.fn(async () => null),
   });
 
   it("sends a recipient event to its recipient", async () => {

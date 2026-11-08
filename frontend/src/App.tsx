@@ -50,7 +50,11 @@ const VerifyExpiredPage         = React.lazy(() => import("@/pages/PropertyVerif
 const VerifyContestedPage       = React.lazy(() => import("@/pages/PropertyVerify/VerifyContestedPage"));
 const SystemAgesPage             = React.lazy(() => import("@/pages/SystemAgesPage"));
 const ImprovementsRecordPage     = React.lazy(() => import("@/pages/ImprovementsRecordPage"));
+const JobCloseoutPage           = React.lazy(() => import("@/pages/JobCloseoutPage"));
 const MoveInPlanPage             = React.lazy(() => import("@/pages/MoveInPlanPage"));
+const SuccessorPage              = React.lazy(() => import("@/pages/SuccessorPage"));
+const SuccessorClaimPage         = React.lazy(() => import("@/pages/SuccessorClaimPage"));
+const SuccessorClaimsPage        = React.lazy(() => import("@/pages/SuccessorClaimsPage"));
 const JobCreatePage              = React.lazy(() => import("@/pages/JobCreatePage"));
 const JobsPage                   = React.lazy(() => import("@/pages/JobsPage"));
 const QuoteRequestPage           = React.lazy(() => import("@/pages/QuoteRequestPage"));
@@ -196,6 +200,8 @@ export default function App() {
           <Route path="/my-listing/:propertyId" element={<ProtectedRoute><FsboListingManagerPage /></ProtectedRoute>} />
           <Route path="/for-sale/:propertyId"    element={<FsboListingPage />} />
           <Route path="/transfer/claim/:token" element={<PropertyTransferClaimPage />} />
+          <Route path="/successor/:token" element={<SuccessorClaimPage />} />
+          <Route path="/successor-claims" element={<ProtectedRoute><SuccessorClaimsPage /></ProtectedRoute>} />
           <Route path="/manage/claim/:token"   element={<PropertyManagerClaimPage />} />
 
           <Route path="/register"     element={<ProtectedRoute><RegisterPage /></ProtectedRoute>} />
@@ -219,8 +225,10 @@ export default function App() {
           </Route>
           <Route path="/properties/:id/systems" element={<ProtectedRoute><SystemAgesPage /></ProtectedRoute>} />
           <Route path="/properties/:id/improvements" element={<ProtectedRoute><ImprovementsRecordPage /></ProtectedRoute>} />
+          <Route path="/properties/:id/closeout" element={<ProtectedRoute><JobCloseoutPage /></ProtectedRoute>} />
           <Route path="/properties/:id/move-in" element={<ProtectedRoute><MoveInPlanPage /></ProtectedRoute>} />
           <Route path="/properties/:id/emergency" element={<ProtectedRoute><EmergencyCardPage /></ProtectedRoute>} />
+          <Route path="/properties/:id/successor" element={<ProtectedRoute><SuccessorPage /></ProtectedRoute>} />
           <Route path="/jobs"         element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
           <Route path="/jobs/new"     element={<ProtectedRoute><JobCreatePage /></ProtectedRoute>} />
           <Route path="/quotes/new"   element={<ProtectedRoute><QuoteRequestPage /></ProtectedRoute>} />

@@ -13,6 +13,7 @@ import { Panel, hudInputStyle, hudButtonStyle, spinnerVars } from "@/components/
 import toast from "react-hot-toast";
 import { HousingCostsSection } from "./HousingCostsSection";
 import { MortgageSection } from "./MortgageSection";
+import { PropertyTaxSection } from "./PropertyTaxSection";
 import { propertyService, type AccessRole } from "@/services/property";
 import { billsPermissions } from "@/services/billsAccess";
 import { useAuthStore } from "@/store/authStore";
@@ -202,6 +203,9 @@ export function BillsTab({ propertyId, state, zipCode }: { propertyId: string; s
       )}
 
       <HousingCostsSection propertyId={propertyId} onExpensesChange={setExpenses} permissions={permissions} />
+
+      {/* #714: the property-tax years next to the Property Tax cost; owner and co-owners only. */}
+      {permissions.canAddMortgage && <PropertyTaxSection propertyId={propertyId} state={state} />}
 
       {/* #722: owner and co-owners only, like the mortgage expense. */}
       {permissions.canAddMortgage && <MortgageSection propertyId={propertyId} />}

@@ -85,6 +85,15 @@ export interface BillsSummary {
   asOf:  string;   // YYYY-MM-DD
 }
 
+/** #716: what a report shows about permits and lien waivers. Counts from the
+ *  household's own record; permits is null when the link hides permits. */
+export interface ReportCloseout {
+  permits: { open: number; closed: number; expired: number; unrecorded: number } | null;
+  largeJobs: number;
+  largeJobsWithWaiver: number;
+  thresholdCents: number;
+}
+
 export const BILLS_SUMMARY_LABELS: Record<BillsSummaryCategory, string> = {
   Electric:      "Electricity",
   Gas:           "Gas",
@@ -458,6 +467,24 @@ function createReportService() {
     const a = await getActor();
     const result = await a.getBillsSummary(token) as any[];
     return result.length > 0 ? fromBillsSummary(result[0]) : null;
+  },
+
+  /** #716: permit counts and larger contractor jobs with a waiver on file,
+   *  as the report was made; null for older reports or unviewable links. */
+  async getCloseout(token: string): Promise<ReportCloseout | null> {
+    if (typeof window !== "undefined" && "__e2e_report_closeout" in window) {
+      return (window as any).__e2e_report_closeout as ReportCloseout | null;
+    }
+    const a = await getActor();
+    const [raw] = await a.getReportCloseout(token);
+    if (!raw) return null;
+    const p = raw.permits[0];
+    return {
+      permits: p ? { open: Number(p.open), closed: Number(p.closed), expired: Number(p.expired), unrecorded: Number(p.unrecorded) } : null,
+      largeJobs: Number(raw.largeJobs),
+      largeJobsWithWaiver: Number(raw.largeJobsWithWaiver),
+      thresholdCents: Number(raw.thresholdCents),
+    };
   },
 
   /** Public /check lookup: the newest public report whose street address matches (anonymous query). */

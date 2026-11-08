@@ -132,6 +132,23 @@ persistent actor Report {
     asOf  : Text;   // YYYY-MM-DD
   };
 
+  /// #716: where the home's permits and lien waivers stood when the report
+  /// was made, from what the household recorded on its jobs. Counts only.
+  public type PermitCounts = { open : Nat; closed : Nat; expired : Nat; unrecorded : Nat };
+  public type CloseoutSummary = {
+    permits             : PermitCounts;
+    largeJobs           : Nat;   // contractor jobs over thresholdCents
+    largeJobsWithWaiver : Nat;   // of those, with a final lien waiver filed
+    thresholdCents      : Nat;
+  };
+  /// What getReportCloseout returns: permits is null on a link that hides them.
+  public type CloseoutView = {
+    permits             : ?PermitCounts;
+    largeJobs           : Nat;
+    largeJobsWithWaiver : Nat;
+    thresholdCents      : Nat;
+  };
+
   /// Immutable snapshot of property state at time of report generation.
   public type ReportSnapshot = {
     snapshotId:         Text;
@@ -246,6 +263,12 @@ persistent actor Report {
   /// Keyed by snapshotId. Kept out of ReportSnapshot, which lives in a Map
   /// (invariant), so adding a field there would need an explicit migration.
   private let billsSummaries = Map.empty<Text, BillsSummary>();
+  /// #716: snapshotId → close-out summary (same reason as billsSummaries).
+  private let closeoutSummaries = Map.empty<Text, CloseoutSummary>();
+  /// #716: contractor jobs above this amount are counted for lien waivers.
+  /// Florida generally requires a Notice of Commencement on direct contracts
+  /// over $2,500; HomeGentic uses the same line for "larger jobs".
+  private transient let LARGE_JOB_CENTS : Nat = 250_000;
 
   /// Owners who turned off "Public HomeGentic Report" in Settings → Privacy.
   /// While they're in here every #Public link they created behaves as
@@ -303,6 +326,7 @@ persistent actor Report {
       #getApiDoc : Any;
       #getAttestationKey : Any;
       #getBillsSummary : Any;
+      #getReportCloseout : Any;
       #getCertAttestation : Any;
       #getMetrics : Any;
       #getReport : Any;
@@ -469,6 +493,52 @@ persistent actor Report {
         else { { j with verified = false } }
       })
     } catch (_) { null }
+  };
+
+  type PaperRec = { kind : { #FinalLienWaiver; #NoticeOfCommencement }; photoId : Text; addedBy : Principal; addedAt : Int };
+  type CloseoutRec = { jobId : Text; permitStatus : ?{ #Open; #Closed; #Expired }; papers : [PaperRec] };
+
+  /// #716: the job canister's close-outs for a property. Null when it isn't
+  /// wired or doesn't answer (the report is still made, without a summary).
+  private func fetchCloseouts(propertyId : Text) : async ?[CloseoutRec] {
+    if (Text.size(riskJobCanisterId) == 0) return null;
+    let jobActor = actor(riskJobCanisterId) : actor {
+      getCloseoutsForProperty : query (Text) -> async [CloseoutRec];
+    };
+    try { ?(await jobActor.getCloseoutsForProperty(propertyId)) } catch (_) { null }
+  };
+
+  /// #716: count permits by status and larger contractor jobs with a waiver.
+  /// Open or rejected proposals aren't part of the record.
+  private func closeoutSummary(js : [JobRec], cs : [CloseoutRec]) : CloseoutSummary {
+    var open = 0; var closed = 0; var expired = 0; var unrecorded = 0;
+    var large = 0; var withWaiver = 0;
+    for (j in js.values()) {
+      if (j.status != #PendingHomeownerApproval and j.status != #RejectedByHomeowner) {
+        let c = cs.find(func(c : CloseoutRec) : Bool { c.jobId == j.id });
+        let status = switch c { case (?c) c.permitStatus; case null null };
+        switch status {
+          case (?#Open) open += 1;
+          case (?#Closed) closed += 1;
+          case (?#Expired) expired += 1;
+          case null { if (j.permitNumber != null) unrecorded += 1 };
+        };
+        if (not j.isDiy and j.amount > LARGE_JOB_CENTS) {
+          large += 1;
+          let hasWaiver = switch c {
+            case (?c) c.papers.any(func(p : PaperRec) : Bool { p.kind == #FinalLienWaiver });
+            case null false;
+          };
+          if (hasWaiver) withWaiver += 1;
+        };
+      };
+    };
+    {
+      permits = { open; closed; expired; unrecorded };
+      largeJobs = large;
+      largeJobsWithWaiver = withWaiver;
+      thresholdCents = LARGE_JOB_CENTS;
+    }
   };
 
   /// Frontend display label for a service type (matches serviceTypes.ts).
@@ -944,9 +1014,14 @@ persistent actor Report {
     switch (prop.verificationLevel) { case (#Basic or #Premium) {}; case _ { return #err(#UnverifiedProperty) } };
 
     // ── Authoritative job list ──────────────────────────────────────────────
-    let onChainJobs : [JobInput] = switch (await fetchJobs(propertyId)) {
+    let jobRecs : [JobRec] = switch (await fetchJobs(propertyId)) {
       case null { return #err(#Unavailable("Could not load job history; try again later")) };
-      case (?js) { jobsToInputs(js) };
+      case (?js) { js };
+    };
+    let onChainJobs : [JobInput] = jobsToInputs(jobRecs);
+    let closeout : ?CloseoutSummary = switch (await fetchCloseouts(propertyId)) {
+      case (?cs) ?closeoutSummary(jobRecs, cs);
+      case null null;
     };
 
     let (snapshotId, token) = await nextIds();
@@ -989,6 +1064,7 @@ persistent actor Report {
       case (?b) { if (b.lines.size() > 0) billsSummaries.add(snapshotId, b) };
       case null {};
     };
+    switch (closeout) { case (?c) closeoutSummaries.add(snapshotId, c); case null {} };
 
     let expiresAt : ?Time.Time = switch (expiryDays) {
       case null    { null };
@@ -1083,6 +1159,29 @@ persistent actor Report {
         if (effectiveVisibility(link) == #BuyerOnly and msg.caller.isAnonymous()) return null;
         if (link.hideAmounts == ?true) return null;
         billsSummaries.get(link.snapshotId)
+      };
+    }
+  };
+
+  /// #716: the close-out summary of a report (permit counts by status, and
+  /// larger contractor jobs with a final lien waiver on file), under the same
+  /// rules as getReport. Permit counts are left out on a link that hides
+  /// permits. Null for reports made before #716.
+  public query(msg) func getReportCloseout(token: Text) : async ?CloseoutView {
+    switch (links.get(token)) {
+      case null null;
+      case (?link) {
+        if (not link.isActive or isExpired(link)) return null;
+        if (effectiveVisibility(link) == #BuyerOnly and msg.caller.isAnonymous()) return null;
+        switch (closeoutSummaries.get(link.snapshotId)) {
+          case null null;
+          case (?c) ?{
+            permits = if (link.hidePermits == ?true) null else ?c.permits;
+            largeJobs = c.largeJobs;
+            largeJobsWithWaiver = c.largeJobsWithWaiver;
+            thresholdCents = c.thresholdCents;
+          };
+        }
       };
     }
   };
@@ -1265,6 +1364,7 @@ persistent actor Report {
       snapshots.remove(id);
       Index.remove(snapshotsByCreator, caller.toText(), id);
       billsSummaries.remove(id);
+      closeoutSummaries.remove(id);
       reportScores.remove(id);
       attestations.remove("report:" # id);
       removed += 1;

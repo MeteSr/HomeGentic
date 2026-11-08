@@ -26,6 +26,9 @@ vi.mock("@/store/authStore", () => ({
   useAuthStore: (sel: (s: { principal: string }) => unknown) => sel({ principal: "me" }),
 }));
 
+vi.mock("@/pages/PropertyDetail/PropertyTaxSection", () => ({
+  PropertyTaxSection: () => <div data-testid="property-tax" />,
+}));
 vi.mock("@/pages/PropertyDetail/MortgageSection", () => ({
   MortgageSection: ({ propertyId }: { propertyId: string }) => <div data-testid="mortgage">{propertyId}</div>,
 }));

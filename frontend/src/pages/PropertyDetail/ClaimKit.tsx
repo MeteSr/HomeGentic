@@ -223,8 +223,13 @@ function ClaimCard({
   useEffect(() => {
     photoService
       .getByJob(claimPhotoJobId(claim.id))
-      .then((list) => setPhotos([...list].sort((a, b) => a.createdAt - b.createdAt)))
-      .catch(() => setPhotos([]));
+      // Keep any photo uploaded while the list was loading (the list may predate it).
+      .then((list) =>
+        setPhotos((prev) =>
+          [...list, ...prev.filter((p) => !list.some((l) => l.id === p.id))].sort((a, b) => a.createdAt - b.createdAt),
+        ),
+      )
+      .catch(() => {});
   }, [claim.id]);
 
   const run = async (what: string, fn: () => Promise<void>) => {

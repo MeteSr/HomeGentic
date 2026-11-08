@@ -10,7 +10,8 @@ module {
     "- `getJobsForProperty(propertyId)`: the same for one property, but it is an update call.\n" #
     "- `getJob(jobId)` (query): one job.\n" #
     "- `getJobsPendingMySignature()` (query): jobs waiting for the caller to sign. `getPendingProposals()` (query): jobs a contractor proposed for the caller's homes.\n" #
-    "- `getJobCostCategories(propertyIds)` (composite query): the owner's improvement-or-repair marks, as (jobId, #Improvement or #Repair) pairs, for the given properties the caller may see. Jobs the owner hasn't marked are left out.\n\n" #
+    "- `getJobCostCategories(propertyIds)` (composite query): the owner's improvement-or-repair marks, as (jobId, #Improvement or #Repair) pairs, for the given properties the caller may see. Jobs the owner hasn't marked are left out.\n" #
+    "- `getJobCloseouts(propertyIds)` (composite query): for each job with any, its permit status (`#Open`, `#Closed` or `#Expired`, as the household recorded it) and its close-out papers: a final lien waiver or a Notice of Commencement, each a document id in the home's document vault, with who filed it. A recorded status is the household's own note, not a check with the permit office, and a waiver on file doesn't show that the home is free of liens: only a title search does.\n\n" #
     "## Changing\n" #
     "- `createJob(propertyId, title, serviceType, description, contractorName, amount, completedDate, permitNumber, warrantyMonths, isDiy, sourceQuoteId)`: records a job. `amount` is in cents, at most 100,000,000 ($1,000,000). It must be above 0, with a `contractorName`, unless `isDiy` is true. `completedDate` is in nanoseconds and can't be in the future. For work with no service type of its own, use `Other` with the title set to one of Inspection, Appliance Repair, Garage Door, Septic, Well & Water Treatment, Chimney, Generator, Tree Service, Security & Alarm, Mold & Radon; the app and reports show that title as the kind of work.\n" #
     "- `updateJob(...)` and `updateJobStatus(jobId, status)`: edit a job that isn't verified yet. A verified job returns `#AlreadyVerified`.\n" #
@@ -18,6 +19,8 @@ module {
     "- `linkContractor(jobId, contractor)` attaches a contractor's HomeGentic account to a job so they can sign it.\n" #
     "- `createInviteToken(...)` makes a link the homeowner sends to a contractor so they can sign.\n" #
     "- `setJobCostCategory(jobId, category)`: marks a job as `#Improvement` or `#Repair` in the owner's improvements record, or clears the mark with null. Needs write access to the home (owner, co-owner or manager). Works on verified jobs too, since the mark isn't part of what was signed. It is the owner's own note for their tax preparer, not a tax determination, and it can be changed at any time.\n" #
+    "- `setPermitStatus(jobId, status)`: records a job's permit as `#Open`, `#Closed` or `#Expired`, or clears it with null. Needs write access to the home. Works on verified jobs.\n" #
+    "- `addJobPaper(jobId, kind, photoId)`: files a vault document on a job as its `#FinalLienWaiver` or `#NoticeOfCommencement`; filing the same document again replaces it, and a job holds up to 10. Needs write access to the home, except that the contractor who signed the job may file its final lien waiver. A DIY job takes no lien waiver. `removeJobPaper(jobId, photoId)` takes it off the job again (the document stays in the vault).\n" #
     "- `approveJobProposal(jobId)` / `rejectJobProposal(jobId)` accept or decline a job a contractor proposed. Rejecting deletes the proposal.\n\n" #
     Shared.common()
   };

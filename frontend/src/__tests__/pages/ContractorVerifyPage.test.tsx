@@ -37,6 +37,10 @@ vi.mock("@/services/job", async (importOriginal) => {
   return { ...actual, jobService: { getJobByInviteToken: mockGetByToken, redeemInviteToken: mockRedeem } };
 });
 
+vi.mock("@/components/LienWaiverUpload", () => ({
+  LienWaiverUpload: ({ jobId }: { jobId: string }) => <div data-testid="waiver-upload">{jobId}</div>,
+}));
+
 function makePreview(overrides: Partial<InvitePreview> = {}): InvitePreview {
   return {
     jobId: "job-1", title: "Roof repair", serviceType: "Roofing",
@@ -211,5 +215,37 @@ describe("ContractorVerifyPage — not signed in", () => {
     expect(mockRedeem).not.toHaveBeenCalled();
     // Still on the form, so they can try again.
     expect(screen.getByRole("button", { name: /sign in & confirm/i })).toBeEnabled();
+  });
+});
+
+describe("ContractorVerifyPage — final lien waiver (#716)", () => {
+  it("offers to attach the job's final lien waiver once the signature is recorded", async () => {
+    mockGetByToken.mockResolvedValue(makePreview({ jobId: "job-77" }));
+    mockRedeem.mockResolvedValue({});
+    renderAt("/verify/tok-123");
+    await fillIdentityForm();
+    fireEvent.click(screen.getByText("Confirm & Sign →"));
+    expect(await screen.findByText("Signature recorded")).toBeInTheDocument();
+    expect(screen.getByTestId("waiver-upload")).toHaveTextContent("job-77");
+  });
+
+  it("offers it on an already-signed job to a signed-in visitor, not before signing", async () => {
+    mockGetByToken.mockResolvedValue(makePreview({ jobId: "job-78", alreadySigned: true }));
+    renderAt("/verify/tok-123");
+    expect(await screen.findByText("You've already signed this job.")).toBeInTheDocument();
+    expect(screen.getByTestId("waiver-upload")).toHaveTextContent("job-78");
+  });
+
+  it("doesn't offer it before the job is signed or to a visitor who isn't signed in", async () => {
+    mockGetByToken.mockResolvedValue(makePreview());
+    renderAt("/verify/tok-123");
+    await screen.findByText("Confirm your work");
+    expect(screen.queryByTestId("waiver-upload")).not.toBeInTheDocument();
+
+    useAuthStore.setState({ isAuthenticated: false, principal: null });
+    mockGetByToken.mockResolvedValue(makePreview({ alreadySigned: true }));
+    renderAt("/verify/tok-456");
+    expect((await screen.findAllByText("You've already signed this job.")).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId("waiver-upload")).not.toBeInTheDocument();
   });
 });

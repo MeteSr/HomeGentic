@@ -40,6 +40,7 @@ rewiring screens.
 | `/homes` | FsboSearchPage | Browse public FSBO listings |
 | `/for-sale/:propertyId` | FsboListingPage | Public FSBO listing detail |
 | `/transfer/claim/:token` | PropertyTransferClaimPage | Accept a property ownership transfer |
+| `/successor/:token` | SuccessorClaimPage | A successor asks for a home record with a proof document (#724) |
 | `/manage/claim/:token` | PropertyManagerClaimPage | Accept a property manager invitation |
 | `/verify/:token` | ContractorVerifyPage | Out-of-network contractor job sign-off (no login required) |
 | `/report/:token` | ReportPage | Shareable HomeGentic report (print-ready) |
@@ -77,6 +78,8 @@ rewiring screens.
 | `/properties/:id/improvements` | ImprovementsRecordPage | Improvements record for the owner's tax preparer |
 | `/properties/:id/move-in` | MoveInPlanPage | Move-in plan for a new owner's first weeks |
 | `/properties/:id/emergency` | EmergencyCardPage | Printable storm and emergency card for one home |
+| `/properties/:id/successor` | SuccessorPage | Name a successor for the home record; cancel a claim |
+| `/successor-claims` | SuccessorClaimsPage | Successor claims the user sent, and the final step |
 | `/jobs/new` | JobCreatePage | Log a maintenance job |
 | `/quotes/new` | QuoteRequestPage | Post a quote request |
 | `/quotes/:id` | QuoteDetailPage | View bids, accept a quote |
@@ -246,6 +249,14 @@ Multi-tab page — the main workspace for a property.
 - Running total of improvements, a "work from" date filter, CSV download and print / save as PDF, plus the receipts and invoices saved in the home's documents
 - Copy: a record to share with a tax preparer, never tax advice; no deduction or credit claims
 - Linked from the property's Jobs tab
+
+### Permits and Lien Waivers (`/properties/:id/closeout`, #716)
+
+- Per job: permit status Open / Closed / Expired (job canister `setPermitStatus`) and close-out papers, a final lien waiver or a Notice of Commencement, each a document in the home's vault filed on the job (`addJobPaper` / `removeJobPaper`, read with `getJobCloseouts`; side maps keyed by job id)
+- Contractor jobs over $2,500 without a final lien waiver on file are flagged; on Florida homes, jobs over $2,500 (HVAC: $15,000) note that a Notice of Commencement is generally expected (`services/jobCloseout.ts`)
+- The contractor who signed a job can attach its final lien waiver from the sign-off page (`/verify/:token`) or right after signing in the contractor dashboard: `photo.beginWaiverUpload` (photos and PDFs, off-chain) or `photo.uploadWaiver` (on-chain, when off-chain storage isn't set up), vouched for by `job.waiverUploadTarget`
+- Resale Ready lists open and expired permits and larger jobs with no waiver; shared reports show permit counts (hidden with permits) and waivers on file (`report.getReportCloseout`, saved when the report is made)
+- Copy: the household's own record; never says a home is lien-free or a permit is closed unless recorded; a title search shows recorded liens; not legal advice
 
 ---
 
@@ -421,6 +432,14 @@ Multi-tab page — the main workspace for a property.
 - Mobile: the Property tab has an **Emergency card** row. The card is fetched whenever the Property tab loads and a copy is kept on the phone (per signed-in person, wiped on sign-out), so it opens without a network; the phone copy leaves out alarm notes and photos
 - No canister changes: reads `getHouseGuide`, `getInsurancePolicy` and the `baseline_<propertyId>` photos
 
+**Successor / legacy contact** (`/properties/:id/successor`, property page → Settings → Successor, #724)
+- The owner names the person who can ask for the home's record if the owner dies or the home passes to a trust or heir (name, email, relationship) and gets a **successor link** (`/successor/<token>`) to give them or keep with their estate papers. HomeGentic doesn't email the successor; the email is for the reviewer. Saving again makes a new link and the old one stops working; neither renaming nor removing is allowed while a claim is open
+- Rules (decided 2026-11-08): the person with the link signs in and sends a death certificate, letters of administration, letters testamentary or a trust document naming the trustee (PDF, JPEG or PNG up to 1.8 MB) with an optional note. One open claim per home; the owner can't open one. A HomeGentic admin reviews it (Admin → Successor Claims: open the document, approve, or reject with a reason the claimant reads). The record can move only once the claim is approved **and** 30 days have passed since it was opened; the claimant then presses **Take over the record** on `/successor-claims`, and it moves like a claimed transfer (the previous household loses access; the history entry is `succession:<claimId>`)
+- The owner or any co-owner can cancel the claim at any point before it moves, from the successor page; the claimant can withdraw it. The proof document is held on the property canister only while the claim is open and deleted once it's approved-and-finished, rejected, cancelled or withdrawn
+- Emails (notifications relay, `succession_claim_*` from the property canister's outbox): the owner and co-owners when a claim is opened, reminders on day 15 and day 27 while it's still open, and on approval; the claimant on approval, rejection or cancellation. These go out whatever the notification settings say, and the footer says so
+- Copy: HomeGentic passes on the record only; it doesn't transfer the property or act in any estate or probate matter
+- Stored on the property canister (`setSuccessor` / `getSuccessor` / `removeSuccessor` / `getSuccessionInvite` / `openSuccessionClaim` / `getOpenSuccessionClaim` / `getMySuccessionClaims` / `cancelSuccessionClaim` / `listSuccessionClaimsForReview` / `getSuccessionProof` / `reviewSuccessionClaim` / `completeSuccessionClaim` / `getSuccessionNotice` / `getNotificationEvents`, side maps). A sale (claimTransfer) drops the successor and cancels an open claim; deleteMyData drops the owner's successors and the claims on their homes, and the claims the caller sent; both are in Download My Data
+
 **HOA and condo paperwork** (property page → HOA tab, #726)
 - **Architectural review requests**: what was asked, details, status (not sent yet, waiting, approved, approved with conditions, denied, withdrawn), submitted and decision dates, conditions, the approval letter (a document from the vault) and the job for the work. A submitted request needs its date; a decision needs its date. Up to 100 per home
 - **Special assessments**: title, amount, due date, paid date, notes and the notice (a vault document), with totals still owed and paid, past-due flags and Mark paid. Up to 100 per home
@@ -550,6 +569,7 @@ Realtors compete for homeowners' listings in a sealed-bid auction. Identities st
 ### Admin Dashboard (`/admin`)
 
 - **Verifications tab** — list properties pending admin review; approve / reject
+- **Successor Claims tab** — successor claims waiting for review (#724): open the proof document, approve, or reject with a reason
 - **Tiers tab** — subscription counts by tier; breakdown chart
 - **Cycles tab** — ICP canister burn rate and runway (days remaining); critical warning if runway < 7 days
 - **Referrals tab** — referral metrics and payout tracking

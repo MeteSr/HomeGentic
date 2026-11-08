@@ -94,6 +94,9 @@ const mockReportActor = {
     return link?.isActive && bills ? [bills] : [];
   }),
 
+  // #716: tests set the close-out a token returns.
+  getReportCloseout: vi.fn(async (_token: string): Promise<any[]> => []),
+
   listShareLinks: vi.fn(async (propertyId: string) => {
     return [..._mockLinks.values()].filter((l) => l.propertyId === propertyId);
   }),
@@ -407,5 +410,32 @@ describe("reportService.getReport — expired link", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("reportService.getCloseout (#716)", () => {
+  it("maps the canister's counts to numbers", async () => {
+    mockReportActor.getReportCloseout.mockResolvedValueOnce([{
+      permits: [{ open: 1n, closed: 2n, expired: 0n, unrecorded: 3n }],
+      largeJobs: 4n, largeJobsWithWaiver: 1n, thresholdCents: 250_000n,
+    }]);
+    expect(await reportService.getCloseout("tok")).toEqual({
+      permits: { open: 1, closed: 2, expired: 0, unrecorded: 3 },
+      largeJobs: 4, largeJobsWithWaiver: 1, thresholdCents: 250_000,
+    });
+    expect(mockReportActor.getReportCloseout).toHaveBeenCalledWith("tok");
+  });
+
+  it("leaves out hidden permits and returns null for reports without a summary", async () => {
+    mockReportActor.getReportCloseout.mockResolvedValueOnce([{ permits: [], largeJobs: 0n, largeJobsWithWaiver: 0n, thresholdCents: 250_000n }]);
+    expect((await reportService.getCloseout("tok"))?.permits).toBeNull();
+    mockReportActor.getReportCloseout.mockResolvedValueOnce([]);
+    expect(await reportService.getCloseout("tok")).toBeNull();
+  });
+
+  it("uses window.__e2e_report_closeout when a test sets it", async () => {
+    (window as any).__e2e_report_closeout = null;
+    expect(await reportService.getCloseout("tok")).toBeNull();
+    delete (window as any).__e2e_report_closeout;
   });
 });

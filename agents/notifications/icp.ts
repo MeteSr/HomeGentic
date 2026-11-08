@@ -1,7 +1,7 @@
 /**
  * ICP client for the notification relay.
  *
- * The relay reads the job and quote canisters' push outboxes with its own
+ * The relay reads the job, quote, listing and property canisters' push outboxes with its own
  * Ed25519 identity (RELAY_IDENTITY_SEED, 32-byte hex). An admin allowlists
  * that identity's principal on each canister with addNotifier() — the
  * principal is logged at startup. It also resolves agent session tokens
@@ -16,7 +16,7 @@
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
-import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulseRecipient } from "./types";
+import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, SuccessionNoticeInfo, PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseRecipient } from "./types";
 import type { ScoreJob } from "../../packages/shared/src/score";
 import { rootKeyFor } from "../../packages/shared/src/rootKey";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
@@ -137,6 +137,30 @@ export async function getQuoteRequest(requestId: string): Promise<QuoteRequestIn
     zipCode:          r.zipCode[0] ?? null,
     minTrustScore:    r.minTrustScore[0]    !== undefined ? Number(r.minTrustScore[0])    : null,
     minJobsCompleted: r.minJobsCompleted[0] !== undefined ? Number(r.minJobsCompleted[0]) : null,
+  };
+}
+
+/**
+ * #724: a successor claim for its waiting-period emails (needs addNotifier
+ * on property). Null when the claim or its home is gone.
+ */
+export async function getSuccessionNotice(claimId: string): Promise<SuccessionNoticeInfo | null> {
+  const actor = Actor.createActor(propertyIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_PROPERTY"),
+  }) as any;
+  const res = await actor.getSuccessionNotice(claimId);
+  if ("err" in res) throw new Error(`getSuccessionNotice: ${Object.keys(res.err)[0]}`);
+  const n = res.ok[0];
+  if (!n) return null;
+  return {
+    claimId:      n.claim.id,
+    propertyId:   n.claim.propertyId,
+    claimant:     (n.claim.claimant as Principal).toText(),
+    status:       Object.keys(n.claim.status)[0] as SuccessionNoticeInfo["status"],
+    openedAtMs:   Number(BigInt(n.claim.openedAt) / 1_000_000n),
+    waitEndsAtMs: Number(BigInt(n.claim.waitEndsAt) / 1_000_000n),
+    address:      n.address,
+    household:    (n.household as Principal[]).map((p) => p.toText()),
   };
 }
 
@@ -266,6 +290,23 @@ export async function getPulseHomeFinance(owner: string): Promise<PulseHomeFinan
           monthlyPmiCents:     optNat(f.loan[0].monthlyPmiCents),
         }
       : null,
+  }));
+}
+
+/** #714: the property-tax years saved on `owner`'s homes, status only (needs addNotifier on property). */
+export async function getPulsePropertyTax(owner: string): Promise<PulsePropertyTax[]> {
+  const property = Actor.createActor(propertyIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_PROPERTY"),
+  }) as any;
+  const res = await property.getPulsePropertyTax(Principal.fromText(owner));
+  if ("err" in res) throw new Error(`getPulsePropertyTax: ${Object.keys(res.err)[0]}`);
+  return res.ok.map((t: any) => ({
+    propertyId: t.propertyId,
+    years: t.years.map((y: any) => ({
+      year:             Number(y.year),
+      exemption:        Object.keys(y.exemption)[0],
+      petitionDeadline: y.petitionDeadline,
+    })),
   }));
 }
 

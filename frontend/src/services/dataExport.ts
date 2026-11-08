@@ -20,6 +20,7 @@ import { inventoryService, inventoryIdOfPhoto } from "./inventory";
 import { houseGuideService } from "./houseGuide";
 import { hoaService } from "./hoaRecords";
 import { moveInPlanService } from "./moveInPlan";
+import { successionService } from "./succession";
 import { maintenanceService } from "./maintenance";
 import { sensorService } from "./sensor";
 import { billService } from "./billService";
@@ -93,6 +94,8 @@ export async function collectMyData(
     listingProposals: await step("listing proposals", () => listingService.getMyProposals()),
     contractorProfile: await step("contractor profile", () => contractorService.getMyProfile()),
     agentProfile: await step("agent profile", () => agentService.getMyProfile()),
+    // #724: successor claims the user sent on other owners' homes.
+    successorClaims: await step("successor claims", () => successionService.getMyClaims()),
   };
   if (notificationsConfigured()) {
     account.notificationSettings = await step("notification settings", () => getNotificationPrefs());
@@ -124,6 +127,7 @@ export async function collectMyData(
         specialAssessments: await step(at("special assessments"), () => hoaService.listAssessments(id)),
         condoAssociation: await step(at("condo association record"), () => hoaService.getCondo(id)),
         moveInPlan: await step(at("move-in plan"), () => moveInPlanService.get(id)),
+        successor: await step(at("successor"), () => successionService.getSuccessor(id)),
       };
       const ph = await step(at("photos"), () => photoService.getByProperty(id));
       if ("ok" in ph) {

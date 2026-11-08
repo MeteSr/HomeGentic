@@ -13,7 +13,10 @@
  *   2. Show job details so the contractor recognises the work.
  *   3. "Confirm & Sign" (signing in first if needed) redeems the token and
  *      sets contractorSigned = true.
- *   4. Success state nudges toward free account creation.
+ *   4. Success state offers to attach the job's final lien waiver (#716; the
+ *      same offer shows on an already-signed job to a signed-in visitor, and
+ *      the photo canister checks it's the contractor who signed), then nudges
+ *      toward free account creation.
  */
 
 import { useEffect, useState } from "react";
@@ -23,6 +26,7 @@ import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { jobService, type InvitePreview } from "@/services/job";
 import { login as iiLogin, getPrincipal, loginWithLocalIdentity } from "@/services/actor";
 import { useAuthStore } from "@/store/authStore";
+import { LienWaiverUpload } from "@/components/LienWaiverUpload";
 
 const UI = {
   ink:   V2_COLORS.ink,
@@ -276,7 +280,13 @@ export default function ContractorVerifyPage() {
                   You've already signed this job.
                 </p>
               </div>
-            ) : (
+            ) : null}
+            {preview.alreadySigned && signedIn && (
+              <div style={{ marginTop: "1.25rem" }}>
+                <LienWaiverUpload jobId={preview.jobId} />
+              </div>
+            )}
+            {preview.alreadySigned ? null : (
               <>
                 <button
                   onClick={() => void handleSign()}
@@ -347,6 +357,8 @@ export default function ContractorVerifyPage() {
               score or certificate. It starts counting automatically once your
               profile is verified.
             </p>
+
+            {preview && <LienWaiverUpload jobId={preview.jobId} />}
 
             {/* Upsell — soft, no pressure */}
             <div style={{

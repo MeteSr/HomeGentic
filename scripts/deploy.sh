@@ -859,6 +859,10 @@ if [ -n "$PHOTO_ID" ]    && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> photo..."
   bg_call photo    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" -e "$ENV"
 fi
+if [ -n "$PHOTO_ID" ]    && [ -n "$JOB_ID" ];        then
+  echo "  Wiring job -> photo (#716 contractor lien waiver uploads)..."
+  bg_call photo    setJobCanisterId        "(principal \"$JOB_ID\")"    -e "$ENV"
+fi
 if [ -n "$QUOTE_ID" ]    && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> quote..."
   bg_call quote    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" -e "$ENV"
@@ -1084,6 +1088,10 @@ if [ -n "$SENSOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting sensor ($SENSOR_ID)..."
   bg_call job addTrustedCanister "(principal \"$SENSOR_ID\")"       -e "$ENV"
 fi
+if [ -n "$PHOTO_ID" ] && [ -n "$JOB_ID" ]; then
+  echo "  job: trusting photo ($PHOTO_ID) (photo asks which contractor may upload a job's lien waiver)..."
+  bg_call job addTrustedCanister "(principal \"$PHOTO_ID\")"        -e "$ENV"
+fi
 if [ -n "$REPORT_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting report ($REPORT_ID) (reports read jobs from the job canister)..."
   bg_call job addTrustedCanister "(principal \"$REPORT_ID\")"       -e "$ENV"
@@ -1177,6 +1185,19 @@ if [ -n "$AI_PROXY_ID" ]; then
       echo "  ⚠️  $k is set here but is now a voice Worker secret; it is not sent to ai_proxy."
     fi
   done
+fi
+
+# ── Voice Worker (deploy workflows only) ─────────────────────────────────────
+# Canisters → voice Worker → frontend: the Worker goes out after every canister
+# it calls is upgraded and wired, and before the frontend that calls it, so an
+# older Worker never meets a newer frontend (PR #742's waiver uploads, the
+# routes #737–#739 added). The workflows set DEPLOY_VOICE_WORKER=1 together
+# with CLOUDFLARE_API_TOKEN and VOICE_AGENT_URL; local deploys leave it unset.
+if [ "${DEPLOY_VOICE_WORKER:-}" = "1" ]; then
+  if ! bash "$(dirname "${BASH_SOURCE[0]}")/deploy-voice-worker.sh" "$ENV"; then
+    echo "❌ Voice Worker deploy or /health check failed; the frontend was not deployed."
+    exit 1
+  fi
 fi
 
 # Internet Identity is managed by icp-cli via ii: true in icp.yaml.

@@ -2,7 +2,9 @@ import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/job";
 import { serviceTypeVariant, jobServiceLabel } from "@homegentic/shared/serviceTypes";
 import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
-import { canisterError } from "./candid";
+import { canisterError, variant } from "./candid";
+import type { JobCloseout, PaperKind, PermitStatus } from "./jobCloseout";
+export type { JobCloseout, PaperKind, PermitStatus } from "./jobCloseout";
 import type * as JobTypes from "@homegentic/shared/types/job";
 export { idlFactory };
 
@@ -48,6 +50,40 @@ export interface Job {
 
 /** #713: the owner's mark on a job for their improvements record. */
 export type CostCategory = "improvement" | "repair";
+
+const PERMIT_TAGS: Record<PermitStatus, "Open" | "Closed" | "Expired"> = { open: "Open", closed: "Closed", expired: "Expired" };
+const PAPER_TAGS: Record<PaperKind, "FinalLienWaiver" | "NoticeOfCommencement"> = {
+  lienWaiver: "FinalLienWaiver",
+  noticeOfCommencement: "NoticeOfCommencement",
+};
+
+function fromCloseout(c: JobTypes.JobCloseout): JobCloseout {
+  const status = c.permitStatus[0];
+  return {
+    jobId: c.jobId,
+    ...(status ? { permitStatus: ("Open" in status ? "open" : "Closed" in status ? "closed" : "expired") as PermitStatus } : {}),
+    papers: c.papers.map((p) => ({
+      kind: ("FinalLienWaiver" in p.kind ? "lienWaiver" : "noticeOfCommencement") as PaperKind,
+      photoId: p.photoId,
+      addedBy: p.addedBy.toText(),
+      addedAt: Number(BigInt(p.addedAt) / 1_000_000n),
+    })),
+  };
+}
+
+/** E2E: window.__e2e_job_closeouts = JobCloseout[] stands in for the canister's close-outs. */
+function e2eCloseouts(): JobCloseout[] | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (window as any).__e2e_job_closeouts as JobCloseout[] | undefined;
+}
+function e2eCloseout(list: JobCloseout[], jobId: string): JobCloseout {
+  let c = list.find((x) => x.jobId === jobId);
+  if (!c) {
+    c = { jobId, papers: [] };
+    list.push(c);
+  }
+  return c;
+}
 
 /** E2E: window.__e2e_job_cost_categories = { [jobId]: CostCategory } stands in for the canister's marks. */
 function e2eCostCategories(): Record<string, CostCategory> | undefined {
@@ -272,6 +308,61 @@ function createJobService() {
       return {};  // canister predates the method: nothing marked yet
     }
     return Object.fromEntries(pairs.map(([id, c]) => [id, "Improvement" in c ? "improvement" : "repair"]));
+  },
+
+  /** #716: permit status and close-out papers for the jobs of these homes. */
+  async getCloseouts(propertyIds: string[]): Promise<JobCloseout[]> {
+    const e2e = e2eCloseouts();
+    if (e2e) return e2e.filter((c) => c.permitStatus || c.papers.length > 0).map((c) => ({ ...c, papers: [...c.papers] }));
+    if (propertyIds.length === 0) return [];
+    const a = await getActor();
+    let raw: JobTypes.JobCloseout[];
+    try {
+      raw = await a.getJobCloseouts(propertyIds);
+    } catch {
+      return [];  // canister predates the method: nothing recorded yet
+    }
+    return raw.map(fromCloseout);
+  },
+
+  /** #716: record where a job's permit stands, or clear it with null. */
+  async setPermitStatus(jobId: string, status: PermitStatus | null): Promise<void> {
+    const e2e = e2eCloseouts();
+    if (e2e) {
+      const c = e2eCloseout(e2e, jobId);
+      if (status) c.permitStatus = status;
+      else delete c.permitStatus;
+      return;
+    }
+    const a = await getActor();
+    const result = await a.setPermitStatus(jobId, status === null ? [] : [variant<JobTypes.PermitStatus>(PERMIT_TAGS[status])]);
+    if ("err" in result) throw canisterError(result.err);
+  },
+
+  /** #716: file a vault document on a job as its lien waiver or Notice of Commencement. */
+  async addPaper(jobId: string, kind: PaperKind, photoId: string): Promise<void> {
+    const e2e = e2eCloseouts();
+    if (e2e) {
+      const c = e2eCloseout(e2e, jobId);
+      c.papers = [...c.papers.filter((p) => p.photoId !== photoId), { kind, photoId, addedBy: "e2e", addedAt: Date.now() }];
+      return;
+    }
+    const a = await getActor();
+    const result = await a.addJobPaper(jobId, variant<JobTypes.PaperKind>(PAPER_TAGS[kind]), photoId);
+    if ("err" in result) throw canisterError(result.err);
+  },
+
+  /** #716: take a paper off a job (the document stays in the vault). */
+  async removePaper(jobId: string, photoId: string): Promise<void> {
+    const e2e = e2eCloseouts();
+    if (e2e) {
+      const c = e2eCloseout(e2e, jobId);
+      c.papers = c.papers.filter((p) => p.photoId !== photoId);
+      return;
+    }
+    const a = await getActor();
+    const result = await a.removeJobPaper(jobId, photoId);
+    if ("err" in result) throw canisterError(result.err);
   },
 
   /** #713: mark a job as an improvement or a repair, or clear the mark with null. */

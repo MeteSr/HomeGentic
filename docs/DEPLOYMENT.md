@@ -6,7 +6,7 @@
 |---|---|---|---|
 | 20 Motoko canisters | `backend/` | `scripts/deploy.sh` (CI: `deploy-testnet.yml` on green `main`, `deploy-mainnet.yml` by hand) | [Mainnet Deployment](#mainnet-deployment), [One-time canister configuration](#one-time-canister-configuration) |
 | Web app (assets canister) | `frontend/` | Built and uploaded by `scripts/deploy.sh` | [Frontend build variables](#frontend-build-variables) |
-| Voice / AI Worker | `agents/voice/` | `deploy-voice-worker` job (Cloudflare) | [Voice Agent](#voice-agent-cloudflare-workers) |
+| Voice / AI Worker | `agents/voice/` | `scripts/deploy-voice-worker.sh`, run by `deploy.sh` in the deploy workflows after the canisters and before the frontend (Cloudflare) | [Voice Agent](#voice-agent-cloudflare-workers) |
 | Lead email Worker | `agents/email/` | `deploy-email-worker` job (Cloudflare) | [Email Relay](#email-relay-cloudflare-workers) |
 | Notification relay | `agents/notifications/` | `deploy-relays.yml` → Fly.io | [Notification Relay](#notification-relay) |
 | IoT gateway | `agents/iot-gateway/` | `deploy-relays.yml` → Fly.io | [IoT Gateway](#iot-gateway) |
@@ -66,10 +66,16 @@ There are two Workers, one per environment:
 
 | Environment | Worker name | Deployed by |
 |---|---|---|
-| mainnet | `homegentic-voice-agent` | `deploy-voice-worker` in `deploy-mainnet.yml` (`npx wrangler deploy`) |
-| testnet | `homegentic-voice-agent-testnet` | `deploy-voice-worker` in `deploy-testnet.yml` (`npx wrangler deploy --env testnet`) |
+| mainnet | `homegentic-voice-agent` | `deploy.sh ic` in `deploy-mainnet.yml` (`npx wrangler deploy`) |
+| testnet | `homegentic-voice-agent-testnet` | `deploy.sh testnet` in `deploy-testnet.yml` (`npx wrangler deploy --env testnet`) |
 
-Both jobs need the `CLOUDFLARE_API_TOKEN` secret. The testnet Worker is
+The workflows set `DEPLOY_VOICE_WORKER=1`, so `deploy.sh` deploys the Worker
+(`scripts/deploy-voice-worker.sh`) and checks its `/health` after every canister is
+upgraded and wired, and only then deploys the frontend: canisters → voice Worker →
+frontend. If the Worker deploy or its health check fails, the frontend is not deployed.
+A local `make deploy` leaves the Worker alone.
+
+Both deploy jobs need the `CLOUDFLARE_API_TOKEN` and `VITE_VOICE_AGENT_URL` secrets. The testnet Worker is
 configured under `[env.testnet]` in `wrangler.toml` and has its own secrets,
 KV namespace (created automatically on its first deploy) and
 `FRONTEND_ORIGIN`, so testnet never touches production Stripe keys,
@@ -264,7 +270,7 @@ Each channel is off until its variables are set; Settings hides its rows while i
 | `NOTIFY_EMAIL_FROM` | Sender, on a domain verified in Resend (default `HomeGentic <notifications@homegentic.app>`) |
 | `APP_URL` | Web app origin used for links in emails and texts (default `https://homegentic.app`) |
 | `NOTIFICATIONS_PUBLIC_URL` | This relay's public HTTPS origin (e.g. `https://notify.homegentic.app`). Needed for the weekly Home Pulse email: each one carries a one-click unsubscribe link to `/api/email/unsubscribe`. Without it the weekly email is off |
-| `CANISTER_ID_PROPERTY` | Property canister — the weekly Home Pulse email reads each homeowner's properties |
+| `CANISTER_ID_PROPERTY` | Property canister — the weekly Home Pulse email reads each homeowner's properties, and its outbox carries successor-claim emails (#724) |
 | `PULSE_HOUR_UTC` | Hour (UTC) on Mondays the weekly Home Pulse starts sending (default `13`) |
 | `PULSE_SEND_INTERVAL_MS` | Pause between weekly emails, to stay under Resend's rate limit (default `600`) |
 | `CANISTER_ID_REPORT` | Report canister — buyer report alerts from the public `/check` page ("notify me"). The relay checks each saved address hourly and emails the buyer once a public report exists. Needs `RESEND_API_KEY` too; without either the page says the request couldn't be saved |

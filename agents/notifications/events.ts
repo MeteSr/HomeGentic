@@ -27,7 +27,7 @@
  * the lead is harmless.
  */
 import type {
-  ContractorInfo, NotificationEvent, OutboxEvent, PushPayload, QuoteRequestInfo,
+  ContractorInfo, NotificationEvent, OutboxEvent, PushPayload, QuoteRequestInfo, SuccessionNoticeInfo,
 } from "./types";
 
 /** How much later contractors without ContractorPro get new-lead alerts. */
@@ -38,6 +38,70 @@ export interface LeadLookups {
   getContractors:  () => Promise<ContractorInfo[]>;
   /** Whether the contractor has ContractorPro. A failed lookup counts as no. */
   isPro:           (principal: string) => Promise<boolean>;
+  /** #724: the successor claim behind a succession_* event, or null when it's gone. */
+  getSuccessionNotice: (claimId: string) => Promise<SuccessionNoticeInfo | null>;
+}
+
+/**
+ * #724: when the household is reminded of an open successor claim, counted
+ * from the moment it was opened (the record can't move before day 30).
+ */
+export const SUCCESSION_REMINDER_AFTER_MS = [15 * 24 * 60 * 60 * 1000, 27 * 24 * 60 * 60 * 1000];
+
+const longDate = (ms: number) =>
+  new Date(ms).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+/** The email for one successor-claim notification, or null for an unknown kind. */
+export function successionPayload(kind: string, notice: SuccessionNoticeInfo, recipient: string): PushPayload | null {
+  const home  = `successor/${notice.propertyId}`;
+  const mine  = "successor-claims";
+  const date  = longDate(notice.waitEndsAtMs);
+  const where = notice.address || "your home";
+  switch (kind) {
+    case "succession_claim_opened":
+      return {
+        title: "Someone asked to take over your home record",
+        body:  `Someone used the successor link for ${where} to ask HomeGentic to pass the home record to them. ` +
+               `If you didn't expect this, open HomeGentic and cancel the claim. The record can't move before ${date}.`,
+        route: home, required: true,
+      };
+    case "succession_claim_reminder":
+      return {
+        title: "Reminder: a successor claim is open on your home",
+        body:  `A successor claim on the home record for ${where} is still open. The record can move to them on or after ${date}` +
+               `${notice.status === "Approved" ? "" : " if HomeGentic approves their document"}. ` +
+               "If you didn't expect this, open HomeGentic and cancel the claim.",
+        route: home, required: true,
+      };
+    case "succession_claim_approved":
+      return recipient === notice.claimant
+        ? {
+            title: "Your successor claim was approved",
+            body:  `HomeGentic approved your document for ${where}. You can take over the home record on or after ${date}, ` +
+                   "unless the owner or a co-owner cancels the claim first.",
+            route: mine, required: true,
+          }
+        : {
+            title: "A successor claim on your home was approved",
+            body:  `HomeGentic approved the document sent with the successor claim on ${where}. ` +
+                   `The home record can move to them on or after ${date} unless you cancel the claim in HomeGentic.`,
+            route: home, required: true,
+          };
+    case "succession_claim_rejected":
+      return {
+        title: "Your successor claim wasn't approved",
+        body:  `HomeGentic couldn't approve the document you sent for ${where}. Open HomeGentic to see why; you can send another.`,
+        route: mine, required: true,
+      };
+    case "succession_claim_cancelled":
+      return {
+        title: "Your successor claim was cancelled",
+        body:  `The successor claim on ${where} was cancelled by the home's owner, a co-owner or HomeGentic.`,
+        route: mine, required: true,
+      };
+    default:
+      return null;
+  }
 }
 
 /** "GeneralHandyman" → "General Handyman"; "HVAC" stays "HVAC". */
@@ -151,6 +215,25 @@ export async function notificationsFor(
       type: kind, principal: c.principal, payload, pushOptIn: c.notifyPush,
       ...(pro[i] ? {} : { notBefore: now + FREE_LEAD_DELAY_MS }),
     }));
+  }
+
+  if (event.kind.startsWith("succession_claim_")) {
+    if (!event.recipient) return [];
+    const notice = await lookups.getSuccessionNotice(event.refId);
+    if (!notice) return [];
+    const payload = successionPayload(event.kind, notice, event.recipient);
+    if (!payload) return [];
+    const out: NotificationEvent[] = [{ type: kind, principal: event.recipient, payload, pushOptIn: false }];
+    if (event.kind === "succession_claim_opened") {
+      const reminder = successionPayload("succession_claim_reminder", notice, event.recipient)!;
+      for (const after of SUCCESSION_REMINDER_AFTER_MS) {
+        out.push({
+          type: "succession_claim_reminder", principal: event.recipient, payload: reminder, pushOptIn: false,
+          notBefore: notice.openedAtMs + after,
+        });
+      }
+    }
+    return out;
   }
 
   if (event.kind === "review_request") {

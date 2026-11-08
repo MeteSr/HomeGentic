@@ -289,6 +289,25 @@ export const idlFactory = ({ IDL }: any) => {
       monthlyPmiCents:     IDL.Opt(IDL.Nat),
     })),
   });
+  // #714 property-tax years
+  const TaxExemption = IDL.Variant({
+    Unknown: IDL.Null, NotApplying: IDL.Null, Applied: IDL.Null, Granted: IDL.Null, Denied: IDL.Null,
+  });
+  const taxYearFields = {
+    year:               IDL.Nat,
+    marketValueCents:   IDL.Opt(IDL.Nat),
+    assessedValueCents: IDL.Opt(IDL.Nat),
+    taxableValueCents:  IDL.Opt(IDL.Nat),
+    exemption:          TaxExemption,
+    petitionDeadline:   IDL.Text,
+    notes:              IDL.Text,
+  };
+  const PropertyTaxYearInput = IDL.Record(taxYearFields);
+  const PropertyTaxYear = IDL.Record({ ...taxYearFields, updatedAt: IDL.Int });
+  const PulsePropertyTax = IDL.Record({
+    propertyId: IDL.Text,
+    years: IDL.Vec(IDL.Record({ year: IDL.Nat, exemption: TaxExemption, petitionDeadline: IDL.Text })),
+  });
   // #718 FEMA flood zone
   const FloodZoneStatus = IDL.Variant({ Mapped: IDL.Null, NotMapped: IDL.Null });
   const floodFields = {
@@ -327,6 +346,61 @@ export const idlFactory = ({ IDL }: any) => {
     doneSteps: IDL.Vec(IDL.Text),
     tasks:     IDL.Vec(MoveInTask),
     updatedAt: IDL.Int,
+  });
+  // #724 successor / legacy contact
+  const SuccessorInput = IDL.Record({ name: IDL.Text, email: IDL.Text, relationship: IDL.Text });
+  const Successor = IDL.Record({
+    name:         IDL.Text,
+    email:        IDL.Text,
+    relationship: IDL.Text,
+    token:        IDL.Text,
+    namedAt:      IDL.Int,
+  });
+  const SuccessionProofKind = IDL.Variant({
+    DeathCertificate:        IDL.Null,
+    LettersOfAdministration: IDL.Null,
+    LettersTestamentary:     IDL.Null,
+    TrustDocument:           IDL.Null,
+  });
+  const SuccessionClaimInput = IDL.Record({
+    claimantName: IDL.Text,
+    proofKind:    SuccessionProofKind,
+    fileName:     IDL.Text,
+    mimeType:     IDL.Text,
+    note:         IDL.Text,
+  });
+  const SuccessionClaimStatus = IDL.Variant({
+    AwaitingReview: IDL.Null,
+    Approved:       IDL.Record({ at: IDL.Int }),
+    Rejected:       IDL.Record({ at: IDL.Int, reason: IDL.Text }),
+    Cancelled:      IDL.Record({ at: IDL.Int, by: IDL.Principal }),
+    Completed:      IDL.Record({ at: IDL.Int }),
+  });
+  const SuccessionClaim = IDL.Record({
+    id:           IDL.Text,
+    propertyId:   IDL.Text,
+    claimant:     IDL.Principal,
+    claimantName: IDL.Text,
+    proofKind:    SuccessionProofKind,
+    fileName:     IDL.Text,
+    mimeType:     IDL.Text,
+    proofSize:    IDL.Nat,
+    note:         IDL.Text,
+    openedAt:     IDL.Int,
+    waitEndsAt:   IDL.Int,
+    status:       SuccessionClaimStatus,
+  });
+  const SuccessionProof = IDL.Record({ fileName: IDL.Text, mimeType: IDL.Text, data: IDL.Vec(IDL.Nat8) });
+  const SuccessionInvite = IDL.Record({ property: Property, successorName: IDL.Text, waitDays: IDL.Nat });
+  const SuccessionReview = IDL.Record({ claim: SuccessionClaim, property: Property, successor: IDL.Opt(Successor) });
+  const SuccessionNotice = IDL.Record({ claim: SuccessionClaim, address: IDL.Text, household: IDL.Vec(IDL.Principal) });
+  const NotifyEvent = IDL.Record({
+    seq:       IDL.Nat,
+    kind:      IDL.Text,
+    recipient: IDL.Opt(IDL.Principal),
+    refId:     IDL.Text,
+    summary:   IDL.Text,
+    createdAt: IDL.Int,
   });
   const Error = IDL.Variant({
     NotFound: IDL.Null,
@@ -619,6 +693,24 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Vec(PulseHomeFinance), err: Error })],
       ["query"]
     ),
+    // #714 property-tax years (owner and co-owners)
+    setPropertyTaxYear: IDL.Func(
+      [IDL.Text, PropertyTaxYearInput],
+      [IDL.Variant({ ok: PropertyTaxYear, err: Error })],
+      []
+    ),
+    deletePropertyTaxYear: IDL.Func([IDL.Text, IDL.Nat], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getPropertyTaxYears: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(PropertyTaxYear), err: Error })],
+      ["query"]
+    ),
+    // #714 weekly Home Pulse email (notification relay only)
+    getPulsePropertyTax: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Vec(PulsePropertyTax), err: Error })],
+      ["query"]
+    ),
     // #712 move-in plan for new owners
     startMoveInPlan: IDL.Func([IDL.Text], [IDL.Variant({ ok: MoveInPlan, err: Error })], []),
     getMoveInPlan: IDL.Func(
@@ -642,6 +734,45 @@ export const idlFactory = ({ IDL }: any) => {
       []
     ),
     endMoveInPlan: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    // #724 successor / legacy contact for the home record
+    setSuccessor: IDL.Func([IDL.Text, SuccessorInput], [IDL.Variant({ ok: Successor, err: Error })], []),
+    getSuccessor: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Opt(Successor), err: Error })], ["query"]),
+    removeSuccessor: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getSuccessionInvite: IDL.Func([IDL.Text], [IDL.Opt(SuccessionInvite)], ["query"]),
+    openSuccessionClaim: IDL.Func(
+      [IDL.Text, SuccessionClaimInput, IDL.Vec(IDL.Nat8)],
+      [IDL.Variant({ ok: SuccessionClaim, err: Error })],
+      []
+    ),
+    getOpenSuccessionClaim: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Opt(SuccessionClaim), err: Error })],
+      ["query"]
+    ),
+    getMySuccessionClaims: IDL.Func([], [IDL.Vec(SuccessionClaim)], ["query"]),
+    cancelSuccessionClaim: IDL.Func([IDL.Text], [IDL.Variant({ ok: SuccessionClaim, err: Error })], []),
+    listSuccessionClaimsForReview: IDL.Func(
+      [],
+      [IDL.Variant({ ok: IDL.Vec(SuccessionReview), err: Error })],
+      ["query"]
+    ),
+    getSuccessionProof: IDL.Func([IDL.Text], [IDL.Variant({ ok: SuccessionProof, err: Error })], ["query"]),
+    reviewSuccessionClaim: IDL.Func(
+      [IDL.Text, IDL.Bool, IDL.Text],
+      [IDL.Variant({ ok: SuccessionClaim, err: Error })],
+      []
+    ),
+    completeSuccessionClaim: IDL.Func([IDL.Text], [IDL.Variant({ ok: Property, err: Error })], []),
+    getSuccessionNotice: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Opt(SuccessionNotice), err: Error })],
+      ["query"]
+    ),
+    getNotificationEvents: IDL.Func(
+      [IDL.Nat, IDL.Nat],
+      [IDL.Variant({ ok: IDL.Record({ events: IDL.Vec(NotifyEvent), latestSeq: IDL.Nat }), err: Error })],
+      ["query"]
+    ),
     // #718 FEMA flood zone (the household reads; the voice Worker looks it up and saves)
     getFloodZone: IDL.Func(
       [IDL.Text],

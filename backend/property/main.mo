@@ -59,6 +59,9 @@ import Hoa "Hoa";
 import HomeFinance "HomeFinance";
 import FloodZone "FloodZone";
 import MoveIn "MoveIn";
+import PropertyTax "PropertyTax";
+import Succession "Succession";
+import Notify "../shared/Notify";
 
 persistent actor Property {
 
@@ -213,9 +216,39 @@ persistent actor Property {
   public type FloodZoneRecord        = FloodZone.FloodZone;
   public type FloodTarget            = FloodZone.Target;
   public type MoveInTaskUrgency      = MoveIn.TaskUrgency;
+  public type TaxExemption           = PropertyTax.Exemption;
+  public type PropertyTaxYearInput   = PropertyTax.YearInput;
+  public type PropertyTaxYear        = PropertyTax.Year;
+  public type PulsePropertyTax       = PropertyTax.PulsePropertyTax;
   public type MoveInTaskInput        = MoveIn.TaskInput;
   public type MoveInTask             = MoveIn.Task;
   public type MoveInPlan             = MoveIn.Plan;
+  public type SuccessorInput         = Succession.SuccessorInput;
+  public type Successor              = Succession.Successor;
+  public type SuccessionProofKind    = Succession.ProofKind;
+  public type SuccessionClaimInput   = Succession.ClaimInput;
+  public type SuccessionClaimStatus  = Succession.ClaimStatus;
+  public type SuccessionClaim        = Succession.Claim;
+  public type SuccessionProof        = Succession.Proof;
+  /// What a successor link shows: the home (identity and verification
+  /// evidence blanked), who the owner named, and the waiting period.
+  public type SuccessionInvite = {
+    property      : Property;
+    successorName : Text;
+    waitDays      : Nat;
+  };
+  /// One claim in the admin review queue.
+  public type SuccessionReview = {
+    claim     : SuccessionClaim;
+    property  : Property;
+    successor : ?Successor;
+  };
+  /// What the notification relay needs to send a waiting-period reminder.
+  public type SuccessionNotice = {
+    claim     : SuccessionClaim;
+    address   : Text;
+    household : [Principal];
+  };
 
   public type RegisterPropertyArgs = {
     address      : Text;
@@ -607,12 +640,36 @@ persistent actor Property {
   /// deleteMyData drops it with the home.
   private let floodZones = Map.empty<Text, FloodZone.FloodZone>();
 
+  /// #714: propertyId → the owner's property-tax years, newest first, one
+  /// per tax year. Owner and co-owners only (the exemption is the owner's).
+  /// Dropped on claimTransfer and deleteMyData.
+  private let propertyTaxYears = Map.empty<Text, [PropertyTax.Year]>();
+
   /// #712: propertyId → the household's move-in plan (steps done, tasks from
   /// the purchase inspection). A buyer gets a fresh one on claimTransfer (the
   /// seller's goes); deleteMyData drops it.
   private let moveInPlans = Map.empty<Text, MoveIn.Plan>();
   /// Next move-in task id ("mt-<n>").
   private var moveInTaskCounter : Nat = 0;
+
+  /// #724: propertyId → the successor the owner named, and the successor
+  /// link's token → propertyId. Owner only. Dropped when the home changes
+  /// hands (a new owner names their own) and on deleteMyData.
+  private let successors        = Map.empty<Text, Succession.Successor>();
+  private let successorTokenIdx = Map.empty<Text, Text>();
+  /// #724: claimId → claim (resolved ones kept as the claimant's record),
+  /// propertyId → its one open claim, and claimId → the proof file, held
+  /// only while the claim is open.
+  private let successionClaims   = Map.empty<Text, Succession.Claim>();
+  private let openClaimByProperty = Map.empty<Text, Text>();
+  private let successionProofs   = Map.empty<Text, Succession.Proof>();
+  private var successionClaimCounter : Nat = 0;
+
+  /// Push/email outbox read by the notification relay (shared/Notify.mo).
+  /// #724 waiting-period notices: succession_claim_opened / _approved /
+  /// _rejected / _cancelled; refId is the claim id, summary the address.
+  private let notifyLog       = Map.empty<Nat, Notify.Event>();
+  private var notifyLatestSeq : Nat = 0;
 
   private func putProperty(p : Property) { Index.put(properties, propertyIndexes, p.id, p) };
   private func putRoom(r : RoomRecord)   { Index.put(rooms, roomIndexes, r.id, r) };
@@ -783,11 +840,165 @@ persistent actor Property {
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   // ── Ingress inspection ────────────────────────────────────────────────────
-  /// Reject anonymous callers and zero-byte payloads before execution.
-  /// Empty payload cannot be valid Candid for any method that takes a struct
-  /// argument — these are probe / garbage calls that waste cycles.
-  system func inspect({ caller : Principal; arg : Blob }) : Bool {
-    Inspect.accept(caller, arg, Inspect.MAX_ARG_BYTES)
+  /// Reject anonymous callers, zero-byte payloads and oversized arguments
+  /// before execution (shared/Inspect.mo, cycle-drain CD-5). Only
+  /// `openSuccessionClaim` (#724, carries the proof document) may send up to
+  /// MAX_UPLOAD_ARG_BYTES; everything else is capped at MAX_ARG_BYTES. Every
+  /// public method is listed: the compiler rejects an inspect that misses one,
+  /// so a new method has to be added here. Each method keeps its own checks.
+  system func inspect({
+    caller : Principal;
+    arg : Blob;
+    msg : {
+      #addAdmin : Any;
+      #addArchitecturalReview : Any;
+      #addFixture : Any;
+      #addHomeWarrantyClaim : Any;
+      #addIdentityRelay : Any;
+      #addInsuranceClaimLog : Any;
+      #addInventoryItem : Any;
+      #addMoveInTasks : Any;
+      #addNotifier : Any;
+      #addSpecialAssessment : Any;
+      #addTrustedCanister : Any;
+      #bulkRegisterProperties : Any;
+      #cancelManagerInvite : Any;
+      #cancelSuccessionClaim : Any;
+      #cancelTransfer : Any;
+      #claimManagerRole : Any;
+      #claimTransfer : Any;
+      #completeSuccessionClaim : Any;
+      #createHouseGuideLink : Any;
+      #createInsuranceClaim : Any;
+      #createRoom : Any;
+      #deleteArchitecturalReview : Any;
+      #deleteHomeWarrantyClaim : Any;
+      #deleteInsuranceClaim : Any;
+      #deleteInventoryItem : Any;
+      #deleteMoveInTask : Any;
+      #deleteMyData : Any;
+      #deletePropertyTaxYear : Any;
+      #deleteRoom : Any;
+      #deleteSpecialAssessment : Any;
+      #dismissNotifications : Any;
+      #endMoveInPlan : Any;
+      #findPropertiesByAddress : Any;
+      #getAccessRole : Any;
+      #getAccessRoles : Any;
+      #getApiDoc : Any;
+      #getApprovals : Any;
+      #getArchitecturalReviews : Any;
+      #getCondoAssociationRecord : Any;
+      #getFloodZone : Any;
+      #getHomeWarrantyClaims : Any;
+      #getHomeWarrantyPlan : Any;
+      #getHouseGuide : Any;
+      #getInsuranceClaims : Any;
+      #getInsurancePolicy : Any;
+      #getInventory : Any;
+      #getJobPropertyAddresses : Any;
+      #getManagerInviteByToken : Any;
+      #getMetrics : Any;
+      #getMortgageLoan : Any;
+      #getMoveInPlan : Any;
+      #getMyManagedProperties : Any;
+      #getMyProperties : Any;
+      #getMySuccessionClaims : Any;
+      #getNotificationEvents : Any;
+      #getOpenSuccessionClaim : Any;
+      #getOwnerNotifications : Any;
+      #getOwnershipHistory : Any;
+      #getPendingInvitesForProperty : Any;
+      #getPendingTransfer : Any;
+      #getPendingTransferByToken : Any;
+      #getPendingVerifications : Any;
+      #getPropertiesByOwner : Any;
+      #getProperty : Any;
+      #getPropertyAddress : Any;
+      #getPropertyByManagerInviteToken : Any;
+      #getPropertyByTransferToken : Any;
+      #getPropertyLimitForTier : Any;
+      #getPropertyManagers : Any;
+      #getPropertyOwner : Any;
+      #getPropertyTaxYears : Any;
+      #getPropertyYearBuilt : Any;
+      #getPulseHomeFinance : Any;
+      #getPulseInsurance : Any;
+      #getPulseProperties : Any;
+      #getPulsePropertyTax : Any;
+      #getRoom : Any;
+      #getRoomMetrics : Any;
+      #getRoomsByProperty : Any;
+      #getSharedHouseGuide : Any;
+      #getSpecialAssessments : Any;
+      #getSuccessionInvite : Any;
+      #getSuccessionNotice : Any;
+      #getSuccessionProof : Any;
+      #getSuccessor : Any;
+      #getTrustedCanisters : Any;
+      #getVerificationLevel : Any;
+      #getVerifyStatus : Any;
+      #guideSharesPhoto : Any;
+      #initiateTransfer : Any;
+      #inviteManager : Any;
+      #isAdminPrincipal : Any;
+      #isAuthorized : Any;
+      #listHouseGuideLinks : Any;
+      #listIdentityRelays : Any;
+      #listSuccessionClaimsForReview : Any;
+      #markIdentityCleared : Any;
+      #openSuccessionClaim : Any;
+      #pause : Any;
+      #recordManagerActivity : Any;
+      #registerProperty : Any;
+      #relayFloodTarget : Any;
+      #relayMarkIdentityCleared : Any;
+      #relaySetFloodZone : Any;
+      #removeAdmin : Any;
+      #removeFixture : Any;
+      #removeIdentityRelay : Any;
+      #removeManager : Any;
+      #removeNotifier : Any;
+      #removeSuccessor : Any;
+      #removeTrustedCanister : Any;
+      #requestApproval : Any;
+      #resignAsManager : Any;
+      #respondToApproval : Any;
+      #reviewSuccessionClaim : Any;
+      #revokeHouseGuideLink : Any;
+      #setAuditCanisterId : Any;
+      #setBootstrapNonce : Any;
+      #setCondoAssociationRecord : Any;
+      #setHomeWarrantyPlan : Any;
+      #setHouseGuide : Any;
+      #setInsurancePolicy : Any;
+      #setJobCanisterId : Any;
+      #setListingCanisterId : Any;
+      #setMortgageLoan : Any;
+      #setMoveInStep : Any;
+      #setPaymentCanisterId : Any;
+      #setPropertyTaxYear : Any;
+      #setSuccessor : Any;
+      #setUpdateRateLimit : Any;
+      #startMoveInPlan : Any;
+      #submitVerification : Any;
+      #unpause : Any;
+      #updateArchitecturalReview : Any;
+      #updateFixture : Any;
+      #updateHomeWarrantyClaim : Any;
+      #updateInsuranceClaim : Any;
+      #updateInventoryItem : Any;
+      #updateManagerRole : Any;
+      #updateRoom : Any;
+      #updateSpecialAssessment : Any;
+      #verifyProperty : Any;
+    };
+  }) : Bool {
+    let max = switch msg {
+      case (#openSuccessionClaim _) Inspect.MAX_UPLOAD_ARG_BYTES;
+      case _ Inspect.MAX_ARG_BYTES;
+    };
+    Inspect.accept(caller, arg, max)
   };
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
@@ -1607,6 +1818,85 @@ persistent actor Property {
     }
   };
 
+  /// Hands a home record to `to`: the new owner, the transfer history entry,
+  /// and everything that was the previous household's dropped. Shared by
+  /// claimTransfer (sale) and completeSuccessionClaim (#724). Synchronous;
+  /// afterMove does the cross-canister part.
+  private func moveRecord(prop : Property, to : Principal, txHash : Text, now : Int) : Property {
+    let propertyId = prop.id;
+    // M-6 (2026-10-28 audit): the seller's ID check and ownership
+    // evidence are about the seller, not the buyer.
+    let updated : Property = {
+      prop with
+      owner               = to;
+      updatedAt           = now;
+      identityVerified    = null;
+      identityVerifiedAt  = null;
+      identitySessionId   = null;
+      nameOnId            = null;
+      nameOnDocument      = null;
+      verificationDocHash = null;
+    };
+    putProperty(updated);
+
+    // M-3: the previous owner's delegates (managers, co-owners,
+    // pending invites) must not keep access to the buyer's home.
+    clearDelegatedAccess(propertyId);
+    // #711: the seller's insurance policy and claims aren't the buyer's.
+    insurancePolicies.remove(propertyId);
+    ignore dropClaims(propertyId);
+    ignore dropInventory(propertyId);
+    // #725: the seller's house guide (Wi-Fi, alarm) and its links.
+    ignore dropGuide(propertyId);
+    // #719 / #722: the seller's home warranty contract and mortgage.
+    homeWarrantyPlans.remove(propertyId);
+    mortgageLoans.remove(propertyId);
+    // #714: the seller's tax years and exemption status.
+    propertyTaxYears.remove(propertyId);
+    // #712: a fresh move-in plan for the buyer; the seller's goes.
+    moveInPlans.add(propertyId, MoveIn.fresh(now));
+    // #724: the new owner names their own successor; an open claim on the
+    // previous owner's record ends (completeSuccessionClaim marks its own
+    // claim Completed after this).
+    dropSuccessor(propertyId);
+    ignore cancelOpenClaim(propertyId, prop.owner, now);
+
+    // Append immutable record to ownership history. L-3: take a
+    // fresh key per claim so two claims never share a record slot.
+    transferCounter += 1;
+    transfers.add(transferCounter, {
+      propertyId;
+      from      = prop.owner;
+      to;
+      timestamp = now;
+      txHash;
+    });
+
+    // A transfer link that's still out stops working.
+    switch (pendingTransfers.get(propertyId)) {
+      case (?pt) { tokenIndex.remove(pt.token); pendingTransfers.remove(propertyId) };
+      case null {};
+    };
+    updated
+  };
+
+  /// The cross-canister part of a hand-over: the previous owner's FSBO
+  /// listing comes down, and payment decides on the new owner's handoff year.
+  /// The hand-over stands whatever they answer.
+  private func afterMove(propertyId : Text, to : Principal, prop : Property) : async* () {
+    if (listingCanisterId != "") {
+      let listing : actor { propertyTransferred : shared Text -> async { #ok : Any; #err : Any } } = actor (listingCanisterId);
+      try { ignore await listing.propertyTransferred(propertyId) } catch _ { Debug.print("[property] listing transfer call failed") };
+    };
+    // A year of Pro for the new owner when the home's ownership was
+    // verified. payment.grantHandoffYear decides eligibility (once per
+    // person, once a year per home, no paid plan running).
+    if (payCanisterId != "" and (prop.verificationLevel == #Basic or prop.verificationLevel == #Premium)) {
+      let pay : actor { grantHandoffYear : shared (Principal, Text) -> async { #ok : Any; #err : Any } } = actor (payCanisterId);
+      try { ignore await pay.grantHandoffYear(to, propertyId) } catch _ { Debug.print("[property] handoff grant call failed") };
+    };
+  };
+
   /// Step 2: any authenticated principal with the token claims the property.
   /// The token acts as a bearer credential — possession equals authorization.
   public shared(msg) func claimTransfer(
@@ -1636,69 +1926,8 @@ persistent actor Property {
             switch (properties.get(propertyId)) {
               case null { #err(#NotFound) };
               case (?prop) {
-                let now = Time.now();
-
-                // M-6 (2026-10-28 audit): the seller's ID check and ownership
-                // evidence are about the seller, not the buyer.
-                let updated : Property = {
-                  prop with
-                  owner               = msg.caller;
-                  updatedAt           = now;
-                  identityVerified    = null;
-                  identityVerifiedAt  = null;
-                  identitySessionId   = null;
-                  nameOnId            = null;
-                  nameOnDocument      = null;
-                  verificationDocHash = null;
-                };
-                putProperty(updated);
-
-                // M-3: the previous owner's delegates (managers, co-owners,
-                // pending invites) must not keep access to the buyer's home.
-                clearDelegatedAccess(propertyId);
-                // #711: the seller's insurance policy and claims aren't the buyer's.
-                insurancePolicies.remove(propertyId);
-                ignore dropClaims(propertyId);
-                ignore dropInventory(propertyId);
-                // #725: the seller's house guide (Wi-Fi, alarm) and its links.
-                ignore dropGuide(propertyId);
-                // #719 / #722: the seller's home warranty contract and mortgage.
-                homeWarrantyPlans.remove(propertyId);
-                mortgageLoans.remove(propertyId);
-                // #712: a fresh move-in plan for the buyer; the seller's goes.
-                moveInPlans.add(propertyId, MoveIn.fresh(now));
-
-                // Append immutable record to ownership history. L-3: take a
-                // fresh key per claim so two claims never share a record slot.
-                transferCounter += 1;
-                let record : TransferRecord = {
-                  propertyId;
-                  from      = pending.from;
-                  to        = msg.caller;
-                  timestamp = now;
-                  txHash    = "";  // no off-chain hash for token-based transfers
-                };
-                transfers.add(transferCounter, record);
-
-                // Invalidate token
-                pendingTransfers.remove(propertyId);
-                tokenIndex.remove(token);
-
-                // The seller's FSBO listing, showings and offers come down.
-                if (listingCanisterId != "") {
-                  let listing : actor { propertyTransferred : shared Text -> async { #ok : Any; #err : Any } } = actor (listingCanisterId);
-                  try { ignore await listing.propertyTransferred(propertyId) } catch _ { Debug.print("[property] listing transfer call failed") };
-                };
-
-                // A year of Pro for the buyer when the home's ownership was
-                // verified. payment.grantHandoffYear decides eligibility (once
-                // per buyer, once a year per home, no paid plan running); the
-                // transfer above stands whatever it answers.
-                if (payCanisterId != "" and (prop.verificationLevel == #Basic or prop.verificationLevel == #Premium)) {
-                  let pay : actor { grantHandoffYear : shared (Principal, Text) -> async { #ok : Any; #err : Any } } = actor (payCanisterId);
-                  try { ignore await pay.grantHandoffYear(msg.caller, propertyId) } catch _ { Debug.print("[property] handoff grant call failed") };
-                };
-
+                let updated = moveRecord(prop, msg.caller, "", Time.now());
+                await* afterMove(propertyId, msg.caller, prop);
                 #ok(updated)
               };
             }
@@ -3184,6 +3413,333 @@ persistent actor Property {
     #ok(rec)
   };
 
+  // ─── Property-tax years (#714) ────────────────────────────────────────────
+
+  /// #714: save one tax year's values and exemption status, replacing that
+  /// year if it's already saved. Owner and co-owners only; at most 60 years
+  /// per home. Records what the owner enters; nothing is checked with the county.
+  public shared(msg) func setPropertyTaxYear(propertyId: Text, input: PropertyTaxYearInput) : async Result.Result<PropertyTaxYear, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not hasFullControl(propertyId, msg.caller)) return #err(#NotAuthorized);
+    let y = PropertyTax.clean(input);
+    switch (PropertyTax.validate(y)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let existing = propertyTaxYears.get(propertyId) ?? [];
+    let others = existing.filter(func(r : PropertyTax.Year) : Bool { r.year != y.year });
+    if (others.size() >= PropertyTax.MAX_YEARS)
+      return #err(#InvalidInput("This home already has 60 tax years; delete an old one first"));
+    let rec = PropertyTax.toYear(y, Time.now());
+    propertyTaxYears.add(propertyId, others.concat([rec]).sort(PropertyTax.newestFirst));
+    #ok(rec)
+  };
+
+  /// #714: delete one saved tax year. Owner and co-owners only. Can't be undone.
+  public shared(msg) func deletePropertyTaxYear(propertyId: Text, year: Nat) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not hasFullControl(propertyId, msg.caller)) return #err(#NotAuthorized);
+    let existing = propertyTaxYears.get(propertyId) ?? [];
+    let kept = existing.filter(func(r : PropertyTax.Year) : Bool { r.year != year });
+    if (kept.size() == existing.size()) return #err(#NotFound);
+    if (kept.size() == 0) propertyTaxYears.remove(propertyId) else propertyTaxYears.add(propertyId, kept);
+    #ok(())
+  };
+
+  /// #714: the saved tax years, newest first. Owner and co-owners only.
+  public query(msg) func getPropertyTaxYears(propertyId: Text) : async Result.Result<[PropertyTaxYear], Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not hasFullControl(propertyId, msg.caller)) return #err(#NotAuthorized);
+    #ok(propertyTaxYears.get(propertyId) ?? [])
+  };
+
+  /// #714: for the weekly Home Pulse email, each of `owner`'s active homes
+  /// with tax years saved: the two newest years' exemption status and
+  /// petition deadline (no values or notes). Notifiers and admins only.
+  public query(msg) func getPulsePropertyTax(owner: Principal) : async Result.Result<[PulsePropertyTax], Error> {
+    if (not Admin.contains(notifierEntries, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let out = List.empty<PulsePropertyTax>();
+    for (p in ownedBy(owner)) {
+      if (p.isActive) {
+        switch (propertyTaxYears.get(p.id)) {
+          case (?ys) {
+            let newest = ys.sliceToArray(0, Nat.min(ys.size(), PropertyTax.PULSE_YEARS));
+            out.add({ propertyId = p.id; years = newest.map(PropertyTax.pulseYear) });
+          };
+          case null {};
+        };
+      };
+    };
+    #ok(out.toArray())
+  };
+
+  // ─── Successor / legacy contact (#724) ───────────────────────────────────
+  //
+  //  1. The owner names a successor (setSuccessor) and gets a successor link
+  //     (/successor/<token>) to give them or keep with their estate papers.
+  //     HomeGentic doesn't email the successor.
+  //  2. The successor opens a claim from the link with a proof document
+  //     (openSuccessionClaim). The owner and co-owners are told at once.
+  //  3. A HomeGentic admin reads the document and approves or rejects it
+  //     (reviewSuccessionClaim).
+  //  4. Once approved AND 30 days after it was opened, the successor finishes
+  //     it (completeSuccessionClaim) and the record moves like claimTransfer.
+  //     The owner or a co-owner can cancel at any point before that.
+  //  HomeGentic passes on the record only; it doesn't transfer the property.
+
+  private func household(propertyId : Text, owner : Principal) : [Principal] {
+    let mgrs = managersMap.get(propertyId) ?? [];
+    [owner].concat(mgrs.filter(func(m : PropertyManager) : Bool { m.role == #CoOwner }).map(func(m : PropertyManager) : Principal { m.principal }))
+  };
+
+  private func notify(kind : Text, recipient : Principal, refId : Text, summary : Text) {
+    notifyLatestSeq := Notify.record(notifyLog, notifyLatestSeq, kind, ?recipient, refId, summary);
+  };
+
+  private func addressOf(propertyId : Text) : Text {
+    switch (properties.get(propertyId)) { case (?p) p.address; case null "" }
+  };
+
+  private func dropSuccessor(propertyId : Text) {
+    switch (successors.get(propertyId)) {
+      case (?s) { successorTokenIdx.remove(s.token); successors.remove(propertyId) };
+      case null {};
+    };
+  };
+
+  /// Ends a claim: new status, proof deleted, no longer the home's open claim.
+  private func closeClaim(c : SuccessionClaim, status : SuccessionClaimStatus) : SuccessionClaim {
+    let closed = { c with status };
+    successionClaims.add(c.id, closed);
+    successionProofs.remove(c.id);
+    if (openClaimByProperty.get(c.propertyId) == ?c.id) openClaimByProperty.remove(c.propertyId);
+    closed
+  };
+
+  /// Cancels the home's open claim, if any, and tells the claimant.
+  private func cancelOpenClaim(propertyId : Text, by : Principal, now : Int) : ?SuccessionClaim {
+    switch (openClaimByProperty.get(propertyId)) {
+      case null null;
+      case (?id) {
+        switch (successionClaims.get(id)) {
+          case null { openClaimByProperty.remove(propertyId); null };
+          case (?c) {
+            let closed = closeClaim(c, #Cancelled({ at = now; by }));
+            if (by != c.claimant) notify("succession_claim_cancelled", c.claimant, c.id, addressOf(propertyId));
+            ?closed
+          };
+        }
+      };
+    }
+  };
+
+  /// Removes every claim `pick` selects, with its proof and open slot.
+  private func dropSuccessionClaims(pick : SuccessionClaim -> Bool) : Nat {
+    let gone = successionClaims.values().filter(pick).toArray();
+    for (c in gone.values()) {
+      successionClaims.remove(c.id);
+      successionProofs.remove(c.id);
+      if (openClaimByProperty.get(c.propertyId) == ?c.id) openClaimByProperty.remove(c.propertyId);
+    };
+    gone.size()
+  };
+
+  /// #724: name (or rename) the home's successor. Owner only. Every call
+  /// issues a new successor link; the old one stops working. Refused while a
+  /// claim is open.
+  public shared(msg) func setSuccessor(propertyId: Text, input: SuccessorInput) : async Result.Result<Successor, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    // Randomness first, so the checks and writes below run as one step.
+    let rand = await Random.blob();
+    let prop = switch (properties.get(propertyId)) { case null return #err(#NotFound); case (?p) p };
+    if (prop.owner != msg.caller) return #err(#NotAuthorized);
+    if (openClaimByProperty.get(propertyId) != null)
+      return #err(#InvalidInput("A successor claim is open on this home; cancel it before changing your successor"));
+    let s = Succession.cleanSuccessor(input);
+    switch (Succession.validateSuccessor(s)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    dropSuccessor(propertyId);
+    let rec : Successor = { s with token = blobToHex(rand); namedAt = Time.now() };
+    successors.add(propertyId, rec);
+    successorTokenIdx.add(rec.token, propertyId);
+    #ok(rec)
+  };
+
+  /// #724: the home's successor and link, or null. Owner only.
+  public query(msg) func getSuccessor(propertyId: Text) : async Result.Result<?Successor, Error> {
+    let prop = switch (properties.get(propertyId)) { case null return #err(#NotFound); case (?p) p };
+    if (prop.owner != msg.caller) return #err(#NotAuthorized);
+    #ok(successors.get(propertyId))
+  };
+
+  /// #724: remove the successor; the link stops working. Owner only.
+  /// Refused while a claim is open.
+  public shared(msg) func removeSuccessor(propertyId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let prop = switch (properties.get(propertyId)) { case null return #err(#NotFound); case (?p) p };
+    if (prop.owner != msg.caller) return #err(#NotAuthorized);
+    if (openClaimByProperty.get(propertyId) != null)
+      return #err(#InvalidInput("A successor claim is open on this home; cancel it first"));
+    dropSuccessor(propertyId);
+    #ok(())
+  };
+
+  /// #724: what a successor link shows, or null for an unknown link. The
+  /// token is the credential.
+  public query func getSuccessionInvite(token: Text) : async ?SuccessionInvite {
+    let pid = switch (successorTokenIdx.get(token)) { case null return null; case (?p) p };
+    switch (successors.get(pid), properties.get(pid)) {
+      case (?s, ?p) {
+        if (s.token != token or not p.isActive) return null;
+        ?{ property = redactProperty(p); successorName = s.name; waitDays = Succession.WAIT_DAYS }
+      };
+      case _ null;
+    }
+  };
+
+  /// #724: the successor opens a claim from their link, with a proof
+  /// document (PDF, JPEG or PNG, at most 1.8 MB). One open claim per home;
+  /// the owner can't claim their own home. The owner and co-owners are
+  /// told at once and can cancel until the record moves.
+  public shared(msg) func openSuccessionClaim(token: Text, input: SuccessionClaimInput, proof: Blob) : async Result.Result<SuccessionClaim, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let pid = switch (successorTokenIdx.get(token)) { case null return #err(#NotFound); case (?p) p };
+    let prop = switch (properties.get(pid)) { case null return #err(#NotFound); case (?p) p };
+    if (not prop.isActive) return #err(#NotFound);
+    if (prop.owner == msg.caller) return #err(#InvalidInput("You own this home; only your successor can open a claim"));
+    if (openClaimByProperty.get(pid) != null)
+      return #err(#InvalidInput("A claim is already open on this home"));
+    let c = Succession.cleanClaim(input);
+    switch (Succession.validateClaim(c, proof)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let onHome = successionClaims.values().filter(func(x : SuccessionClaim) : Bool { x.propertyId == pid }).size();
+    if (onHome >= Succession.MAX_CLAIMS_PER_PROPERTY)
+      return #err(#InvalidInput("This home has had too many claims; contact HomeGentic support"));
+
+    successionClaimCounter += 1;
+    let id = "sc-" # successionClaimCounter.toText();
+    let claim = Succession.open(id, pid, msg.caller, c, proof.size(), Time.now());
+    successionClaims.add(id, claim);
+    successionProofs.add(id, { fileName = c.fileName; mimeType = c.mimeType; data = proof });
+    openClaimByProperty.add(pid, id);
+    for (p in household(pid, prop.owner).values()) notify("succession_claim_opened", p, id, prop.address);
+    #ok(claim)
+  };
+
+  /// #724: the home's open claim, or null. Owner and co-owners only.
+  public query(msg) func getOpenSuccessionClaim(propertyId: Text) : async Result.Result<?SuccessionClaim, Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not hasFullControl(propertyId, msg.caller)) return #err(#NotAuthorized);
+    #ok(switch (openClaimByProperty.get(propertyId)) { case (?id) successionClaims.get(id); case null null })
+  };
+
+  /// #724: the claims the caller opened, newest first.
+  public query(msg) func getMySuccessionClaims() : async [SuccessionClaim] {
+    successionClaims.values()
+      .filter(func(c : SuccessionClaim) : Bool { c.claimant == msg.caller })
+      .toArray()
+      .sort(func(a : SuccessionClaim, b : SuccessionClaim) : Order.Order { Int.compare(b.openedAt, a.openedAt) })
+  };
+
+  /// #724: cancel an open claim. The home's owner or a co-owner, the
+  /// claimant (withdrawing it) or an admin. The proof is deleted.
+  public shared(msg) func cancelSuccessionClaim(claimId: Text) : async Result.Result<SuccessionClaim, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let c = switch (successionClaims.get(claimId)) { case null return #err(#NotFound); case (?x) x };
+    if (c.claimant != msg.caller and not hasFullControl(c.propertyId, msg.caller) and not isAdmin(msg.caller))
+      return #err(#NotAuthorized);
+    if (not Succession.isOpen(c)) return #err(#InvalidInput("This claim is no longer open"));
+    let closed = closeClaim(c, #Cancelled({ at = Time.now(); by = msg.caller }));
+    if (msg.caller != c.claimant) notify("succession_claim_cancelled", c.claimant, c.id, addressOf(c.propertyId));
+    #ok(closed)
+  };
+
+  /// #724: claims waiting for review, oldest first, with the home and the
+  /// successor the owner named. Admins only.
+  public query(msg) func listSuccessionClaimsForReview() : async Result.Result<[SuccessionReview], Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let out = List.empty<SuccessionReview>();
+    for (c in successionClaims.values()) {
+      if (c.status == #AwaitingReview) {
+        switch (properties.get(c.propertyId)) {
+          case (?p) out.add({ claim = c; property = p; successor = successors.get(c.propertyId) });
+          case null {};
+        };
+      };
+    };
+    #ok(out.toArray().sort(func(a : SuccessionReview, b : SuccessionReview) : Order.Order { Int.compare(a.claim.openedAt, b.claim.openedAt) }))
+  };
+
+  /// #724: the proof document of an open claim. Admins only.
+  public query(msg) func getSuccessionProof(claimId: Text) : async Result.Result<SuccessionProof, Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    switch (successionProofs.get(claimId)) { case null #err(#NotFound); case (?p) #ok(p) }
+  };
+
+  /// #724: an admin approves or rejects a claim waiting for review. A
+  /// rejection needs a reason the claimant will read; its proof is deleted.
+  /// Approval doesn't move the record: the claimant finishes it after the wait.
+  public shared(msg) func reviewSuccessionClaim(claimId: Text, approve: Bool, reason: Text) : async Result.Result<SuccessionClaim, Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let c = switch (successionClaims.get(claimId)) { case null return #err(#NotFound); case (?x) x };
+    if (c.status != #AwaitingReview) return #err(#InvalidInput("This claim isn't waiting for review"));
+    let why = Succession.trim(reason);
+    if (not approve and why.size() == 0) return #err(#InvalidInput("Give the claimant a reason"));
+    if (why.size() > 500) return #err(#InvalidInput("Reason is over 500 characters"));
+    let now = Time.now();
+    let address = addressOf(c.propertyId);
+    let out = if (approve) {
+      let approved = { c with status = #Approved({ at = now }) };
+      successionClaims.add(c.id, approved);
+      let owner = switch (properties.get(c.propertyId)) { case (?p) p.owner; case null c.claimant };
+      for (p in household(c.propertyId, owner).values()) notify("succession_claim_approved", p, c.id, address);
+      notify("succession_claim_approved", c.claimant, c.id, address);
+      approved
+    } else {
+      let rejected = closeClaim(c, #Rejected({ at = now; reason = why }));
+      notify("succession_claim_rejected", c.claimant, c.id, address);
+      rejected
+    };
+    try { await auditLog(if (approve) "SuccessionClaimApproved" else "SuccessionClaimRejected", ?c.claimant, "claimId=" # c.id # " propertyId=" # c.propertyId # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
+    #ok(out)
+  };
+
+  /// #724: the claimant finishes an approved claim once the 30-day wait is
+  /// over, and the record moves to them like a transfer (the previous
+  /// household loses access; the history records "succession:<claimId>").
+  public shared(msg) func completeSuccessionClaim(claimId: Text) : async Result.Result<Property, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let c = switch (successionClaims.get(claimId)) { case null return #err(#NotFound); case (?x) x };
+    if (c.claimant != msg.caller) return #err(#NotAuthorized);
+    let now = Time.now();
+    switch (Succession.blockToComplete(c, now)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let prop = switch (properties.get(c.propertyId)) { case null return #err(#NotFound); case (?p) p };
+    // Take the claim out of the open slot first so moveRecord doesn't cancel it.
+    ignore closeClaim(c, #Completed({ at = now }));
+    let updated = moveRecord(prop, msg.caller, "succession:" # c.id, now);
+    await* afterMove(c.propertyId, msg.caller, prop);
+    #ok(updated)
+  };
+
+  /// #724: for a waiting-period reminder: the claim, the address and who is
+  /// in the household now. Notifiers and admins only.
+  public query(msg) func getSuccessionNotice(claimId: Text) : async Result.Result<?SuccessionNotice, Error> {
+    if (not Admin.contains(notifierEntries, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    switch (successionClaims.get(claimId)) {
+      case null #ok(null);
+      case (?c) {
+        switch (properties.get(c.propertyId)) {
+          case null #ok(null);
+          case (?p) #ok(?{ claim = c; address = p.address; household = household(p.id, p.owner) });
+        }
+      };
+    }
+  };
+
+  /// Outbox events with seq > afterSeq, oldest first (at most 200 per call).
+  /// Notifiers and admins only.
+  public query(msg) func getNotificationEvents(afterSeq: Nat, limit: Nat) : async Result.Result<Notify.Page, Error> {
+    if (not Admin.contains(notifierEntries, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(Notify.page(notifyLog, notifyLatestSeq, afterSeq, limit))
+  };
+
   // ─── Move-in plan (#712) ──────────────────────────────────────────────────
 
   /// The plan on a home the caller can change, or the error to return.
@@ -3360,8 +3916,16 @@ persistent actor Property {
       removed += dropWarrantyClaims(pid);
       if (mortgageLoans.get(pid) != null) { mortgageLoans.remove(pid); removed += 1 };
       if (floodZones.get(pid) != null) { floodZones.remove(pid); removed += 1 };
+      // #714 property-tax years.
+      switch (propertyTaxYears.get(pid)) {
+        case (?ys) { propertyTaxYears.remove(pid); removed += ys.size() };
+        case null {};
+      };
       // #712 move-in plan.
       if (moveInPlans.get(pid) != null) { moveInPlans.remove(pid); removed += 1 };
+      // #724 successor, its link, and the claims on this home (with proofs).
+      if (successors.get(pid) != null) { dropSuccessor(pid); removed += 1 };
+      removed += dropSuccessionClaims(func(c : SuccessionClaim) : Bool { c.propertyId == pid });
 
       // Pending transfer and its token index.
       switch (pendingTransfers.get(pid)) {
@@ -3421,6 +3985,10 @@ persistent actor Property {
         };
       };
     };
+
+    // #724: claims the caller opened on other owners' homes (open ones end
+    // with their proof).
+    removed += dropSuccessionClaims(func(c : SuccessionClaim) : Bool { c.claimant == caller });
 
     // Remove the caller as a delegated manager on other owners' properties.
     let managedIds = managersMap.entries()

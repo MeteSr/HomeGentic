@@ -54,6 +54,7 @@ export type PhotoAccess = {
 export interface _SERVICE {
   addPhotoRelay: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   beginUpload: ActorMethod<[string, string, ConstructionPhase, string, string, bigint], { ok: Photo } | { err: Error }>;
+  beginWaiverUpload: ActorMethod<[string, string, string, bigint], { ok: Photo } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   deletePhoto: ActorMethod<[string], { ok: null } | { err: Error }>;
   getGuidePhotoData: ActorMethod<[string, string], { ok: Uint8Array | number[] } | { err: Error }>;
@@ -72,4 +73,5 @@ export interface _SERVICE {
     [string, string, ConstructionPhase, string, string, Uint8Array | number[]],
     { ok: Photo } | { err: Error }
   >;
+  uploadWaiver: ActorMethod<[string, string, string, Uint8Array | number[]], { ok: Photo } | { err: Error }>;
 }

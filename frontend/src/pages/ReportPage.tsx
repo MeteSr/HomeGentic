@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Shield, CheckCircle, Wrench, FileText, Printer, AlertTriangle, XCircle, Receipt } from "lucide-react";
-import { reportService, ReportSnapshot, ShareLink, JobInput, BillsSummary, BILLS_SUMMARY_LABELS, disclosureFromParams } from "@/services/report";
+import { reportService, ReportSnapshot, ShareLink, JobInput, BillsSummary, BILLS_SUMMARY_LABELS, disclosureFromParams, type ReportCloseout } from "@/services/report";
 import { DocumentedValueSection } from "@/components/DocumentedValueSection";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { formatCents, formatIsoDate } from "@/utils/format";
@@ -101,6 +101,7 @@ export default function ReportPage() {
   const [link, setLink]         = useState<ShareLink | null>(null);
   const [error, setError]       = useState("");
   const [bills, setBills]       = useState<BillsSummary | null>(null);
+  const [closeout, setCloseout] = useState<ReportCloseout | null>(null);
 
   useEffect(() => {
     if (!token) { setState("notfound"); return; }
@@ -131,6 +132,16 @@ export default function ReportPage() {
       .catch(() => { if (!cancelled) setBills(null); });
     return () => { cancelled = true; };
   }, [token, hideAmounts]);
+
+  // #716: permits and lien waivers as recorded when the report was made.
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    Promise.resolve().then(() => reportService.getCloseout(token))
+      .then((c) => { if (!cancelled) setCloseout(c); })
+      .catch(() => { if (!cancelled) setCloseout(null); });
+    return () => { cancelled = true; };
+  }, [token]);
 
   const [onChainScore, setOnChainScore] = useState<number | null>(null);
   useEffect(() => {
@@ -444,6 +455,9 @@ export default function ReportPage() {
           </div>
         )}
 
+        {/* #716 — Permits and lien waivers */}
+        {closeout && <CloseoutSection closeout={closeout} hidePermits={disclosure.hidePermits} />}
+
         {/* Monthly Costs */}
         {!hideAmounts && bills && bills.lines.length > 0 && (
           <div style={{ marginBottom: "2.5rem" }}>
@@ -674,5 +688,46 @@ export default function ReportPage() {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * #716: permit counts by status and contractor jobs with a final lien waiver
+ * on file, from the homeowner's own record at the time of the report. Never
+ * says the home is lien-free: a title search is what shows recorded liens.
+ */
+function CloseoutSection({ closeout, hidePermits }: { closeout: ReportCloseout; hidePermits: boolean }) {
+  const p = hidePermits ? null : closeout.permits;
+  const permitParts = p
+    ? [
+        [p.closed, "closed"],
+        [p.open, "open"],
+        [p.expired, "expired"],
+        [p.unrecorded, "with no status recorded"],
+      ].filter(([n]) => (n as number) > 0).map(([n, label]) => `${n} ${label}`)
+    : [];
+  if (permitParts.length === 0 && closeout.largeJobs === 0) return null;
+  const threshold = (closeout.thresholdCents / 100).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  return (
+    <div style={{ marginBottom: "2.5rem" }}>
+      <SectionHeader title="Permits and Lien Waivers" icon={<FileText size={14} color={UI.inkLight} />} />
+      <div style={{ border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem" }}>
+        {permitParts.length > 0 && (
+          <p style={{ fontSize: "0.875rem", color: UI.ink, margin: "0 0 0.5rem" }}>
+            Permits recorded: {permitParts.join(", ")}.
+          </p>
+        )}
+        {closeout.largeJobs > 0 && (
+          <p style={{ fontSize: "0.875rem", color: UI.ink, margin: 0 }}>
+            Final lien waiver on file for {closeout.largeJobsWithWaiver} of {closeout.largeJobs} contractor{" "}
+            {closeout.largeJobs === 1 ? "job" : "jobs"} over {threshold}.
+          </p>
+        )}
+      </div>
+      <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", lineHeight: 1.5, color: UI.inkLight, marginTop: "0.625rem" }}>
+        As recorded by the homeowner when this report was made. A title search is what shows whether a lien was
+        recorded, and the permit office can confirm a permit&apos;s status.
+      </p>
+    </div>
   );
 }
