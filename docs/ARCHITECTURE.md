@@ -350,8 +350,8 @@ API. It is intentionally outside ICP — it needs Anthropic SDK streaming and
 secret API keys.
 
 **Production hosting**: Cloudflare Workers. The entry point is
-`agents/voice/src/index.ts`, deployed by the `deploy-voice-worker` job in
-`deploy-mainnet.yml` (`wrangler deploy`); rate-limit counters live in
+`agents/voice/src/index.ts`, deployed by `scripts/deploy-voice-worker.sh` from
+`deploy.sh` in `deploy-mainnet.yml` (`wrangler deploy`), after the canisters and before the frontend; rate-limit counters live in
 Workers KV. See [DEPLOYMENT.md](DEPLOYMENT.md#voice-agent-cloudflare-workers).
 
 ```
