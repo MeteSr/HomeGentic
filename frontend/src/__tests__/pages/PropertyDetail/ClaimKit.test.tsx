@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { InsuranceClaim } from "@/services/insuranceClaims";
 
@@ -146,6 +146,37 @@ describe("ClaimKit", () => {
       ),
     );
     expect(await within(card).findByText(/Uploaded Sep 29, 2026/)).toBeInTheDocument();
+  });
+
+  it("keeps a photo uploaded before the claim's photo list has loaded", async () => {
+    mockClaims.list.mockResolvedValue([CLAIM]);
+    let finishList: (list: unknown[]) => void = () => {};
+    mockPhoto.getByJob.mockReturnValue(new Promise((r) => (finishList = r)));
+    mockPhoto.upload.mockResolvedValue(PHOTO);
+    render(<ClaimKit propertyId="p1" canEdit />);
+    const card = await screen.findByRole("article", { name: "Kitchen ceiling leak" });
+    fireEvent.change(within(card).getByLabelText("Add damage photos"), {
+      target: { files: [new File(["x"], "ceiling.jpg", { type: "image/jpeg" })] },
+    });
+    expect(await within(card).findByText(/Uploaded Sep 29, 2026/)).toBeInTheDocument();
+    // The list was read before the upload landed, so it arrives without it: the photo stays.
+    await act(async () => finishList([]));
+    expect(within(card).getAllByText(/Uploaded Sep 29, 2026/)).toHaveLength(1);
+  });
+
+  it("doesn't show a photo twice when the late list already has it", async () => {
+    mockClaims.list.mockResolvedValue([CLAIM]);
+    let finishList: (list: unknown[]) => void = () => {};
+    mockPhoto.getByJob.mockReturnValue(new Promise((r) => (finishList = r)));
+    mockPhoto.upload.mockResolvedValue(PHOTO);
+    render(<ClaimKit propertyId="p1" canEdit />);
+    const card = await screen.findByRole("article", { name: "Kitchen ceiling leak" });
+    fireEvent.change(within(card).getByLabelText("Add damage photos"), {
+      target: { files: [new File(["x"], "ceiling.jpg", { type: "image/jpeg" })] },
+    });
+    expect(await within(card).findByText(/Uploaded Sep 29, 2026/)).toBeInTheDocument();
+    await act(async () => finishList([PHOTO]));
+    expect(within(card).getAllByText(/Uploaded Sep 29, 2026/)).toHaveLength(1);
   });
 
   it("shows why a photo upload failed", async () => {
