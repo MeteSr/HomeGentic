@@ -300,7 +300,7 @@ describe("job close-out: permit status and lien waivers", () => {
       createHash("sha256").update(other).digest("hex"),
       other,
     );
-    expect(JSON.stringify(r)).toMatch(/Upload a photo of the signed waiver/);
+    expect(JSON.stringify(r)).toMatch(/Upload the signed waiver as a PDF or a photo/);
     ok(await as("photo", admin).setOnChainUploadsEnabled(true));
   });
 
