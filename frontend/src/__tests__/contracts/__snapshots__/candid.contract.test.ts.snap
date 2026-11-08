@@ -2918,6 +2918,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok:nat; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "deletePropertyTaxYear": {
+    "args": [
+      "text",
+      "nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "deleteSpecialAssessment": {
     "args": [
       "text",
@@ -3298,6 +3308,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "opt principal",
     ],
   },
+  "getPropertyTaxYears": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {assessedValueCents:opt nat; year:nat; marketValueCents:opt nat; updatedAt:int; taxableValueCents:opt nat; notes:text; petitionDeadline:text; exemption:variant {Applied; NotApplying; Granted; Denied; Unknown}}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "getPropertyYearBuilt": {
     "args": [
       "text",
@@ -3340,6 +3361,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:vec record {id:text; city:text; zipCode:text; state:text; address:text; yearBuilt:nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "getPulsePropertyTax": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {propertyId:text; years:vec record {year:nat; petitionDeadline:text; exemption:variant {Applied; NotApplying; Granted; Denied; Unknown}}}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "getRoomsByProperty": {
@@ -3627,6 +3659,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {tasks:vec record {id:text; title:text; urgency:variant {Repair; Safety; Monitor}; area:text; createdAt:int; detail:text}; startedAt:int; updatedAt:int; doneSteps:vec text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "setPropertyTaxYear": {
+    "args": [
+      "text",
+      "record {assessedValueCents:opt nat; year:nat; marketValueCents:opt nat; taxableValueCents:opt nat; notes:text; petitionDeadline:text; exemption:variant {Applied; NotApplying; Granted; Denied; Unknown}}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {assessedValueCents:opt nat; year:nat; marketValueCents:opt nat; updatedAt:int; taxableValueCents:opt nat; notes:text; petitionDeadline:text; exemption:variant {Applied; NotApplying; Granted; Denied; Unknown}}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "startMoveInPlan": {

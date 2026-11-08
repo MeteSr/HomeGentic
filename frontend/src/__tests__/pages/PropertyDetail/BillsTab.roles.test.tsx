@@ -26,6 +26,11 @@ vi.mock("@/store/authStore", () => ({
   useAuthStore: (sel: (s: { principal: string }) => unknown) => sel({ principal: "me" }),
 }));
 
+vi.mock("@/pages/PropertyDetail/PropertyTaxSection", () => ({
+  PropertyTaxSection: ({ propertyId, state }: { propertyId: string; state: string }) => (
+    <div data-testid="property-tax">{`${propertyId} ${state}`}</div>
+  ),
+}));
 vi.mock("@/pages/PropertyDetail/MortgageSection", () => ({
   MortgageSection: ({ propertyId }: { propertyId: string }) => <div data-testid="mortgage">{propertyId}</div>,
 }));
@@ -75,6 +80,18 @@ describe("BillsTab — role-aware", () => {
       await waitFor(() => expect(mockGetAccessRole).toHaveBeenCalled());
       if (shown) expect(await screen.findByTestId("mortgage")).toHaveTextContent("p1");
       else await waitFor(() => expect(screen.queryByTestId("mortgage")).not.toBeInTheDocument());
+      unmount();
+    }
+  });
+
+  it("shows the property tax record to owners and co-owners only (#714)", async () => {
+    for (const [role, shown] of [["Owner", true], ["CoOwner", true], ["Manager", false], ["Viewer", false]] as const) {
+      mockGetAccessRole.mockResolvedValue(role);
+      const { unmount } = render(<BillsTab propertyId="p1" state="FL" zipCode="32114" />);
+      await screen.findByText("City Water");
+      await waitFor(() => expect(mockGetAccessRole).toHaveBeenCalled());
+      if (shown) expect(await screen.findByTestId("property-tax")).toHaveTextContent("p1 FL");
+      else await waitFor(() => expect(screen.queryByTestId("property-tax")).not.toBeInTheDocument());
       unmount();
     }
   });

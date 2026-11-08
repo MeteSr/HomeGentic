@@ -17,7 +17,7 @@ import {
 import { getPrefs } from "../prefs";
 import { scoreBreakdown } from "../../../packages/shared/src/score";
 import { buildApp } from "../server";
-import type { PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty } from "../types";
+import type { PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax } from "../types";
 
 // Monday 2026-10-19 14:00 UTC (ISO week 43); autumn.
 const MONDAY = Date.UTC(2026, 9, 19, 14);
@@ -143,6 +143,47 @@ describe("buildSection", () => {
     expect(pmi(null)).toHaveLength(0);
   });
 
+  describe("#714 Florida property tax", () => {
+    const FL: PulseProperty = { ...HOUSE, city: "DeLand", state: "FL", zipCode: "32720", yearBuilt: 2024 };
+    const FEB_1_2027 = Date.UTC(2027, 1, 1, 14); // a Monday, four weeks before March 1
+    const tax = (years: PulsePropertyTax["years"]): PulsePropertyTax => ({ propertyId: "P1", years });
+    const taxItems = (p: PulseProperty, nowMs: number, t: PulsePropertyTax | null = null) =>
+      buildSection(p, [], [], nowMs, null, null, t).items.filter((i) => i.tag === "PROPERTY TAX");
+
+    it("reminds Florida owners of the March 1 homestead deadline and links the statute", () => {
+      const [item] = taxItems(FL, FEB_1_2027);
+      expect(item.title).toBe("Homestead exemption: apply by Mar 1, 2027");
+      expect(item.body).toMatch(/permanent residence on January 1/);
+      expect(item.body).toMatch(/county property appraiser/);
+      expect(item.body).not.toMatch(/\bsave\b|\$\d|savings|will lower|guarantee/i);
+      expect(item.link).toEqual({ label: "Florida Statutes, s. 196.011", url: "https://www.flsenate.gov/Laws/Statutes/2026/196.011" });
+      expect(taxItems(HOUSE, FEB_1_2027)).toHaveLength(0); // North Carolina
+      expect(taxItems(FL, FEB_1_2027, tax([{ year: 2027, exemption: "Applied", petitionDeadline: "" }]))).toHaveLength(0);
+    });
+
+    it("flags the TRIM notice in August and the petition deadline the owner saved", () => {
+      const [trim] = taxItems(FL, Date.UTC(2027, 7, 16, 14));
+      expect(trim.title).toBe("Your TRIM notice: check the values and the petition deadline");
+      expect(trim.body).toMatch(/Notice of Proposed Property Taxes/);
+      expect(trim.body).toMatch(/25 days after/);
+      expect(trim.link?.url).toBe("https://floridarevenue.com/property/Documents/pt101.pdf");
+
+      const saved = tax([{ year: 2026, exemption: "Granted", petitionDeadline: "2026-09-15" }]);
+      const [vab] = taxItems(FL, Date.UTC(2026, 7, 31, 14), saved);
+      expect(vab.title).toBe("Value Adjustment Board petition deadline: Sep 15, 2026");
+      expect(vab.body).toMatch(/date you saved from your TRIM notice/i);
+      expect(vab.body).toMatch(/can't tell you whether/i);
+      expect(vab.body).not.toMatch(/\bsave money\b|savings|\$\d|will lower|guarantee/i);
+    });
+
+    it("renders the source link in the email", () => {
+      const s = buildSection(FL, [], [], FEB_1_2027);
+      const m = renderPulse([s], 0, { dashboard: "d", settings: "s", unsubscribe: "u" });
+      expect(m.text).toContain("Florida Statutes, s. 196.011: https://www.flsenate.gov/Laws/Statutes/2026/196.011");
+      expect(m.html).toContain('href="https://www.flsenate.gov/Laws/Statutes/2026/196.011"');
+    });
+  });
+
   it("puts the insurance renewal ahead of system-life items", () => {
     const s = buildSection(HOUSE, [], [], MONDAY, { propertyId: "P1", carrier: "Citizens", renewalDate: "2026-11-01" });
     expect(s.items[0].tag).toBe("INSURANCE");
@@ -216,6 +257,7 @@ describe("runPulse", () => {
       getSnapshots:  jest.fn(async () => []),
       getInsurance:  jest.fn(async () => []),
       getHomeFinance: jest.fn(async () => []),
+      getPropertyTax: jest.fn(async () => []),
       wantsPulse:    () => true,
       send:          jest.fn(async () => undefined),
       pause:         async () => undefined,
@@ -267,6 +309,28 @@ describe("runPulse", () => {
     const broken = deps({ getHomeFinance: jest.fn(async () => { throw new Error("no such method"); }) });
     expect(await runPulse(MONDAY, broken)).toBe(2);
     expect(broken.send.mock.calls[0][1].text).not.toContain("[HOME WARRANTY]");
+  });
+
+  it("adds each Florida property's saved petition deadline, and still sends when it can't be read", async () => {
+    const FL = { ...HOUSE, state: "FL", zipCode: "32720" };
+    const nowMs = Date.UTC(2026, 8, 7, 14); // Monday Sep 7, 2026
+    const d = deps({
+      getProperties: jest.fn(async (o: string) => (o === "2vxsx-fae" ? [] : [FL])),
+      getPropertyTax: jest.fn(async () => [{
+        propertyId: "P1", years: [{ year: 2026, exemption: "Granted" as const, petitionDeadline: "2026-09-15" }],
+      }]),
+    });
+    await runPulse(nowMs, d);
+    expect(d.send.mock.calls[0][1].text).toContain("[PROPERTY TAX] Value Adjustment Board petition deadline: Sep 15, 2026");
+
+    resetPulseState();
+    const broken = deps({
+      getProperties: jest.fn(async (o: string) => (o === "2vxsx-fae" ? [] : [FL])),
+      getPropertyTax: jest.fn(async () => { throw new Error("no such method"); }),
+    });
+    expect(await runPulse(nowMs, broken)).toBe(2);
+    // Without the saved years it still shows the TRIM notice line, from the table.
+    expect(broken.send.mock.calls[0][1].text).toContain("[PROPERTY TAX] Your TRIM notice");
   });
 
   it("doesn't run before Monday's send hour, or without email or a public URL", async () => {

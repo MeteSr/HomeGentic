@@ -16,7 +16,7 @@
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
-import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulseRecipient } from "./types";
+import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseRecipient } from "./types";
 import type { ScoreJob } from "../../packages/shared/src/score";
 import { rootKeyFor } from "../../packages/shared/src/rootKey";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
@@ -266,6 +266,23 @@ export async function getPulseHomeFinance(owner: string): Promise<PulseHomeFinan
           monthlyPmiCents:     optNat(f.loan[0].monthlyPmiCents),
         }
       : null,
+  }));
+}
+
+/** #714: the property-tax years saved on `owner`'s homes, status only (needs addNotifier on property). */
+export async function getPulsePropertyTax(owner: string): Promise<PulsePropertyTax[]> {
+  const property = Actor.createActor(propertyIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_PROPERTY"),
+  }) as any;
+  const res = await property.getPulsePropertyTax(Principal.fromText(owner));
+  if ("err" in res) throw new Error(`getPulsePropertyTax: ${Object.keys(res.err)[0]}`);
+  return res.ok.map((t: any) => ({
+    propertyId: t.propertyId,
+    years: t.years.map((y: any) => ({
+      year:             Number(y.year),
+      exemption:        Object.keys(y.exemption)[0],
+      petitionDeadline: y.petitionDeadline,
+    })),
   }));
 }
 

@@ -64,8 +64,10 @@ module {
     null
   };
 
-  /// `plan` with `stepId` marked done or not done.
+  /// `plan` with `stepId` marked done or not done. Marking a done step done
+  /// again changes nothing (it keeps its place in the order steps were done).
   public func mark(plan : Plan, stepId : Text, done : Bool, now : Int) : Plan {
+    if (done and plan.doneSteps.find(func s = s == stepId) != null) return plan;
     let rest = plan.doneSteps.filter(func s = s != stepId);
     { plan with doneSteps = if (done) rest.concat([stepId]) else rest; updatedAt = now }
   };

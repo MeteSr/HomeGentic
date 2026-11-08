@@ -8,7 +8,9 @@
  *   1. jobs waiting on their signature
  *   2. a home insurance renewal in the next 60 days (the policy they saved),
  *      a home warranty renewal in the next 60 days, and a PMI note when the
- *      loan's original schedule is within 60 days of 80% of the original value
+ *      loan's original schedule is within 60 days of 80% of the original value,
+ *      and for Florida homes the property-tax dates (homestead deadline, TRIM
+ *      notice, the petition deadline the owner saved; #714)
  *   3. systems past their rated life (age counted the way the score counts it)
  *   4. warranties that end in the next 60 days
  *   5. systems within two years of their rated life
@@ -34,7 +36,8 @@ import { loadSection, saveSection } from "./persist";
 import { emailUnsubscribeId, unsubscribeTokenFor } from "./unsubscribe";
 import { SYSTEM_LIFESPANS, REPLACEMENT_MIN_CENTS, scoreBreakdown, type ScoreJob } from "../../packages/shared/src/score";
 import { climateService, type Season } from "../../packages/shared/src/climate";
-import type { PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulseRecipient } from "./types";
+import type { PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseRecipient } from "./types";
+import { floridaTaxReminders, type TaxReminder } from "../../packages/shared/src/propertyTax";
 import { pmiReminder } from "../../packages/shared/src/mortgage";
 import { reportFailure, errorCode } from "./opsReport";
 
@@ -91,12 +94,14 @@ function addMonths(ms: number, months: number): number {
 
 // ── Digest ────────────────────────────────────────────────────────────────────
 
-export type PulseTag = "SIGN OFF" | "INSURANCE" | "HOME WARRANTY" | "PMI" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL";
+export type PulseTag = "SIGN OFF" | "INSURANCE" | "HOME WARRANTY" | "PMI" | "PROPERTY TAX" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL";
 
 export interface PulseItem {
   tag:   PulseTag;
   title: string;
   body:  string;
+  /** An official source to read, shown under the body. */
+  link?: { label: string; url: string };
 }
 
 export interface PulseSection {
@@ -195,6 +200,35 @@ export function pmiItem(finance: PulseHomeFinance | null, nowMs: number): PulseI
   };
 }
 
+/** #714: one Florida property-tax reminder as an email item. Dates and sources come from the checked table. */
+export function propertyTaxItem(r: TaxReminder): PulseItem {
+  const link = { label: r.source.label, url: r.source.url };
+  const when = dayMonth(isoDateMs(r.date)!);
+  switch (r.kind) {
+    case "Homestead":
+      return {
+        tag:   "PROPERTY TAX",
+        title: `Homestead exemption: apply by ${when}`,
+        body:  "If this home was your permanent residence on January 1, Florida's deadline to apply for the homestead exemption with your county property appraiser is March 1. If it was granted before, your county may renew it without a new application; check with the property appraiser. Mark this year on the Property tax card in Bills and this reminder stops. Not tax advice.",
+        link,
+      };
+    case "TrimNotice":
+      return {
+        tag:   "PROPERTY TAX",
+        title: "Your TRIM notice: check the values and the petition deadline",
+        body:  "Florida property appraisers mail the Notice of Proposed Property Taxes (the TRIM notice) in August. It shows this year's market, assessed and taxable values, your exemptions, and the last day to file a petition with the Value Adjustment Board, 25 days after the notice was mailed. Enter them on the Property tax card in Bills to get a reminder before that date.",
+        link,
+      };
+    case "PetitionDeadline":
+      return {
+        tag:   "PROPERTY TAX",
+        title: `Value Adjustment Board petition deadline: ${when}`,
+        body:  "The date you saved from your TRIM notice. If you think the value on the notice is wrong, you can ask the property appraiser's office about it, and file a petition with your county's Value Adjustment Board by this date. HomeGentic can't tell you whether a petition would change your taxes. Not tax advice.",
+        link,
+      };
+  }
+}
+
 /**
  * One property's section. `jobs` are that property's jobs; `snapshots` are
  * the job canister's score inputs for it; `insurance` is its saved policy.
@@ -203,6 +237,7 @@ export function buildSection(
   property: PulseProperty, jobs: PulseJob[], snapshots: ScoreJob[], nowMs: number,
   insurance: PulseInsurance | null = null,
   finance: PulseHomeFinance | null = null,
+  tax: PulsePropertyTax | null = null,
 ): PulseSection {
   const currentYear = new Date(nowMs).getUTCFullYear();
   const zone   = climateService.getZone(property.zipCode);
@@ -227,6 +262,8 @@ export function buildSection(
   if (renewal) items.push(renewal);
   // Home warranty renewal and PMI milestone
   for (const item of [homeWarrantyItem(finance, nowMs), pmiItem(finance, nowMs)]) if (item) items.push(item);
+  // #714 Florida property-tax dates
+  for (const r of floridaTaxReminders(property.state, tax?.years ?? [], nowMs)) items.push(propertyTaxItem(r));
 
   // 2 + 4. System life, counted like the score's modernization part.
   const past: PulseItem[] = [];
@@ -310,6 +347,7 @@ const TAG_COLOR: Record<PulseTag, string> = {
   "INSURANCE":          "#8A6800",
   "HOME WARRANTY":      "#8A6800",
   "PMI":                "#2B34FF",
+  "PROPERTY TAX":       "#8A6800",
   "PAST RATED LIFE":    "#C94C2E",
   "WARRANTY":           "#8A6800",
   "NEARING RATED LIFE": "#8A6800",
@@ -331,7 +369,7 @@ export function renderPulse(sections: PulseSection[], moreProperties: number, li
       `${s.property.address}, ${s.property.city} ${s.property.state}`,
       scoreLine(s),
       "",
-      ...s.items.flatMap((i) => [`[${i.tag}] ${i.title}`, i.body, ""]),
+      ...s.items.flatMap((i) => [`[${i.tag}] ${i.title}`, i.body, ...(i.link ? [`${i.link.label}: ${i.link.url}`] : []), ""]),
     ]),
     ...(moreProperties > 0 ? [`And ${moreProperties} more propert${moreProperties === 1 ? "y" : "ies"} on your dashboard.`, ""] : []),
     `Open your dashboard: ${links.dashboard}`,
@@ -343,7 +381,8 @@ export function renderPulse(sections: PulseSection[], moreProperties: number, li
   const item = (i: PulseItem) => `<tr><td style="padding:12px 0;border-bottom:1px solid #E4E5EA">
 <div style="font:700 10px/1 monospace;letter-spacing:.1em;color:${TAG_COLOR[i.tag]};margin-bottom:6px">${escapeHtml(i.tag)}</div>
 <div style="font-size:15px;font-weight:600;margin-bottom:4px">${escapeHtml(i.title)}</div>
-<div style="font-size:14px;color:#4A4D5C">${escapeHtml(i.body)}</div></td></tr>`;
+<div style="font-size:14px;color:#4A4D5C">${escapeHtml(i.body)}</div>${i.link ? `
+<div style="font-size:13px;margin-top:4px"><a href="${escapeHtml(i.link.url)}" style="color:#2B34FF">${escapeHtml(i.link.label)}</a></div>` : ""}</td></tr>`;
   const section = (s: PulseSection) => `<h2 style="font-size:17px;margin:28px 0 4px">${escapeHtml(`${s.property.address}, ${s.property.city} ${s.property.state}`)}</h2>
 <p style="margin:0 0 8px;font-size:13px;color:#4A4D5C">${escapeHtml(scoreLine(s))}</p>
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation">${s.items.map(item).join("")}</table>`;
@@ -375,6 +414,8 @@ export interface PulseDeps {
   getInsurance:  (owner: string) => Promise<PulseInsurance[]>;
   /** #719 / #722: home warranty renewals and loan terms for the PMI note. */
   getHomeFinance: (owner: string) => Promise<PulseHomeFinance[]>;
+  /** #714: the property-tax years the owner saved (exemption status and petition deadline). */
+  getPropertyTax: (owner: string) => Promise<PulsePropertyTax[]>;
   wantsPulse:    (principal: string) => boolean;
   send:          (to: string, msg: EmailMessage, idempotencyKey: string, headers: Record<string, string>) => Promise<void>;
   /** Pause between sends (Resend's default limit is a few requests a second). */
@@ -392,6 +433,7 @@ const defaultDeps: PulseDeps = {
   getSnapshots:  icp.getJobSnapshots,
   getInsurance:  icp.getPulseInsurance,
   getHomeFinance: icp.getPulseHomeFinance,
+  getPropertyTax: icp.getPulsePropertyTax,
   wantsPulse:    (p) => getPrefs(p).email.weekly_pulse,
   send:          sendRawEmail,
   pause:         () => new Promise((r) => setTimeout(r, sendGapMs())),
@@ -446,13 +488,20 @@ export async function sendPulseTo(r: PulseRecipient, week: string, nowMs: number
   } catch (err) {
     console.warn("[pulse] home warranty and loan reminders unavailable:", err instanceof Error ? err.message : err);
   }
+  let tax: PulsePropertyTax[] = [];
+  try {
+    tax = await deps.getPropertyTax(r.principal);
+  } catch (err) {
+    console.warn("[pulse] property-tax years unavailable:", err instanceof Error ? err.message : err);
+  }
   const shown = properties.slice(0, MAX_PROPERTIES);
   const sections: PulseSection[] = [];
   for (const p of shown) {
     const snapshots = await deps.getSnapshots(p.id);
     const policy = insurance.find((i) => i.propertyId === p.id) ?? null;
     const fin = finance.find((f) => f.propertyId === p.id) ?? null;
-    sections.push(buildSection(p, jobs.filter((j) => j.propertyId === p.id), snapshots, nowMs, policy, fin));
+    const taxYears = tax.find((t) => t.propertyId === p.id) ?? null;
+    sections.push(buildSection(p, jobs.filter((j) => j.propertyId === p.id), snapshots, nowMs, policy, fin, taxYears));
   }
   const unsubscribe = unsubscribeUrl(base, r.principal);
   const msg = renderPulse(sections, properties.length - shown.length, {

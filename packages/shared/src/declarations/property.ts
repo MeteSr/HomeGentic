@@ -289,6 +289,25 @@ export const idlFactory = ({ IDL }: any) => {
       monthlyPmiCents:     IDL.Opt(IDL.Nat),
     })),
   });
+  // #714 property-tax years
+  const TaxExemption = IDL.Variant({
+    Unknown: IDL.Null, NotApplying: IDL.Null, Applied: IDL.Null, Granted: IDL.Null, Denied: IDL.Null,
+  });
+  const taxYearFields = {
+    year:               IDL.Nat,
+    marketValueCents:   IDL.Opt(IDL.Nat),
+    assessedValueCents: IDL.Opt(IDL.Nat),
+    taxableValueCents:  IDL.Opt(IDL.Nat),
+    exemption:          TaxExemption,
+    petitionDeadline:   IDL.Text,
+    notes:              IDL.Text,
+  };
+  const PropertyTaxYearInput = IDL.Record(taxYearFields);
+  const PropertyTaxYear = IDL.Record({ ...taxYearFields, updatedAt: IDL.Int });
+  const PulsePropertyTax = IDL.Record({
+    propertyId: IDL.Text,
+    years: IDL.Vec(IDL.Record({ year: IDL.Nat, exemption: TaxExemption, petitionDeadline: IDL.Text })),
+  });
   // #718 FEMA flood zone
   const FloodZoneStatus = IDL.Variant({ Mapped: IDL.Null, NotMapped: IDL.Null });
   const floodFields = {
@@ -617,6 +636,24 @@ export const idlFactory = ({ IDL }: any) => {
     getPulseHomeFinance: IDL.Func(
       [IDL.Principal],
       [IDL.Variant({ ok: IDL.Vec(PulseHomeFinance), err: Error })],
+      ["query"]
+    ),
+    // #714 property-tax years (owner and co-owners)
+    setPropertyTaxYear: IDL.Func(
+      [IDL.Text, PropertyTaxYearInput],
+      [IDL.Variant({ ok: PropertyTaxYear, err: Error })],
+      []
+    ),
+    deletePropertyTaxYear: IDL.Func([IDL.Text, IDL.Nat], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getPropertyTaxYears: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(PropertyTaxYear), err: Error })],
+      ["query"]
+    ),
+    // #714 weekly Home Pulse email (notification relay only)
+    getPulsePropertyTax: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Vec(PulsePropertyTax), err: Error })],
       ["query"]
     ),
     // #712 move-in plan for new owners

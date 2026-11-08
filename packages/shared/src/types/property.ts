@@ -383,6 +383,20 @@ export type PropertyManager = {
   addedAt: bigint;
 };
 
+export type PropertyTaxYear = {
+  assessedValueCents: [] | [bigint];
+  year: bigint;
+  marketValueCents: [] | [bigint];
+  updatedAt: bigint;
+  taxableValueCents: [] | [bigint];
+  notes: string;
+  petitionDeadline: string;
+  exemption: TaxExemption;
+};
+
+export type TaxExemption =
+  { Applied: null } | { NotApplying: null } | { Granted: null } | { Denied: null } | { Unknown: null };
+
 export type PulseHomeFinance = {
   loan:
     | []
@@ -405,6 +419,15 @@ export type PulseHomeFinance = {
           renewalDate: string;
         },
       ];
+};
+
+export type PulsePropertyTax = {
+  propertyId: string;
+  years: Array<{
+    year: bigint;
+    petitionDeadline: string;
+    exemption: TaxExemption;
+  }>;
 };
 
 export type RoomRecord = {
@@ -553,6 +576,16 @@ export type MortgageLoanInput = {
   originalValueCents: [] | [bigint];
 };
 
+export type PropertyTaxYearInput = {
+  assessedValueCents: [] | [bigint];
+  year: bigint;
+  marketValueCents: [] | [bigint];
+  taxableValueCents: [] | [bigint];
+  notes: string;
+  petitionDeadline: string;
+  exemption: TaxExemption;
+};
+
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
   addArchitecturalReview: ActorMethod<[string, ReviewInput], { ok: ArchitecturalReview } | { err: Error }>;
@@ -582,6 +615,7 @@ export interface _SERVICE {
   deleteInventoryItem: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteMoveInTask: ActorMethod<[string, string], { ok: MoveInPlan } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
+  deletePropertyTaxYear: ActorMethod<[string, bigint], { ok: null } | { err: Error }>;
   deleteSpecialAssessment: ActorMethod<[string], { ok: null } | { err: Error }>;
   dismissNotifications: ActorMethod<[string], { ok: null } | { err: Error }>;
   endMoveInPlan: ActorMethod<[string], { ok: null } | { err: Error }>;
@@ -631,6 +665,7 @@ export interface _SERVICE {
   getPropertyLimitForTier: ActorMethod<[SubscriptionTier], bigint>;
   getPropertyManagers: ActorMethod<[string], { ok: PropertyManager[] } | { err: Error }>;
   getPropertyOwner: ActorMethod<[string], [] | [Principal]>;
+  getPropertyTaxYears: ActorMethod<[string], { ok: PropertyTaxYear[] } | { err: Error }>;
   getPropertyYearBuilt: ActorMethod<[string], [] | [bigint]>;
   getPulseHomeFinance: ActorMethod<[Principal], { ok: PulseHomeFinance[] } | { err: Error }>;
   getPulseInsurance: ActorMethod<
@@ -658,6 +693,7 @@ export interface _SERVICE {
       }
     | { err: Error }
   >;
+  getPulsePropertyTax: ActorMethod<[Principal], { ok: PulsePropertyTax[] } | { err: Error }>;
   getRoomsByProperty: ActorMethod<[string], RoomRecord[]>;
   getSharedHouseGuide: ActorMethod<[string], { ok: SharedHouseGuide } | { err: Error }>;
   getSpecialAssessments: ActorMethod<[string], { ok: SpecialAssessment[] } | { err: Error }>;
@@ -685,6 +721,7 @@ export interface _SERVICE {
   setInsurancePolicy: ActorMethod<[string, [] | [InsurancePolicyInput]], { ok: null } | { err: Error }>;
   setMortgageLoan: ActorMethod<[string, [] | [MortgageLoanInput]], { ok: null } | { err: Error }>;
   setMoveInStep: ActorMethod<[string, string, boolean], { ok: MoveInPlan } | { err: Error }>;
+  setPropertyTaxYear: ActorMethod<[string, PropertyTaxYearInput], { ok: PropertyTaxYear } | { err: Error }>;
   startMoveInPlan: ActorMethod<[string], { ok: MoveInPlan } | { err: Error }>;
   submitVerification: ActorMethod<[string, string, string, [] | [string]], { ok: Property } | { err: Error }>;
   updateArchitecturalReview: ActorMethod<[string, ReviewInput], { ok: ArchitecturalReview } | { err: Error }>;
