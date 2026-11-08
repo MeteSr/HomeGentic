@@ -83,6 +83,21 @@ export const idlFactory = ({ IDL }: any) => {
   });
   const UnitResult = IDL.Variant({ ok: IDL.Null, err: Error });
   const TextResult = IDL.Variant({ ok: IDL.Text, err: Error });
+  // #717: private calendar subscribe link.
+  const CalendarEvent = IDL.Record({
+    uid:         IDL.Text,
+    date:        IDL.Text,
+    title:       IDL.Text,
+    description: IDL.Text,
+    rrule:       IDL.Text,
+  });
+  const CalendarFeedStatus = IDL.Record({
+    token:      IDL.Text,
+    version:    IDL.Text,
+    eventCount: IDL.Nat,
+    updatedAt:  IDL.Int,
+  });
+  const CalendarFeedView = IDL.Record({ events: IDL.Vec(CalendarEvent), updatedAt: IDL.Int });
   return IDL.Service({
     getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
     getMyInboxToken:    IDL.Func([], [TextResult], []),
@@ -97,6 +112,12 @@ export const idlFactory = ({ IDL }: any) => {
     dismissEmailDraft:  IDL.Func([IDL.Text], [UnitResult], []),
     addInboxRelay:      IDL.Func([IDL.Principal], [UnitResult], []),
     removeInboxRelay:   IDL.Func([IDL.Principal], [UnitResult], []),
+    getMyCalendarFeed:       IDL.Func([], [IDL.Opt(CalendarFeedStatus)], ["query"]),
+    enableMyCalendarFeed:    IDL.Func([], [TextResult], []),
+    resetMyCalendarFeed:     IDL.Func([], [TextResult], []),
+    disableMyCalendarFeed:   IDL.Func([], [UnitResult], []),
+    publishMyCalendarEvents: IDL.Func([IDL.Text, IDL.Vec(CalendarEvent)], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
+    getCalendarFeed:         IDL.Func([IDL.Text], [IDL.Opt(CalendarFeedView)], ["query"]),
     deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     linkContractor: IDL.Func(
       [IDL.Text, IDL.Principal],

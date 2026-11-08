@@ -1282,6 +1282,8 @@ Response headers: `X-Agent-Calls-Used`, `X-Agent-Calls-Limit` — used by the UI
 
 **`POST /api/errors`** — Frontend error logging. No auth required. Sanitizes and length-caps all fields; emits JSON to stdout. Always returns 204.
 
+**`GET /calendar/<token>.ics`** — The owner's private calendar feed (#717): maintenance task dates, warranty end dates and recurring visits the app last published to `job.publishMyCalendarEvents`, read with the public query `job.getCalendarFeed(token)` and written by `packages/shared/src/ics.ts`. No API key or session (calendar apps can't send one); the 32-hex token is the credential, malformed tokens never reach the canister, 60 fetches per IP per hour, and the request log replaces the token with `:token`. Needs `CANISTER_ID_JOB`; 503 without it or when the canister doesn't answer.
+
 **`GET /health`** — Returns 200 if all required env vars (`ANTHROPIC_API_KEY`, `VOICE_AGENT_API_KEY`, `FRONTEND_ORIGIN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) are present; 503 otherwise.
 
 ### Cross-Service Dependencies

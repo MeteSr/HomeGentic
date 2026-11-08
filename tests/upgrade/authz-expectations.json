@@ -52,6 +52,7 @@
   "job": {
     "stranger": [
       "deleteMyData",
+      "enableMyCalendarFeed",
       "getJobsForProperty",
       "getMyInboxToken",
       "resetMyInboxToken",

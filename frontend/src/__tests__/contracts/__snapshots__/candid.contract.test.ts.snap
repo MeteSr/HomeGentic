@@ -1250,6 +1250,13 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "variant {ok:nat; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
     ],
   },
+  "disableMyCalendarFeed": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
   "dismissEmailDraft": {
     "args": [
       "text",
@@ -1259,6 +1266,13 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
     ],
   },
+  "enableMyCalendarFeed": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:text; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
   "getApiDoc": {
     "args": [],
     "mode": [
@@ -1266,6 +1280,17 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "text",
+    ],
+  },
+  "getCalendarFeed": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {updatedAt:int; events:vec record {uid:text; title:text; date:text; description:text; rrule:text}}",
     ],
   },
   "getCertificationData": {
@@ -1383,6 +1408,15 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "record {completedJobs:nat; diyJobs:nat; isPaused:bool; verifiedJobs:nat; totalJobs:nat; pendingJobs:nat}",
     ],
   },
+  "getMyCalendarFeed": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {token:text; version:text; updatedAt:int; eventCount:nat}",
+    ],
+  },
   "getMyEmailDrafts": {
     "args": [],
     "mode": [
@@ -1445,6 +1479,16 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
     ],
   },
+  "publishMyCalendarEvents": {
+    "args": [
+      "text",
+      "vec record {uid:text; title:text; date:text; description:text; rrule:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
   "redeemInviteToken": {
     "args": [
       "text",
@@ -1505,6 +1549,13 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
+  "resetMyCalendarFeed": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:text; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
     ],
   },
   "resetMyInboxToken": {

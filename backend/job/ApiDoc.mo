@@ -22,6 +22,14 @@ module {
     "- `setPermitStatus(jobId, status)`: records a job's permit as `#Open`, `#Closed` or `#Expired`, or clears it with null. Needs write access to the home. Works on verified jobs.\n" #
     "- `addJobPaper(jobId, kind, photoId)`: files a vault document on a job as its `#FinalLienWaiver` or `#NoticeOfCommencement`; filing the same document again replaces it, and a job holds up to 10. Needs write access to the home, except that the contractor who signed the job may file its final lien waiver. A DIY job takes no lien waiver. `removeJobPaper(jobId, photoId)` takes it off the job again (the document stays in the vault).\n" #
     "- `approveJobProposal(jobId)` / `rejectJobProposal(jobId)` accept or decline a job a contractor proposed. Rejecting deletes the proposal.\n\n" #
+    "## Calendar link\n" #
+    "A private subscribe link the owner can add to a calendar app. It holds the dated events the app publishes: maintenance task dates, warranty end dates and recurring service visits. Anyone with the link can read those events, so treat it like a password. It costs nothing.\n" #
+    "- `getMyCalendarFeed()` (query): the caller's link token, event count and last update, or null when the link is off.\n" #
+    "- `enableMyCalendarFeed()`: turns the link on and returns its token (the same one if it's already on). The app turns the token into the link.\n" #
+    "- `resetMyCalendarFeed()`: replaces the token. The old link stops working at once and can't be brought back; calendars subscribed to it stop updating.\n" #
+    "- `disableMyCalendarFeed()`: turns the link off and deletes the published events. This can't be undone; turning it on again makes a new link.\n" #
+    "- `publishMyCalendarEvents(version, events)`: replaces the events behind the caller's link, at most 100, each with an id, a YYYY-MM-DD date, a title, a description and an optional repeat rule. `#NotFound` when the link is off.\n" #
+    "- `getCalendarFeed(token)` (query): the events behind a link, for the server that writes the calendar file. Null for an unknown token.\n\n" #
     Shared.common()
   };
 };

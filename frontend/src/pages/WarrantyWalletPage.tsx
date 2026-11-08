@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
+import { AddToCalendarButton } from "@/components/AddToCalendarButton";
+import { warrantyEndEvent } from "@/services/calendarEvents";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ShieldCheck, AlertTriangle, Clock, ScanLine } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -102,6 +104,14 @@ function WarrantyRow({ item, isLast }: { item: WarrantyJob; isLast: boolean }) {
           <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight }}>
             until {item.expiry.toLocaleDateString()}
           </div>
+        )}
+        {item.status !== "expired" && (
+          <AddToCalendarButton
+            event={warrantyEndEvent(item.job, item.property ? `${item.property.address}, ${item.property.city}` : "")}
+            filename={`warranty-${item.job.serviceType.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+            label={`${item.job.serviceType} warranty end`}
+            style={{ marginTop: "0.5rem", marginRight: "0.5rem", padding: "0.2rem 0.6rem", fontSize: "0.7rem" }}
+          />
         )}
         <button
           onClick={() => navigate(`/properties/${item.job.propertyId}`)}

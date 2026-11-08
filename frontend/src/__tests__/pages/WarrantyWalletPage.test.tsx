@@ -234,3 +234,15 @@ describe("WarrantyWalletPage — home warranty plans (#719)", () => {
     expect(screen.queryByText("Home warranty plans")).not.toBeInTheDocument();
   });
 });
+
+describe("WarrantyWalletPage — add to calendar (#717)", () => {
+  it("offers an Add to calendar button for warranties that haven't ended, not for expired ones", async () => {
+    const expiredJob = makeJob({ id: "j-expired", date: "2020-01-01", warrantyMonths: 12, serviceType: "Roofing" });
+    const activeJob = makeJob({ id: "j-active", date: new Date().toISOString().slice(0, 10), warrantyMonths: 120, serviceType: "Plumbing" });
+    mockGetAllJobs.mockResolvedValue([expiredJob, activeJob]);
+    renderPage();
+    await screen.findByText("Plumbing");
+    expect(screen.getByRole("button", { name: /add plumbing warranty end to calendar/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /add roofing warranty end to calendar/i })).toBeNull();
+  });
+});

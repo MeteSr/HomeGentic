@@ -8,7 +8,6 @@ import {
   maintenanceService,
   type MaintenanceReport,
   type SystemPrediction,
-  type AnnualTask,
   type ScheduleEntry,
 } from "@/services/maintenance";
 import {
@@ -26,6 +25,10 @@ import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { LoadError } from "@/components/LoadError";
 import { useDialog } from "@/hooks/useDialog";
 import { scrollBehavior } from "@/utils/motion";
+import { AddToCalendarButton } from "@/components/AddToCalendarButton";
+import { CalendarFeedCard } from "@/components/CalendarFeedCard";
+import { maintenanceTaskDueDate, maintenanceTaskEvent, recurringVisitEvent } from "@/services/calendarEvents";
+import type { IcsEvent } from "@homegentic/shared/ics";
 
 const C = V2_COLORS;
 const F = V2_FONTS;
@@ -52,6 +55,7 @@ interface RecurringDisplay {
   nextVisitShort?: string; // for skip button label "Aug 27"
   daysUntilNext: number;  // Infinity when paused
   visits: RecurringVisitDisplay[];
+  calendarEvent: IcsEvent | null; // null when paused
 }
 
 // Days between visits per frequency — mirrors MobileMaintenancePage's FREQ_DAYS.
@@ -72,7 +76,7 @@ function monthYearLabel(isoDate: string): string {
 /** Real recurring-service + visit-log data mapped to the row shape. No dollar
  *  amounts or verification flags exist in the backend, so those columns are
  *  dropped rather than faked. */
-function toRecurringDisplay(svc: RecurringService, visits: VisitLog[]): RecurringDisplay {
+function toRecurringDisplay(svc: RecurringService, visits: VisitLog[], address = ""): RecurringDisplay {
   const sortedVisits = [...visits].sort((a, b) => b.visitDate.localeCompare(a.visitDate));
   const lastVisit    = sortedVisits[0]?.visitDate ?? null;
   const freqDays     = FREQ_DAYS[svc.frequency] ?? 30;
@@ -96,31 +100,11 @@ function toRecurringDisplay(svc: RecurringService, visits: VisitLog[]): Recurrin
       dateLabel: new Date(v.visitDate).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase(),
       note:      v.note ?? "Service visit logged.",
     })),
+    calendarEvent: recurringVisitEvent(svc, visits, address),
   };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-const SEASON_MONTHS: Record<string, number[]> = {
-  Spring: [2, 3, 4], Summer: [5, 6, 7], Fall: [8, 9, 10], Winter: [11, 0, 1],
-};
-
-function taskDueDate(task: AnnualTask, index: number): Date {
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  if (task.season && SEASON_MONTHS[task.season]) {
-    const seasonMonths = SEASON_MONTHS[task.season];
-    const nextMonth = seasonMonths.find(m => m >= currentMonth) ?? seasonMonths[0];
-    const d = new Date(now.getFullYear(), nextMonth, 15);
-    if (d < now) d.setFullYear(d.getFullYear() + 1);
-    return d;
-  }
-  const freqMonths: Record<string, number> = { Quarterly: 3, "Semi-annually": 6, Annually: 12 };
-  const interval = Object.entries(freqMonths).find(([k]) => task.frequency?.includes(k.split("-")[0]))?.[1] ?? 12;
-  const d = new Date(now.getFullYear(), (currentMonth + interval + index) % 12, 10);
-  if (d < now) d.setMonth(d.getMonth() + interval);
-  return d;
-}
 
 function daysUntil(due: Date): number {
   return Math.round((due.getTime() - Date.now()) / 86400000);
@@ -315,6 +299,8 @@ function RecurringRow({ svc }: { svc: RecurringDisplay }) {
           </div>
         </div>
 
+        <AddToCalendarButton event={svc.calendarEvent} filename={`${svc.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-visits`} label={`${svc.name} visits`} />
+
         {/* Next visit */}
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <div style={colLabel}>NEXT VISIT</div>
@@ -451,14 +437,14 @@ export default function PredictiveMaintenancePage() {
   // Sorted chronologically so the headline count always matches what's actually
   // rendered below — an unsorted list let due-soon tasks fall past the slice(0, 8) cutoff.
   const upcomingTasksWithDates = allTasks
-    .map((t, i) => ({ task: t, due: taskDueDate(t, i) }))
+    .map((t, i) => ({ task: t, due: maintenanceTaskDueDate(t, i) }))
     .sort((a, b) => a.due.getTime() - b.due.getTime());
   const dueSoonCount = upcomingTasksWithDates.filter(({ due }) => daysUntil(due) <= 30).length + criticalPreds.length;
 
   // Recurring service counts
   const recurringServices = recurring
     .filter(s => s.status !== "Cancelled")
-    .map(s => toRecurringDisplay(s, visitLogMap[s.id] ?? []));
+    .map(s => toRecurringDisplay(s, visitLogMap[s.id] ?? [], property?.address ?? ""));
   const activeRecurring   = recurringServices.filter(s => s.status === "active" || s.status === "due-soon");
   const pausedCount       = recurringServices.filter(s => s.status === "paused").length;
   const recurringVisitsDue30 = recurringServices.filter(s => s.daysUntilNext <= 30).length;
@@ -495,6 +481,7 @@ export default function PredictiveMaintenancePage() {
   if (isMobile) {
     return (
       <Layout>
+        <CalendarFeedCard mobile />
         <MobileMaintenancePage />
       </Layout>
     );
@@ -523,6 +510,8 @@ export default function PredictiveMaintenancePage() {
             </button>
           </div>
         </div>
+
+        <CalendarFeedCard />
 
         {/* ── Recurring services ─────────────────────────────────────────────── */}
         <div style={{ border: `1px solid ${C.border}`, background: "#fff", borderRadius: R.card, boxShadow: V2_SHADOWS.card, marginBottom: 18, overflow: "hidden" }}>
@@ -604,6 +593,12 @@ export default function PredictiveMaintenancePage() {
                       </div>
 
                       <DaysChip days={days} />
+
+                      <AddToCalendarButton
+                        event={property ? maintenanceTaskEvent(String(property.id), property.address ?? "", task, due) : null}
+                        filename={task.task.toLowerCase().replace(/[^a-z0-9]+/g, "-")}
+                        label={task.task}
+                      />
 
                       {hasPro ? (
                         <button onClick={() => navigate("/quotes/new")} style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: soon ? C.paper : C.ink, background: soon ? C.blue : C.paper, border: `1.5px solid ${soon ? C.blue : C.divider}`, borderRadius: R.pill, padding: "10px 18px", cursor: "pointer", whiteSpace: "nowrap" }}>
