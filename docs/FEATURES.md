@@ -156,6 +156,7 @@ The `/agents/*` routes are realtor-only (`RealtorRoute`). `/insurance-defense` a
 - **Left rail of panel chips** — Awaiting, Score, Property, Market, Forecast, Maint, Jobs, Pros, Sensors, Safety, Docs, Rooms, People (Pro), Spend, Activity, Billing; counts on the right of each chip; the active chip is solid yellow. A dashed **Contractors ↗** chip links out to `/contractors`
 - **Resting stage** — HomeGentic score (with 12-month trend), Home Pulse headline, and the **home brief**: a rule-based list of what needs the homeowner today (sensor alerts, possible CPSC recalls for the property's appliances, approvals, bids, countersignatures, visits due, payments, decay warnings, end-of-life systems, bill spikes, pending invites). A recall line appears when an appliance's model number shows up in a CPSC recall for its brand (checked by the voice Worker, `/api/recalls`, cached a day); it says the recall *may* apply and opens the CPSC notice so the homeowner can compare models
 - **Panels** — tapping a chip opens that panel in the stage (e.g. Score breakdown, Forecast, Spend)
+- **Reserve target (#723)** — Forecast shows a monthly reserve (replacement costs of systems due within 5 years, spread over 60 months, low–high range) and Spend shows the yearly target next to this year's actual spend; both are labelled as estimates from system ages, not quotes
 - **Ask bar** — "Ask about your home": type or tap the mic; answers render as answer cards and are read aloud (voice agent)
 - **Flows (modals)** — add room, log job, add receipt, request quote, add recurring service, start listing, review bids, chase a countersignature, upgrade; new users with no property get the Add Property wizard automatically
 
@@ -306,6 +307,8 @@ Multi-tab page — the main workspace for a property.
 - Inline estimate requests
 - Schedule system ages override
 - Export maintenance plan to PDF
+- "Add to calendar" (.ics download) on scheduled tasks and active recurring services (#717)
+- Calendar link: a private subscribe URL (`/calendar/<token>.ics` on the voice Worker) holding maintenance tasks, warranty end dates, recurring visits, insurance renewal dates and Florida property-tax deadlines (homestead, TRIM notice month, saved petition deadline) across the owner's homes; the policy number stays out; new link and turn off are on the card; the dates refresh each time the owner opens Maintenance, and anyone with the link can read them (#717)
 
 ---
 
@@ -321,6 +324,7 @@ Multi-tab page — the main workspace for a property.
 - All warranties from logged jobs
 - Status: Active / Expiring Soon (30-day warning) / Expired
 - Days-remaining countdown
+- "Add to calendar" on each warranty that hasn't ended: downloads an .ics file with the end date (#717)
 - Scan a label, manual or warranty card: Claude reads brand, model, serial, purchase date and warranty term for the homeowner to check, and "Save as appliance" adds it as a fixture to a chosen room (or a new one), with the warranty end date worked out from purchase date + term
 - Filter by status and service type
 - Export to PDF
@@ -405,6 +409,7 @@ Multi-tab page — the main workspace for a property.
 - The household's own copy of the declarations page: insurance company, policy number, renewal date, Coverage A and hurricane deductible (a percent of Coverage A, worked out in dollars, or a flat amount). Owners, co-owners and managers edit it; viewers read it
 - Stored on the property canister (`setInsurancePolicy` / `getInsurancePolicy`, side map keyed by property id); dropped when the home is transferred or the owner deletes their data. Nothing is checked with or sent to the insurer
 - Shows how many days to renewal, and flags a renewal date that has passed; the weekly Home Pulse email reminds in the 60 days before it
+- "Add to calendar" next to the renewal date downloads it as an .ics file, without the policy number (#717)
 - **Claim kit** (same tab): the household's own record of each claim: title, date of loss, cause, what happened, claim number, adjuster and contact, open/closed. A dated claim log (calls, visits, letters), damage photos stamped with their upload time (photo canister, jobId `claim_<claimId>`, described as "Insurance claim photo: <claim> (<file>)", counted toward plan photo limits; they stay with the home's photos after the claim record is deleted or the home is transferred, shown under "Photos from earlier claims", and are never used as the home's picture), and **Get repair quotes**, which opens the quote form with the home, a starting trade from the cause, and a description of the loss. Stored on the property canister (`createInsuranceClaim` / `updateInsuranceClaim` / `addInsuranceClaimLog` / `deleteInsuranceClaim` / `getInsuranceClaims`), up to 50 per home; dropped on transfer and deleteMyData. Policy and claims are in Download My Data. Nothing is filed with the insurer
 - **Contents inventory** (same tab): the household's room-by-room list of what's in the home for a claim on belongings: item, room (from the Rooms tab, or none), category, quantity, value each, purchase date (from 1900), serial number, notes. Grouped by room with subtotals and a total, downloadable as CSV (formula cells neutralised). Photos and receipts (image or PDF) go to the photo canister under jobId `inventory_<itemId>`, described as "Inventory photo: …" or "Inventory receipt: …", count toward plan photo limits, are deleted with their item, and are never used as the home's picture. Stored on the property canister (`addInventoryItem` / `updateInventoryItem` / `deleteInventoryItem` / `getInventory`), up to 500 items per home; owner and managers edit, viewers read; dropped on transfer and deleteMyData; in Download My Data. HomeGentic doesn't appraise anything or send the list to an insurer
 

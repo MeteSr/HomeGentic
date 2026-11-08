@@ -54,3 +54,24 @@ export async function getInvitePreview(token: string): Promise<InvitePreview | n
     alreadySigned:   p.alreadySigned,
   };
 }
+
+export interface CalendarFeedEvent {
+  uid:         string;
+  date:        string;
+  title:       string;
+  description: string;
+  rrule:       string;
+}
+
+/**
+ * The events behind a calendar link (#717), or null for an unknown token.
+ * getCalendarFeed is a public query (the token is the credential). Throws if
+ * the canister can't be reached or CANISTER_ID_JOB isn't set.
+ */
+export async function getCalendarFeed(token: string): Promise<{ events: CalendarFeedEvent[]; updatedAt: bigint } | null> {
+  const canisterId = process.env.CANISTER_ID_JOB;
+  if (!canisterId) throw new Error("CANISTER_ID_JOB is not set — cannot read calendar feeds");
+  const actor = Actor.createActor(idlFactory, { agent: await agentFor(), canisterId }) as any;
+  const res = await actor.getCalendarFeed(token);
+  return res.length ? res[0] : null;
+}

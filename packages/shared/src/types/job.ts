@@ -70,6 +70,21 @@ export type ServiceType =
   | { KitchenRemodel: null }
   | { GeneralHandyman: null };
 
+export type TextResult = { ok: string } | { err: Error };
+
+export type CalendarFeedView = {
+  updatedAt: bigint;
+  events: CalendarEvent[];
+};
+
+export type CalendarEvent = {
+  uid: string;
+  title: string;
+  date: string;
+  description: string;
+  rrule: string;
+};
+
 export type JobCloseout = {
   jobId: string;
   permitStatus: [] | [PermitStatus];
@@ -87,6 +102,13 @@ export type JobPaper = {
 
 export type CostCategory = { Improvement: null } | { Repair: null };
 
+export type CalendarFeedStatus = {
+  token: string;
+  version: string;
+  updatedAt: bigint;
+  eventCount: bigint;
+};
+
 export type EmailDraft = {
   id: string;
   completedDate: string;
@@ -101,8 +123,6 @@ export type EmailDraft = {
   warrantyMonths: bigint;
   contractorName: string;
 };
-
-export type TextResult = { ok: string } | { err: Error };
 
 export type EmailDraftInput = {
   completedDate: string;
@@ -143,8 +163,11 @@ export interface _SERVICE {
     { ok: Job } | { err: Error }
   >;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
+  disableMyCalendarFeed: ActorMethod<[], UnitResult>;
   dismissEmailDraft: ActorMethod<[string], UnitResult>;
+  enableMyCalendarFeed: ActorMethod<[], TextResult>;
   getApiDoc: ActorMethod<[], string>;
+  getCalendarFeed: ActorMethod<[string], [] | [CalendarFeedView]>;
   getCertificationData: ActorMethod<
     [string],
     {
@@ -199,6 +222,7 @@ export interface _SERVICE {
       pendingJobs: bigint;
     }
   >;
+  getMyCalendarFeed: ActorMethod<[], [] | [CalendarFeedStatus]>;
   getMyEmailDrafts: ActorMethod<[], EmailDraft[]>;
   getMyInboxToken: ActorMethod<[], TextResult>;
   getMyReferralJobs: ActorMethod<[], Job[]>;
@@ -206,12 +230,14 @@ export interface _SERVICE {
   getReferralJobs: ActorMethod<[], { ok: Job[] } | { err: Error }>;
   getUnattestedJobIds: ActorMethod<[string], string[]>;
   linkContractor: ActorMethod<[string, Principal], { ok: Job } | { err: Error }>;
+  publishMyCalendarEvents: ActorMethod<[string, CalendarEvent[]], { ok: bigint } | { err: Error }>;
   redeemInviteToken: ActorMethod<[string, string, string, string, [] | [string]], { ok: Job } | { err: Error }>;
   rejectJobProposal: ActorMethod<[string], { ok: null } | { err: Error }>;
   relayAddEmailDraft: ActorMethod<[string, EmailDraftInput], TextResult>;
   relayCheckInboxToken: ActorMethod<[string], { full: null } | { accepting: null } | { unknown: null }>;
   removeInboxRelay: ActorMethod<[Principal], UnitResult>;
   removeJobPaper: ActorMethod<[string, string], { ok: null } | { err: Error }>;
+  resetMyCalendarFeed: ActorMethod<[], TextResult>;
   resetMyInboxToken: ActorMethod<[], TextResult>;
   setFeeCanisterId: ActorMethod<[string], { ok: null } | { err: Error }>;
   setJobCostCategory: ActorMethod<[string, [] | [CostCategory]], { ok: null } | { err: Error }>;

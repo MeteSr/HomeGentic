@@ -23,6 +23,7 @@ import type { SystemAges } from "@/services/systemAges";
 import type { PersonAccess } from "@/services/people";
 import { estimateSystems } from "@/services/systemAgeEstimator";
 import { computeTenYearBudget } from "@/services/instantForecast";
+import { maintenanceReserve, RESERVE_YEARS, type MaintenanceReserve } from "@/services/maintenanceReserve";
 import type { FlowKey, PanelData, PanelKey, PanelRow } from "./types";
 import { formatCents, formatDollars } from "@/utils/format";
 
@@ -262,13 +263,50 @@ function buildForecast(ctx: PanelCtx): PanelData {
       right: formatDollars(budgetLow), rightSub: "TEN YEARS", tone: GOOD,
     });
   }
+  const reserve = maintenanceReserve(estimates, ctx.jobs);
   return {
     chip: "FORECAST", count: budgetLow >= 1000 ? `$${(budgetLow / 1000).toFixed(1)}k` : formatDollars(budgetLow),
     asked: due.length ? `${formatDollars(budgetLow)} of replacements over the next ten years` : "Nothing is due within ten years",
     title: due.length ? `${formatDollars(budgetLow)} of replacements come due within ten years` : "Nothing is due within ten years",
     sub: `${estimates.length} tracked system${estimates.length === 1 ? "" : "s"} for a ${p.yearBuilt} build${p.state ? `, ${p.state} climate` : ""}. Costs are the low end of each replacement range.`,
     cta: "Copy the forecast link",
-    rows: rows.length ? rows : [{ lead: "No systems tracked yet", sub: "SET SYSTEM AGES ON THE PROPERTY PAGE", right: "Open", rightSub: "", tone: BLUE, go: "property" }],
+    rows: [
+      ...(rows.length ? rows : [{ lead: "No systems tracked yet", sub: "SET SYSTEM AGES ON THE PROPERTY PAGE", right: "Open", rightSub: "", tone: BLUE, go: "property" as PanelKey }]),
+      monthlyReserveRow(reserve),
+    ],
+  };
+}
+
+// ── RESERVE (#723) ───────────────────────────────────────────────────────
+//
+// What to set aside so the replacements due within five years are covered
+// (services/maintenanceReserve.ts), from the same estimates as the forecast
+// above. Copy says it's an estimate: no quote, no financial advice.
+
+function reserveRange(low: number, high: number): string {
+  return low === high ? formatDollars(low) : `${formatDollars(low)}–${formatDollars(high)}`;
+}
+
+function monthlyReserveRow(r: MaintenanceReserve): PanelRow {
+  if (!r.systemsDue.length) {
+    return { lead: "Monthly reserve", sub: `NOTHING DUE WITHIN ${RESERVE_YEARS} YEARS · ESTIMATE FROM SYSTEM AGES`, right: "$0", rightSub: "A MONTH", tone: INK };
+  }
+  return {
+    lead: "Monthly reserve",
+    sub: `COVERS ${r.systemsDue.join(", ").toUpperCase()} DUE WITHIN ${RESERVE_YEARS} YEARS · ESTIMATE, NOT A QUOTE`,
+    right: reserveRange(r.monthlyLow, r.monthlyHigh), rightSub: "A MONTH", tone: GOOD,
+  };
+}
+
+function reserveTargetRow(r: MaintenanceReserve): PanelRow {
+  const spent = `${formatCents(r.spentThisYearCents)} SPENT IN ${r.year}`;
+  if (!r.systemsDue.length) {
+    return { lead: "Reserve target", sub: `NOTHING DUE WITHIN ${RESERVE_YEARS} YEARS · ${spent} · ESTIMATE`, right: "$0", rightSub: "A YEAR", tone: INK, go: "forecast" };
+  }
+  return {
+    lead: "Reserve target",
+    sub: `${spent} · ESTIMATE FROM SYSTEM AGES, NOT A QUOTE`,
+    right: reserveRange(r.yearlyLow, r.yearlyHigh), rightSub: "A YEAR", tone: GOOD, go: "forecast",
   };
 }
 
@@ -538,13 +576,17 @@ function buildSpend(ctx: PanelCtx): PanelData {
     right: formatCents(e.total), rightSub: grandTotal ? `${Math.round((e.total / grandTotal) * 100)}%` : "0%",
     tone: INK, hasBar: true, pct: `${Math.round((e.total / max) * 100)}%`, barColor: "#2B34FF",
   }));
+  const p = ctx.activeProperty;
+  if (p) {
+    rows.push(reserveTargetRow(maintenanceReserve(estimateSystems(Number(p.yearBuilt), p.state, ctx.systemAges), ctx.jobs)));
+  }
   return {
     chip: "SPEND", count: formatCents(grandTotal),
     asked: `You have spent ${formatCents(grandTotal)} across ${byType.size} trade${byType.size === 1 ? "" : "s"}`,
     title: sorted.length ? `${sorted[0][0]} is the largest line` : "Nothing spent yet",
     sub: "All logged jobs, by trade.",
     cta: "See every line item",
-    rows: rows.length ? rows : [{ lead: "No spend logged yet", sub: "LOG A JOB TO START TRACKING", right: "Add", rightSub: "", tone: BLUE, flow: "logJob" }],
+    rows: ctx.jobs.length ? rows : [{ lead: "No spend logged yet", sub: "LOG A JOB TO START TRACKING", right: "Add", rightSub: "", tone: BLUE, flow: "logJob" }, ...rows],
   };
 }
 

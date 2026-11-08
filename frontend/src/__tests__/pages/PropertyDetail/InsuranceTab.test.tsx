@@ -86,12 +86,15 @@ describe("InsuranceTab", () => {
     // Copy matches what happens: a reminder in the weekly email, nothing sent to the insurer.
     expect(screen.getByText(/weekly Home Pulse email/i)).toBeInTheDocument();
     expect(screen.getByText(/doesn't check these with your insurer/i)).toBeInTheDocument();
+    // The renewal can go on the owner's calendar (#717).
+    expect(screen.getByRole("button", { name: "Add insurance renewal to calendar" })).toBeInTheDocument();
   });
 
   it("asks for a new date once the renewal date has passed", async () => {
     mockGet.mockResolvedValue({ ...POLICY, renewalDate: "2026-11-01" });
     render(<InsuranceTab propertyId="p1" />);
     expect(await screen.findByText(/renewal date has passed/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add insurance renewal to calendar" })).not.toBeInTheDocument();
   });
 
   it("includes the claim kit, editable for the owner", async () => {

@@ -14,4 +14,8 @@ commits = [
   # Made-up Wi-Fi password fixture ("sunny-porch-42") in
   # tests/e2e/property-house-guide.spec.ts; the next commit replaces it
   "b5ede16f1bb9caed03f04bf93c7ca5185385da91",
+  # Made-up 32-hex calendar token ("0123456789abcdef" twice) in
+  # agents/voice/__tests__/workerCalendarFeed.test.ts; later commits build it at runtime
+  "7e041bf1716ebc21e7f5d37783d0398e87f7a2eb",
+  "29a9bafcdee57d557ed6de2086f71d553bdcccc3",
 ]

@@ -16,6 +16,7 @@ import Iter      "mo:core/Iter";
 import List      "mo:core/List";
 import Nat       "mo:core/Nat";
 import Nat8      "mo:core/Nat8";
+import Nat32     "mo:core/Nat32";
 import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
 import Random    "mo:core/Random";
@@ -2157,6 +2158,175 @@ persistent actor Job {
     inboxDayCounts.remove(owner.toText());
   };
 
+  // ── Calendar feed (#717) ─────────────────────────────────────────────────
+  //
+  // A private subscribe link per owner. The app publishes the owner's dated
+  // events (maintenance tasks, warranty ends, recurring visits) here, and the
+  // voice Worker serves them as an .ics file at /calendar/<token>.ics after
+  // reading them with getCalendarFeed. The token is the credential, like
+  // getJobByInviteToken: anyone with the link can read the feed, and the app
+  // says so. New stable maps with inline initializers; no stored type changes.
+
+  public type CalendarEvent = {
+    uid         : Text;   // stable id within HomeGentic, e.g. "warranty-<jobId>"
+    date        : Text;   // YYYY-MM-DD, an all-day event
+    title       : Text;
+    description : Text;
+    rrule       : Text;   // "" or e.g. "FREQ=MONTHLY;INTERVAL=3"
+  };
+
+  public type CalendarFeed = {
+    token     : Text;
+    version   : Text;     // the app's fingerprint of the published events
+    events    : [CalendarEvent];
+    updatedAt : Int;      // ns; 0 until first published
+  };
+
+  public type CalendarFeedStatus = {
+    token      : Text;
+    version    : Text;
+    eventCount : Nat;
+    updatedAt  : Int;
+  };
+
+  public type CalendarFeedView = {
+    events    : [CalendarEvent];
+    updatedAt : Int;
+  };
+
+  private let calendarFeedTokens = Map.empty<Text, Principal>();      // token → owner
+  private let calendarFeeds      = Map.empty<Text, CalendarFeed>();   // owner → feed
+
+  private transient let MAX_CALENDAR_EVENTS : Nat = 100;
+
+  private func newCalendarToken() : async Text {
+    let b = (await Random.blob()).toArray();
+    let HEX = "0123456789abcdef".chars().toArray();
+    var out = "";
+    var i = 0;
+    while (i < 16 and i < b.size()) {
+      let n = b[i].toNat();
+      out #= HEX[n / 16].toText() # HEX[n % 16].toText();
+      i += 1;
+    };
+    out
+  };
+
+  private func digitsAt(cs : [Char], from : Nat, len : Nat) : ?Nat {
+    var n = 0;
+    var i = from;
+    while (i < from + len) {
+      let c = cs[i];
+      if (c < '0' or c > '9') return null;
+      n := n * 10 + (c.toNat32() - '0'.toNat32()).toNat();
+      i += 1;
+    };
+    ?n
+  };
+
+  /// YYYY-MM-DD with a month 1-12 and a day 1-31 (the writer drops impossible days).
+  private func isCalendarDate(t : Text) : Bool {
+    let cs = t.chars().toArray();
+    if (cs.size() != 10 or cs[4] != '-' or cs[7] != '-') return false;
+    switch (digitsAt(cs, 0, 4), digitsAt(cs, 5, 2), digitsAt(cs, 8, 2)) {
+      case (?_, ?m, ?d) { m >= 1 and m <= 12 and d >= 1 and d <= 31 };
+      case _ false;
+    }
+  };
+
+  /// "" or FREQ=… followed by ;KEY=VALUE parts, upper-case letters, digits, = ; , only.
+  private func isCalendarRrule(t : Text) : Bool {
+    if (t == "") return true;
+    if (t.size() > 100 or not t.startsWith(#text "FREQ=")) return false;
+    for (c in t.chars()) {
+      let ok = (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or c == '=' or c == ';' or c == ',';
+      if (not ok) return false;
+    };
+    true
+  };
+
+  private func feedStatus(f : CalendarFeed) : CalendarFeedStatus {
+    { token = f.token; version = f.version; eventCount = f.events.size(); updatedAt = f.updatedAt }
+  };
+
+  /// The caller's calendar link, or null when it's off.
+  public query(msg) func getMyCalendarFeed() : async ?CalendarFeedStatus {
+    switch (calendarFeeds.get(msg.caller.toText())) {
+      case (?f) ?feedStatus(f);
+      case null null;
+    }
+  };
+
+  /// Turns the caller's calendar link on (or returns the one they have).
+  public shared(msg) func enableMyCalendarFeed() : async Result.Result<Text, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (calendarFeeds.get(msg.caller.toText())) { case (?f) return #ok(f.token); case null {} };
+    let t = await newCalendarToken();
+    // Re-check after the await: a concurrent call may have turned it on.
+    switch (calendarFeeds.get(msg.caller.toText())) { case (?f) return #ok(f.token); case null {} };
+    calendarFeedTokens.add(t, msg.caller);
+    calendarFeeds.add(msg.caller.toText(), { token = t; version = ""; events = []; updatedAt = 0 });
+    #ok(t)
+  };
+
+  /// A new link for the caller's feed; the old link stops working. Events are kept.
+  public shared(msg) func resetMyCalendarFeed() : async Result.Result<Text, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (calendarFeeds.get(msg.caller.toText()) == null) return #err(#NotFound);
+    let t = await newCalendarToken();
+    let f = switch (calendarFeeds.get(msg.caller.toText())) { case (?f) f; case null return #err(#NotFound) };
+    calendarFeedTokens.remove(f.token);
+    calendarFeedTokens.add(t, msg.caller);
+    calendarFeeds.add(msg.caller.toText(), { f with token = t });
+    #ok(t)
+  };
+
+  /// Turns the caller's calendar link off and deletes the published events.
+  public shared(msg) func disableMyCalendarFeed() : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not forgetCalendarFeed(msg.caller)) return #err(#NotFound);
+    #ok(())
+  };
+
+  /// Replaces the events behind the caller's link (at most 100). #NotFound when the link is off.
+  public shared(msg) func publishMyCalendarEvents(version : Text, events : [CalendarEvent]) : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let f = switch (calendarFeeds.get(msg.caller.toText())) { case (?f) f; case null return #err(#NotFound) };
+    if (events.size() > MAX_CALENDAR_EVENTS) return #err(#InvalidInput("A calendar holds at most 100 events"));
+    for (e in events.values()) {
+      if (e.uid == "") return #err(#InvalidInput("Every calendar event needs an id"));
+      if (not isCalendarDate(e.date)) return #err(#InvalidInput("Calendar dates must be written YYYY-MM-DD"));
+      if (not isCalendarRrule(e.rrule)) return #err(#InvalidInput("That repeat rule isn't supported"));
+    };
+    let clipped = events.map(func e = {
+      uid         = clip(e.uid, 120);
+      date        = e.date;
+      title       = clip(e.title, 120);
+      description = clip(e.description, 500);
+      rrule       = e.rrule;
+    });
+    calendarFeeds.add(msg.caller.toText(), { f with version = clip(version, 64); events = clipped; updatedAt = Time.now() });
+    #ok(clipped.size())
+  };
+
+  /// The events behind a calendar link, for the voice Worker's .ics route.
+  /// Public: the token is the credential. Null for an unknown token.
+  public query func getCalendarFeed(token : Text) : async ?CalendarFeedView {
+    if (token.size() != 32) return null;
+    let owner = switch (calendarFeedTokens.get(token)) { case (?o) o; case null return null };
+    switch (calendarFeeds.get(owner.toText())) {
+      case (?f) { if (f.token == token) ?{ events = f.events; updatedAt = f.updatedAt } else null };
+      case null null;
+    }
+  };
+
+  private func forgetCalendarFeed(owner : Principal) : Bool {
+    switch (calendarFeeds.get(owner.toText())) {
+      case (?f) { calendarFeedTokens.remove(f.token); calendarFeeds.remove(owner.toText()); true };
+      case null false;
+    }
+  };
+
   public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
@@ -2187,6 +2357,7 @@ persistent actor Job {
       .toArray();
     for (seq in events.values()) { notifyLog.remove(seq) };
     forgetInbox(msg.caller);
+    ignore forgetCalendarFeed(msg.caller);
 
     #ok(ids.size())
   };

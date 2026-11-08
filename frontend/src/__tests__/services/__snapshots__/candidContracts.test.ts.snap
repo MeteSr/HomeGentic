@@ -105,8 +105,11 @@ createInviteToken(2) -> (1)
 createJob(11) -> (1)
 createJobProposal(9) -> (1)
 deleteMyData(0) -> (1)
+disableMyCalendarFeed(0) -> (1)
 dismissEmailDraft(1) -> (1)
+enableMyCalendarFeed(0) -> (1)
 getApiDoc(0) -> (1) [query]
+getCalendarFeed(1) -> (1) [query]
 getCertificationData(1) -> (1) [query]
 getJob(1) -> (1) [query]
 getJobByInviteToken(1) -> (1) [query]
@@ -118,6 +121,7 @@ getJobsForProperty(1) -> (1)
 getJobSnapshotsForProperty(1) -> (1) [query]
 getJobsPendingMySignature(0) -> (1) [query]
 getMetrics(0) -> (1) [query]
+getMyCalendarFeed(0) -> (1) [query]
 getMyEmailDrafts(0) -> (1) [query]
 getMyInboxToken(0) -> (1)
 getMyReferralJobs(0) -> (1) [query]
@@ -125,12 +129,14 @@ getPendingProposals(0) -> (1) [query]
 getReferralJobs(0) -> (1)
 getUnattestedJobIds(1) -> (1) [query]
 linkContractor(2) -> (1)
+publishMyCalendarEvents(2) -> (1)
 redeemInviteToken(5) -> (1)
 rejectJobProposal(1) -> (1)
 relayAddEmailDraft(2) -> (1)
 relayCheckInboxToken(1) -> (1) [query]
 removeInboxRelay(1) -> (1)
 removeJobPaper(2) -> (1)
+resetMyCalendarFeed(0) -> (1)
 resetMyInboxToken(0) -> (1)
 setFeeCanisterId(1) -> (1)
 setJobCostCategory(2) -> (1)

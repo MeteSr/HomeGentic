@@ -29,6 +29,7 @@ vi.mock("@/hooks/useBreakpoint", () => ({ useBreakpoint: mockUseBreakpoint }));
 vi.mock("@/store/propertyStore", () => ({ usePropertyStore: mockUsePropertyStore }));
 vi.mock("@/store/jobStore", () => ({ useJobStore: mockUseJobStore }));
 vi.mock("@/components/Layout", () => ({ Layout: ({ children }: any) => <div data-testid="layout">{children}</div> }));
+vi.mock("@/components/CalendarFeedCard", () => ({ CalendarFeedCard: () => <div data-testid="calendar-feed-card" /> }));
 vi.mock("@/pages/MobileMaintenancePage", () => ({ MobileMaintenancePage: () => <div data-testid="mobile-maintenance-page" /> }));
 vi.mock("@/services/systemAges", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/systemAges")>();
@@ -109,5 +110,34 @@ describe("PredictiveMaintenancePage — recurring service status badges", () => 
     renderPage();
 
     expect(await screen.findByText("ACTIVE")).toBeInTheDocument();
+  });
+});
+
+describe("PredictiveMaintenancePage — calendar (#717)", () => {
+  it("shows the calendar link card on desktop and mobile", async () => {
+    mockGetByProperty.mockResolvedValue([]);
+    mockUseBreakpoint.mockReturnValue({ isMobile: false, isTablet: false });
+    const { unmount } = renderPage();
+    expect(screen.getByTestId("calendar-feed-card")).toBeInTheDocument();
+    unmount();
+    mockUseBreakpoint.mockReturnValue({ isMobile: true, isTablet: false });
+    renderPage();
+    expect(screen.getByTestId("calendar-feed-card")).toBeInTheDocument();
+  });
+
+  it("offers Add to calendar on scheduled tasks and active recurring services, not paused ones", async () => {
+    mockUseBreakpoint.mockReturnValue({ isMobile: false, isTablet: false });
+    mockPredict.mockReturnValue({
+      systemPredictions: [],
+      annualTasks: [{ task: "Clean gutters", frequency: "Semi-annually", season: "Fall", estimatedCost: "$100–$250", estimatedCostLowCents: 10_000, estimatedCostHighCents: 25_000, diyViable: true }],
+    });
+    mockGetByProperty.mockResolvedValue([
+      makeService({ id: "svc-a", startDate: new Date().toISOString().slice(0, 10) }),
+      makeService({ id: "svc-p", serviceType: "PestControl" as any, status: "Paused" as any }),
+    ]);
+    renderPage();
+    expect(await screen.findByRole("button", { name: /add clean gutters to calendar/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /add hvac visits to calendar/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /add pest control visits to calendar/i })).toBeNull();
   });
 });

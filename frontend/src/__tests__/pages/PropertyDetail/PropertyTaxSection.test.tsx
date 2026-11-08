@@ -45,6 +45,7 @@ describe("PropertyTaxSection", () => {
     expect(screen.getByRole("button", { name: "Add a tax year" })).toBeInTheDocument();
     // No Florida dates outside Florida.
     expect(screen.queryByText(/March 1/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /tax dates to calendar/ })).not.toBeInTheDocument();
   });
 
   it("shows Florida's dates with their official sources, and what's due now", async () => {
@@ -64,6 +65,12 @@ describe("PropertyTaxSection", () => {
       await within(dates).findByText(/Due now: apply for the homestead exemption by Mar 1, 2027/),
     ).toBeInTheDocument();
     expect(dates.textContent).not.toMatch(/savings|you'll save|\$/i);
+  });
+
+  it("adds the coming Florida tax dates to the calendar (#717)", async () => {
+    render(<PropertyTaxSection propertyId="p1" state="FL" />);
+    const dates = await screen.findByRole("region", { name: "Florida dates" });
+    expect(await within(dates).findByRole("button", { name: "Add Florida tax dates to calendar" })).toBeInTheDocument();
   });
 
   it("lists the saved years with the change in assessed value", async () => {

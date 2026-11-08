@@ -3,6 +3,8 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/Button";
 import { Panel, Pill, SectionHeader, hudButtonStyle, hudInputStyle, type PillTone } from "@/components/hud";
 import { LoadError } from "@/components/LoadError";
+import { AddToCalendarButton } from "@/components/AddToCalendarButton";
+import { insuranceRenewalEvent } from "@/services/calendarEvents";
 import { ClaimKit } from "./ClaimKit";
 import { ContentsInventory } from "./ContentsInventory";
 import { FloodZoneCard } from "./FloodZoneCard";
@@ -215,6 +217,12 @@ export function InsuranceTab({
                     <Pill tone={pill.tone}>{pill.text}</Pill>
                   </div>
                 )}
+                <AddToCalendarButton
+                  event={insuranceRenewalEvent(propertyId, address, policy)}
+                  filename="insurance-renewal"
+                  label="insurance renewal"
+                  style={{ marginTop: 8 }}
+                />
               </div>
               <div>
                 <div style={labelText}>Coverage A (dwelling)</div>

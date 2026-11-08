@@ -54,7 +54,8 @@ import { findRecalls } from "./recalls";
 import { lookupFloodZone } from "./floodZone";
 import { suggestAddresses, placeAddress } from "./addressSuggest";
 import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead, sendGiftEmail } from "./offchainOutcalls";
-import { getInvitePreview } from "./jobCanister";
+import { getInvitePreview, getCalendarFeed } from "./jobCanister";
+import { handleCalendarFeed } from "./calendarFeed";
 import { handlePhotos } from "./photos";
 import { handleShowingRequest, fileShowingInCanister } from "./showings";
 import { r2PhotoStore } from "./photoStore";
@@ -323,7 +324,8 @@ function logRequest(
   const entry: Record<string, unknown> = {
     ts:        new Date().toISOString(),
     method:    request.method,
-    path:      new URL(request.url).pathname,
+    // #717: a calendar link's token is its only credential; keep it out of logs.
+    path:      new URL(request.url).pathname.replace(/^\/calendar\/[^/]+$/, "/calendar/:token.ics"),
     status,
     latencyMs: Date.now() - startMs,
     ip:
@@ -557,6 +559,17 @@ async function route(
   if (path.startsWith("/api/bidtolist/")) {
     const subpath = path.slice("/api/bidtolist".length);
     return withCors(await handleBidtolist(request, subpath, env, () => callerPrincipal(request, env)), cors);
+  }
+
+  // ── Private calendar feed (#717, src/calendarFeed.ts) ─────────────────────
+  // Calendar apps poll it with no API key or session; the token is the credential.
+  if (path === "/calendar" || path.startsWith("/calendar/")) {
+    const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+    return handleCalendarFeed(request, path, ip, {
+      lookup:     getCalendarFeed,
+      allow:      async (key, limit, ttl) => (await hitCounter(env, key, limit, ttl)).allowed,
+      configured: !!env.CANISTER_ID_JOB,
+    });
   }
 
   // ── Off-chain photo bytes (R2) ────────────────────────────────────────────
