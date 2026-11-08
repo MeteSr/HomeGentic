@@ -172,6 +172,52 @@ export type SpecialAssessment = {
   documentId: [] | [string];
 };
 
+export type SuccessionClaim = {
+  id: string;
+  status: SuccessionClaimStatus;
+  proofKind: SuccessionProofKind;
+  proofSize: bigint;
+  claimant: Principal;
+  claimantName: string;
+  note: string;
+  mimeType: string;
+  propertyId: string;
+  fileName: string;
+  waitEndsAt: bigint;
+  openedAt: bigint;
+};
+
+export type SuccessionClaimStatus =
+  | {
+      Approved: {
+        at: bigint;
+      };
+    }
+  | {
+      Rejected: {
+        at: bigint;
+        reason: string;
+      };
+    }
+  | {
+      Cancelled: {
+        at: bigint;
+        by: Principal;
+      };
+    }
+  | { AwaitingReview: null }
+  | {
+      Completed: {
+        at: bigint;
+      };
+    };
+
+export type SuccessionProofKind =
+  | { TrustDocument: null }
+  | { LettersOfAdministration: null }
+  | { DeathCertificate: null }
+  | { LettersTestamentary: null };
+
 export type ManagerRole = { CoOwner: null } | { Viewer: null } | { Manager: null };
 
 export type Property = {
@@ -350,6 +396,15 @@ export type ManagedProperty = {
   property: Property;
 };
 
+export type NotifyEvent = {
+  seq: bigint;
+  kind: string;
+  createdAt: bigint;
+  recipient: [] | [Principal];
+  summary: string;
+  refId: string;
+};
+
 export type OwnerNotification = {
   id: bigint;
   seen: boolean;
@@ -465,6 +520,32 @@ export type SharedHouseGuide = {
   address: string;
 };
 
+export type SuccessionInvite = {
+  waitDays: bigint;
+  successorName: string;
+  property: Property;
+};
+
+export type SuccessionNotice = {
+  claim: SuccessionClaim;
+  address: string;
+  household: Principal[];
+};
+
+export type SuccessionProof = {
+  data: Uint8Array | number[];
+  mimeType: string;
+  fileName: string;
+};
+
+export type Successor = {
+  token: string;
+  relationship: string;
+  name: string;
+  email: string;
+  namedAt: bigint;
+};
+
 export type VerifyStatus = {
   claimStartedAt: bigint;
   identityVerified: boolean;
@@ -482,6 +563,20 @@ export type VerifyStatus = {
   identityVerifiedAt: [] | [bigint];
   verificationMethod: [] | [string];
   contestedWithId: [] | [string];
+};
+
+export type SuccessionReview = {
+  successor: [] | [Successor];
+  claim: SuccessionClaim;
+  property: Property;
+};
+
+export type SuccessionClaimInput = {
+  proofKind: SuccessionProofKind;
+  claimantName: string;
+  note: string;
+  mimeType: string;
+  fileName: string;
 };
 
 export type RegisterArgs = {
@@ -586,6 +681,12 @@ export type PropertyTaxYearInput = {
   exemption: TaxExemption;
 };
 
+export type SuccessorInput = {
+  relationship: string;
+  name: string;
+  email: string;
+};
+
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
   addArchitecturalReview: ActorMethod<[string, ReviewInput], { ok: ArchitecturalReview } | { err: Error }>;
@@ -595,6 +696,7 @@ export interface _SERVICE {
   addMoveInTasks: ActorMethod<[string, MoveInTaskInput[]], { ok: MoveInPlan } | { err: Error }>;
   addSpecialAssessment: ActorMethod<[string, AssessmentInput], { ok: SpecialAssessment } | { err: Error }>;
   cancelManagerInvite: ActorMethod<[string, string], { ok: null } | { err: Error }>;
+  cancelSuccessionClaim: ActorMethod<[string], { ok: SuccessionClaim } | { err: Error }>;
   cancelTransfer: ActorMethod<[string], { ok: null } | { err: Error }>;
   claimManagerRole: ActorMethod<
     [string],
@@ -607,6 +709,7 @@ export interface _SERVICE {
     | { err: Error }
   >;
   claimTransfer: ActorMethod<[string], { ok: Property } | { err: Error }>;
+  completeSuccessionClaim: ActorMethod<[string], { ok: Property } | { err: Error }>;
   createHouseGuideLink: ActorMethod<[string, string, bigint], { ok: HouseGuideLink } | { err: Error }>;
   createInsuranceClaim: ActorMethod<[string, ClaimInput], { ok: InsuranceClaim } | { err: Error }>;
   deleteArchitecturalReview: ActorMethod<[string], { ok: null } | { err: Error }>;
@@ -652,6 +755,18 @@ export interface _SERVICE {
   getMoveInPlan: ActorMethod<[string], { ok: [] | [MoveInPlan] } | { err: Error }>;
   getMyManagedProperties: ActorMethod<[], ManagedProperty[]>;
   getMyProperties: ActorMethod<[], Property[]>;
+  getMySuccessionClaims: ActorMethod<[], SuccessionClaim[]>;
+  getNotificationEvents: ActorMethod<
+    [bigint, bigint],
+    | {
+        ok: {
+          latestSeq: bigint;
+          events: NotifyEvent[];
+        };
+      }
+    | { err: Error }
+  >;
+  getOpenSuccessionClaim: ActorMethod<[string], { ok: [] | [SuccessionClaim] } | { err: Error }>;
   getOwnerNotifications: ActorMethod<[string], { ok: OwnerNotification[] } | { err: Error }>;
   getOwnershipHistory: ActorMethod<[string], TransferRecord[]>;
   getPendingInvitesForProperty: ActorMethod<[string], { ok: ManagerInvite[] } | { err: Error }>;
@@ -697,6 +812,10 @@ export interface _SERVICE {
   getRoomsByProperty: ActorMethod<[string], RoomRecord[]>;
   getSharedHouseGuide: ActorMethod<[string], { ok: SharedHouseGuide } | { err: Error }>;
   getSpecialAssessments: ActorMethod<[string], { ok: SpecialAssessment[] } | { err: Error }>;
+  getSuccessionInvite: ActorMethod<[string], [] | [SuccessionInvite]>;
+  getSuccessionNotice: ActorMethod<[string], { ok: [] | [SuccessionNotice] } | { err: Error }>;
+  getSuccessionProof: ActorMethod<[string], { ok: SuccessionProof } | { err: Error }>;
+  getSuccessor: ActorMethod<[string], { ok: [] | [Successor] } | { err: Error }>;
   getVerificationLevel: ActorMethod<[string], [] | [string]>;
   getVerifyStatus: ActorMethod<[string], { ok: VerifyStatus } | { err: Error }>;
   initiateTransfer: ActorMethod<[string], { ok: PendingTransfer } | { err: Error }>;
@@ -704,16 +823,23 @@ export interface _SERVICE {
   isAdminPrincipal: ActorMethod<[Principal], boolean>;
   isAuthorized: ActorMethod<[string, Principal, boolean], boolean>;
   listHouseGuideLinks: ActorMethod<[string], { ok: HouseGuideLink[] } | { err: Error }>;
+  listSuccessionClaimsForReview: ActorMethod<[], { ok: SuccessionReview[] } | { err: Error }>;
   markIdentityCleared: ActorMethod<[string, string, string], { ok: Property } | { err: Error }>;
+  openSuccessionClaim: ActorMethod<
+    [string, SuccessionClaimInput, Uint8Array | number[]],
+    { ok: SuccessionClaim } | { err: Error }
+  >;
   recordManagerActivity: ActorMethod<[string, string], { ok: null } | { err: Error }>;
   registerProperty: ActorMethod<[RegisterArgs], { ok: Property } | { err: Error }>;
   relayFloodTarget: ActorMethod<[string, Principal], { ok: FloodTarget } | { err: Error }>;
   relayMarkIdentityCleared: ActorMethod<[string, Principal, string, string], { ok: null } | { err: Error }>;
   relaySetFloodZone: ActorMethod<[string, Principal, FloodZoneInput], { ok: FloodZoneRecord } | { err: Error }>;
   removeManager: ActorMethod<[string, Principal], { ok: null } | { err: Error }>;
+  removeSuccessor: ActorMethod<[string], { ok: null } | { err: Error }>;
   requestApproval: ActorMethod<[string, string, bigint], { ok: bigint } | { err: Error }>;
   resignAsManager: ActorMethod<[string], { ok: null } | { err: Error }>;
   respondToApproval: ActorMethod<[string, bigint, boolean], { ok: null } | { err: Error }>;
+  reviewSuccessionClaim: ActorMethod<[string, boolean, string], { ok: SuccessionClaim } | { err: Error }>;
   revokeHouseGuideLink: ActorMethod<[string], { ok: null } | { err: Error }>;
   setCondoAssociationRecord: ActorMethod<[string, [] | [CondoRecordInput]], { ok: null } | { err: Error }>;
   setHomeWarrantyPlan: ActorMethod<[string, [] | [HomeWarrantyPlanInput]], { ok: null } | { err: Error }>;
@@ -722,6 +848,7 @@ export interface _SERVICE {
   setMortgageLoan: ActorMethod<[string, [] | [MortgageLoanInput]], { ok: null } | { err: Error }>;
   setMoveInStep: ActorMethod<[string, string, boolean], { ok: MoveInPlan } | { err: Error }>;
   setPropertyTaxYear: ActorMethod<[string, PropertyTaxYearInput], { ok: PropertyTaxYear } | { err: Error }>;
+  setSuccessor: ActorMethod<[string, SuccessorInput], { ok: Successor } | { err: Error }>;
   startMoveInPlan: ActorMethod<[string], { ok: MoveInPlan } | { err: Error }>;
   submitVerification: ActorMethod<[string, string, string, [] | [string]], { ok: Property } | { err: Error }>;
   updateArchitecturalReview: ActorMethod<[string, ReviewInput], { ok: ArchitecturalReview } | { err: Error }>;

@@ -14,6 +14,7 @@
  *   review_request                    —     Job Verified               —
  *   showing_request                   yes   Showing Requests           —
  *   weekly_pulse                      —     Weekly Home Pulse          —
+ *   succession_claim_*                —     always (no row)            —
  *
  * * new-lead pushes follow the contractor profile's notifyPush instead of a
  *   relay preference.
@@ -61,6 +62,19 @@ export const EMAIL_DEFAULTS: Record<EmailPrefKey, boolean> = {
   weekly_pulse:   true,
   showing_requests: true,
 };
+
+/**
+ * #724: successor-claim emails (a claim opened on a home, reminders during
+ * the 30-day wait, the review outcome, a cancellation). They let a living
+ * owner stop someone taking over their record, so no setting turns them off.
+ */
+export const REQUIRED_EMAIL_KINDS: readonly NotificationKind[] = [
+  "succession_claim_opened",
+  "succession_claim_reminder",
+  "succession_claim_approved",
+  "succession_claim_rejected",
+  "succession_claim_cancelled",
+];
 
 export const SMS_KINDS: readonly NotificationKind[] = [
   "job_awaiting_signature",

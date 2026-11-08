@@ -14,6 +14,11 @@ export interface PushPayload {
   /** Deep-link route included in notification data, e.g. "jobs/abc123" */
   route?: string;
   data?:  Record<string, string>;
+  /**
+   * #724: sent whatever the recipient's notification settings say (successor
+   * claims on a home record); the email footer says so.
+   */
+  required?: boolean;
 }
 
 export type NotificationKind =
@@ -27,7 +32,12 @@ export type NotificationKind =
   | "new_lead"
   | "review_request"
   | "showing_request"
-  | "weekly_pulse";
+  | "weekly_pulse"
+  | "succession_claim_opened"
+  | "succession_claim_reminder"
+  | "succession_claim_approved"
+  | "succession_claim_rejected"
+  | "succession_claim_cancelled";
 
 export interface NotificationEvent {
   type:      NotificationKind;
@@ -57,6 +67,19 @@ export interface OutboxEvent {
 export interface OutboxPage {
   events:    OutboxEvent[];
   latestSeq: number;
+}
+
+/** #724: what the relay reads about a successor claim (property.getSuccessionNotice). */
+export interface SuccessionNoticeInfo {
+  claimId:      string;
+  propertyId:   string;
+  claimant:     string;
+  status:       "AwaitingReview" | "Approved" | "Rejected" | "Cancelled" | "Completed";
+  openedAtMs:   number;
+  waitEndsAtMs: number;
+  address:      string;
+  /** The home's owner and co-owners now. */
+  household:    string[];
 }
 
 /** The fields of a quote request that new-lead matching needs. */

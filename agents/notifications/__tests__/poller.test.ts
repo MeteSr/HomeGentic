@@ -37,6 +37,7 @@ function deps(over: Partial<PollerDeps> = {}): PollerDeps {
     getQuoteRequest: jest.fn(async () => null),
     getContractors:  jest.fn(async () => []),
     isPro:           jest.fn(async () => true),
+    getSuccessionNotice: jest.fn(async () => null),
     dispatch:        jest.fn(async () => undefined),
     wantsPush:       jest.fn(() => true),
     emailEnabled:    jest.fn(() => false),

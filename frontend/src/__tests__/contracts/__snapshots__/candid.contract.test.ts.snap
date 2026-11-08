@@ -2883,6 +2883,15 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "cancelSuccessionClaim": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; status:variant {Approved:record {at:int}; Rejected:record {at:int; reason:text}; Cancelled:record {at:int; by:principal}; AwaitingReview; Completed:record {at:int}}; proofKind:variant {TrustDocument; LettersOfAdministration; DeathCertificate; LettersTestamentary}; proofSize:nat; claimant:principal; claimantName:text; note:text; mimeType:text; propertyId:text; fileName:text; waitEndsAt:int; openedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "cancelTransfer": {
     "args": [
       "text",
@@ -2902,6 +2911,15 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
   },
   "claimTransfer": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; verificationMethod:opt text; contestedWithId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "completeSuccessionClaim": {
     "args": [
       "text",
     ],
@@ -3235,6 +3253,38 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "vec record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; verificationMethod:opt text; contestedWithId:opt text}",
     ],
   },
+  "getMySuccessionClaims": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {id:text; status:variant {Approved:record {at:int}; Rejected:record {at:int; reason:text}; Cancelled:record {at:int; by:principal}; AwaitingReview; Completed:record {at:int}}; proofKind:variant {TrustDocument; LettersOfAdministration; DeathCertificate; LettersTestamentary}; proofSize:nat; claimant:principal; claimantName:text; note:text; mimeType:text; propertyId:text; fileName:text; waitEndsAt:int; openedAt:int}",
+    ],
+  },
+  "getNotificationEvents": {
+    "args": [
+      "nat",
+      "nat",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:record {latestSeq:nat; events:vec record {seq:nat; kind:text; createdAt:int; recipient:opt principal; summary:text; refId:text}}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "getOpenSuccessionClaim": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:opt record {id:text; status:variant {Approved:record {at:int}; Rejected:record {at:int; reason:text}; Cancelled:record {at:int; by:principal}; AwaitingReview; Completed:record {at:int}}; proofKind:variant {TrustDocument; LettersOfAdministration; DeathCertificate; LettersTestamentary}; proofSize:nat; claimant:principal; claimantName:text; note:text; mimeType:text; propertyId:text; fileName:text; waitEndsAt:int; openedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "getOwnerNotifications": {
     "args": [
       "text",
@@ -3473,6 +3523,50 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok:vec record {id:text; title:text; createdAt:int; dueDate:text; propertyId:text; amountCents:nat; updatedAt:int; paidDate:text; notes:text; documentId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "getSuccessionInvite": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {waitDays:nat; successorName:text; property:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; verificationMethod:opt text; contestedWithId:opt text}}",
+    ],
+  },
+  "getSuccessionNotice": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:opt record {claim:record {id:text; status:variant {Approved:record {at:int}; Rejected:record {at:int; reason:text}; Cancelled:record {at:int; by:principal}; AwaitingReview; Completed:record {at:int}}; proofKind:variant {TrustDocument; LettersOfAdministration; DeathCertificate; LettersTestamentary}; proofSize:nat; claimant:principal; claimantName:text; note:text; mimeType:text; propertyId:text; fileName:text; waitEndsAt:int; openedAt:int}; address:text; household:vec principal}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "getSuccessionProof": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:record {data:vec nat8; mimeType:text; fileName:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "getSuccessor": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:opt record {token:text; relationship:text; name:text; email:text; namedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "getVerificationLevel": {
     "args": [
       "text",
@@ -3551,6 +3645,15 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok:vec record {token:text; expiresAt:int; revoked:bool; name:text; createdAt:int; createdBy:principal; propertyId:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "listSuccessionClaimsForReview": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {successor:opt record {token:text; relationship:text; name:text; email:text; namedAt:int}; claim:record {id:text; status:variant {Approved:record {at:int}; Rejected:record {at:int; reason:text}; Cancelled:record {at:int; by:principal}; AwaitingReview; Completed:record {at:int}}; proofKind:variant {TrustDocument; LettersOfAdministration; DeathCertificate; LettersTestamentary}; proofSize:nat; claimant:principal; claimantName:text; note:text; mimeType:text; propertyId:text; fileName:text; waitEndsAt:int; openedAt:int}; property:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; verificationMethod:opt text; contestedWithId:opt text}}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "markIdentityCleared": {
     "args": [
       "text",
@@ -3560,6 +3663,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; verificationMethod:opt text; contestedWithId:opt text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "openSuccessionClaim": {
+    "args": [
+      "text",
+      "record {proofKind:variant {TrustDocument; LettersOfAdministration; DeathCertificate; LettersTestamentary}; claimantName:text; note:text; mimeType:text; fileName:text}",
+      "vec nat8",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; status:variant {Approved:record {at:int}; Rejected:record {at:int; reason:text}; Cancelled:record {at:int; by:principal}; AwaitingReview; Completed:record {at:int}}; proofKind:variant {TrustDocument; LettersOfAdministration; DeathCertificate; LettersTestamentary}; proofSize:nat; claimant:principal; claimantName:text; note:text; mimeType:text; propertyId:text; fileName:text; waitEndsAt:int; openedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "recordManagerActivity": {
@@ -3626,6 +3740,15 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "removeSuccessor": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "requestApproval": {
     "args": [
       "text",
@@ -3655,6 +3778,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "reviewSuccessionClaim": {
+    "args": [
+      "text",
+      "bool",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; status:variant {Approved:record {at:int}; Rejected:record {at:int; reason:text}; Cancelled:record {at:int; by:principal}; AwaitingReview; Completed:record {at:int}}; proofKind:variant {TrustDocument; LettersOfAdministration; DeathCertificate; LettersTestamentary}; proofSize:nat; claimant:principal; claimantName:text; note:text; mimeType:text; propertyId:text; fileName:text; waitEndsAt:int; openedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "revokeHouseGuideLink": {
@@ -3735,6 +3869,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {assessedValueCents:opt nat; year:nat; marketValueCents:opt nat; updatedAt:int; taxableValueCents:opt nat; notes:text; petitionDeadline:text; exemption:variant {Applied; NotApplying; Granted; Denied; Unknown}}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "setSuccessor": {
+    "args": [
+      "text",
+      "record {relationship:text; name:text; email:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {token:text; relationship:text; name:text; email:text; namedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "startMoveInPlan": {
