@@ -85,7 +85,10 @@ dfx canister call referrals   setPaymentCanisterId    "(\"$PAYMENT_ID\")"
 dfx canister call job         setContractorCanisterId "(\"$CONTRACTOR_ID\")"
 dfx canister call job         setPropertyCanisterId   "(\"$PROPERTY_ID\")"
 dfx canister call photo       setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
-dfx canister call photo       setJobCanisterId        "(principal \"$JOB_ID\")"
+# The base leg of the cycles benchmark deploys main's build, which predates this setter.
+if has_method photo setJobCanisterId; then
+  dfx canister call photo     setJobCanisterId        "(principal \"$JOB_ID\")"
+fi
 dfx canister call quote       setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
 dfx canister call maintenance setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
 dfx canister call quote       setContractorCanisterId "(principal \"$CONTRACTOR_ID\")"
