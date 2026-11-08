@@ -66,6 +66,11 @@ beforeEach(() => {
   jest.spyOn(Linking, "openURL").mockResolvedValue(true as any);
 });
 
+// The first render pulls in react-native's lazily-required components
+// (ScrollView, RefreshControl, Pressable…), which a cold jest cache transforms
+// on the spot: several seconds on a loaded CI runner, past jest's 5s default.
+jest.setTimeout(20_000);
+
 describe("EmergencyCardScreen", () => {
   it("loads this person's card for the home and shows the shutoffs, insurer and contacts", async () => {
     await renderScreen();
