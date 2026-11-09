@@ -74,7 +74,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^22.20.5",
     "@types/react": "~19.3.0",
-    "babel-preset-expo": "~58.0.22",
+    "babel-preset-expo": "~58.0.24",
     "jest": "^30.5.2",
     "jest-expo": "~58.0.12",
     "react-test-renderer": "19.3.0",
