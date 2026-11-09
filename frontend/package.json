@@ -21,7 +21,7 @@
     "@icp-sdk/core": "^6.1.1",
     "@icp-sdk/signer": "^6.1.0",
     "@icp-sdk/vetkeys": "0.7.0",
-    "@stripe/react-stripe-js": "^6.9.0",
+    "@stripe/react-stripe-js": "^7.0.1",
     "@stripe/stripe-js": "^9.12.1",
     "lucide-react": "^1.50.0",
     "playcanvas": "^2.21.3",
