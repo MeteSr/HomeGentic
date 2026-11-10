@@ -225,6 +225,7 @@ export interface _SERVICE {
   >;
   getBillsSummary: ActorMethod<[string], [] | [BillsSummary]>;
   getCertAttestation: ActorMethod<[string], [] | [Attestation]>;
+  getMyReports: ActorMethod<[string[]], ReportSnapshot[]>;
   getReport: ActorMethod<[string], { ok: [ShareLink, ReportSnapshot] } | { err: Error }>;
   getReportAttestation: ActorMethod<[string], [] | [Attestation]>;
   getReportCloseout: ActorMethod<[string], [] | [CloseoutView]>;

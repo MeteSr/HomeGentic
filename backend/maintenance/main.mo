@@ -12,6 +12,7 @@ import Array    "mo:core/Array";
 import Map      "mo:core/Map";
 import Int      "mo:core/Int";
 import Iter     "mo:core/Iter";
+import List     "mo:core/List";
 import Nat      "mo:core/Nat";
 import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
@@ -155,6 +156,19 @@ persistent actor Maintenance {
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
+
+  /// Per-caller limit on the access-checked reads that are update calls (each
+  /// one calls `property`), counted apart from writes. These reads are
+  /// reachable through the ChatGPT/Claude connector (docs/AI_CONNECTORS.md).
+  /// Admin-adjustable; 0 disables it. Changing this default only affects a
+  /// fresh install.
+  private let readCallLimits : RateLimit.Limits = Map.empty();
+  private var maxReadsPerMin : Nat = 120;
+
+  private func tryConsumeReadSlot(caller: Principal) : Bool {
+    if (isAdmin(caller)) return true;
+    RateLimit.tryConsume(readCallLimits, caller.toText(), Time.now(), maxReadsPerMin)
+  };
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct
@@ -351,6 +365,8 @@ persistent actor Maintenance {
   /// unauthorized callers get an empty list.
   public shared(msg) func getScheduleByProperty(propertyId: Text) : async [ScheduleEntry] {
     if (msg.caller.isAnonymous()) return [];
+    // Over the read limit: empty, like a caller with no access (the result has no error case).
+    if (not tryConsumeReadSlot(msg.caller)) return [];
     if (not isAdmin(msg.caller)) {
       if (Text.size(propCanisterId) > 0) {
         if (not (await checkPropertyAuth(propertyId, msg.caller, msg.caller, false))) return [];
@@ -362,6 +378,32 @@ persistent actor Maintenance {
       };
     };
     Index.records(scheduleByProperty, propertyId, schedule).toArray()
+  };
+
+  /// Most properties one getScheduleForProperties call reads (property answers up to 100).
+  private transient let MAX_PROPERTY_BATCH : Nat = 100;
+
+  /// Schedules for several properties in one call, with the same rule as
+  /// getScheduleByProperty: homes the caller has no role on are skipped. A
+  /// composite query, so it works in read-only ("Questions only") assistant
+  /// sessions and costs one property query instead of an update per home.
+  public composite query(msg) func getScheduleForProperties(propertyIds: [Text]) : async [ScheduleEntry] {
+    if (msg.caller.isAnonymous()) return [];
+    let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
+    let admin = isAdmin(msg.caller);
+    let localDev = Text.size(propCanisterId) == 0 and not admin;
+    let roles : [?Canisters.AccessRole] =
+      if (admin or localDev) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
+    let out = List.empty<ScheduleEntry>();
+    for (i in ids.keys()) {
+      if (admin or localDev or (i < roles.size() and Canisters.hasRole(roles[i]))) {
+        for (e in Index.records(scheduleByProperty, ids[i], schedule)) {
+          // Local dev (property not wired): only the caller's own, as getScheduleByProperty.
+          if (not localDev or e.createdBy == msg.caller) out.add(e);
+        };
+      };
+    };
+    out.toArray()
   };
 
   public shared(msg) func markCompleted(entryId: Text) : async Result.Result<ScheduleEntry, Error> {
@@ -422,6 +464,13 @@ persistent actor Maintenance {
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     maxUpdatesPerMin := n;
+    #ok(())
+  };
+
+  /// Set the per-minute limit on access-checked update reads (admin only). Pass 0 to disable it.
+  public shared(msg) func setReadRateLimit(n: Nat) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    maxReadsPerMin := n;
     #ok(())
   };
 

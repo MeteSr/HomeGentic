@@ -261,6 +261,19 @@ persistent actor Job {
 
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
+
+  /// Per-caller limit on the access-checked reads that are update calls (each
+  /// one calls `property`), counted apart from writes. These reads are
+  /// reachable through the ChatGPT/Claude connector (docs/AI_CONNECTORS.md).
+  /// Admin-adjustable; 0 disables it. Changing this default only affects a
+  /// fresh install.
+  private let readCallLimits : RateLimit.Limits = Map.empty();
+  private var maxReadsPerMin : Nat = 120;
+
+  private func tryConsumeReadSlot(caller: Principal) : Bool {
+    if (isAdmin(caller) or isTrustedCanister(caller)) return true;
+    RateLimit.tryConsume(readCallLimits, caller.toText(), Time.now(), maxReadsPerMin)
+  };
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct
@@ -609,6 +622,7 @@ persistent actor Job {
   /// Caller must be the property owner, an admin, or a trusted canister.
   public shared(msg) func getJobsForProperty(propertyId: Text) : async Result.Result<[Job], Error> {
     if (not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) {
+      if (not tryConsumeReadSlot(msg.caller)) return #err(#RateLimited);
       switch (await* authorize(propertyId, msg.caller, msg.caller, false)) {
         case (#err(#Unavailable(m))) return #err(#Unavailable(m));
         case (#err(_)) return #ok([]);  // return empty rather than error for UX
@@ -1320,6 +1334,13 @@ persistent actor Job {
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     maxUpdatesPerMin := n;
+    #ok(())
+  };
+
+  /// Set the per-minute limit on access-checked update reads (admin only). Pass 0 to disable it.
+  public shared(msg) func setReadRateLimit(n: Nat) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    maxReadsPerMin := n;
     #ok(())
   };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { MobileAccountPage } from "@/pages/MobileAccountPage";
-import { User, CreditCard, Bell, Lock, CheckCircle, Download } from "lucide-react";
+import { User, CreditCard, Bell, Lock, CheckCircle, Download, Sparkles } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
@@ -26,15 +26,21 @@ import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { isValidEmail, isValidPhone } from "@/utils/validators";
 import { errorMessage } from "@/services/candid";
+import { connectorsLive } from "@/services/aiConnectors";
+import { AiAssistantsSettings } from "@/components/AiAssistantsSettings";
 
-type Tab = "account" | "subscription" | "notifications" | "privacy";
+type Tab = "account" | "subscription" | "notifications" | "privacy" | "assistants";
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "account",       label: "Account",       icon: <User size={14} /> },
   { key: "subscription",  label: "Subscription",  icon: <CreditCard size={14} /> },
   { key: "notifications", label: "Notifications", icon: <Bell size={14} /> },
   { key: "privacy",       label: "Privacy",       icon: <Lock size={14} /> },
+  { key: "assistants",    label: "AI assistants", icon: <Sparkles size={14} /> },
 ];
+
+/** The tabs this build shows: "AI assistants" waits for the connector flag (docs/AI_CONNECTORS.md). */
+const visibleTabs = () => TABS.filter((t) => t.key !== "assistants" || connectorsLive());
 
 // ── Shared section primitives ─────────────────────────────────────────────────
 
@@ -63,7 +69,8 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
   const initialTab = (searchParams.get("tab") as Tab | null) ?? "account";
-  const [tab, setTab] = useState<Tab>(TABS.some((t) => t.key === initialTab) ? initialTab : "account");
+  const tabs = visibleTabs();
+  const [tab, setTab] = useState<Tab>(tabs.some((t) => t.key === initialTab) ? initialTab : "account");
   const { profile, setProfile } = useAuthStore();
   const { isMobile } = useBreakpoint();
 
@@ -87,7 +94,7 @@ export default function SettingsPage() {
 
           {/* Sidebar */}
           <nav style={{ width: isMobile ? "100%" : "11rem", flexShrink: 0 }}>
-            {TABS.map((t) => (
+            {tabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
@@ -115,6 +122,7 @@ export default function SettingsPage() {
             {tab === "subscription"  && <SubscriptionTab profile={profile} />}
             {tab === "notifications" && (profile?.role === "Contractor" ? <ContractorNotificationsTab /> : <NotificationsTab />)}
             {tab === "privacy"       && (profile?.role === "Contractor" ? <ContractorPrivacyTab />      : <PrivacyTab />)}
+            {tab === "assistants"    && <AiAssistantsSettings />}
           </div>
         </div>
       </div>

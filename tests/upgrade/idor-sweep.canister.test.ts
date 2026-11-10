@@ -199,6 +199,15 @@ describe("cross-tenant sweep: another user with the owner's real ids", () => {
     ok(await as("market", owner).submitScore(ids.property));
     before = await ownerView();
 
+    // The sweep makes more than 30 update calls a minute to some canisters, so
+    // turn the per-minute limit off: a #RateLimited answer would otherwise
+    // hide a method whose permission check never ran.
+    for (const name of ALL_CANISTERS) {
+      if (d.svcs[name]._fields.some(([m]) => m === "setUpdateRateLimit")) {
+        ok(await as(name, admin).setUpdateRateLimit(0n));
+      }
+    }
+
     for (const name of ALL_CANISTERS) {
       const svc = d.svcs[name];
       // Reads first, so a write that wrongly succeeds can't hide a read leak.

@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { DashboardV3 } from "@/components/dashboardV3/DashboardV3";
 import type { Property } from "@/services/property";
+import { askUrl, setConnectorConnected } from "@/services/aiConnectors";
 
 const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }));
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -279,6 +280,37 @@ describe("DashboardV3 — ask bar", () => {
     fireEvent.change(input, { target: { value: "who else has access" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(screen.getAllByText("PEOPLE").length).toBeGreaterThan(0);
+  });
+
+  // docs/AI_CONNECTORS.md: offer the user's own assistant before they spend in-app questions.
+  it("shows no ChatGPT/Claude pointer while the connector flag is off", () => {
+    renderDashboard();
+    expect(screen.queryByRole("link", { name: /ChatGPT/ })).toBeNull();
+  });
+
+  it("points a user who hasn't connected an assistant to the setup tab", () => {
+    (window as any).__e2e_ai_connectors = true;
+    try {
+      renderDashboard();
+      fireEvent.click(screen.getByRole("button", { name: /ask in ChatGPT or Claude/i }));
+      expect(mockNavigate).toHaveBeenCalledWith("/settings?tab=assistants");
+    } finally {
+      delete (window as any).__e2e_ai_connectors;
+    }
+  });
+
+  it("links a connected user to ChatGPT and Claude with their question filled in", () => {
+    (window as any).__e2e_ai_connectors = true;
+    setConnectorConnected(true);
+    try {
+      renderDashboard();
+      fireEvent.change(screen.getByPlaceholderText("Ask about your home"), { target: { value: "is my roof okay" } });
+      expect(screen.getByRole("link", { name: "ChatGPT" })).toHaveAttribute("href", askUrl("chatgpt", "is my roof okay"));
+      expect(screen.getByRole("link", { name: "Claude" })).toHaveAttribute("href", askUrl("claude", "is my roof okay"));
+    } finally {
+      delete (window as any).__e2e_ai_connectors;
+      setConnectorConnected(false);
+    }
   });
 });
 

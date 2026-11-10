@@ -219,6 +219,7 @@ exports[`Candid contract snapshots — method arity > maintenance 1`] = `
 deleteMyData(0) -> (1)
 getApiDoc(0) -> (1) [query]
 getScheduleByProperty(1) -> (1)
+getScheduleForProperties(1) -> (1) [composite_query]
 markCompleted(1) -> (1)"
 `;
 
@@ -469,6 +470,7 @@ getApiDoc(0) -> (1) [query]
 getAttestationKey(0) -> (1) [query]
 getBillsSummary(1) -> (1) [query]
 getCertAttestation(1) -> (1) [query]
+getMyReports(1) -> (1) [query]
 getReport(1) -> (1)
 getReportAttestation(1) -> (1) [query]
 getReportCloseout(1) -> (1) [query]

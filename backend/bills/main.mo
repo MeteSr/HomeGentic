@@ -40,6 +40,7 @@ import Index     "../shared/Index";
 import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
+import RateLimit "../shared/RateLimit";
 import Errors "../shared/Errors";
 import ApiDoc "ApiDoc";
 
@@ -188,6 +189,28 @@ persistent actor Bills {
   /// unset, every record is visible only to the principal who created it.
   private var propCanisterId : Text = "";
 
+  // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
+  // Same per-caller limit as the other user-facing canisters. Counts every
+  // call that passes requireActive (all writes and deleteMyData).
+
+  private let updateCallLimits : RateLimit.Limits = Map.empty();
+  /// Admin-adjustable rate limit — default 30/min. Changing this default only
+  /// affects a fresh install; a deployed canister keeps its stored value.
+  private var maxUpdatesPerMin : Nat = 30;
+
+  /// Per-caller limit on the access-checked reads that are update calls (each
+  /// one calls `property`), counted apart from writes. These reads are
+  /// reachable through the ChatGPT/Claude connector (docs/AI_CONNECTORS.md).
+  /// Admin-adjustable; 0 disables it. Changing this default only affects a
+  /// fresh install.
+  private let readCallLimits : RateLimit.Limits = Map.empty();
+  private var maxReadsPerMin : Nat = 120;
+
+  private func tryConsumeReadSlot(caller: Principal) : Bool {
+    if (isAdmin(caller)) return true;
+    RateLimit.tryConsume(readCallLimits, caller.toText(), Time.now(), maxReadsPerMin)
+  };
+
 
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
@@ -205,7 +228,13 @@ persistent actor Bills {
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (caller.isAnonymous()) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
+    if (not tryConsumeUpdateSlot(caller)) return #err(#RateLimited);
     #ok(())
+  };
+
+  private func tryConsumeUpdateSlot(caller: Principal) : Bool {
+    if (isAdmin(caller)) return true;
+    RateLimit.tryConsume(updateCallLimits, caller.toText(), Time.now(), maxUpdatesPerMin)
   };
 
   private func nextBillId() : Text {
@@ -442,6 +471,7 @@ persistent actor Bills {
   /// Return a property's bills: all of them for anyone with a role on the
   /// property (owner, co-owner, manager, viewer), otherwise only the caller's own.
   public shared(msg) func getBillsForProperty(propertyId: Text) : async Result.Result<[BillRecord], Error> {
+    if (not tryConsumeReadSlot(msg.caller)) return #err(#RateLimited);
     let role = switch (await* accessRole(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(r)) r };
     let shared_ = seesProperty(role);
     let result = Index.records(billsByProperty, propertyId, bills).toArray().filter(
@@ -477,6 +507,7 @@ persistent actor Bills {
     billType   : BillType,
     months     : Nat,
   ) : async Result.Result<[UsagePeriod], Error> {
+    if (not tryConsumeReadSlot(msg.caller)) return #err(#RateLimited);
     let role = switch (await* accessRole(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(r)) r };
     let shared_ = seesProperty(role);
     let cutoffNs : Int = Time.now() - (months * 30 * 24 * 3_600_000_000_000 : Nat);
@@ -586,6 +617,7 @@ persistent actor Bills {
   /// role on the property sees them all except the mortgage, which only the
   /// owner and co-owners see; others see only entries they created.
   public shared(msg) func getRecurringExpensesForProperty(propertyId: Text) : async Result.Result<[RecurringExpense], Error> {
+    if (not tryConsumeReadSlot(msg.caller)) return #err(#RateLimited);
     let role = switch (await* accessRole(propertyId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(r)) r };
     let visible = Index.records(expensesByProperty, propertyId, recurringExpenses).toArray().filter(
       func(e) {
@@ -692,6 +724,20 @@ persistent actor Bills {
 
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
+  /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
+  public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    maxUpdatesPerMin := n;
+    #ok(())
+  };
+
+  /// Set the per-minute limit on access-checked update reads (admin only). Pass 0 to disable it.
+  public shared(msg) func setReadRateLimit(n: Nat) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    maxReadsPerMin := n;
+    #ok(())
+  };
+
   public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
     if (Admin.canSetNonce(msg.caller, adminInitialized, bootstrapNonce)) bootstrapNonce := ?nonce;
   };

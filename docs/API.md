@@ -12,6 +12,9 @@ All canisters return `Result.Result<T, Error>` on update calls unless noted othe
 | `#Paused` | An admin paused writes on this canister | Later |
 | `#RateLimited` | The caller went over the per-minute update limit | After a minute |
 | `#Unavailable : Text` | A canister this one depends on isn't wired or didn't answer; the text is for a person | Later |
+
+**Read limits.** The access-checked reads that are update calls (`job.getJobsForProperty`, `bills.getBillsForProperty` / `getUsageTrend` / `getRecurringExpensesForProperty`, `recurring.getByProperty` / `getRecurringService` / `getVisitLogs`, `maintenance.getScheduleByProperty`) have their own per-caller limit, 120 a minute by default (`setReadRateLimit`, admin only; 0 turns it off). Over it, a `Result` read answers `#RateLimited` and a plain-list read returns an empty list. Admins and trusted canisters aren't counted. The batch composite queries are not limited.
+
 Every canister exposes a metrics query — `getMetrics()` in most, `metrics()` in agent, audit, bills, fee, listing and referrals — and the admin lifecycle methods listed at the end of each section.
 
 Signatures and query/update types in this file are generated from the Motoko source; the canister's `main.mo` is authoritative if they ever disagree.
@@ -161,7 +164,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 
 **ServiceType** (shared by job, quote and contractor — `backend/shared/ServiceType.mo`): `#Roofing | #HVAC | #Plumbing | #Electrical | #Painting | #Flooring | #Windows | #Landscaping | #Gutters | #GeneralHandyman | #Pest | #Concrete | #Fencing | #Insulation | #Solar | #Pool | #Foundation | #Drywall | #KitchenRemodel | #BathroomRemodel | #Other`
 
-**Admin / Lifecycle:** `setContractorCanisterId(id: Text)` · `setPropertyCanisterId(id: Text)` · `setPaymentCanisterId(id: Text)` · `addSensorCanister(sensor: Principal)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `addTrustedCanister(p: Principal)` · `removeTrustedCanister(p: Principal)` · `getTrustedCanisters()` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
+**Admin / Lifecycle:** `setContractorCanisterId(id: Text)` · `setPropertyCanisterId(id: Text)` · `setPaymentCanisterId(id: Text)` · `addSensorCanister(sensor: Principal)` · `setUpdateRateLimit(n: Nat)` · `setReadRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `addTrustedCanister(p: Principal)` · `removeTrustedCanister(p: Principal)` · `getTrustedCanisters()` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
 
 ---
 
@@ -323,6 +326,7 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 | `setAllowPublicReports` | update | `(allow: Bool)` | Settings → Privacy. While false, every Public link the caller created needs a signed-in viewer (also in `getBillsSummary` and `hasActivePublicShareLink`) |
 | `getAllowPublicReports` | query | `()` | Caller's setting (default true) |
 | `listShareLinks` | update | `(propertyId: Text)` | List all share links for a property |
+| `getMyReports` | query | `(propertyIds: [Text])` | The caller's newest report snapshot for each of up to 100 properties; doesn't count as a view |
 | `revokeShareLink` | update | `(token: Text)` | Revoke a share link |
 | `issueCert` | update | `(propertyId: Text, payload: Text)` | Admin: issue an on-chain certificate |
 | `verifyCert` | query | `(certId: Text)` | Verify a certificate by ID |
@@ -374,10 +378,11 @@ no subscription record is `#Free`. Other canisters read tiers from here via
 |---|---|---|---|
 | `predictMaintenance` | query | `(yearBuilt: Nat, jobs: [JobInput])` | Predict upcoming maintenance tasks for a property |
 | `createScheduleEntry` | update | `(propertyId: Text, systemName: Text, taskDescription: Text, plannedYear: Nat, plannedMonth: ?Nat, estimatedCostCents: ?Nat)` | Create a maintenance schedule entry |
-| `getScheduleByProperty` | query | `(propertyId: Text)` | All schedule entries for a property |
+| `getScheduleByProperty` | update | `(propertyId: Text)` | All schedule entries for a property (live access check with `property`) |
+| `getScheduleForProperties` | composite query | `(propertyIds: [Text])` | Schedule entries on up to 100 properties in one call; same access rule as `getScheduleByProperty` |
 | `markCompleted` | update | `(entryId: Text)` | Mark a schedule entry as completed |
 
-**Admin / Lifecycle:** `setPropertyCanisterId(id: Principal)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
+**Admin / Lifecycle:** `setPropertyCanisterId(id: Principal)` · `setUpdateRateLimit(n: Nat)` · `setReadRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
 
 ---
 
@@ -503,20 +508,20 @@ Realtor profiles and performance tracking.
 |---|---|---|---|
 | `createRecurringService` | update | `(propertyId: Text, serviceType: RecurringServiceType, providerName: Text, providerLicense: ?Text, providerPhone: ?Text, frequency: Frequency, startDate: Text, contractEndDate: ?Text, notes: ?Text)` | Create a recurring service contract (HVAC, pest, landscaping, etc.) |
 | `getRecurringService` | query | `(serviceId: Text)` | Get a service contract by ID |
-| `getByProperty` | query | `(propertyId: Text)` | All recurring services for a property |
+| `getByProperty` | update | `(propertyId: Text)` | All recurring services for a property (live access check with `property`) |
 | `getScheduleForProperties` | composite query | `(propertyIds: [Text])` | Services on up to 100 properties plus their visit logs (newest first), in one call; same access rule as `getByProperty` |
 | `updateStatus` | update | `(serviceId: Text, status: ServiceStatus)` | Update service status |
 | `attachContractDoc` | update | `(serviceId: Text, photoId: Text)` | Attach a contract document |
 | `addVisitLog` | update | `(serviceId: Text, visitDate: Text, note: ?Text)` | Log a service visit |
 | `getVisitLogs` | query | `(serviceId: Text)` | All visit logs for a service |
 
-**Admin / Lifecycle:** `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
+**Admin / Lifecycle:** `setUpdateRateLimit(n: Nat)` · `setReadRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
 
 ---
 
 ## Bills Canister
 
-Utility bills and fixed recurring housing costs per property. Tier-gated via `payment`.
+Utility bills and fixed recurring housing costs per property. Tier-gated via `payment`. Writes are limited to 30 a minute per caller (`#RateLimited`).
 
 | Method | Type | Signature | Description |
 |---|---|---|---|
@@ -530,7 +535,7 @@ Utility bills and fixed recurring housing costs per property. Tier-gated via `pa
 | `updateRecurringExpense` | update | `(id: Text, fields: RecurringExpenseFields)` | Replace the editable fields of a recurring expense (e.g. |
 | `deleteRecurringExpense` | update | `(id: Text)` | Delete a recurring expense. |
 
-**Admin / Lifecycle:** `setPropertyCanisterId(id: Text)` · `setPaymentCanisterId(id: Text)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
+**Admin / Lifecycle:** `setPropertyCanisterId(id: Text)` · `setPaymentCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setReadRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
 
 ---
 

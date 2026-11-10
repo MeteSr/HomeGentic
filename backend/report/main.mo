@@ -329,6 +329,7 @@ persistent actor Report {
       #getReportCloseout : Any;
       #getCertAttestation : Any;
       #getMetrics : Any;
+      #getMyReports : Any;
       #getReport : Any;
       #getReportAttestation : Any;
       #getReportScore : Any;
@@ -1293,6 +1294,26 @@ persistent actor Report {
 
   public query(msg) func getAllowPublicReports() : async Bool {
     not publicReportsOff.containsKey(msg.caller)
+  };
+
+  /// The caller's newest report snapshot for each of `propertyIds` (at most
+  /// 100), for homes they generated a report on. A query, so it works in
+  /// read-only ("Questions only") assistant sessions and doesn't count as a
+  /// view the way getReport does.
+  public query(msg) func getMyReports(propertyIds: [Text]) : async [ReportSnapshot] {
+    if (msg.caller.isAnonymous()) return [];
+    let wanted = Map.empty<Text, ()>();
+    for (id in propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), 100)).values()) wanted.add(id, ());
+    let newest = Map.empty<Text, ReportSnapshot>();
+    for (snap in Index.records(snapshotsByCreator, msg.caller.toText(), snapshots)) {
+      if (wanted.containsKey(snap.propertyId)) {
+        switch (newest.get(snap.propertyId)) {
+          case (?cur) { if (snap.generatedAt > cur.generatedAt) newest.add(snap.propertyId, snap) };
+          case null   { newest.add(snap.propertyId, snap) };
+        };
+      };
+    };
+    newest.values().toArray()
   };
 
   /// List all share links the caller created for a property.

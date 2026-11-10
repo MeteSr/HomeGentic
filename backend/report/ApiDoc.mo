@@ -6,6 +6,7 @@ module {
     "# HomeGentic report canister\n\n" #
     "Shareable snapshots of a home's maintenance record (the HomeGentic report), for buyers, agents and insurers. Each report is a fixed snapshot with a share link.\n\n" #
     "## Reading\n" #
+    "- `getMyReports(propertyIds)` (query): the caller's newest report snapshot for each of up to 100 properties they generated a report on. Works in read-only sessions and doesn't count as a view.\n" #
     "- `listShareLinks(propertyId)`: the caller's share links for a property, with visibility, expiry and view counts. It is an update call.\n" #
     "- `getReport(token)`: opens a report by its share token. It is an update call because it counts the view.\n" #
     "- `verifyCert(certId)` and `getReportAttestation(token)` (query): check that a report or certificate was signed by HomeGentic.\n" #

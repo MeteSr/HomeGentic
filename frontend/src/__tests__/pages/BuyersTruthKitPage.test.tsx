@@ -173,3 +173,24 @@ describe("BuyersTruthKitPage — shared-link auto-run", () => {
     await waitFor(() => expect(screen.getByText(/Overall Risk: Low/)).toBeInTheDocument());
   }, 15000);
 });
+
+// The loading-step timers used to outlive the page: a test that unmounted
+// mid-analysis had them fire after jsdom was torn down ("window is not
+// defined" in CI, failing the whole run).
+describe("BuyersTruthKitPage — loading timers", () => {
+  it("clears the loading-step timers when the page unmounts", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(fetch).mockReturnValue(new Promise(() => {}) as any);
+      const encoded = btoa(JSON.stringify({
+        address: "456 Oak Ave, Austin, TX 78701", yearBuilt: 1999, claims: DEFAULT_CLAIMS,
+      }));
+      const { unmount } = renderAt(`/truth-kit?d=${encoded}`);
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
