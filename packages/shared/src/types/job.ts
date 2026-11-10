@@ -72,6 +72,18 @@ export type ServiceType =
 
 export type TextResult = { ok: string } | { err: Error };
 
+export type OqlResult = {
+  hasMore: boolean;
+  rows: Array<OqlCell[]>;
+};
+
+export type OqlCell = {
+  value: OqlCellValue;
+  name: string;
+};
+
+export type OqlCellValue = { int: bigint } | { float: number } | { bool: boolean } | { null: null } | { text: string };
+
 export type CalendarFeedView = {
   updatedAt: bigint;
   events: CalendarEvent[];
@@ -166,6 +178,7 @@ export interface _SERVICE {
   disableMyCalendarFeed: ActorMethod<[], UnitResult>;
   dismissEmailDraft: ActorMethod<[string], UnitResult>;
   enableMyCalendarFeed: ActorMethod<[], TextResult>;
+  execute: ActorMethod<[string], OqlResult>;
   getApiDoc: ActorMethod<[], string>;
   getCalendarFeed: ActorMethod<[string], [] | [CalendarFeedView]>;
   getCertificationData: ActorMethod<
@@ -239,6 +252,7 @@ export interface _SERVICE {
   removeJobPaper: ActorMethod<[string, string], { ok: null } | { err: Error }>;
   resetMyCalendarFeed: ActorMethod<[], TextResult>;
   resetMyInboxToken: ActorMethod<[], TextResult>;
+  schema: ActorMethod<[], string>;
   setFeeCanisterId: ActorMethod<[string], { ok: null } | { err: Error }>;
   setJobCostCategory: ActorMethod<[string, [] | [CostCategory]], { ok: null } | { err: Error }>;
   setPermitStatus: ActorMethod<[string, [] | [PermitStatus]], { ok: null } | { err: Error }>;
