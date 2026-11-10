@@ -493,6 +493,10 @@ persistent actor Property {
   /// Listing canister ID — set post-deploy via setListingCanisterId(). A
   /// claimed transfer tells it to take the seller's FSBO listing down (M-6).
   private var listingCanisterId        : Text        = "";
+  /// Photo canister ID (setPhotoCanisterId / PUBLIC_CANISTER_ID:photo). M-1
+  /// (security audit 2026-11-10): a hand-over tells it to keep the previous
+  /// household's personal papers private to them (photo.propertyTransferred).
+  private var photoCanisterId          : Text        = "";
 
   private var transferCounter        : Nat                            = 0;
 
@@ -977,6 +981,7 @@ persistent actor Property {
       #setMortgageLoan : Any;
       #setMoveInStep : Any;
       #setPaymentCanisterId : Any;
+      #setPhotoCanisterId : Any;
       #setPropertyTaxYear : Any;
       #setSuccessor : Any;
       #setUpdateRateLimit : Any;
@@ -1884,6 +1889,12 @@ persistent actor Property {
   /// listing comes down, and payment decides on the new owner's handoff year.
   /// The hand-over stands whatever they answer.
   private func afterMove(propertyId : Text, to : Principal, prop : Property) : async* () {
+    // M-1 (security audit 2026-11-10): the previous household's closing,
+    // title, insurance and other personal papers stay theirs.
+    if (photoCanisterId != "") {
+      let photo : actor { propertyTransferred : shared Text -> async { #ok : Nat; #err : Any } } = actor (photoCanisterId);
+      try { ignore await photo.propertyTransferred(propertyId) } catch _ { Debug.print("[property] photo transfer call failed") };
+    };
     if (listingCanisterId != "") {
       let listing : actor { propertyTransferred : shared Text -> async { #ok : Any; #err : Any } } = actor (listingCanisterId);
       try { ignore await listing.propertyTransferred(propertyId) } catch _ { Debug.print("[property] listing transfer call failed") };
@@ -2635,6 +2646,14 @@ persistent actor Property {
     #ok(())
   };
 
+  /// Wire the photo canister, which keeps the previous household's personal
+  /// papers private when a home changes hands (M-1).
+  public shared(msg) func setPhotoCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    photoCanisterId := id.toText();
+    #ok(())
+  };
+
   /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
@@ -2783,6 +2802,55 @@ persistent actor Property {
     #ok(())
   };
 
+  // ─── Per-home record caps by plan (M-3, security audit 2026-11-10) ───────
+
+  /// How many of each record a home may hold. Free accounts cost nothing to
+  /// make, so Free homes get smaller caps (about 0.75 MB of these records per
+  /// home instead of about 11 MB); Pro keeps the module limits.
+  type RecordCaps = {
+    free           : Bool;
+    claims         : Nat;
+    claimLog       : Nat;
+    inventory      : Nat;
+    reviews        : Nat;
+    assessments    : Nat;
+    warrantyClaims : Nat;
+  };
+
+  private func capsForTier(t : Canisters.Tier) : RecordCaps {
+    switch t {
+      case (#Pro or #ContractorPro) {
+        {
+          free = false;
+          claims = Insurance.MAX_CLAIMS_PER_PROPERTY; claimLog = Insurance.MAX_LOG_ENTRIES;
+          inventory = Insurance.MAX_INVENTORY_ITEMS;
+          reviews = Hoa.MAX_REVIEWS_PER_PROPERTY; assessments = Hoa.MAX_ASSESSMENTS_PER_PROPERTY;
+          warrantyClaims = HomeFinance.MAX_CLAIMS_PER_PROPERTY;
+        }
+      };
+      case (#Free or #ContractorFree) {
+        { free = true; claims = 10; claimLog = 50; inventory = 100; reviews = 25; assessments = 25; warrantyClaims = 25 }
+      };
+    }
+  };
+
+  /// The caps for `propertyId`, from its owner's plan (a manager adds under
+  /// the owner's plan). Free when payment isn't wired (fail closed);
+  /// #Unavailable when it didn't answer.
+  private func capsFor(propertyId : Text) : async* Result.Result<RecordCaps, Error> {
+    let owner = switch (properties.get(propertyId)) { case (?p) p.owner; case null return #err(#NotFound) };
+    if (payCanisterId == "") return #ok(capsForTier(#Free));
+    switch (await* Canisters.tierOf(payCanisterId, owner)) {
+      case (#ok(t)) #ok(capsForTier(t));
+      case (#err(e)) #err(e);
+    }
+  };
+
+  /// The refusal when a home is at a cap: what to do about it.
+  private func capReached(what : Text, caps : RecordCaps) : Error {
+    #InvalidInput(what # (if (caps.free) "; delete an old one first, or upgrade to Pro ($59/year) for more" else "; delete an old one first"))
+  };
+
   // ─── Insurance claim kit (#711) ───────────────────────────────────────────
 
   /// The claim and its property, when `caller` may change it. NotFound comes
@@ -2805,11 +2873,12 @@ persistent actor Property {
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
     let c = Insurance.clean(input);
     switch (Insurance.validateClaim(c)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let caps = switch (await* capsFor(propertyId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
     let id = Uuid.fromBlob(await Random.blob());
-    // Re-check after the await: the home may have changed hands meanwhile.
+    // Re-check after the awaits: the home may have changed hands meanwhile.
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
-    if (Index.ids(claimsByProperty, propertyId).size() >= Insurance.MAX_CLAIMS_PER_PROPERTY)
-      return #err(#InvalidInput("This home already has " # Insurance.MAX_CLAIMS_PER_PROPERTY.toText() # " claim records; delete an old one first"));
+    if (Index.ids(claimsByProperty, propertyId).size() >= caps.claims)
+      return #err(capReached("This home already has " # caps.claims.toText() # " claim records", caps));
     let now = Time.now();
     let claim : InsuranceClaim = {
       id; propertyId;
@@ -2840,11 +2909,14 @@ persistent actor Property {
   /// #711: add a dated line to a claim's log. Needs write access to the home.
   public shared(msg) func addInsuranceClaimLog(claimId: Text, date: Text, note: Text) : async Result.Result<InsuranceClaim, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    let existing = switch (writableClaim(claimId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(c)) c };
+    let first = switch (writableClaim(claimId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(c)) c };
     let n = Insurance.trim(note);
     switch (Insurance.validateLogEntry(date, n)) { case (?why) return #err(#InvalidInput(why)); case null {} };
-    if (existing.log.size() >= Insurance.MAX_LOG_ENTRIES)
-      return #err(#InvalidInput("This claim's log is full (" # Insurance.MAX_LOG_ENTRIES.toText() # " entries)"));
+    let caps = switch (await* capsFor(first.propertyId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
+    // Re-read after the await: the claim may have changed or the home changed hands.
+    let existing = switch (writableClaim(claimId, msg.caller)) { case (#err(e)) return #err(e); case (#ok(c)) c };
+    if (existing.log.size() >= caps.claimLog)
+      return #err(capReached("This claim's log is full (" # caps.claimLog.toText() # " entries)", caps));
     let now = Time.now();
     let updated : InsuranceClaim = {
       existing with
@@ -2903,11 +2975,12 @@ persistent actor Property {
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
     let i = Insurance.cleanItem(input);
     switch (itemProblem(propertyId, i)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let caps = switch (await* capsFor(propertyId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
     let id = Uuid.fromBlob(await Random.blob());
-    // Re-check after the await: the home may have changed hands meanwhile.
+    // Re-check after the awaits: the home may have changed hands meanwhile.
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
-    if (Index.ids(inventoryByProperty, propertyId).size() >= Insurance.MAX_INVENTORY_ITEMS)
-      return #err(#InvalidInput("This home's inventory is full (" # Insurance.MAX_INVENTORY_ITEMS.toText() # " items)"));
+    if (Index.ids(inventoryByProperty, propertyId).size() >= caps.inventory)
+      return #err(capReached("This home's inventory is full (" # caps.inventory.toText() # " items)", caps));
     let now = Time.now();
     let item : InventoryItem = {
       id; propertyId;
@@ -3102,10 +3175,11 @@ persistent actor Property {
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
     let r = Hoa.cleanReview(input);
     switch (Hoa.validateReview(r)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let caps = switch (await* capsFor(propertyId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
     let id = Uuid.fromBlob(await Random.blob());
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
-    if (Index.ids(reviewsByProperty, propertyId).size() >= Hoa.MAX_REVIEWS_PER_PROPERTY)
-      return #err(#InvalidInput("This home already has 100 review requests; delete an old one first"));
+    if (Index.ids(reviewsByProperty, propertyId).size() >= caps.reviews)
+      return #err(capReached("This home already has " # caps.reviews.toText() # " review requests", caps));
     let now = Time.now();
     let rec : ArchitecturalReview = {
       id; propertyId;
@@ -3158,10 +3232,11 @@ persistent actor Property {
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
     let a = Hoa.cleanAssessment(input);
     switch (Hoa.validateAssessment(a)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let caps = switch (await* capsFor(propertyId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
     let id = Uuid.fromBlob(await Random.blob());
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
-    if (Index.ids(assessmentsByProperty, propertyId).size() >= Hoa.MAX_ASSESSMENTS_PER_PROPERTY)
-      return #err(#InvalidInput("This home already has 100 special assessments; delete an old one first"));
+    if (Index.ids(assessmentsByProperty, propertyId).size() >= caps.assessments)
+      return #err(capReached("This home already has " # caps.assessments.toText() # " special assessments", caps));
     let now = Time.now();
     let rec : SpecialAssessment = {
       id; propertyId;
@@ -3273,10 +3348,11 @@ persistent actor Property {
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
     let c = HomeFinance.cleanClaim(input);
     switch (HomeFinance.validateClaim(c)) { case (?why) return #err(#InvalidInput(why)); case null {} };
+    let caps = switch (await* capsFor(propertyId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
     let id = Uuid.fromBlob(await Random.blob());
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
-    if (Index.ids(hwClaimsByProperty, propertyId).size() >= HomeFinance.MAX_CLAIMS_PER_PROPERTY)
-      return #err(#InvalidInput("This home already has 100 home warranty claims; delete an old one first"));
+    if (Index.ids(hwClaimsByProperty, propertyId).size() >= caps.warrantyClaims)
+      return #err(capReached("This home already has " # caps.warrantyClaims.toText() # " home warranty claims", caps));
     let now = Time.now();
     let rec : HomeWarrantyClaim = {
       id; propertyId;
@@ -4404,6 +4480,7 @@ persistent actor Property {
     payCanisterId := Canisters.envId<system>("payment", payCanisterId);
     jobCanisterId := Canisters.envPrincipal<system>("job", jobCanisterId);
     listingCanisterId := Canisters.envId<system>("listing", listingCanisterId);
+    photoCanisterId := Canisters.envId<system>("photo", photoCanisterId);
   };
   syncCanisterIds<system>();
 }

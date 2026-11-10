@@ -178,6 +178,11 @@ persistent actor Job {
   /// job verified by both parties is reported for the Contractor Free
   /// referral fee.
   private var feeCanisterId:      Text        = "";
+  /// Photo canister ID (setPhotoCanisterId / PUBLIC_CANISTER_ID:photo). M-2
+  /// (security audit 2026-11-10): addJobPaper asks it whether a close-out
+  /// paper is a real vault document of the right kind on the job's home.
+  /// Empty = filing papers is unavailable (fails closed).
+  private var photoCanisterId:    Text        = "";
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
@@ -725,10 +730,17 @@ persistent actor Job {
     if (Text.size(photoId) == 0 or Text.size(photoId) > 100) return #err(#InvalidInput("Choose a document to file"));
     let before = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
     let byContractor = before.contractor == ?msg.caller and before.contractorSigned and kind == #FinalLienWaiver;
+    // M-2 (security audit 2026-11-10): the paper must be a vault document of
+    // the matching type on this job's home, so a report's "lien waiver on
+    // file" count can't be made up. Asked first; reported only to callers who
+    // pass the access check below, which stays the last await.
+    let docProblem = await* paperDocProblem(photoId, kind, before.propertyId);
     if (not byContractor) {
       switch (await* authorize(before.propertyId, before.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
     };
+    switch (docProblem) { case (?e) return #err(e); case null {} };
     let j = switch (jobs.get(jobId)) { case null { return #err(#NotFound) }; case (?j) j };
+    if (j.propertyId != before.propertyId) return #err(#NotFound);
     if (isProposal(j)) return #err(#InvalidInput("Accept this proposed job before filing papers on it"));
     if (j.isDiy and kind == #FinalLienWaiver) return #err(#InvalidInput("A DIY job has no contractor to sign a lien waiver"));
     let kept = (jobPapers.get(jobId) ?? []).filter(func p = p.photoId != photoId);
@@ -736,6 +748,50 @@ persistent actor Job {
     let paper : JobPaper = { kind; photoId; addedBy = msg.caller; addedAt = Time.now() };
     jobPapers.add(jobId, kept.concat([paper]));
     #ok(())
+  };
+
+  /// M-2: why `photoId` can't be filed as a `kind` paper on a job of
+  /// `propertyId`, or null when it can. #Unavailable when the photo canister
+  /// isn't wired or didn't answer (fail closed).
+  private func paperDocProblem(photoId : Text, kind : PaperKind, propertyId : Text) : async* ?Error {
+    if (Text.size(photoCanisterId) == 0)
+      return ?#Unavailable("Filing close-out papers is unavailable right now. Please try again later.");
+    let photo = actor (photoCanisterId) : actor {
+      getPaperDocument : shared query Text -> async ?{ propertyId : Text; docType : Text };
+    };
+    let found = try { await photo.getPaperDocument(photoId) } catch _ {
+      return ?#Unavailable(Canisters.unavailable("photo"))
+    };
+    let (wantType, label_) = switch kind {
+      case (#FinalLienWaiver) ("LienWaiver", "a final lien waiver");
+      case (#NoticeOfCommencement) ("NOC", "a Notice of Commencement");
+    };
+    switch (found) {
+      case (?d) { if (d.propertyId == propertyId and d.docType == wantType) return null };
+      case null {};
+    };
+    ?#InvalidInput("Choose " # label_ # " from this home's documents")
+  };
+
+  /// M-2: the photo canister says a vault document was deleted; it comes off
+  /// every job on `propertyId` it was filed on. Returns how many papers went.
+  /// The photo canister and admins only.
+  public shared(msg) func paperDocumentDeleted(photoId: Text, propertyId: Text) : async Result.Result<Nat, Error> {
+    if (msg.caller.toText() != photoCanisterId and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    var removed = 0;
+    for (jobId in Index.ids(jobsByProperty, propertyId)) {
+      switch (jobPapers.get(jobId)) {
+        case (?papers) {
+          let kept = papers.filter(func p = p.photoId != photoId);
+          if (kept.size() != papers.size()) {
+            removed += papers.size() - kept.size();
+            if (kept.size() == 0) jobPapers.remove(jobId) else jobPapers.add(jobId, kept);
+          };
+        };
+        case null {};
+      };
+    };
+    #ok(removed)
   };
 
   /// #716: take a paper off a job (the vault document itself stays). The
@@ -1226,6 +1282,14 @@ persistent actor Job {
   public shared(msg) func setFeeCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     feeCanisterId := id;
+    #ok(())
+  };
+
+  /// Wire the job canister to the photo canister, which vouches for the
+  /// vault documents filed as close-out papers (addJobPaper).
+  public shared(msg) func setPhotoCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    photoCanisterId := id;
     #ok(())
   };
 
@@ -2433,6 +2497,7 @@ persistent actor Job {
     propCanisterId := Canisters.envId<system>("property", propCanisterId);
     payCanisterId := Canisters.envId<system>("payment", payCanisterId);
     feeCanisterId := Canisters.envId<system>("fee", feeCanisterId);
+    photoCanisterId := Canisters.envId<system>("photo", photoCanisterId);
   };
   syncCanisterIds<system>();
 }

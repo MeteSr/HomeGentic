@@ -135,6 +135,13 @@ fi
 if has_method property setListingCanisterId; then
   dfx canister call property  setListingCanisterId    "(principal \"$LISTING_ID\")"
 fi
+# Security audit 2026-11-10 (M-1, M-2); the base leg predates these setters.
+if has_method property setPhotoCanisterId; then
+  dfx canister call property  setPhotoCanisterId      "(principal \"$PHOTO_ID\")"
+fi
+if has_method job setPhotoCanisterId; then
+  dfx canister call job       setPhotoCanisterId      "(\"$PHOTO_ID\")"
+fi
 dfx canister call recurring   setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
 if has_method fee setQuoteCanisterId; then
   dfx canister call fee       setQuoteCanisterId      "(\"$QUOTE_ID\")"
