@@ -496,6 +496,7 @@ persistent actor Property {
   /// Photo canister ID (setPhotoCanisterId / PUBLIC_CANISTER_ID:photo). M-1
   /// (security audit 2026-11-10): a hand-over tells it to keep the previous
   /// household's personal papers private to them (photo.propertyTransferred).
+  /// A succession doesn't: the heir inherits them.
   private var photoCanisterId          : Text        = "";
 
   private var transferCounter        : Nat                            = 0;
@@ -1824,10 +1825,11 @@ persistent actor Property {
   };
 
   /// Hands a home record to `to`: the new owner, the transfer history entry,
-  /// and everything that was the previous household's dropped. Shared by
+  /// and, on a sale, everything that was the previous household's dropped
+  /// (an heir keeps it). Shared by
   /// claimTransfer (sale) and completeSuccessionClaim (#724). Synchronous;
   /// afterMove does the cross-canister part.
-  private func moveRecord(prop : Property, to : Principal, txHash : Text, now : Int) : Property {
+  private func moveRecord(prop : Property, to : Principal, txHash : Text, now : Int, sale : Bool) : Property {
     let propertyId = prop.id;
     // M-6 (2026-10-28 audit): the seller's ID check and ownership
     // evidence are about the seller, not the buyer.
@@ -1847,17 +1849,21 @@ persistent actor Property {
     // M-3: the previous owner's delegates (managers, co-owners,
     // pending invites) must not keep access to the buyer's home.
     clearDelegatedAccess(propertyId);
-    // #711: the seller's insurance policy and claims aren't the buyer's.
-    insurancePolicies.remove(propertyId);
-    ignore dropClaims(propertyId);
-    ignore dropInventory(propertyId);
-    // #725: the seller's house guide (Wi-Fi, alarm) and its links.
-    ignore dropGuide(propertyId);
-    // #719 / #722: the seller's home warranty contract and mortgage.
-    homeWarrantyPlans.remove(propertyId);
-    mortgageLoans.remove(propertyId);
-    // #714: the seller's tax years and exemption status.
-    propertyTaxYears.remove(propertyId);
+    // A buyer starts clean; an heir taking over by succession inherits the
+    // household's own records too (Mete, 2026-11-10).
+    if (sale) {
+      // #711: the seller's insurance policy and claims aren't the buyer's.
+      insurancePolicies.remove(propertyId);
+      ignore dropClaims(propertyId);
+      ignore dropInventory(propertyId);
+      // #725: the seller's house guide (Wi-Fi, alarm) and its links.
+      ignore dropGuide(propertyId);
+      // #719 / #722: the seller's home warranty contract and mortgage.
+      homeWarrantyPlans.remove(propertyId);
+      mortgageLoans.remove(propertyId);
+      // #714: the seller's tax years and exemption status.
+      propertyTaxYears.remove(propertyId);
+    };
     // #712: a fresh move-in plan for the buyer; the seller's goes.
     moveInPlans.add(propertyId, MoveIn.fresh(now));
     // #724: the new owner names their own successor; an open claim on the
@@ -1888,10 +1894,11 @@ persistent actor Property {
   /// The cross-canister part of a hand-over: the previous owner's FSBO
   /// listing comes down, and payment decides on the new owner's handoff year.
   /// The hand-over stands whatever they answer.
-  private func afterMove(propertyId : Text, to : Principal, prop : Property) : async* () {
-    // M-1 (security audit 2026-11-10): the previous household's closing,
-    // title, insurance and other personal papers stay theirs.
-    if (photoCanisterId != "") {
+  private func afterMove(propertyId : Text, to : Principal, prop : Property, sale : Bool) : async* () {
+    // M-1 (security audit 2026-11-10): after a sale the previous household's
+    // closing, title, insurance and other personal papers stay theirs. An
+    // heir taking over by succession inherits them (Mete, 2026-11-10).
+    if (sale and photoCanisterId != "") {
       let photo : actor { propertyTransferred : shared Text -> async { #ok : Nat; #err : Any } } = actor (photoCanisterId);
       try { ignore await photo.propertyTransferred(propertyId) } catch _ { Debug.print("[property] photo transfer call failed") };
     };
@@ -1937,8 +1944,8 @@ persistent actor Property {
             switch (properties.get(propertyId)) {
               case null { #err(#NotFound) };
               case (?prop) {
-                let updated = moveRecord(prop, msg.caller, "", Time.now());
-                await* afterMove(propertyId, msg.caller, prop);
+                let updated = moveRecord(prop, msg.caller, "", Time.now(), true);
+                await* afterMove(propertyId, msg.caller, prop, true);
                 #ok(updated)
               };
             }
@@ -3779,7 +3786,8 @@ persistent actor Property {
 
   /// #724: the claimant finishes an approved claim once the 30-day wait is
   /// over, and the record moves to them like a transfer (the previous
-  /// household loses access; the history records "succession:<claimId>").
+  /// household loses access; the history records "succession:<claimId>"). Unlike
+  /// a sale, the heir keeps the household's own records and personal papers.
   public shared(msg) func completeSuccessionClaim(claimId: Text) : async Result.Result<Property, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     let c = switch (successionClaims.get(claimId)) { case null return #err(#NotFound); case (?x) x };
@@ -3789,8 +3797,8 @@ persistent actor Property {
     let prop = switch (properties.get(c.propertyId)) { case null return #err(#NotFound); case (?p) p };
     // Take the claim out of the open slot first so moveRecord doesn't cancel it.
     ignore closeClaim(c, #Completed({ at = now }));
-    let updated = moveRecord(prop, msg.caller, "succession:" # c.id, now);
-    await* afterMove(c.propertyId, msg.caller, prop);
+    let updated = moveRecord(prop, msg.caller, "succession:" # c.id, now, false);
+    await* afterMove(c.propertyId, msg.caller, prop, false);
     #ok(updated)
   };
 

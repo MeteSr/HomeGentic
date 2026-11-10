@@ -278,7 +278,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
         {section("Successor")}
         <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
           <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", fontWeight: 300, lineHeight: 1.6 }}>
-            Name the person who can ask for this home's record if you die or the home passes to a trust or heir. A claim needs a document HomeGentic reviews and a 30-day wait, and you can cancel it. HomeGentic passes on the record only, not the property.
+            Name the person who can ask for this home's record if you die or the home passes to a trust or heir. A claim needs a document HomeGentic reviews and a 30-day wait, and you can cancel it. Your successor gets everything a buyer would, plus your closing, title, insurance, HOA and other personal documents, insurance claims and home inventory, house guide, warranty, mortgage and tax records. HomeGentic passes on the record only, not the property.
           </p>
           <button
             onClick={() => navigate(`/properties/${property.id}/successor`)}

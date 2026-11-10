@@ -37,6 +37,12 @@ describe("SettingsTab successor section", () => {
       </MemoryRouter>,
     );
     expect(screen.getByText(/if you die or the home passes to a trust or heir/i)).toBeInTheDocument();
+    // Mete, 2026-11-10: unlike a buyer, a successor gets the personal papers too.
+    expect(
+      screen.getByText(
+        /your successor gets everything a buyer would, plus your closing, title, insurance, HOA and other personal documents, insurance claims and home inventory/i,
+      ),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /successor/i }));
     expect(mockNavigate).toHaveBeenCalledWith("/properties/prop-1/successor");
   });

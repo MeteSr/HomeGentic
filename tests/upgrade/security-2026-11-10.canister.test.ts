@@ -20,6 +20,9 @@
  *   S1.3 the hidden files don't use up the buyer's document allowance
  *   S1.4 photo.propertyTransferred answers only the property canister and
  *        admins; what it hid survives an upgrade
+ *   S1.5 an heir who completes a succession claim does see the owner's
+ *        personal papers, claims and inventory (Mete, 2026-11-10): only a
+ *        sale seals or drops them
  *
  *  M-3 per-home record caps follow the owner's plan
  *   S3.1 a Free home holds at most 10 insurance claims, 50 log entries per
@@ -334,6 +337,81 @@ describe("security re-audit 2026-11-10: Medium findings", () => {
       expect(errKey(await as("photo", buyer).getPhotoData(personal[0]))).toBe("NotAuthorized");
       expect(new Set(await listed(buyer, `docs_${home}`)).has(personal[0])).toBe(false);
     });
+  });
+
+  describe("M-1 an heir after a completed succession claim", () => {
+    const decedent = createIdentity("s15-owner");
+    const heir = createIdentity("s15-heir");
+    const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a, 0x25, 0x25, 0x45, 0x4f, 0x46]);
+
+    it("S1.5 lets the heir see the owner's personal papers, claims and inventory (unlike a buyer)", async () => {
+      const home = await register(decedent, "15 Heritage Lane");
+      const closing = await doc(decedent, home, "[Closing] settlement.pdf");
+      const insurance = await doc(decedent, home, "[Insurance] policy.pdf");
+      const claimPhoto = ok<any>(await upload(decedent, "claim_h1", home, "[Claim] roof.jpg")).id as string;
+      const receipt = await doc(decedent, home, "[Receipt] roof.pdf");
+      const p = as("property", decedent);
+      ok(
+        await p.createInsuranceClaim(home, {
+          title: "Roof leak",
+          dateOfLoss: "2026-09-28",
+          cause: "Wind",
+          description: "",
+          claimNumber: "",
+          adjusterName: "",
+          adjusterContact: "",
+          status: { Open: null },
+        }),
+      );
+      ok(
+        await p.addInventoryItem(home, {
+          roomId: [],
+          name: "Piano",
+          category: "Furniture",
+          quantity: 1n,
+          valueCents: [],
+          purchaseDate: "",
+          serialNumber: "",
+          notes: "",
+        }),
+      );
+
+      const { token } = ok<any>(
+        await as("property", decedent).setSuccessor(home, {
+          name: "Jordan Rivera",
+          email: "jordan@example.com",
+          relationship: "Daughter",
+        }),
+      );
+      const claim = ok<any>(
+        await as("property", heir).openSuccessionClaim(
+          token,
+          {
+            claimantName: "Jordan Rivera",
+            proofKind: { DeathCertificate: null },
+            fileName: "certificate.pdf",
+            mimeType: "application/pdf",
+            note: "",
+          },
+          PDF,
+        ),
+      );
+      ok(await as("property", admin).reviewSuccessionClaim(claim.id, true, ""));
+      await pic.advanceTime(30 * 24 * 60 * 60 * 1000 + 61_000);
+      await pic.tick();
+      ok(await as("property", heir).completeSuccessionClaim(claim.id));
+
+      const seen = new Set([
+        ...((await as("photo", heir).getPhotosByJob(`docs_${home}`)) as any[]).map((p) => p.id),
+        ...((await as("photo", heir).getPhotosByJob("claim_h1")) as any[]).map((p) => p.id),
+      ]);
+      for (const id of [closing, insurance, claimPhoto, receipt]) expect([id, seen.has(id)]).toEqual([id, true]);
+      ok(await as("photo", heir).getPhotoData(closing));
+      expect((await as("photo", admin).photoAccess(insurance, heir.getPrincipal()))[0].canRead).toBe(true);
+      // The claims and inventory those photos belong to stay with the home too.
+      expect(ok<any[]>(await as("property", heir).getInsuranceClaims(home)).map((c) => c.title)).toEqual(["Roof leak"]);
+      expect(ok<any[]>(await as("property", heir).getInventory(home)).map((i) => i.name)).toEqual(["Piano"]);
+    }, 120_000);
   });
 
   // ── M-3 ──────────────────────────────────────────────────────────────────
