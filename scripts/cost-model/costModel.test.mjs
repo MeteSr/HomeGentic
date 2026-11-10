@@ -19,8 +19,11 @@ import {
   blendedMonthly,
   renderGenerated,
   replaceGenerated,
+  connectorProfile,
+  connectorQuestionCost,
+  connectorAbuseCeilingPerDay,
 } from "./costModel.mjs";
-import { PRICES, PROFILES, MIX, USER_TYPES } from "./assumptions.mjs";
+import { PRICES, PROFILES, MIX, USER_TYPES, CONNECTOR } from "./assumptions.mjs";
 
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} != ${b}`);
 
@@ -127,4 +130,66 @@ test("docs/UNIT_ECONOMICS.md holds the current generated tables", () => {
     doc,
     "tables are stale: run `node scripts/cost-model/costModel.mjs --write`",
   );
+});
+
+// ── ICP MCP connector (ChatGPT / Claude) ─────────────────────────────────────
+
+test("a connector user's chat and agent questions move off our AI bill; aux AI stays", () => {
+  const p = PROFILES.pro.typical;
+  const c = connectorProfile(p);
+  assert.equal(c.chatCalls, 0);
+  assert.equal(c.agentCalls, 0);
+  assert.equal(c.auxAiCalls, p.auxAiCalls);
+  const questions = (p.chatCalls + p.agentCalls) * CONNECTOR.questionMultiplier;
+  near(c.updateCalls, p.updateCalls + questions * CONNECTOR.updateCallsPerQuestion);
+});
+
+test("a connector question costs only its update calls (queries are free)", () => {
+  near(connectorQuestionCost(), CONNECTOR.updateCallsPerQuestion * unitCosts().updateCall);
+  assert.ok(connectorQuestionCost() < unitCosts().chat / 20, "far cheaper than an in-app chat");
+});
+
+test("a connector user costs less than the same user in the app, for every type with chat or agent use", () => {
+  const connectorProfiles = Object.fromEntries(
+    USER_TYPES.map((t) => [
+      t,
+      Object.fromEntries(Object.entries(PROFILES[t]).map(([u, p]) => [u, connectorProfile(p)])),
+    ]),
+  );
+  for (const type of USER_TYPES) {
+    for (const usage of ["light", "typical", "heavy"]) {
+      const app = userMonthly(type, usage).cost;
+      const mcp = userMonthly(type, usage, PRICES, connectorProfiles).cost;
+      near(mcp.ai, PROFILES[type][usage].auxAiCalls * unitCosts().aux);
+      assert.ok(mcp.total < app.total, `${type} ${usage}`);
+    }
+  }
+});
+
+test("connector share 0 is the baseline; more connector users means a smaller AI bill", () => {
+  const base = scaleRow(100_000);
+  near(scaleRow(100_000, PRICES, { connectorShare: 0 }).total, base.total);
+  const rows = CONNECTOR.shares.map((s) => scaleRow(100_000, PRICES, { connectorShare: s }));
+  for (let i = 1; i < rows.length; i++) {
+    assert.ok(rows[i].total < rows[i - 1].total);
+    assert.ok(rows[i].ai < rows[i - 1].ai);
+  }
+  // Half the users on a connector removes half of the chat + agent AI.
+  const chatAgentAi = base.ai - scaleRow(100_000, PRICES, { connectorShare: 1 }).ai;
+  near(rows[rows.length - 1].ai, base.ai - 0.5 * chatAgentAi, 1e-3);
+});
+
+test("the connector abuse ceiling is every rate-limited exposed canister maxed all day", () => {
+  const c = CONNECTOR;
+  near(
+    connectorAbuseCeilingPerDay(),
+    c.rateLimitedCanisters * c.updatesPerMinPerCanister * 1440 * unitCosts().updateCall,
+  );
+});
+
+test("the generated tables include the connector scenarios at every scale point", () => {
+  const md = renderGenerated();
+  assert.match(md, /### ChatGPT and Claude connector \(ICP MCP\)/);
+  for (const s of CONNECTOR.shares.filter((x) => x > 0))
+    assert.match(md, new RegExp(`\\| ${Math.round(s * 100)}% \\|`));
 });
