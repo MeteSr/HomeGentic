@@ -516,7 +516,7 @@ Realtor profiles and performance tracking.
 
 ## Bills Canister
 
-Utility bills and fixed recurring housing costs per property. Tier-gated via `payment`.
+Utility bills and fixed recurring housing costs per property. Tier-gated via `payment`. Writes are limited to 30 a minute per caller (`#RateLimited`).
 
 | Method | Type | Signature | Description |
 |---|---|---|---|
@@ -530,7 +530,7 @@ Utility bills and fixed recurring housing costs per property. Tier-gated via `pa
 | `updateRecurringExpense` | update | `(id: Text, fields: RecurringExpenseFields)` | Replace the editable fields of a recurring expense (e.g. |
 | `deleteRecurringExpense` | update | `(id: Text)` | Delete a recurring expense. |
 
-**Admin / Lifecycle:** `setPropertyCanisterId(id: Text)` · `setPaymentCanisterId(id: Text)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
+**Admin / Lifecycle:** `setPropertyCanisterId(id: Text)` · `setPaymentCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `pause(durationSeconds: ?Nat)` · `unpause()` · `metrics()`
 
 ---
 

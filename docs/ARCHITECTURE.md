@@ -526,6 +526,8 @@ similar, so property transfers can't be made through it). Each user's choice of 
 questions" on Internet Identity's consent screen decides whether update calls are allowed. Some of our reads
 are update calls (they check access with `property`), so `getApiDoc` names the composite-query alternatives.
 
+How we plan to get users onto the connector, and the guardrails around it: [AI_CONNECTORS.md](AI_CONNECTORS.md).
+
 ---
 
 ## Public-Facing Pages (No Login Required)
