@@ -12,10 +12,14 @@ export const CHECKED = "2026-11-10";
 export const PRICES = {
   ai: {
     // AI_MODEL in agents/voice/wrangler.toml. Anthropic list price, per million tokens.
-    model: "claude-sonnet-4-6",
-    inputPerM: 3,
-    outputPerM: 15,
-    cacheReadMultiplier: 0.1, // prompt-cache reads (no route caches yet)
+    model: "claude-sonnet-5-5",
+    inputPerM: 2,
+    outputPerM: 10,
+    cacheReadMultiplier: 0.05, // cache reads $0.10/M on Sonnet 5.5
+    // Token sizes below were measured for Sonnet 4.6's tokenizer; the newer
+    // tokenizer counts the same text as ~1–1.35× the tokens. Re-measure with
+    // count_tokens or the Worker's usage logs and replace this factor.
+    tokenizerFactor: 1.2,
     // FREE_AI_DAILY_TOKEN_BUDGET (wrangler.toml): input + 5 × output, all free accounts, per UTC day.
     freeDailyWeightedBudget: 10_000_000,
     outputWeight: 5,
@@ -23,11 +27,14 @@ export const PRICES = {
   // Tokens per call, measured from the code where possible:
   //  chat:  buildSystemPrompt with 1 home + 10 jobs is ~8,000 chars (~2,000 tokens); maxTokens 200.
   //  agent: HOMEGENTIC_TOOLS is 26,700 chars of JSON (~6,700 tokens) + the same system prompt
-  //         + ~1,500 tokens of conversation and tool results; maxTokens 1,024.
+  //         + ~1,500 tokens of conversation and tool results; maxTokens 1,024. The tool
+  //         list is prompt-cached (anthropicProvider.requestBody) and identical for every
+  //         user, so it's billed at the cache-read rate; the cached system prompt's write
+  //         and reads roughly cancel out over a question's turns, so it's counted at full price.
   //  aux:   document/bill extraction, classify, negotiate… (a 3–5 page PDF ~6,000 tokens); 400–2,048 out.
   tokens: {
     chat: { inputTokens: 2_100, outputTokens: 150 },
-    agent: { inputTokens: 10_200, outputTokens: 300, cacheableTokens: 8_700 },
+    agent: { inputTokens: 10_200, outputTokens: 300, cachedInputTokens: 6_700 },
     aux: { inputTokens: 6_000, outputTokens: 500 },
   },
   stripe: {

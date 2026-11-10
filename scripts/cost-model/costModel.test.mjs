@@ -25,13 +25,27 @@ import { PRICES, PROFILES, MIX, USER_TYPES } from "./assumptions.mjs";
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} != ${b}`);
 
 test("a chat call costs input + output tokens at the model's list price", () => {
+  const ai = { inputPerM: 3, outputPerM: 15, cacheReadMultiplier: 0.1, tokenizerFactor: 1 };
   // 2,100 in × $3/M + 150 out × $15/M
-  near(aiCallCost({ inputTokens: 2100, outputTokens: 150 }, PRICES.ai), 0.0063 + 0.00225);
+  near(aiCallCost({ inputTokens: 2100, outputTokens: 150 }, ai), 0.0063 + 0.00225);
 });
 
 test("cached input tokens are billed at the cache-read rate", () => {
-  const ai = { ...PRICES.ai, inputPerM: 3, outputPerM: 15, cacheReadMultiplier: 0.1 };
+  const ai = { inputPerM: 3, outputPerM: 15, cacheReadMultiplier: 0.1, tokenizerFactor: 1 };
   near(aiCallCost({ inputTokens: 10_000, cachedInputTokens: 8_000, outputTokens: 0 }, ai), 0.006 + 0.0024);
+});
+
+test("the tokenizer factor scales every token count", () => {
+  const ai = { inputPerM: 2, outputPerM: 10, cacheReadMultiplier: 0.05, tokenizerFactor: 1.2 };
+  near(
+    aiCallCost({ inputTokens: 1_000, cachedInputTokens: 500, outputTokens: 100 }, ai),
+    (1.2 * (500 * 2 + 500 * 0.1 + 100 * 10)) / 1e6,
+  );
+});
+
+test("the baseline is Sonnet 5.5 with the agent's tool list cached", () => {
+  assert.equal(PRICES.ai.model, "claude-sonnet-5-5");
+  assert.equal(PRICES.tokens.agent.cachedInputTokens, 6_700);
 });
 
 test("Pro's yearly Stripe fee is card fee plus Billing fee on $59", () => {

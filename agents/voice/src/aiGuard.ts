@@ -114,8 +114,16 @@ export function freeDailyBudget(env: AiGuardEnv): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_FREE_DAILY_TOKEN_BUDGET;
 }
 
+/** Prompt-cache writes cost 1.25× input; reads are counted at 0.1× (Sonnet 5.5 bills 0.05×). */
+export const CACHE_WRITE_WEIGHT = 1.25;
+export const CACHE_READ_WEIGHT = 0.1;
+
 export function weightedTokens(u: TokenUsage): number {
-  return Math.max(0, u.inputTokens) + OUTPUT_TOKEN_WEIGHT * Math.max(0, u.outputTokens);
+  const n = (v: number | undefined) => Math.max(0, v ?? 0);
+  return Math.round(
+    n(u.inputTokens) + CACHE_WRITE_WEIGHT * n(u.cacheCreationTokens) + CACHE_READ_WEIGHT * n(u.cacheReadTokens)
+      + OUTPUT_TOKEN_WEIGHT * n(u.outputTokens),
+  );
 }
 
 const utcDay = (now = Date.now()) => new Date(now).toISOString().slice(0, 10);

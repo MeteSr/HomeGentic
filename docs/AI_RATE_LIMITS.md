@@ -1,16 +1,16 @@
 # AI Rate Limits
 
-HomeGentic uses Claude (claude-sonnet-4-6) for two categories of AI calls. These categories are tracked and limited separately because their cost profiles differ significantly.
+HomeGentic uses Claude (claude-sonnet-5-5, `AI_MODEL` in `agents/voice/wrangler.toml`) for two categories of AI calls. These categories are tracked and limited separately because their cost profiles differ significantly.
 
 ## Call categories
 
 | Category | Endpoint | Avg cost/call | Limit |
 |---|---|---|---|
-| **Agent calls** | `POST /api/agent` | ~$0.035 per request (each tool-use turn is one request) | Agent-call limit (below) |
-| **Chat calls** | `POST /api/chat` | ~$0.009 | Chat limit (below) |
-| Document and other AI calls | `/api/extract-document`, `/api/extract-bill`, `/api/maintenance/chat`, `/api/classify`, `/api/pulse`, … (`AUX_AI_ROUTES`) | ~$0.025 average ($0.003 to classify, $0.07+ for a buyer's truth kit) | 25/day Free and ContractorFree (3 in the first week), 200/day paid |
+| **Agent calls** | `POST /api/agent` | ~$0.013 per request (each tool-use turn is one request) | Agent-call limit (below) |
+| **Chat calls** | `POST /api/chat` | ~$0.007 | Chat limit (below) |
+| Document and other AI calls | `/api/extract-document`, `/api/extract-bill`, `/api/maintenance/chat`, `/api/classify`, `/api/pulse`, … (`AUX_AI_ROUTES`) | ~$0.020 average ($0.002 to classify, $0.05+ for a buyer's truth kit) | 25/day Free and ContractorFree (3 in the first week), 200/day paid |
 
-Costs are at Sonnet 4.6 list prices with no prompt caching; see [UNIT_ECONOMICS.md](UNIT_ECONOMICS.md).
+Costs are at Sonnet 5.5 list prices ($2/$10 per million tokens) with the agent's tool list prompt-cached; see [UNIT_ECONOMICS.md](UNIT_ECONOMICS.md).
 
 Agent calls are limited most tightly because they drive the majority of AI cost. A single agentic interaction involves multiple Claude API round-trips (up to 5 tool-use turns), each resending the tool definitions and the full conversation.
 
@@ -80,12 +80,11 @@ Also set a monthly spend limit in the Anthropic console as the last backstop.
 
 The cost model behind these limits (what each call costs, what each user type
 costs to serve, margins and scale) is in [UNIT_ECONOMICS.md](UNIT_ECONOMICS.md),
-generated from `scripts/cost-model/assumptions.mjs`. In short, at Sonnet 4.6
-list prices with no prompt caching: a chat answer costs about $0.009, one
-`/api/agent` request about $0.035 (it resends ~6,700 tokens of tool
-definitions every time), and a document or bill extraction about $0.025. A
-typical Pro user costs about $2.42 a month against $4.92 of revenue; a heavy
-one runs at a loss, which is why Pro keeps 10 agent calls a day and chat is
+generated from `scripts/cost-model/assumptions.mjs`. In short, at Sonnet 5.5
+list prices with the tool list cached: a chat answer costs about $0.007, one
+`/api/agent` request about $0.013, and a document or bill extraction about
+$0.020. A typical Pro user costs about $1.60 a month against $4.92 of
+revenue; a heavy one runs at a loss, which is why Pro keeps 10 agent calls a day and chat is
 capped at 200 a day. Free's weekly agent allowance and the shared
 `FREE_AI_DAILY_TOKEN_BUDGET` keep the Free tier's AI spend bounded.
 

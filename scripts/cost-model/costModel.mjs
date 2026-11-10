@@ -21,12 +21,16 @@ const DAYS_PER_MONTH = 30.4;
 export function aiCallCost({ inputTokens, outputTokens, cachedInputTokens = 0 }, ai = PRICES.ai) {
   const fresh = inputTokens - cachedInputTokens;
   return (
-    (fresh * ai.inputPerM + cachedInputTokens * ai.inputPerM * ai.cacheReadMultiplier + outputTokens * ai.outputPerM) /
-    1e6
+    (ai.tokenizerFactor ?? 1) *
+    ((fresh * ai.inputPerM + cachedInputTokens * ai.inputPerM * ai.cacheReadMultiplier + outputTokens * ai.outputPerM) /
+      1e6)
   );
 }
 
-const weighted = (t, ai) => t.inputTokens + ai.outputWeight * t.outputTokens;
+// The free budget's weighting (aiGuard.weightedTokens): input + 0.1 × cache reads + 5 × output.
+const weighted = (t, ai) =>
+  (ai.tokenizerFactor ?? 1) *
+  (t.inputTokens - (t.cachedInputTokens ?? 0) + 0.1 * (t.cachedInputTokens ?? 0) + ai.outputWeight * t.outputTokens);
 
 /** Dollar cost of one of each billable event. */
 export function unitCosts(prices = PRICES) {
@@ -223,34 +227,16 @@ const int = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString("en-US") :
 
 function sensitivity() {
   const base = PRICES;
+  const noCache = { ...base.tokens, agent: { ...base.tokens.agent, cachedInputTokens: 0 } };
   const scenarios = [
-    ["Baseline (Sonnet 4.6, no prompt caching)", base],
+    ["Baseline (Sonnet 5.5, agent tool list cached)", base],
+    ["Sonnet 5.5 without prompt caching", { ...base, tokens: noCache }],
     [
-      "Prompt-cache the agent's tools + system prompt",
-      {
-        ...base,
-        tokens: {
-          ...base.tokens,
-          agent: { ...base.tokens.agent, cachedInputTokens: base.tokens.agent.cacheableTokens },
-        },
-      },
+      "Before PR #764 (Sonnet 4.6 at $3/$15, no caching)",
+      { ...base, ai: { ...base.ai, inputPerM: 3, outputPerM: 15, tokenizerFactor: 1 }, tokens: noCache },
     ],
-    [
-      "Switch AI_MODEL to Sonnet 5.5 ($2/$10, assume 1.2× tokens)",
-      { ...base, ai: { ...base.ai, inputPerM: 2 * 1.2, outputPerM: 10 * 1.2 } },
-    ],
-    [
-      "Both of the above",
-      {
-        ...base,
-        ai: { ...base.ai, inputPerM: 2 * 1.2, outputPerM: 10 * 1.2 },
-        tokens: {
-          ...base.tokens,
-          agent: { ...base.tokens.agent, cachedInputTokens: base.tokens.agent.cacheableTokens },
-        },
-      },
-    ],
-    ["AI token use 2× the estimate", { ...base, ai: { ...base.ai, inputPerM: 6, outputPerM: 30 } }],
+    ["Tokenizer counts 1.35× (top of the range)", { ...base, ai: { ...base.ai, tokenizerFactor: 1.35 } }],
+    ["AI token use 2× the estimate", { ...base, ai: { ...base.ai, tokenizerFactor: base.ai.tokenizerFactor * 2 } }],
     ["Cycles 25% dearer (XDR rate)", { ...base, icp: { ...base.icp, usdPerTCycles: base.icp.usdPerTCycles * 1.25 } }],
     [
       "Email via Amazon SES ($0.10 / 1,000) instead of Resend",

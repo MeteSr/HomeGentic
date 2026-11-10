@@ -200,6 +200,22 @@ export function sanitiseAgentMessages(raw: unknown): any[] | null {
             input: (b as any).input && typeof (b as any).input === "object" ? (b as any).input : {},
           });
           break;
+        // Sonnet 5.5 returns its progress notes as signed thinking blocks; the
+        // API wants them passed back unchanged (the signature rejects edits).
+        case "thinking": {
+          const t = (b as any).thinking, sig = (b as any).signature;
+          if (typeof t !== "string" || typeof sig !== "string" || !sig || t.length > MAX_MESSAGE_TEXT_CHARS) return null;
+          totalText += t.length;
+          blocks.push({ type: "thinking", thinking: t, signature: sig });
+          break;
+        }
+        case "redacted_thinking": {
+          const d = (b as any).data;
+          if (typeof d !== "string" || !d || d.length > MAX_MESSAGE_TEXT_CHARS) return null;
+          totalText += d.length;
+          blocks.push({ type: "redacted_thinking", data: d });
+          break;
+        }
         case "tool_result":
           blocks.push({
             type: "tool_result",
