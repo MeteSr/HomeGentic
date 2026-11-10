@@ -4,6 +4,25 @@ Written 2026-11-10. How HomeGentic could get more homeowners to ask about their 
 ChatGPT and Claude connector, see [ARCHITECTURE.md → AI Assistants](ARCHITECTURE.md#ai-assistants-icp-mcp))
 instead of the in-app assistant, and what to watch while doing it.
 
+## Status (2026-11-10, PR #767)
+
+Built, all hidden until `VITE_AI_CONNECTORS=1` (set it as a repo variable for the mainnet deploy once the
+ICP MCP manifest is live there):
+
+- Recommendation 2: `maintenance.getScheduleForProperties` (composite query) and `report.getMyReports`
+  (query), named in each `getApiDoc`.
+- Recommendation 3: Settings → AI assistants (`frontend/src/components/AiAssistantsSettings.tsx`): setup steps
+  for ChatGPT and Claude, consent modes, how to revoke, sample prompts with "Ask in ChatGPT / Claude" links,
+  and an "I've connected it" mark.
+- Recommendations 4 and 5: the dashboard ask bar shows "or ask in ChatGPT / Claude" before any chat is used:
+  prefilled links once the user has marked it connected, otherwise a link to the setup tab.
+- Guardrail: the access-checked update reads now have a per-caller limit of 120 a minute (`setReadRateLimit`),
+  separate from the 30-a-minute write limit, which `bills` now has too.
+- The chat-cap message no longer promises Pro "unlimited answers" (Pro chat is capped at 200 a day).
+
+Owner: the registry request (recommendation 1) is drafted for mcp@dfinity.org; send it after the first mainnet
+deploy. Not built yet: the onboarding card and email (6), in-context prompts on other pages (7), mobile (9).
+
 ## Why it's worth doing
 
 A question asked through a connector costs us about $0.0001 in canister update calls. The same question costs

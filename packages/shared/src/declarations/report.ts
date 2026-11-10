@@ -201,6 +201,7 @@ export const idlFactory = ({ IDL }: any) => {
     setAllowPublicReports: IDL.Func([IDL.Bool], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     getAllowPublicReports: IDL.Func([], [IDL.Bool], ["query"]),
     listShareLinks: IDL.Func([IDL.Text], [IDL.Vec(ShareLink)], []),
+    getMyReports: IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(ReportSnapshot)], ["query"]),
     revokeShareLink: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],

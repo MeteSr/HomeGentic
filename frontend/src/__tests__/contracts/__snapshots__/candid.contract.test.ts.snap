@@ -2353,6 +2353,17 @@ exports[`maintenance IDL factory > full signature snapshot 1`] = `
       "vec record {id:text; plannedYear:nat; isCompleted:bool; plannedMonth:opt nat; createdAt:int; createdBy:principal; taskDescription:text; propertyId:text; estimatedCostCents:opt nat; systemName:text}",
     ],
   },
+  "getScheduleForProperties": {
+    "args": [
+      "vec text",
+    ],
+    "mode": [
+      "composite_query",
+    ],
+    "rets": [
+      "vec record {id:text; plannedYear:nat; isCompleted:bool; plannedMonth:opt nat; createdAt:int; createdBy:principal; taskDescription:text; propertyId:text; estimatedCostCents:opt nat; systemName:text}",
+    ],
+  },
   "markCompleted": {
     "args": [
       "text",
@@ -4428,6 +4439,17 @@ exports[`report IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "opt record {signature:vec nat8; publicKey:vec nat8; signedAt:int; message:text; keyName:text}",
+    ],
+  },
+  "getMyReports": {
+    "args": [
+      "vec text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {snapshotId:text; propertyType:text; city:text; generatedAt:int; generatedBy:principal; jobs:vec record {status:text; serviceType:text; permitNumber:opt text; date:text; description:text; amountCents:nat; isVerified:bool; warrantyMonths:opt nat; isDiy:bool; contractorName:opt text}; squareFeet:nat; propertyId:text; zipCode:text; state:text; totalAmountCents:nat; diyJobCount:nat; address:text; verificationLevel:text; verifiedJobCount:nat; permitCount:nat; yearBuilt:nat; rooms:opt vec record {paintBrand:text; name:text; floorType:text; paintColor:text; fixtureCount:nat; paintCode:text}; recurringServices:vec record {status:text; serviceType:text; lastVisitDate:opt text; providerName:text; totalVisits:nat; frequency:text; startDate:text}}",
     ],
   },
   "getReport": {

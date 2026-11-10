@@ -108,6 +108,7 @@
     "setFeeCanisterId",
     "setPaymentCanisterId",
     "setPropertyCanisterId",
+    "setReadRateLimit",
     "setUpdateRateLimit",
     "unpause",
     "waiverUploadTarget"
@@ -120,6 +121,7 @@
     "removeAdmin",
     "setBootstrapNonce",
     "setPropertyCanisterId",
+    "setReadRateLimit",
     "setUpdateRateLimit",
     "unpause"
   ],
@@ -131,6 +133,7 @@
     "removeAdmin",
     "setBootstrapNonce",
     "setPropertyCanisterId",
+    "setReadRateLimit",
     "setUpdateRateLimit",
     "unpause"
   ],
@@ -145,6 +148,7 @@
     "setBootstrapNonce",
     "setPaymentCanisterId",
     "setPropertyCanisterId",
+    "setReadRateLimit",
     "setUpdateRateLimit",
     "unpause",
     "updateRecurringExpense"

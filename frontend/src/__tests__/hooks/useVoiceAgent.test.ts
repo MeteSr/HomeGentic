@@ -35,6 +35,7 @@ vi.mock("@/services/agentSession",      () => ({ fetchWithAgentSession: (...a: u
 
 import { useVoiceAgent, setToolConfirmationHandler, toolNeedsConfirmation } from "@/hooks/useVoiceAgent";
 import { executeTool } from "@/services/agentTools";
+import { paymentService } from "@/services/payment";
 
 beforeEach(() => {
   // Ensure SpeechRecognition is undefined in jsdom (it is by default)
@@ -127,13 +128,25 @@ describe("VA.5 — dismissProposal sets pendingProposal to null", () => {
 
 describe("sendChat", () => {
   it("uses the session-authenticated fetch and explains a Free daily-limit 429", async () => {
+    vi.mocked(paymentService.getMySubscription).mockResolvedValueOnce({ tier: "Free" } as any);
     mockFetchWithAgentSession.mockResolvedValue(new Response(JSON.stringify({ error: "daily_chat_limit_reached" }), { status: 429 }));
     const { result } = renderHook(() => useVoiceAgent());
     await act(async () => { await result.current.sendChat("Is my roof okay?"); });
     expect(mockFetchWithAgentSession).toHaveBeenCalledWith(expect.stringMatching(/\/api\/chat$/), expect.objectContaining({ method: "POST" }));
     expect(result.current.state).toBe("error");
     expect(result.current.error).toMatch(/free questions/i);
+    expect(result.current.error).not.toMatch(/unlimited/i);
+    expect(result.current.error).toMatch(/200 a day/);
     expect(result.current.quotaExhausted).toBe(true);
+  });
+
+  it("tells a paid user they've reached today's limit, not to upgrade", async () => {
+    vi.mocked(paymentService.getMySubscription).mockResolvedValueOnce({ tier: "Pro" } as any);
+    mockFetchWithAgentSession.mockResolvedValue(new Response(JSON.stringify({ error: "daily_chat_limit_reached" }), { status: 429 }));
+    const { result } = renderHook(() => useVoiceAgent());
+    await act(async () => { await result.current.sendChat("Is my roof okay?"); });
+    expect(result.current.error).toMatch(/today's limit/i);
+    expect(result.current.error).not.toMatch(/upgrade|unlimited/i);
   });
 });
 

@@ -474,7 +474,13 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       if (refusal) throw new Error(refusal);
       if (res.status === 429) {
         setQuotaExhausted(true);
-        throw new Error("You've used today's free questions. Upgrade to Pro for unlimited answers.");
+        // Pro and ContractorPro chat is capped too (200 a day), so only Free is offered an upgrade.
+        const tier = await paymentService.getMySubscription().then((s) => s.tier).catch(() => "Free");
+        throw new Error(
+          tier === "Free" || tier === "ContractorFree"
+            ? "You've used today's free questions. Pro includes up to 200 a day."
+            : "You've reached today's limit for questions. It resets tomorrow.",
+        );
       }
       if (!res.ok) throw new Error(`Chat error: HTTP ${res.status}`);
 

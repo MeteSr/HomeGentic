@@ -150,6 +150,9 @@ jobs:
           # Optional: domain of the forwarded-invoice addresses (h-<token>@domain);
           # must match the Worker's INBOX_DOMAIN. Unset hides the address.
           VITE_INBOX_DOMAIN: ${{ vars.VITE_INBOX_DOMAIN }}
+          # Optional: "1" shows the ChatGPT/Claude connector setup tab and ask-bar
+          # links (docs/AI_CONNECTORS.md). Only works once the site is on mainnet.
+          VITE_AI_CONNECTORS: ${{ vars.VITE_AI_CONNECTORS }}
           # Optional: universal links for the mobile app (/.well-known files).
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
           ANDROID_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}

@@ -46,6 +46,7 @@ import { billService } from "@/services/billService";
 import { buildBillsForecast, type Insight } from "@/services/billsForecast";
 import { getPriceBenchmark, type PriceBenchmarkResult } from "@/services/priceBenchmark";
 import { contractorService } from "@/services/contractor";
+import { askUrl, connectorsLive, isConnectorConnected } from "@/services/aiConnectors";
 
 import { LogJobModal } from "@/components/LogJobModal";
 import { RequestQuoteModal } from "@/components/RequestQuoteModal";
@@ -837,6 +838,22 @@ export function DashboardV3() {
           </div>
           <div style={{ font: "400 11px/1.5 'JetBrains Mono',monospace", color: "var(--hg-muted)", marginTop: 9, textAlign: "center" }}>
             Press the mic, or type a question and hit enter
+            {/* docs/AI_CONNECTORS.md: offer the user's own assistant before they spend in-app questions. */}
+            {connectorsLive() && (isConnectorConnected() ? (
+              <>
+                {" · or ask in "}
+                <a href={askUrl("chatgpt", query)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--hg-blue-ink)" }}>ChatGPT</a>
+                {" / "}
+                <a href={askUrl("claude", query)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--hg-blue-ink)" }}>Claude</a>
+              </>
+            ) : (
+              <>
+                {" · "}
+                <button type="button" onClick={() => navigate("/settings?tab=assistants")} style={{ ...BUTTON_RESET, font: "inherit", color: "var(--hg-blue-ink)", textDecoration: "underline", cursor: "pointer" }}>
+                  or ask in ChatGPT or Claude
+                </button>
+              </>
+            ))}
           </div>
         </div>
       </div>

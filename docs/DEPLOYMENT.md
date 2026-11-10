@@ -603,6 +603,7 @@ IDs:
 | `VITE_STRIPE_PUBLISHABLE_KEY` | yes | Stripe.js |
 | `VITE_NOTIFICATIONS_URL` | optional | Notification relay URL; added to the CSP. Unset hides the browser push toggle |
 | `VITE_INBOX_DOMAIN` | optional | Domain of the invoice forwarding addresses; must match the Worker's `INBOX_DOMAIN`. Unset hides the address |
+| `VITE_AI_CONNECTORS` | optional | `1` shows Settings → AI assistants and the "ask in ChatGPT or Claude" links on the dashboard ask bar. Set it only where the ICP MCP manifest is live on mainnet (docs/AI_CONNECTORS.md) |
 | `VITE_IOT_GATEWAY_URL` | optional | IoT gateway URL for the device-linking OAuth popup and the CSP. Unset hides the "Connect account" button (dev builds default to `http://localhost:3002`) |
 | `VITE_GOOGLE_MAPS_API_KEY` | optional | Address autocomplete; without it the address field is plain text |
 | `VITE_MONITORING_CANISTER_ID` | optional | Frontend error reporting to the `monitoring` canister |

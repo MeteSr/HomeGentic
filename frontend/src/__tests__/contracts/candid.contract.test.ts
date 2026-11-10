@@ -832,6 +832,7 @@ describe("report IDL factory", () => {
       "getAttestationKey",
       "getBillsSummary",
       "getCertAttestation",
+      "getMyReports",
       "getReport",
       "getReportAttestation",
       "getReportCloseout",
@@ -920,6 +921,7 @@ describe("maintenance IDL factory", () => {
       "deleteMyData",
       "getApiDoc",
       "getScheduleByProperty",
+      "getScheduleForProperties",
       "markCompleted",
     ]);
   });

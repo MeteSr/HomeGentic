@@ -29,6 +29,7 @@ export const idlFactory = ({ IDL }: any) => {
       []
     ),
     getScheduleByProperty: IDL.Func([IDL.Text], [IDL.Vec(ScheduleEntry)], []),  // M8: update call (live property-auth check)
+    getScheduleForProperties: IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(ScheduleEntry)], ["composite_query"]),
     markCompleted: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: ScheduleEntry, err: Error })],
