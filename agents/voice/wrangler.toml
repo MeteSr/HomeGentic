@@ -4,7 +4,7 @@ compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-AI_MODEL = "claude-sonnet-4-6"
+AI_MODEL = "claude-sonnet-5-5"
 NODE_ENV = "production"
 DFX_NETWORK = "ic"
 BIDTOLIST_RESEND_FROM = "noreply@bidtolist.com"
@@ -19,7 +19,7 @@ INBOX_DOMAIN = ""
 # free accounts can't use AI in production (fails closed).
 TURNSTILE_SITE_KEY = ""
 # Weighted tokens (input + 5 × output) per UTC day for ALL free accounts
-# together; ~10M ≈ $30/day at Sonnet prices. Paid accounts aren't counted.
+# together; ~10M ≈ $20/day at Sonnet 5.5 prices. Paid accounts aren't counted.
 FREE_AI_DAILY_TOKEN_BUDGET = "10000000"
 # Document/AI calls per day for a free account in its first week (else 25).
 NEW_ACCOUNT_AUX_DAILY_LIMIT = "3"
@@ -130,7 +130,7 @@ crons = ["0 * * * *"]   # every hour — scheduledBidtolist (deadline reminders)
 name = "homegentic-voice-agent-testnet"
 
 [env.testnet.vars]
-AI_MODEL = "claude-sonnet-4-6"
+AI_MODEL = "claude-sonnet-5-5"
 NODE_ENV = "production"
 DFX_NETWORK = "ic"   # testnet canisters live on the IC network (icp.yaml)
 BIDTOLIST_RESEND_FROM = "noreply@bidtolist.com"

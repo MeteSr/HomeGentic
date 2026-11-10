@@ -67,7 +67,7 @@ export interface AIProvider {
 
 // ── AI.4: model config ────────────────────────────────────────────────────────
 
-const DEFAULT_MODEL = "claude-sonnet-4-6";
+const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 /** Read model name from AI_MODEL env var, falling back to the supplied default
  *  (or the built-in default if none is given). */
