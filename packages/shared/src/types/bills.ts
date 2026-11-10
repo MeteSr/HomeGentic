@@ -70,6 +70,18 @@ export type RecurringExpense = {
   startDate: string;
 };
 
+export type OqlResult = {
+  hasMore: boolean;
+  rows: Array<OqlCell[]>;
+};
+
+export type OqlCell = {
+  value: OqlCellValue;
+  name: string;
+};
+
+export type OqlCellValue = { int: bigint } | { float: number } | { bool: boolean } | { null: null } | { text: string };
+
 export type UsagePeriod = {
   usageUnit: string;
   usageAmount: number;
@@ -83,6 +95,7 @@ export interface _SERVICE {
   deleteBill: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   deleteRecurringExpense: ActorMethod<[string], { ok: null } | { err: Error }>;
+  execute: ActorMethod<[string], OqlResult>;
   getApiDoc: ActorMethod<[], string>;
   getBillsForProperties: ActorMethod<[string[]], BillRecord[]>;
   getBillsForProperty: ActorMethod<[string], { ok: BillRecord[] } | { err: Error }>;
@@ -95,5 +108,6 @@ export interface _SERVICE {
       totalBills: bigint;
     }
   >;
+  schema: ActorMethod<[], string>;
   updateRecurringExpense: ActorMethod<[string, RecurringExpenseFields], { ok: RecurringExpense } | { err: Error }>;
 }

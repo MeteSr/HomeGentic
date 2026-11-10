@@ -62,6 +62,9 @@ import MoveIn "MoveIn";
 import PropertyTax "PropertyTax";
 import Succession "Succession";
 import Notify "../shared/Notify";
+import Runtime "mo:core/Runtime";
+import Oql "../shared/Oql";
+import PropertyOql "PropertyOql";
 
 persistent actor Property {
 
@@ -887,6 +890,7 @@ persistent actor Property {
       #deleteSpecialAssessment : Any;
       #dismissNotifications : Any;
       #endMoveInPlan : Any;
+      #execute : Any;
       #findPropertiesByAddress : Any;
       #getAccessRole : Any;
       #getAccessRoles : Any;
@@ -971,6 +975,7 @@ persistent actor Property {
       #respondToApproval : Any;
       #reviewSuccessionClaim : Any;
       #revokeHouseGuideLink : Any;
+      #schema : Any;
       #setAuditCanisterId : Any;
       #setBootstrapNonce : Any;
       #setCondoAssociationRecord : Any;
@@ -2626,6 +2631,170 @@ persistent actor Property {
         ?#NoAccess
       };
     }
+  };
+
+  // ─── OQL (schema + execute) for AI assistants ─────────────────────────────
+  // ICP MCP's query convention (shared/Oql.mo, service-discoverability skill
+  // Layer 4), and what the in-app assistant's query_home_records tool calls.
+  // Read-only, and a plain query: the access check is local. Each entity
+  // follows its getter's rule: any role on the home, except mortgages and tax
+  // years (owner and co-owners). The house guide is never exposed.
+
+  /// The OQL catalogue: one entity per kind of home record.
+  public query func schema() : async Text { Oql.schemaJson(PropertyOql.ENTITIES) };
+
+  private func oqlText(t : ?Text) : Oql.CellValue = switch t { case (?x) #text(x); case null #null_ };
+  private func oqlNat(n : ?Nat) : Oql.CellValue = switch n { case (?x) #int(x); case null #null_ };
+  /// "" (not entered) as null, so "has a date" is a null check.
+  private func oqlDate(t : Text) : Oql.CellValue = if (t == "") #null_ else #text(t);
+
+  private func homeRow(p : Property, role : AccessRole) : Oql.Row {
+    [
+      #text(p.id), #text(p.address), #text(p.city), #text(p.state), #text(p.zipCode),
+      #text(switch (p.propertyType) {
+        case (#SingleFamily) "SingleFamily"; case (#Condo) "Condo"; case (#Townhouse) "Townhouse"; case (#MultiFamily) "MultiFamily";
+      }),
+      #int(p.yearBuilt), #int(p.squareFeet),
+      #text(switch (p.verificationLevel) {
+        case (#Unverified) "Unverified"; case (#PendingReview) "PendingReview"; case (#Basic) "Basic"; case (#Premium) "Premium";
+      }),
+      #text(switch role {
+        case (#Owner) "Owner"; case (#CoOwner) "CoOwner"; case (#Manager) "Manager"; case (#Viewer) "Viewer"; case (#NoAccess) "NoAccess";
+      }),
+      #bool(p.isActive),
+    ]
+  };
+
+  /// The rows of entity `name` for one home the caller may read; `full` is
+  /// true for the owner and co-owners.
+  private func oqlRowsFor(name : Text, p : Property, role : AccessRole, full : Bool, out : List.List<Oql.Row>) {
+    let pid = p.id;
+    switch name {
+      case "homes" out.add(homeRow(p, role));
+      case "rooms" for (r in Index.records(roomsByProperty, pid, rooms)) {
+        out.add([#text(r.id), #text(pid), #text(r.name), #text(r.floorName), #text(r.floorType), #text(r.paintColor),
+                 #text(r.paintBrand), #text(r.paintCode), #text(r.notes), #int(r.fixtures.size())]);
+      };
+      case "fixtures" for (r in Index.records(roomsByProperty, pid, rooms)) {
+        for (f in r.fixtures.values()) {
+          out.add([#text(f.id), #text(pid), #text(r.id), #text(r.name), #text(f.brand), #text(f.model), #text(f.serialNumber),
+                   oqlDate(f.installedDate), oqlDate(f.warrantyExpiry), #text(f.notes)]);
+        };
+      };
+      case "insurance_policies" switch (insurancePolicies.get(pid)) {
+        case null {};
+        case (?x) out.add([
+          #text(pid), #text(x.carrier), #text(x.policyNumber), #text(x.renewalDate), oqlNat(x.coverageACents),
+          switch (x.hurricaneDeductible) { case (?#PercentOfCoverageA(n)) #int(n); case _ #null_ },
+          switch (x.hurricaneDeductible) { case (?#Amount(n)) #int(n); case _ #null_ },
+          #text(Oql.isoDate(x.updatedAt)),
+        ]);
+      };
+      case "insurance_claims" for (c in Index.records(claimsByProperty, pid, insuranceClaims)) {
+        var last : ?Text = null;
+        for (e in c.log.values()) { switch last { case (?d) if (e.date > d) last := ?e.date; case null last := ?e.date } };
+        out.add([#text(c.id), #text(pid), #text(c.title), #text(c.dateOfLoss), #text(c.cause), #text(c.description),
+                 #text(c.claimNumber), #text(c.adjusterName), #text(c.adjusterContact),
+                 #text(switch (c.status) { case (#Open) "Open"; case (#Closed) "Closed" }),
+                 #int(c.log.size()), oqlText(last)]);
+      };
+      case "inventory_items" for (i in Index.records(inventoryByProperty, pid, inventoryItems)) {
+        out.add([#text(i.id), #text(pid), oqlText(i.roomId), #text(i.name), #text(i.category), #int(i.quantity),
+                 oqlNat(i.valueCents), oqlDate(i.purchaseDate), #text(i.serialNumber), #text(i.notes)]);
+      };
+      case "warranty_plans" switch (homeWarrantyPlans.get(pid)) {
+        case null {};
+        case (?w) out.add([#text(pid), #text(w.provider), #text(w.planName), #text(w.contractNumber), #text(w.claimContact),
+                           oqlNat(w.serviceFeeCents), oqlDate(w.startDate), #text(w.renewalDate), #text(w.coverageNotes),
+                           #text(w.exclusionNotes)]);
+      };
+      case "warranty_claims" for (c in Index.records(hwClaimsByProperty, pid, homeWarrantyClaims)) {
+        out.add([#text(c.id), #text(pid), #text(c.dateFiled), #text(c.issue), #text(c.claimNumber), oqlText(c.jobId),
+                 oqlNat(c.serviceFeePaidCents),
+                 #text(switch (c.outcome) {
+                   case (#Open) "Open"; case (#Approved) "Approved"; case (#PartlyApproved) "PartlyApproved";
+                   case (#Denied) "Denied"; case (#Withdrawn) "Withdrawn";
+                 }),
+                 #text(c.outcomeNotes)]);
+      };
+      case "mortgages" if (full) switch (mortgageLoans.get(pid)) {
+        case null {};
+        case (?l) out.add([#text(pid), #text(l.lender), #int(l.originalAmountCents),
+                           #float(l.rateThousandthsPct.toFloat() / 1000.0), #int(l.termMonths), #text(l.firstPaymentDate),
+                           oqlNat(l.originalValueCents), oqlNat(l.currentValueCents), oqlNat(l.monthlyPmiCents),
+                           oqlNat(l.monthlyEscrowCents), oqlNat(l.statementBalanceCents), oqlDate(l.statementDate)]);
+      };
+      case "tax_years" if (full) for (y in (propertyTaxYears.get(pid) ?? []).values()) {
+        out.add([#text(pid), #int(y.year), oqlNat(y.marketValueCents), oqlNat(y.assessedValueCents), oqlNat(y.taxableValueCents),
+                 #text(switch (y.exemption) {
+                   case (#Unknown) "Unknown"; case (#NotApplying) "NotApplying"; case (#Applied) "Applied";
+                   case (#Granted) "Granted"; case (#Denied) "Denied";
+                 }),
+                 oqlDate(y.petitionDeadline), #text(y.notes)]);
+      };
+      case "hoa_assessments" for (a in Index.records(assessmentsByProperty, pid, specialAssessments)) {
+        out.add([#text(a.id), #text(pid), #text(a.title), #int(a.amountCents), #text(a.dueDate), oqlDate(a.paidDate),
+                 #bool(a.paidDate != ""), #text(a.notes)]);
+      };
+      case "hoa_reviews" for (r in Index.records(reviewsByProperty, pid, archReviews)) {
+        out.add([#text(r.id), #text(pid), #text(r.project), #text(r.details), oqlDate(r.submittedDate),
+                 #text(switch (r.status) {
+                   case (#Planned) "Planned"; case (#Submitted) "Submitted"; case (#Approved) "Approved";
+                   case (#ApprovedWithConditions) "ApprovedWithConditions"; case (#Denied) "Denied"; case (#Withdrawn) "Withdrawn";
+                 }),
+                 oqlDate(r.decisionDate), #text(r.conditions), oqlText(r.jobId)]);
+      };
+      case "flood_zones" switch (floodZones.get(pid)) {
+        case null {};
+        case (?z) out.add([#text(pid), #text(switch (z.status) { case (#Mapped) "Mapped"; case (#NotMapped) "NotMapped" }),
+                           #text(z.zone), #text(z.zoneSubtype), #bool(z.specialFloodHazardArea), #text(z.baseFloodElevation),
+                           #text(z.firmPanel), #text(z.firmEffectiveDate), #text(Oql.isoDate(z.checkedAt))]);
+      };
+      case "move_in_tasks" switch (moveInPlans.get(pid)) {
+        case null {};
+        case (?plan) for (t in plan.tasks.values()) {
+          out.add([#text(t.id), #text(pid), #text(t.title), #text(t.detail), #text(t.area),
+                   #text(switch (t.urgency) { case (#Safety) "Safety"; case (#Repair) "Repair"; case (#Monitor) "Monitor" }),
+                   #bool(plan.doneSteps.find(func s = s == t.id) != null)]);
+        };
+      };
+      case _ {};
+    }
+  };
+
+  /// Runs one OQL query (a JSON object, see `schema()`) over the records of
+  /// the caller's homes. Homes come from a propertyId (for `homes`, id) eq/in
+  /// condition when the query has one, otherwise from the homes the caller
+  /// owns; at most 20, and only homes the caller has a role on are read. A
+  /// malformed query traps with a message starting "OQL:", as the convention
+  /// expects.
+  public query(msg) func execute(oql : Text) : async Oql.Result {
+    let empty : Oql.Result = { hasMore = false; rows = [] };
+    if (msg.caller.isAnonymous()) return empty;
+    let q = switch (Oql.parse(oql, PropertyOql.ENTITIES)) {
+      case (#ok(q)) q;
+      case (#err(m)) Runtime.trap("OQL: " # m);
+    };
+    let entity = Oql.start(q);
+    let named = Oql.textHints(q, if (entity == "homes") "id" else "propertyId");
+    let homes = List.empty<Text>();
+    func addHome(id : Text) { if (homes.find(func h = h == id) == null) homes.add(id) };
+    if (named.size() > 0) { for (id in named.values()) addHome(id) }
+    else { for (p in ownedBy(msg.caller)) addHome(p.id) };
+    if (homes.size() > PropertyOql.MAX_HOMES)
+      Runtime.trap("OQL: at most " # PropertyOql.MAX_HOMES.toText() # " homes per query; this covers " # homes.size().toText() # ", so pin fewer with a propertyId condition");
+    let rows = List.empty<Oql.Row>();
+    for (id in homes.values()) {
+      switch (properties.get(id), accessRoleOf(id, msg.caller)) {
+        case (?p, ?role) {
+          if (Canisters.hasRole(?role)) {
+            oqlRowsFor(entity, p, role, role == #Owner or role == #CoOwner, rows);
+          };
+        };
+        case _ {};
+      };
+    };
+    Oql.run(q, rows.values())
   };
 
   // ─── Admin Controls ───────────────────────────────────────────────────────

@@ -449,6 +449,17 @@ exports[`bills IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; TierLimitReached:text; Unavailable:text}}",
     ],
   },
+  "execute": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "composite_query",
+    ],
+    "rets": [
+      "record {hasMore:bool; rows:vec vec record {value:variant {int:int; float:float64; bool:bool; null; text:text}; name:text}}",
+    ],
+  },
   "getApiDoc": {
     "args": [],
     "mode": [
@@ -505,6 +516,15 @@ exports[`bills IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "record {isPaused:bool; totalBills:nat}",
+    ],
+  },
+  "schema": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
     ],
   },
   "updateRecurringExpense": {
@@ -3121,6 +3141,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "execute": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "record {hasMore:bool; rows:vec vec record {value:variant {int:int; float:float64; bool:bool; null; text:text}; name:text}}",
+    ],
+  },
   "findPropertiesByAddress": {
     "args": [
       "text",
@@ -3880,6 +3911,15 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "schema": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
     ],
   },
   "setCondoAssociationRecord": {
