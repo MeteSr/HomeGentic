@@ -29,7 +29,7 @@ playwright-report/
 # Environment
 .env
 .env.local
-agents/email/.dev.vars
+agents/*/.dev.vars
 
 # OS
 .DS_Store

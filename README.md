@@ -6,6 +6,12 @@
 
 HomeGentic gives homeowners an immutable, tamper-proof record of every repair, upgrade, and inspection. Buyers and agents can verify a property's full history before closing — building trust and increasing home values.
 
+Beyond the maintenance log, a home's record holds its document vault, insurance policies and claim kit,
+improvements (tax basis), warranty, mortgage and flood-zone details, house guide and HOA paperwork, a move-in
+plan, a storm and emergency card, lien waivers and permit close-out, a calendar feed and a reserve target.
+Homeowners can also ask about their records from ChatGPT or Claude through DFINITY's ICP MCP connector.
+[docs/FEATURES.md](docs/FEATURES.md) lists every route, page and user action.
+
 ---
 
 ## Stack
@@ -16,11 +22,14 @@ HomeGentic gives homeowners an immutable, tamper-proof record of every repair, u
 | Backend | Motoko canisters (20 total), managed with icp-cli |
 | Auth | ICP Internet Identity |
 | Frontend | React + TypeScript + Vite |
-| AI Agent | Claude API (Anthropic) via a Cloudflare Worker — voice / AI proxy |
+| AI Agent | Claude API (Anthropic, model set by `AI_MODEL` in `agents/voice/wrangler.toml`, currently Sonnet 5.5) via a Cloudflare Worker — voice / AI proxy |
+| AI assistants | ICP MCP connector for ChatGPT / Claude: `/.well-known/ic-architecture` manifest, `getApiDoc()` and OQL `schema`/`execute` on the exposed canisters ([ARCHITECTURE.md → AI Assistants](docs/ARCHITECTURE.md#ai-assistants-icp-mcp)) |
 | Email | Resend, sent from the voice Worker and the notification relay; inbound invoice email through Cloudflare Email Routing |
 | Photos | Cloudflare R2 behind the voice Worker (records and access checks stay in the `photo` canister) |
 | Notifications | Notification relay and IoT gateway on Fly.io (push, email, SMS, smart-home webhooks) |
 | Admin Dashboard | Standalone React SPA querying canisters via `@icp-sdk/core` |
+| Mobile | Expo React Native app (`mobile/`) |
+| Shared code | `packages/shared`: Candid declarations and generated types used by frontend, mobile, dashboard and the Workers |
 
 For a picture of how these pieces connect, see the
 [system diagram](docs/ARCHITECTURE.md#system-diagram).
@@ -39,10 +48,10 @@ For a picture of how these pieces connect, see the
 | `payment` | Subscription tier management and expiry tracking; also owns pricing table queries (merged from old `price` canister) |
 | `photo` | Photo records, access checks, SHA-256 deduplication and tier quotas; the bytes live in R2 (older photos and a fallback path on-chain) |
 | `report` | Immutable report snapshots, share links with visibility levels and revocation |
-| `market` | ROI-ranked project recommendations and competitive analysis (2024 Remodeling Magazine data) |
+| `market` | ROI-ranked project recommendations (2024 Remodeling Magazine data); HomeGentic score, returned vetKD-encrypted to the owner |
 | `maintenance` | Predictive scheduling engine, system lifespan estimates, seasonal task generation |
 | `sensor` | IoT device registry (12 device types: Nest, Ecobee, Moen Flo, Ring Alarm, Honeywell Home, Rheem EcoNet, Sense, Emporia Vue, Rachio, SmartThings, Home Assistant, Manual); auto-creates pending jobs on Critical events |
-| `monitoring` | Cycles usage, cost metrics, profitability analysis (ARPU/LTV/CAC), alerting |
+| `monitoring` | Cycles usage, cost metrics, profitability analysis (ARPU/LTV/CAC), alerts, frontend and service errors |
 | `listing` | FSBO listing lifecycle, sealed-bid offers, agent matching |
 | `agent` | Realtor profiles, reviews, HomeGentic transaction count |
 | `recurring` | Recurring service contracts (HVAC, pest, landscaping) and visit logs |
@@ -80,10 +89,21 @@ cd dashboard && npm install && cd ..
 
 ```bash
 cp .env.example .env
-# Fill in ANTHROPIC_API_KEY (required for voice agent)
-# Fill in RESEND_API_KEY (required for email — get a free key at resend.com)
 # Canister IDs are populated automatically by the deploy script
 ```
+
+The voice Worker does not read the root `.env`. For local runs, put its secrets in
+`agents/voice/.dev.vars` (git-ignored), which `wrangler dev` loads:
+
+```bash
+cat > agents/voice/.dev.vars <<'VARS'
+ANTHROPIC_API_KEY=sk-ant-...
+RESEND_API_KEY=re_...        # only needed to send email; free key at resend.com
+VARS
+```
+
+In production these are Worker secrets (`wrangler secret put`); the full list is in
+`agents/voice/wrangler.toml` and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ### 3. Start everything
 
@@ -91,6 +111,8 @@ cp .env.example .env
 make dev
 # Starts the local ICP network, deploys all 20 canisters, and runs the frontend dev server
 ```
+
+`make dev-full` also starts the voice Worker and the admin dashboard.
 
 Or step by step:
 
@@ -136,11 +158,12 @@ User speaks
   → useVoiceAgent hook fetches property + job context from ICP
   → POST /api/agent on the voice Worker (agents/voice/src/index.ts)  { message, context }
   → Worker builds a scoped system prompt, calls Claude (tool-use loop / streaming SSE)
+  → Claude can call read tools such as query_home_records (OQL over the job, bills and property canisters)
   → Text streams back into the answer card
   → SpeechSynthesis reads full response aloud
 ```
 
-**Environment variables** (see `.env.example`):
+**Environment variables** (Worker vars and secrets; locally in `agents/voice/.dev.vars`, see `agents/voice/wrangler.toml`):
 
 | Variable | Default | Description |
 |---|---|---|
@@ -148,7 +171,8 @@ User speaks
 | `RESEND_API_KEY` | — | Required for email (a Worker secret in production). Free key at resend.com. |
 | `RESEND_FROM` | `HomeGentic <noreply@homegentic.app>` | Sender address for transactional email, on a Resend-verified domain. |
 | `FRONTEND_ORIGIN` | `http://localhost:3000` | CORS allowed origin. |
-| `VITE_VOICE_AGENT_URL` | `http://localhost:8787` | Voice Worker URL used by the frontend (`wrangler dev` serves :8787). |
+| `AI_MODEL` | `claude-sonnet-5-5` | Claude model (a var in `wrangler.toml`). |
+| `VITE_VOICE_AGENT_URL` | `http://localhost:8787` | Voice Worker URL used by the frontend, set in the root `.env` (`wrangler dev` serves :8787). |
 
 ---
 
@@ -157,7 +181,7 @@ User speaks
 ```
 homegentic/
 ├── icp.yaml                      # icp-cli project config (20 backend canisters + frontend)
-├── dfx.json                      # Legacy config, still used by `dfx generate` and the PocketIC upgrade tests
+├── dfx.json                      # Legacy config, still used by the PocketIC upgrade tests and the bash canister suites
 ├── mops.toml                     # Motoko package manager config (moc 1.16.1, core 2.6.1)
 ├── package.json                  # Root scripts (test, deploy, upgrade, etc.)
 ├── Makefile                      # make dev / deploy / test / upgrade / clean
@@ -184,7 +208,10 @@ homegentic/
 │   ├── fee/main.mo               # Bid to List platform fees, Contractor Free referral fees
 │   ├── referrals/main.mo         # Retired referral credits (still deployed)
 │   ├── audit/main.mo             # Append-only admin-action log
-│   └── shared/                   # Modules shared by the canisters (Admin, RateLimit, Inspect, ThresholdCost, ServiceType, …)
+│   └── shared/                   # Modules shared by the canisters (Admin, RateLimit, Errors, ApiDoc, ServiceType, …)
+│                                 # Exposed canisters also have ApiDoc.mo (what getApiDoc() returns)
+│
+├── packages/shared/              # Candid declarations + generated types, shared helpers (frontend, mobile, dashboard, Workers)
 │
 ├── agents/                       # Off-chain services
 │   ├── email/                    # Lead-form email relay (Cloudflare Worker → Resend)
@@ -216,9 +243,10 @@ homegentic/
 ├── tests/
 │   ├── e2e/                      # Playwright end-to-end tests
 │   ├── upgrade/                  # PocketIC tests on real canisters: upgrades, authz, races, clients (Linux/WSL)
+│   ├── smoke/                    # Post-deploy smoke test (npm run test:smoke)
 │   └── k6/                       # k6 load tests
 │
-├── mobile/                       # Expo React Native app
+├── mobile/                       # Expo React Native app (EAS builds, store release workflow)
 │
 ├── docs/
 │   ├── ARCHITECTURE.md
@@ -228,6 +256,10 @@ homegentic/
 │   ├── DEPLOYMENT.md
 │   ├── SECURITY.md
 │   ├── AI_RATE_LIMITS.md
+│   ├── AI_CONNECTORS.md          # Getting users onto the ChatGPT / Claude connectors
+│   ├── UNIT_ECONOMICS.md         # Per-user cost model (generated by scripts/cost-model)
+│   ├── EXTERNAL_APIS.md          # Third-party services and their env vars
+│   ├── STORAGE_CAPACITY.md       # Per-canister storage estimates
 │   ├── PERFORMANCE.md
 │   ├── UPGRADE_RUNBOOK.md
 │   ├── INCIDENT_RUNBOOK.md       # Severity, containment, restores, breach notices
@@ -245,6 +277,8 @@ homegentic/
     ├── test-cross-canister.sh    # Cross-canister integration scenarios
     ├── load-test.sh
     ├── ci/                       # CI gates (stable compat, declarations, canister calls, warnings)
+    ├── cost-model/               # Generates docs/UNIT_ECONOMICS.md (CI fails on drift)
+    ├── gen-declaration-types.mjs # packages/shared declarations → TypeScript types
     ├── ops/                      # Ops alerts, off-chain backups, restore drill, release manifest, changelog
     └── cleanup.sh                # Reset local ICP network state
 ```
@@ -253,16 +287,30 @@ homegentic/
 
 ## Subscription Tiers
 
-| Tier | Properties | Photos/Job | Open Quote Requests | Price |
-|---|---|---|---|---|
-| Free | 1 | 5 | 3 | $0 |
-| Pro | 20 | 30 | Unlimited | $59/year (annual only) |
-| ContractorFree | 0 | 5 | Unlimited | $0 + 3% referral fee per winning bid, $20 min |
-| ContractorPro | Unlimited | 50 | Unlimited | $40/mo (or yearly) |
+| Tier | Properties | Photos/Job | Documents/Home | Open Quote Requests | Price |
+|---|---|---|---|---|---|
+| Free | 1 | 5 | 25 | 3 | $0 |
+| Pro | 20 | 30 | 250 | Unlimited | $59/year (annual only) |
+| ContractorFree | 0 | 5 | 25 | Unlimited | $0 + 3% referral fee per winning bid, $20 min |
+| ContractorPro | Unlimited | 50 | 250 | Unlimited | $40/mo (or yearly) |
 
-A principal with no subscription is Free. Limits are enforced server-side in the `property`, `photo`, `quote` and `bills` canisters, which read the caller's tier live from `payment`. Realtors don't subscribe: the winning agent in a Bid to List auction pays a one-time platform fee ($399 default).
+AI limits per tier (agent calls, chat calls per day) are in [docs/AI_RATE_LIMITS.md](docs/AI_RATE_LIMITS.md). A principal with no subscription is Free. Limits are enforced server-side in the `property`, `photo`, `quote` and `bills` canisters, which read the caller's tier live from `payment`. Realtors don't subscribe: the winning agent in a Bid to List auction pays a one-time platform fee ($399 default).
 
 ---
+
+## Lint and checks
+
+```bash
+npm run lint                     # oxlint over every TS/JS project
+npm run knip                     # unused frontend files
+make check-motoko                # compile-check every canister (icp build, no network)
+npm run check:motoko-warnings    # new moc warnings fail
+npm run gen:declaration-types    # after editing packages/shared/src/declarations
+node scripts/cost-model/costModel.mjs --check   # docs/UNIT_ECONOMICS.md matches its assumptions
+```
+
+CI also checks stable-memory and Candid compatibility against the PR's base, and that new code is
+covered by tests (TDD gates). [CLAUDE.md](CLAUDE.md) lists every gate.
 
 ## Testing
 
@@ -288,6 +336,9 @@ bash scripts/test-cross-canister.sh  # cross-canister integration scenarios
 # PocketIC tests on real canisters (Linux or WSL): upgrades, authz, races, clients
 bash scripts/ci/build-upgrade-wasms.sh   # compile every canister's Wasm into .dfx/local/canisters/
 npm run test:upgrade
+
+# Post-deploy smoke test
+npm run test:smoke
 
 # Ops scripts (backup / restore drill, against a stand-in icp-cli; needs age)
 npm test --prefix scripts/ops
