@@ -312,6 +312,7 @@ describe("property IDL factory", () => {
       "deleteSpecialAssessment",
       "dismissNotifications",
       "endMoveInPlan",
+      "execute",
       "findPropertiesByAddress",
       "getAccessRole",
       "getAccessRoles",
@@ -383,6 +384,7 @@ describe("property IDL factory", () => {
       "respondToApproval",
       "reviewSuccessionClaim",
       "revokeHouseGuideLink",
+      "schema",
       "setCondoAssociationRecord",
       "setHomeWarrantyPlan",
       "setHouseGuide",
@@ -410,6 +412,7 @@ describe("property IDL factory", () => {
       .map(([name]) => name)
       .sort();
     expect(queries).toEqual([
+      "execute",
       "findPropertiesByAddress",
       "getAccessRole",
       "getAccessRoles",
@@ -465,6 +468,7 @@ describe("property IDL factory", () => {
       "listHouseGuideLinks",
       "listSuccessionClaimsForReview",
       "relayFloodTarget",
+      "schema",
     ]);
   });
 
@@ -957,12 +961,14 @@ describe("bills IDL factory", () => {
       "deleteBill",
       "deleteMyData",
       "deleteRecurringExpense",
+      "execute",
       "getApiDoc",
       "getBillsForProperties",
       "getBillsForProperty",
       "getRecurringExpensesForProperty",
       "getUsageTrend",
       "metrics",
+      "schema",
       "updateRecurringExpense",
     ]);
   });
@@ -975,12 +981,14 @@ describe("bills IDL factory", () => {
     expect(svc.addRecurringExpense.args[1]).toMatch(/endDate:opt/i);
   });
 
-  it("only getApiDoc and metrics are queries (reads go through update for tier-gated filtering)", () => {
+  it("only getApiDoc, schema and metrics are queries (reads go through update for tier-gated filtering)", () => {
     const svc = extractService(billsIdlFactory);
     const queries = Object.entries(svc)
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name);
-    expect(queries).toEqual(["getApiDoc", "metrics"]);
+    // execute (OQL) is a composite query, like getBillsForProperties
+    expect(queries.sort()).toEqual(["getApiDoc", "metrics", "schema"]);
+    expect(svc.execute.mode).toEqual(["composite_query"]);
   });
 
   it("getUsageTrend BillType arg is a Variant (not Text)", () => {

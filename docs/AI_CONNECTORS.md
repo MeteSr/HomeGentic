@@ -22,8 +22,22 @@ ICP MCP manifest is live there):
 
 OQL on the job canister (2026-11-10): `job.schema()` and `job.execute(oql)` let an assistant ask open-ended
 questions about the maintenance record (spend by kind of work, jobs since a date, open permits, improvements)
-in one composite-query call that works in "Questions only" sessions and costs nothing. Bills and property are
-next, then a generic read tool for the in-app assistant on top of the same queries.
+in one composite-query call that works in "Questions only" sessions and costs nothing.
+
+OQL on bills and property, and the in-app read tool (2026-11-10):
+- `bills.schema()` / `bills.execute(oql)` (composite query): `bills` (with `periodMonth`, `periodYear` and the
+  anomaly flag) and `recurring_expenses` (with `annualCents`). Same visibility as `getBillsForProperties`.
+- `property.schema()` / `property.execute(oql)` (plain query, the access check is local): `homes`, `rooms`,
+  `fixtures`, `insurance_policies`, `insurance_claims`, `inventory_items`, `warranty_plans`, `warranty_claims`,
+  `mortgages` and `tax_years` (owner and co-owners only), `hoa_assessments`, `hoa_reviews`, `flood_zones`,
+  `move_in_tasks`. The house guide is left out on purpose (Wi-Fi passwords, alarm codes).
+- All three canisters: only homes the caller has a role on, at most 20 homes a query, no principals in any row,
+  nothing writes.
+- The in-app assistant has one generic read tool, `query_home_records` (`agents/voice/tools.ts`, executed in
+  the browser by `frontend/src/services/homeRecords.ts` under the user's own identity). It lists a source's
+  entities from `schema()` and runs OQL against `execute()`, so a field or entity added to a catalogue reaches
+  the assistant with no new tool. It is in `READ_ONLY_TOOLS` (no confirmation prompt) because it can't change
+  anything; every write still asks first.
 
 Owner: the registry request (recommendation 1) is drafted for mcp@dfinity.org; send it after the first mainnet
 deploy. Not built yet: the onboarding card and email (6), in-context prompts on other pages (7), mobile (9).
@@ -125,6 +139,18 @@ fallback link at the chat cap (5) before doing anything else.
   quote reveals 500/day).
 - The connector blocks transfers, and `payment` is not exposed, so a connector can't charge a user.
 - `getApiDoc` text must stay accurate and must never instruct the assistant (App Operator Terms).
+- OQL `execute` is a query on every canister, so it can't keep a per-minute counter (a query's state changes
+  are dropped). Its bounds are per call instead: a 4,096-character query, 64 conditions, 200 rows a page
+  (50 through the in-app tool), 20 homes, and only the caller's homes are read. Queries cost us nothing in
+  cycles today.
+- `query_home_records` in the app: each round trip is one counted `/api/agent` call, so it draws on the
+  existing agent allowance (10 a day Pro, 10 a week Free) and the 5-turn loop; nothing new to raise. A
+  result is capped at 6,000 characters (~1,500 tokens, about $0.003 at Sonnet 5.5 input prices), and the
+  tool definition adds ~560 cached tokens to every agent call (docs/UNIT_ECONOMICS.md). A typical question is
+  two or three agent calls: list the source, query, answer.
+- Prompt injection: rows carry text other people typed (contractor names, claim notes, adjusters). Every
+  result is labelled as data, the system prompt says rows are never instructions, and the tool can only read;
+  anything a row talks the model into writing still needs the user's OK.
 
 ## Measuring it
 

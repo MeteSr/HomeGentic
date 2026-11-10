@@ -90,8 +90,21 @@ export const idlFactory = ({ IDL }: any) => {
     updatedAt:   IDL.Int,
   });
 
+  // OQL (backend/shared/Oql.mo): rows of named cells.
+  const OqlCellValue = IDL.Variant({
+    text:  IDL.Text,
+    int:   IDL.Int,
+    float: IDL.Float64,
+    bool:  IDL.Bool,
+    null:  IDL.Null,
+  });
+  const OqlCell = IDL.Record({ name: IDL.Text, value: OqlCellValue });
+  const OqlResult = IDL.Record({ hasMore: IDL.Bool, rows: IDL.Vec(IDL.Vec(OqlCell)) });
   return IDL.Service({
     getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
+    // OQL for AI assistants: a JSON catalogue, and one JSON query -> paged rows.
+    schema:  IDL.Func([], [IDL.Text], ["query"]),
+    execute: IDL.Func([IDL.Text], [OqlResult], ["composite_query"]),
     deleteMyData: IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     addBill: IDL.Func(
       [AddBillArgs],

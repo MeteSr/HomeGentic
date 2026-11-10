@@ -26,15 +26,17 @@ export const PRICES = {
   },
   // Tokens per call, measured from the code where possible:
   //  chat:  buildSystemPrompt with 1 home + 10 jobs is ~8,000 chars (~2,000 tokens); maxTokens 200.
-  //  agent: HOMEGENTIC_TOOLS is 26,700 chars of JSON (~6,700 tokens) + the same system prompt
-  //         + ~1,500 tokens of conversation and tool results; maxTokens 1,024. The tool
+  //  agent: HOMEGENTIC_TOOLS is 28,900 chars of JSON (~7,300 tokens, query_home_records
+  //         included) + the same system prompt + ~1,500 tokens of conversation and tool
+  //         results (a query_home_records result is capped at 6,000 chars, ~1,500 tokens,
+  //         frontend/src/services/homeRecords.ts); maxTokens 1,024. The tool
   //         list is prompt-cached (anthropicProvider.requestBody) and identical for every
   //         user, so it's billed at the cache-read rate; the cached system prompt's write
   //         and reads roughly cancel out over a question's turns, so it's counted at full price.
   //  aux:   document/bill extraction, classify, negotiate… (a 3–5 page PDF ~6,000 tokens); 400–2,048 out.
   tokens: {
     chat: { inputTokens: 2_100, outputTokens: 150 },
-    agent: { inputTokens: 10_200, outputTokens: 300, cachedInputTokens: 6_700 },
+    agent: { inputTokens: 10_800, outputTokens: 300, cachedInputTokens: 7_300 },
     aux: { inputTokens: 6_000, outputTokens: 500 },
   },
   stripe: {

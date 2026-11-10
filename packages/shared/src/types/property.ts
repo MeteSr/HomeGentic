@@ -272,6 +272,18 @@ export type ClaimInput = {
   claimNumber: string;
 };
 
+export type OqlResult = {
+  hasMore: boolean;
+  rows: Array<OqlCell[]>;
+};
+
+export type OqlCell = {
+  value: OqlCellValue;
+  name: string;
+};
+
+export type OqlCellValue = { int: bigint } | { float: number } | { bool: boolean } | { null: null } | { text: string };
+
 export type AddressMatch = {
   id: string;
   owner: Principal;
@@ -722,6 +734,7 @@ export interface _SERVICE {
   deleteSpecialAssessment: ActorMethod<[string], { ok: null } | { err: Error }>;
   dismissNotifications: ActorMethod<[string], { ok: null } | { err: Error }>;
   endMoveInPlan: ActorMethod<[string], { ok: null } | { err: Error }>;
+  execute: ActorMethod<[string], OqlResult>;
   findPropertiesByAddress: ActorMethod<[string], AddressMatch[]>;
   getAccessRole: ActorMethod<
     [string, Principal],
@@ -841,6 +854,7 @@ export interface _SERVICE {
   respondToApproval: ActorMethod<[string, bigint, boolean], { ok: null } | { err: Error }>;
   reviewSuccessionClaim: ActorMethod<[string, boolean, string], { ok: SuccessionClaim } | { err: Error }>;
   revokeHouseGuideLink: ActorMethod<[string], { ok: null } | { err: Error }>;
+  schema: ActorMethod<[], string>;
   setCondoAssociationRecord: ActorMethod<[string, [] | [CondoRecordInput]], { ok: null } | { err: Error }>;
   setHomeWarrantyPlan: ActorMethod<[string, [] | [HomeWarrantyPlanInput]], { ok: null } | { err: Error }>;
   setHouseGuide: ActorMethod<[string, [] | [HouseGuideInput]], { ok: null } | { err: Error }>;

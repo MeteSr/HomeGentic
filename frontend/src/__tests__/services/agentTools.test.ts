@@ -35,7 +35,12 @@ vi.mock("@/services/maintenance", () => ({
   },
 }));
 
+vi.mock("@/services/homeRecords", () => ({
+  queryHomeRecords: vi.fn(),
+}));
+
 import { executeTool, toolActionLabel, type ToolName } from "@/services/agentTools";
+import { queryHomeRecords } from "@/services/homeRecords";
 import { jobService }          from "@/services/job";
 import { quoteService }        from "@/services/quote";
 import { contractorService }   from "@/services/contractor";
@@ -487,5 +492,23 @@ describe("toolActionLabel", () => {
 
   it("falls back to the tool name for unknown tools", () => {
     expect(toolActionLabel("unknown_tool" as ToolName)).toBe("unknown_tool");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// query_home_records (OQL across job, bills and property)
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("executeTool — query_home_records", () => {
+  it("passes source, entity and query to queryHomeRecords and returns its result", async () => {
+    vi.mocked(queryHomeRecords).mockResolvedValue({ success: true, data: { rows: [{ n: 3 }], hasMore: false } });
+    const input = { source: "bills", query: { start: "bills", aggregate: [{ fn: "count", as: "n" }] } };
+    const r = await executeTool("query_home_records", input);
+    expect(queryHomeRecords).toHaveBeenCalledWith({ source: "bills", entity: undefined, query: input.query });
+    expect(r).toEqual({ success: true, data: { rows: [{ n: 3 }], hasMore: false } });
+  });
+
+  it("has an action label", () => {
+    expect(toolActionLabel("query_home_records")).toBe("reading your home records");
   });
 });

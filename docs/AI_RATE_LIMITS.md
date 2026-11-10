@@ -108,3 +108,5 @@ capped at 200 a day. Free's weekly agent allowance and the shared
 ## Agentic turn limit
 
 Independent of the daily call limit, each individual agent call is capped at **5 internal tool-use turns** for all tiers. This caps the per-call cost ceiling at ~$0.050 (5 turns × worst-case token counts). The turn limit is enforced by the client loop (`MAX_TURNS` in `frontend/src/hooks/useVoiceAgent.ts`); each turn is still one counted `/api/agent` call on the Worker.
+
+The generic read tool `query_home_records` (OQL over job, bills and property) gets no allowance of its own: each of its round trips is one of these counted calls, and its result is capped at 6,000 characters (`frontend/src/services/homeRecords.ts`).

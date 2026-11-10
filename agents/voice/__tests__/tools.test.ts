@@ -206,3 +206,32 @@ describe("confirm_job_proposal tool — contractor confirms pending proposal", (
     expect(getRequired("confirm_job_proposal")).toHaveLength(1);
   });
 });
+
+// ── query_home_records: one generic read tool over OQL ───────────────────────
+// (audits/icp-aiware-2026-11-10.md) The browser runs it under the user's own
+// identity against job, bills and property execute(); the canisters decide
+// what comes back.
+
+describe("query_home_records — generic OQL read tool", () => {
+  it("exists and requires only source", () => {
+    expect(getRequired("query_home_records")).toEqual(["source"]);
+  });
+
+  it("source is limited to the three canisters with OQL", () => {
+    expect(getProperties("query_home_records").source.enum).toEqual(["job", "bills", "property"]);
+  });
+
+  it("takes an optional entity and an OQL query object", () => {
+    const props = getProperties("query_home_records");
+    expect(props.entity.type).toBe("string");
+    expect(props.query.type).toBe("object");
+  });
+
+  it("describes discovery first, the row cap, and that it only reads", () => {
+    const desc = getTool("query_home_records").description;
+    expect(desc).toMatch(/read-only|only reads/i);
+    expect(desc).toMatch(/50 rows/);
+    expect(desc).toMatch(/without .*query.*entities|list.*entities/i);
+    expect(desc).toMatch(/insurance|warranty|mortgage/i);
+  });
+});

@@ -130,6 +130,8 @@ export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
   "get_earnings_summary",
   "get_maintenance_forecast",
   "get_price_benchmark",
+  // OQL reads over job, bills and property; the canisters scope the rows.
+  "query_home_records",
 ]);
 
 export type ToolConfirmationHandler = (

@@ -43,6 +43,9 @@ import Inspect "../shared/Inspect";
 import RateLimit "../shared/RateLimit";
 import Errors "../shared/Errors";
 import ApiDoc "ApiDoc";
+import Runtime "mo:core/Runtime";
+import Oql "../shared/Oql";
+import BillsOql "BillsOql";
 
 persistent actor Bills {
 
@@ -498,6 +501,124 @@ persistent actor Bills {
       };
     };
     out.toArray()
+  };
+
+  // ─── OQL (schema + execute) for AI assistants ─────────────────────────────
+  // ICP MCP's query convention (shared/Oql.mo, service-discoverability skill
+  // Layer 4), and what the in-app assistant's query_home_records tool calls.
+  // Read-only. Rows follow getBillsForProperties' rule: everything on homes
+  // the caller has a role on (mortgage entries only for owner and co-owners),
+  // otherwise only records the caller entered.
+
+  /// The OQL catalogue: entities "bills" and "recurring_expenses".
+  public query func schema() : async Text { Oql.schemaJson(BillsOql.ENTITIES) };
+
+  private func firstChars(t : Text, n : Nat) : Text {
+    var out = "";
+    var i = 0;
+    label scan for (c in t.chars()) { if (i >= n) break scan; out #= c.toText(); i += 1 };
+    out
+  };
+
+  private func billTypeText(t : BillType) : Text {
+    switch t {
+      case (#Electric) "Electric"; case (#Gas) "Gas"; case (#Water) "Water";
+      case (#Internet) "Internet"; case (#Telecom) "Telecom"; case (#Other) "Other";
+    }
+  };
+
+  private func optTextCell(t : ?Text) : Oql.CellValue = switch t { case (?x) #text(x); case null #null_ };
+
+  /// A bill as a row of BillsOql.BILLS, in its field order.
+  private func billRow(b : BillRecord) : Oql.Row {
+    [
+      #text(b.id),
+      #text(b.propertyId),
+      #text(billTypeText(b.billType)),
+      #text(b.provider),
+      #text(b.periodStart),
+      #text(b.periodEnd),
+      #text(firstChars(b.periodStart, 7)),
+      switch (Nat.fromText(firstChars(b.periodStart, 4))) { case (?y) #int(y); case null #null_ },
+      #int(b.amountCents),
+      switch (b.usageAmount) { case (?u) #float(u); case null #null_ },
+      optTextCell(b.usageUnit),
+      #bool(b.anomalyFlag),
+      optTextCell(b.anomalyReason),
+      #text(Oql.isoDate(b.uploadedAt)),
+    ]
+  };
+
+  /// A recurring expense as a row of BillsOql.RECURRING, in its field order.
+  private func expenseRow(e : RecurringExpense) : Oql.Row {
+    let (freq, perYear) : (Text, Nat) = switch (e.frequency) {
+      case (#Monthly) ("Monthly", 12); case (#Quarterly) ("Quarterly", 4);
+      case (#SemiAnnual) ("SemiAnnual", 2); case (#Annual) ("Annual", 1);
+    };
+    [
+      #text(e.id),
+      #text(e.propertyId),
+      #text(switch (e.category) {
+        case (#Mortgage) "Mortgage"; case (#PropertyTax) "PropertyTax"; case (#HOA) "HOA";
+        case (#HomeInsurance) "HomeInsurance"; case (#Other) "Other";
+      }),
+      #text(e.provider),
+      #int(e.amountCents),
+      #text(freq),
+      #int(e.amountCents * perYear),
+      #text(e.startDate),
+      optTextCell(e.endDate),
+    ]
+  };
+
+  /// Runs one OQL query (a JSON object, see `schema()`) over the bills or
+  /// recurring expenses of the caller's homes. Homes come from a propertyId
+  /// eq/in condition when the query has one, otherwise from the records the
+  /// caller entered; at most 20. A malformed query traps with a message
+  /// starting "OQL:", as the convention expects.
+  public composite query(msg) func execute(oql : Text) : async Oql.Result {
+    let empty : Oql.Result = { hasMore = false; rows = [] };
+    if (msg.caller.isAnonymous()) return empty;
+    let q = switch (Oql.parse(oql, BillsOql.ENTITIES)) {
+      case (#ok(q)) q;
+      case (#err(m)) Runtime.trap("OQL: " # m);
+    };
+    let isBills = Oql.start(q) == BillsOql.BILLS.name;
+    let named = Oql.textHints(q, "propertyId");
+    let homes = List.empty<Text>();
+    func addHome(id : Text) { if (homes.find(func h = h == id) == null) homes.add(id) };
+    if (named.size() > 0) {
+      for (id in named.values()) addHome(id);
+    } else if (isBills) {
+      for (b in Index.records(billsByHomeowner, msg.caller.toText(), bills)) addHome(b.propertyId);
+    } else {
+      for (e in Index.records(expensesByHomeowner, msg.caller.toText(), recurringExpenses)) addHome(e.propertyId);
+    };
+    if (homes.size() > BillsOql.MAX_HOMES)
+      Runtime.trap("OQL: at most " # BillsOql.MAX_HOMES.toText() # " homes per query; this covers " # homes.size().toText() # ", so pin fewer with a propertyId condition");
+    let ids = homes.toArray();
+    // Same rule as getBillsForProperties: unwired, records are their author's only.
+    let roles : [?AccessRole] =
+      if (propCanisterId == "" or ids.size() == 0) [] else {
+        try { await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller) }
+        catch (_) { Runtime.trap("OQL: the property canister didn't answer, so access can't be checked; try again later") }
+      };
+    let rows = List.empty<Oql.Row>();
+    for (i in ids.keys()) {
+      let role : ?AccessRole = if (i < roles.size()) roles[i] else null;
+      if (isBills) {
+        for (b in Index.records(billsByProperty, ids[i], bills)) {
+          if (seesProperty(role) or Principal.equal(b.homeowner, msg.caller)) rows.add(billRow(b));
+        };
+      } else {
+        for (e in Index.records(expensesByProperty, ids[i], recurringExpenses)) {
+          if (Principal.equal(e.homeowner, msg.caller)
+              or (seesProperty(role) and (not isMortgage(e.category) or hasFullControl(role))))
+            rows.add(expenseRow(e));
+        };
+      };
+    };
+    Oql.run(q, rows.values())
   };
 
   /// Return usage-tracked periods for (propertyId, billType) sorted chronologically,
