@@ -457,4 +457,33 @@ export const MIX = {
   usage: { light: 0.55, typical: 0.35, heavy: 0.1 },
 };
 
+// ICP MCP connector (ChatGPT's "Chat with your ICP apps" app, or Claude with the
+// https://mcp.internetcomputer.org/mcp custom connector). The user's own ChatGPT
+// or Claude subscription pays for the model; the connector signs canister calls
+// as the user's Internet Identity principal and calls the canisters listed in
+// frontend/scripts/icArchitecture.mjs (EXPOSED) directly. None of those
+// canisters calls the voice Worker or Claude, so a connector question costs
+// HomeGentic only the canister calls it makes:
+//  - getApiDoc, candid:service and most reads are queries, which the IC doesn't
+//    charge for today;
+//  - the reads that check access through the property canister are update calls
+//    (job.getJobsForProperty, bills.getBillsForProperty, recurring.getByProperty,
+//    maintenance.getScheduleByProperty, report.getReport…), each about one
+//    average update call;
+//  - writes (log a job, add a bill) are update calls too.
+// Document and bill extraction, photo upload and the other Worker features
+// can't be reached through the connector, so aux AI stays in the app.
+export const CONNECTOR = {
+  // Share of users who move their chat and agent questions to a connector.
+  shares: [0, 0.05, 0.2, 0.5],
+  // Questions per in-app chat or agent call they replace: the assistant is free
+  // to them, so assume they ask more.
+  questionMultiplier: 1.5,
+  // Billable canister calls per question (access-checked reads + the odd write).
+  updateCallsPerQuestion: 3,
+  // Exposed canisters with a per-principal per-minute update limit (bills has none).
+  rateLimitedCanisters: 7,
+  updatesPerMinPerCanister: 30, // maxUpdatesPerMin default
+};
+
 export const SCALE_POINTS = [1_000, 10_000, 100_000, 1_000_000];

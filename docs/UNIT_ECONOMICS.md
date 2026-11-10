@@ -47,6 +47,13 @@ don't match the assumptions.
   5.5 prices) is shared by every free account. Past that, free users get
   "budget reached" every day unless the budget grows, at roughly $0.32 per
   typical free user a month.
+- **Questions asked through ChatGPT or Claude cost us almost nothing.** With
+  the ICP MCP connector the user's own ChatGPT or Claude plan pays for the
+  model, and we pay only for the canister calls (about $0.0001 a question
+  against $0.007–0.013 in the app). If half of all users asked their
+  questions there, the total bill would fall by about 20%; document and bill
+  extraction stays in the app, so the saving per user tops out near half. See
+  [ChatGPT and Claude connectors](#chatgpt-and-claude-connectors).
 - **Token sizes need re-measuring.** They were measured for Sonnet 4.6;
   Sonnet 5.5's tokenizer counts the same text as more tokens (the model
   assumes 1.2×). Replace that factor with real numbers from the Worker's
@@ -135,6 +142,34 @@ Mix: 80% Free homeowner, 8% Pro homeowner ($59/yr), 5% Contractor Free, 2% Contr
 | Free AI spend ceiling (FREE_AI_DAILY_TOKEN_BUDGET) | $608/mo |
 | Blended cost per account at 100k / 1M | $0.66 / $0.66 |
 
+### ChatGPT and Claude connector (ICP MCP)
+
+| Event | Cost to HomeGentic |
+|---|---|
+| One question through ChatGPT or Claude (3 update calls; queries free; the model is on the user's subscription) | $0.00008 |
+| The same question in the app: chat answer / one agent call | $0.007 / $0.013 |
+| One principal maxing every rate-limited exposed canister (7 × 30/min) all day | $8.16/day |
+
+Typical user, all questions in the app vs all through a connector:
+
+| User type | In the app | Through a connector | Saving |
+|---|---|---|---|
+| Free homeowner | $0.48 | $0.25 | 49% |
+| Pro homeowner ($59/yr) | $1.60 | $0.82 | 49% |
+| Contractor Free | $0.42 | $0.36 | 16% |
+| Contractor Pro ($40/mo) | $3.41 | $2.36 | 31% |
+| Realtor (Bid to List) | $1.00 | $0.76 | 24% |
+| FSBO seller (Free + listing) | $0.64 | $0.41 | 37% |
+
+Share of users asking through a connector (they ask 1.5× as many questions there; document and bill AI stays in the app). Total cost a month:
+
+| Connector users | 1,000 | 10,000 | 100,000 | 1,000,000 | Cost per account at 100k | AI share at 100k | Saving at 100k | Saving at 1M |
+|---|---|---|---|---|---|---|---|---|
+| 0% | $771 | $6,744 | $66,327 | $662,134 | $0.66 | 65% | — | — |
+| 5% | $757 | $6,612 | $65,005 | $648,917 | $0.65 | 64% | $1,322 (2%) | $13,217 (2%) |
+| 20% | $718 | $6,216 | $61,040 | $609,266 | $0.61 | 62% | $5,287 (8%) | $52,868 (8%) |
+| 50% | $638 | $5,423 | $53,110 | $529,964 | $0.53 | 56% | $13,217 (20%) | $132,170 (20%) |
+
 ### Sensitivity
 
 | Scenario | Free typical cost/mo | Pro typical cost/mo | Pro typical margin | Total cost/mo at 100k users | Net/mo at 100k users |
@@ -205,6 +240,66 @@ one is cheap to raise in dollars but needs a deliberate change.
 | Weekly Home Pulse: one send every 600 ms, Monday–Tuesday window | notifications relay `pulse.ts` | ~250k homeowners (the week is skipped after that) | batch sends (Resend batch API) and more relay capacity |
 | Relay state is one JSON file on one machine | notifications relay `persist.ts` | well before 1M accounts | a real datastore (D1, Postgres) |
 | Per-canister upgrade ceilings (~2M jobs, ~1.2M photo records, ~6M sensor events) | upgrade-at-scale test | ~250k active homes after a year of jobs | sharding the job/photo/sensor canisters |
+
+## ChatGPT and Claude connectors
+
+Since PR #706, HomeGentic publishes `/.well-known/ic-architecture`, which lets
+DFINITY's ICP MCP connector (the "Chat with your ICP apps" app in ChatGPT, or
+`https://mcp.internetcomputer.org/mcp` added as a custom connector in Claude)
+call eight canisters for a signed-in user: property, job, maintenance,
+recurring, bills, report, contractor and quote
+(`frontend/scripts/icArchitecture.mjs`). It only works once those canisters
+are on mainnet. What that means for cost, checked against the code:
+
+- **The model is not ours.** The connector runs inside the user's ChatGPT or
+  Claude conversation, so their subscription pays for every token. Nothing
+  passes through the voice Worker: none of the eight canisters makes an HTTPS
+  outcall or calls the Worker or Claude, so a connector question never touches
+  `ANTHROPIC_API_KEY`, the free AI budget or the agent limits.
+- **What we do pay for is canister calls.** `getApiDoc`, `candid:service` and
+  most reads are queries, which the IC doesn't charge for today. But the reads
+  that check access through the property canister are update calls
+  (`job.getJobsForProperty`, `bills.getBillsForProperty`,
+  `recurring.getByProperty`, `maintenance.getScheduleByProperty`,
+  `report.getReport` and others), and so are writes. The model assumes 3
+  update calls a question, about $0.0001.
+- **Two exposed calls use threshold keys** (about $0.035 each): signing a
+  report link or certificate (`report`, 500 a day platform-wide) and
+  sealed-bid reveals (`quote`, 5 per request a day, 500 a day in total). The
+  caps hold whether the call comes from the app or a connector.
+- **The other AI stays in the app.** Document and bill extraction, photos and
+  the rest of the Worker's features can't be reached through the connector,
+  so the model leaves aux AI where it was. That's why the saving per user
+  stops at about half even when every question moves.
+
+The model's connector scenario moves a share of users' chat and agent calls to
+the connector and assumes they ask 1.5× as many questions there, since it
+costs them nothing extra (`CONNECTOR` in `assumptions.mjs`). Results are in
+the generated tables above.
+
+**Risks.**
+
+- **Tool-call spam.** An assistant can loop on reads. Every exposed canister
+  except `bills` caps update calls at 30 a minute per principal, so one
+  account maxing all seven limits all day costs about $8 a day in cycles.
+  `bills` has no per-minute limit at all. This isn't new exposure: the
+  canisters were always callable directly by anyone with an agent library,
+  and `Inspect.mo` already refuses anonymous callers and oversized
+  arguments. But principals are free to create (the root cause in the
+  2026-10-31 cycle-drain audit), so a script with many accounts multiplies
+  the per-principal ceiling. Adding the shared `RateLimit` to `bills` closes
+  the open one.
+- **Fewer Pro upgrades.** The agent limits (10 a week on Free, 10 a day on
+  Pro) are part of why people pay. A Free user with ChatGPT or Claude gets
+  unlimited questions about their own records without hitting them. The model
+  doesn't change revenue in the connector scenario; if connectors catch on,
+  watch Free-to-Pro conversion.
+- **Query charging.** If the IC starts charging for queries, every connector
+  read starts to cost cycles too. Queries cost far less than updates, so the
+  connector would still be much cheaper than in-app AI.
+- **Usage we can't see.** Connector calls don't go through the Worker, so
+  they won't show up in its usage events. Watch them in canister cycle burn
+  (the monitoring canister and the hourly ops check).
 
 ## Biggest cost drivers, in order
 

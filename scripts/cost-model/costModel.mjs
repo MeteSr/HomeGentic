@@ -10,7 +10,18 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { PRICES, PROFILES, REVENUE, FIXED, MIX, USER_TYPES, LABELS, SCALE_POINTS, CHECKED } from "./assumptions.mjs";
+import {
+  PRICES,
+  PROFILES,
+  REVENUE,
+  FIXED,
+  MIX,
+  USER_TYPES,
+  LABELS,
+  SCALE_POINTS,
+  CHECKED,
+  CONNECTOR,
+} from "./assumptions.mjs";
 
 const USAGES = ["light", "typical", "heavy"];
 const DAYS_PER_MONTH = 30.4;
@@ -144,22 +155,60 @@ export function fixedMonthly(users) {
   return total;
 }
 
-/** Totals for `users` accounts in the MIX. */
-export function scaleRow(users, prices = PRICES) {
+// ── ICP MCP connector ────────────────────────────────────────────────────────
+
+/** Profile `p` with its chat and agent questions asked through ChatGPT or Claude instead. */
+export function connectorProfile(p, connector = CONNECTOR) {
+  const questions = (p.chatCalls + p.agentCalls) * connector.questionMultiplier;
+  return {
+    ...p,
+    chatCalls: 0,
+    agentCalls: 0,
+    updateCalls: p.updateCalls + questions * connector.updateCallsPerQuestion,
+  };
+}
+
+/** PROFILES with every user asking through a connector. */
+export const CONNECTOR_PROFILES = Object.fromEntries(
+  Object.entries(PROFILES).map(([t, us]) => [
+    t,
+    Object.fromEntries(Object.entries(us).map(([u, p]) => [u, connectorProfile(p)])),
+  ]),
+);
+
+/** What one connector question costs HomeGentic (its update calls; queries are free). */
+export function connectorQuestionCost(prices = PRICES, connector = CONNECTOR) {
+  return connector.updateCallsPerQuestion * unitCosts(prices).updateCall;
+}
+
+/** One principal driving every rate-limited exposed canister at its per-minute cap all day. */
+export function connectorAbuseCeilingPerDay(prices = PRICES, connector = CONNECTOR) {
+  return connector.rateLimitedCanisters * connector.updatesPerMinPerCanister * 1440 * unitCosts(prices).updateCall;
+}
+
+/** Totals for `users` accounts in the MIX, `connectorShare` of them asking through a connector. */
+export function scaleRow(users, prices = PRICES, { connectorShare = 0 } = {}) {
   let variable = 0,
     revenue = 0,
     emails = 0,
     ai = 0,
     subscriptions = 0;
+  const groups = [
+    [1 - connectorShare, PROFILES],
+    [connectorShare, CONNECTOR_PROFILES],
+  ];
   for (const type of USER_TYPES) {
     for (const usage of USAGES) {
-      const n = users * MIX.types[type] * MIX.usage[usage];
-      const m = userMonthly(type, usage, prices);
-      variable += n * (m.cost.total - m.emails * unitCosts(prices).email);
-      ai += n * m.cost.ai;
-      revenue += n * m.revenue;
-      if (type === "pro" || type === "contractorPro") subscriptions += n * m.revenue;
-      emails += n * m.emails;
+      for (const [share, profiles] of groups) {
+        if (share === 0) continue;
+        const n = users * MIX.types[type] * MIX.usage[usage] * share;
+        const m = userMonthly(type, usage, prices, profiles);
+        variable += n * (m.cost.total - m.emails * unitCosts(prices).email);
+        ai += n * m.cost.ai;
+        revenue += n * m.revenue;
+        if (type === "pro" || type === "contractorPro") subscriptions += n * m.revenue;
+        emails += n * m.emails;
+      }
     }
   }
   const email = emailBill(emails, prices.resend);
@@ -256,6 +305,46 @@ function sensitivity() {
   ].join("\n");
 }
 
+function connectorTables() {
+  const u = unitCosts();
+  const out = [];
+  out.push("| Event | Cost to HomeGentic |\n|---|---|");
+  out.push(
+    `| One question through ChatGPT or Claude (${CONNECTOR.updateCallsPerQuestion} update calls; queries free; the model is on the user's subscription) | $${connectorQuestionCost().toFixed(5)} |`,
+  );
+  out.push(`| The same question in the app: chat answer / one agent call | ${usd(u.chat)} / ${usd(u.agent)} |`);
+  out.push(
+    `| One principal maxing every rate-limited exposed canister (${CONNECTOR.rateLimitedCanisters} × ${CONNECTOR.updatesPerMinPerCanister}/min) all day | ${usd(connectorAbuseCeilingPerDay())}/day |`,
+  );
+
+  out.push("\nTypical user, all questions in the app vs all through a connector:\n");
+  out.push("| User type | In the app | Through a connector | Saving |\n|---|---|---|---|");
+  for (const type of USER_TYPES) {
+    const app = userMonthly(type, "typical").cost.total;
+    const mcp = userMonthly(type, "typical", PRICES, CONNECTOR_PROFILES).cost.total;
+    out.push(`| ${LABELS[type]} | ${usd(app)} | ${usd(mcp)} | ${pct((app - mcp) / app)} |`);
+  }
+
+  out.push(
+    `\nShare of users asking through a connector (they ask ${CONNECTOR.questionMultiplier}× as many questions there; document and bill AI stays in the app). Total cost a month:\n`,
+  );
+  out.push(
+    `| Connector users | ${SCALE_POINTS.map(int).join(" | ")} | Cost per account at 100k | AI share at 100k | Saving at 100k | Saving at 1M |`,
+  );
+  out.push(`|---|${SCALE_POINTS.map(() => "---").join("|")}|---|---|---|---|`);
+  const base = Object.fromEntries(SCALE_POINTS.map((n) => [n, scaleRow(n).total]));
+  for (const share of CONNECTOR.shares) {
+    const rows = SCALE_POINTS.map((n) => scaleRow(n, PRICES, { connectorShare: share }));
+    const at = (n) => rows[SCALE_POINTS.indexOf(n)];
+    const saving = (n) =>
+      share === 0 ? "—" : `${usd(base[n] - at(n).total)} (${pct((base[n] - at(n).total) / base[n])})`;
+    out.push(
+      `| ${pct(share)} | ${rows.map((r) => usd(r.total)).join(" | ")} | ${usd(at(100_000).costPerUser)} | ${pct(at(100_000).ai / at(100_000).total)} | ${saving(100_000)} | ${saving(1_000_000)} |`,
+    );
+  }
+  return out.join("\n");
+}
+
 /** The markdown that goes between the cost-model markers. */
 export function renderGenerated() {
   const u = unitCosts();
@@ -348,6 +437,9 @@ export function renderGenerated() {
   out.push(
     `| Blended cost per account at 100k / 1M | ${usd(scaleRow(100_000).costPerUser)} / ${usd(scaleRow(1_000_000).costPerUser)} |`,
   );
+
+  out.push("\n### ChatGPT and Claude connector (ICP MCP)\n");
+  out.push(connectorTables());
 
   out.push("\n### Sensitivity\n");
   out.push(sensitivity());
