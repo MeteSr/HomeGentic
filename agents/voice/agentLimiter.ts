@@ -43,7 +43,7 @@ export const TIER_PERIOD: Record<SubscriptionTier, Period> = {
  *
  * Pro is the single purchasable homeowner plan: 10/day — at the $59/year
  * price, more would run the tier at a negative margin under the cost model
- * in docs/AI_RATE_LIMITS.md.
+ * in docs/UNIT_ECONOMICS.md.
  * Free gets 10/week (not 10/day) — a much smaller absolute allowance
  * than Pro's, spread weekly instead of daily since Free pays nothing and
  * every call is pure cost with no revenue to offset it.
