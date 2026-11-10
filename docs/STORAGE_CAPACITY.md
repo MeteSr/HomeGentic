@@ -1,6 +1,6 @@
 # Storage Capacity — ICP Canister Estimates
 
-All photos and data are stored fully on-chain. No off-chain storage is used.
+Records are stored on-chain. Photo and document bytes moved to Cloudflare R2 (PRs #611, #662, #742); the on-chain photo path remains as a fallback, so the photo-canister figures below now describe that fallback. Costs per user are in [UNIT_ECONOMICS.md](UNIT_ECONOMICS.md).
 
 ## ICP Storage Limits (per canister)
 

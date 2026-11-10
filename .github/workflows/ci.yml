@@ -462,6 +462,11 @@ jobs:
       - name: Generated canister types match the declarations
         run: node --experimental-strip-types --no-warnings scripts/gen-declaration-types.mjs --check
 
+      - name: Cost model tests and docs/UNIT_ECONOMICS.md in sync
+        run: |
+          node --test scripts/cost-model/*.test.mjs
+          node scripts/cost-model/costModel.mjs --check
+
       - name: Prettier on files this PR adds
         if: github.event_name == 'pull_request'
         env:

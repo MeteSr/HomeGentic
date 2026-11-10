@@ -4,14 +4,15 @@ HomeGentic uses Claude (claude-sonnet-4-6) for two categories of AI calls. These
 
 ## Call categories
 
-| Category | Endpoint | Avg cost/call | Counted toward limit |
+| Category | Endpoint | Avg cost/call | Limit |
 |---|---|---|---|
-| **Agent calls** | `POST /api/agent` | ~$0.030 (avg 3 tool-use turns) | **Yes** |
-| **Chat calls** | `POST /api/chat`, `/api/maintenance/chat` | ~$0.007 | No |
-| Document extraction | `POST /api/extract-document` | ~$0.005 | No |
-| Other AI features | billing analysis, internet check, etc. | ~$0.005–$0.015 | No |
+| **Agent calls** | `POST /api/agent` | ~$0.035 per request (each tool-use turn is one request) | Agent-call limit (below) |
+| **Chat calls** | `POST /api/chat` | ~$0.009 | Chat limit (below) |
+| Document and other AI calls | `/api/extract-document`, `/api/extract-bill`, `/api/maintenance/chat`, `/api/classify`, `/api/pulse`, … (`AUX_AI_ROUTES`) | ~$0.025 average ($0.003 to classify, $0.07+ for a buyer's truth kit) | 25/day Free and ContractorFree (3 in the first week), 200/day paid |
 
-Agent calls are limited because they drive the majority of AI cost. A single agentic interaction involves multiple internal Claude API round-trips (up to 5 tool-use turns), each carrying the full conversation context. Chat calls are cheap enough that counting them would degrade the voice experience without meaningfully protecting margin.
+Costs are at Sonnet 4.6 list prices with no prompt caching; see [UNIT_ECONOMICS.md](UNIT_ECONOMICS.md).
+
+Agent calls are limited most tightly because they drive the majority of AI cost. A single agentic interaction involves multiple Claude API round-trips (up to 5 tool-use turns), each resending the tool definitions and the full conversation.
 
 ## Per-tier limits
 
@@ -77,70 +78,16 @@ Also set a monthly spend limit in the Anthropic console as the last backstop.
 
 ## Financial basis
 
-Model: `claude-sonnet-4-6` at $3.00/1M input tokens, $15.00/1M output tokens.
-
-**Note:** the tables below mix a legacy monthly-billed tier structure
-(Basic/Pro/Premium, since removed — kept here for comparison)
-with the current $59/**year** Pro plan. Pro's costs are computed over a
-full year, then divided by 12 for a monthly-equivalent figure so it's
-comparable to the legacy rows. Its Stripe fee is a single annual charge
-(2.9% + $0.30 on $59 ≈ $2.01/yr), not a recurring monthly one.
-
-### Worst case (every user maxes their limit every day)
-
-| Tier | Agent AI cost | Chat AI cost (est.) | Stripe fee | ICP cycles | **Variable cost** | **Revenue** | **Gross margin** |
-|---|---|---|---|---|---|---|---|
-| **Free (current)** | $1.30/mo | $0.63/mo | $0.00 | $0.10/mo | $2.03/mo | $0.00 | **n/a — pure cost** |
-| Basic $10/mo (legacy) | $4.50 | $1.05 | $0.59 | $0.10 | $6.24 | $10.00 | **37.6%** |
-| Premium $40/mo (legacy) | $18.00 | $1.05 | $1.47 | $0.30 | $20.82 | $40.00 | **47.9%** |
-| **Pro $59/yr (current)** | $9.00/mo | $1.05/mo | $0.17/mo | $0.30/mo | $10.52/mo | $4.92/mo | **‑114%** |
-
-Chat cost estimated at 5 calls/day average for tiers with no hard chat
-cap; Free's chat cost uses its actual hard cap of 3/day (worst case and
-realistic are the same number for Free's chat, since there's no room
-above the cap to average down from). Free's agent cost assumes its
-10/week cap maxed every week (10 × 4.345 weeks/mo × $0.030). Free's ICP
-cycles figure reuses Basic's $0.10/mo (same 1-property/5-photos-per-job
-limits). Pro's ICP cycles figure uses Premium's $0.30/mo (it carries
-Premium's storage limits — 20 properties, 30 photos/job).
-
-### Realistic (~45–55% active days, ~33% of the worst-case agent cost, 3 chat/day avg)
-
-| Tier | Agent AI cost | Chat AI cost | Stripe fee | ICP cycles | **Variable cost** | **Revenue** | **Gross margin** |
-|---|---|---|---|---|---|---|---|
-| **Free (current)** | $0.43/mo | $0.63/mo | $0.00 | $0.10/mo | $1.16/mo | $0.00 | **n/a — pure cost** |
-| Basic $10/mo (legacy) | $1.32 | $0.63 | $0.59 | $0.10 | $2.64 | $10.00 | **73.6%** |
-| Premium $40/mo (legacy) | $5.94 | $0.63 | $1.47 | $0.30 | $8.34 | $40.00 | **79.2%** |
-| **Pro $59/yr (current)** | $2.97/mo | $0.63/mo | $0.17/mo | $0.30/mo | $4.07/mo | $4.92/mo | **17.3%** |
-
-### Risk flag
-
-**Free costs roughly $1.16–$2.03/mo per active user with $0 revenue to
-offset it — every free-tier agent/chat call is a pure liability, unlike
-Pro where at least a thin margin exists.** At scale this adds up fast:
-30,000 active free users at the realistic estimate is ~$417,600/year in
-unrecovered AI cost; at the worst case (everyone maxes their weekly
-allowance) that's ~$730,800/year. The 10/week pacing (vs. a hypothetical
-10/day) keeps this roughly 7x smaller than it would otherwise be, but it
-doesn't eliminate the exposure — Free has no price to raise if usage
-comes in high, only the call limit itself. Monitor real Free-tier agent
-utilization closely; if a meaningful share of free users regularly hit
-10/week, this is the first lever to pull before it's a material cost
-line, since there's no revenue lever to pull instead.
-
-**Pro runs at a loss in the worst case (‑114%) and a thin 17.3% margin
-even under the realistic-usage assumption.** This is a direct consequence
-of the $59/year price point (~$4.92/mo-equivalent) sitting well below
-what the old monthly tiers charged, while agent/chat/infra costs per
-active user are largely unchanged. Lowering Pro's agent-call limit from
-Premium's 20/day to 10/day (done as part of this pricing consolidation)
-avoids the worse ‑302%/‑45% outcome that 20/day would produce, but does
-not fully solve the underlying gap — at this price, margin is
-usage-sensitive in a way none of the legacy tiers were. Monitor real
-Pro agent-call utilization closely post-launch; if realized usage tracks
-closer to the worst case than the realistic estimate, this tier will
-need either a lower agent-call limit, a higher price, or both before
-scaling meaningfully.
+The cost model behind these limits (what each call costs, what each user type
+costs to serve, margins and scale) is in [UNIT_ECONOMICS.md](UNIT_ECONOMICS.md),
+generated from `scripts/cost-model/assumptions.mjs`. In short, at Sonnet 4.6
+list prices with no prompt caching: a chat answer costs about $0.009, one
+`/api/agent` request about $0.035 (it resends ~6,700 tokens of tool
+definitions every time), and a document or bill extraction about $0.025. A
+typical Pro user costs about $2.42 a month against $4.92 of revenue; a heavy
+one runs at a loss, which is why Pro keeps 10 agent calls a day and chat is
+capped at 200 a day. Free's weekly agent allowance and the shared
+`FREE_AI_DAILY_TOKEN_BUDGET` keep the Free tier's AI spend bounded.
 
 ## UX behaviour when limit is reached
 

@@ -1,5 +1,10 @@
 # Image Storage Cost — On-Chain (ICP) vs. Off-Chain (AWS S3)
 
+> **Historical (2026-10).** Photo and document bytes now live in Cloudflare R2
+> (off-chain photos, PRs #611 and #662; PDFs since #742), with the hash and
+> metadata on-chain as proposed below, and R2 has no egress fees. Current
+> per-user storage costs are in [UNIT_ECONOMICS.md](UNIT_ECONOMICS.md).
+
 Now that the app has no subscription revenue, every photo a user uploads is a
 cost HomeGentic absorbs with nothing offsetting it. This doc estimates that
 cost per photo and per average user under the current architecture (100% of
