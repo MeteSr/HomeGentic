@@ -26,6 +26,7 @@ import { buildMaintenanceForecast } from "./maintenanceForecast";
 import { reportService, jobToInput, propertyToInput } from "./report";
 import { getPriceBenchmark, hasSufficientSamples, benchmarkBasis } from "./priceBenchmark";
 import { proposeJob } from "./contractorJobProposal";
+import { queryHomeRecords } from "./homeRecords";
 
 export type ToolName =
   | "classify_home_issue"
@@ -51,7 +52,8 @@ export type ToolName =
   | "confirm_job_proposal"
   | "add_room"
   | "add_recurring_service"
-  | "add_property";
+  | "add_property"
+  | "query_home_records";
 
 export interface ToolCallResult {
   success: boolean;
@@ -698,6 +700,11 @@ export async function executeTool(
       }
 
       // ── Get price benchmark ───────────────────────────────────────────────
+      // ── Generic read over OQL (job, bills, property) ───────────────────────
+      // Read-only; the canisters decide which homes and rows the user sees.
+      case "query_home_records":
+        return await queryHomeRecords({ source: input.source, entity: input.entity, query: input.query });
+
       case "get_price_benchmark": {
         const serviceType = String(input.service_type);
         const zipCode     = String(input.zip_code);
@@ -849,6 +856,7 @@ export function toolActionLabel(name: ToolName): string {
     add_room:                  "adding room",
     add_recurring_service:     "adding recurring service",
     add_property:              "registering property",
+    query_home_records:        "reading your home records",
   };
   return labels[name] ?? name;
 }

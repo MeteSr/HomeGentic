@@ -223,7 +223,11 @@ describe("bills OQL (schema + execute)", () => {
     expect(jumps).toEqual([
       { id: spike, provider: "FPL", periodMonth: "2025-03", amountCents: 20_000, usageAmount: 1600, usageUnit: "kWh" },
     ]);
-    const reason = await rows(owner, { start: "bills", where: { eq: { field: "id", value: spike } }, select: ["anomalyReason"] });
+    const reason = await rows(owner, {
+      start: "bills",
+      where: { eq: { field: "id", value: spike } },
+      select: ["anomalyReason"],
+    });
     expect(String(reason[0].anomalyReason)).toMatch(/above your 3-month average/);
 
     const byType = await rows(owner, {
@@ -249,14 +253,19 @@ describe("bills OQL (schema + execute)", () => {
     expect(await rows(stranger, { start: "bills", where: { eq: { field: "propertyId", value: homeA } } })).toEqual([]);
     expect(
       (
-        await rows(stranger, { start: "bills", where: { in: { field: "propertyId", value: [homeA, homeB, otherHome] } } })
+        await rows(stranger, {
+          start: "bills",
+          where: { in: { field: "propertyId", value: [homeA, homeB, otherHome] } },
+        })
       ).map((r) => r.propertyId),
     ).toEqual([otherHome]);
     expect(await exec(new AnonymousIdentity(), { start: "bills" })).toEqual({ hasMore: false, rows: [] });
 
     expect(await rows(manager, { start: "bills" })).toEqual([]);
     const pinned = { eq: { field: "propertyId", value: homeA } };
-    expect((await rows(manager, { start: "bills", where: pinned, aggregate: [{ fn: "count", as: "n" }] }))[0].n).toBe(3);
+    expect((await rows(manager, { start: "bills", where: pinned, aggregate: [{ fn: "count", as: "n" }] }))[0].n).toBe(
+      3,
+    );
     const visible = await rows(manager, { start: "recurring_expenses", where: pinned, select: ["category"] });
     expect(visible).toEqual([{ category: "HOA" }]);
     expect(await rows(manager, { start: "bills", where: { eq: { field: "propertyId", value: homeB } } })).toEqual([]);
@@ -268,9 +277,9 @@ describe("bills OQL (schema + execute)", () => {
     await expect(exec(owner, { start: "bills", select: ["homeowner"] })).rejects.toThrow(/OQL/);
     await expect(exec(owner, "x".repeat(5000))).rejects.toThrow(/OQL/);
     const many = Array.from({ length: 21 }, (_, i) => `HOME_${i}`);
-    await expect(
-      exec(owner, { start: "bills", where: { in: { field: "propertyId", value: many } } }),
-    ).rejects.toThrow(/OQL.*20 homes/);
+    await expect(exec(owner, { start: "bills", where: { in: { field: "propertyId", value: many } } })).rejects.toThrow(
+      /OQL.*20 homes/,
+    );
     expect((await rows(owner, { start: "bills", aggregate: [{ fn: "count", as: "n" }] }))[0].n).toBe(4);
   });
 });

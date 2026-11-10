@@ -253,7 +253,9 @@ describe("property OQL (schema + execute)", () => {
   });
 
   it("POQL.3 lets the owner read and add up their homes' records", async () => {
-    expect(await rows(owner, { start: "homes", select: ["id", "yearBuilt", "myRole"], orderBy: [{ field: "yearBuilt" }] })).toEqual([
+    expect(
+      await rows(owner, { start: "homes", select: ["id", "yearBuilt", "myRole"], orderBy: [{ field: "yearBuilt" }] }),
+    ).toEqual([
       { id: homeA, yearBuilt: 1985, myRole: "Owner" },
       { id: homeB, yearBuilt: 2004, myRole: "Owner" },
     ]);
@@ -263,7 +265,13 @@ describe("property OQL (schema + execute)", () => {
         select: ["propertyId", "carrier", "renewalDate", "coverageACents", "hurricaneDeductiblePercent"],
       }),
     ).toEqual([
-      { propertyId: homeA, carrier: "Citizens", renewalDate: "2026-06-01", coverageACents: 35_000_000, hurricaneDeductiblePercent: 2 },
+      {
+        propertyId: homeA,
+        carrier: "Citizens",
+        renewalDate: "2026-06-01",
+        coverageACents: 35_000_000,
+        hurricaneDeductiblePercent: 2,
+      },
     ]);
     expect(await rows(owner, { start: "insurance_claims", select: ["title", "status"] })).toEqual([
       { title: "Hurricane roof damage", status: "Open" },
@@ -288,13 +296,11 @@ describe("property OQL (schema + execute)", () => {
   it("POQL.4 shows strangers and anonymous callers nothing; a manager reads the named home without mortgage or tax", async () => {
     expect(await rows(stranger, { start: "insurance_policies", where: pin(homeA) })).toEqual([]);
     expect(
-      (
-        await rows(stranger, {
-          start: "insurance_policies",
-          where: { in: { field: "propertyId", value: [homeA, homeB, otherHome] } },
-          select: ["carrier"],
-        })
-      ),
+      await rows(stranger, {
+        start: "insurance_policies",
+        where: { in: { field: "propertyId", value: [homeA, homeB, otherHome] } },
+        select: ["carrier"],
+      }),
     ).toEqual([{ carrier: "Their Carrier" }]);
     expect(await exec(new AnonymousIdentity(), { start: "homes" })).toEqual({ hasMore: false, rows: [] });
 
@@ -302,9 +308,9 @@ describe("property OQL (schema + execute)", () => {
     expect(await rows(manager, { start: "insurance_policies", where: pin(homeA), select: ["carrier"] })).toEqual([
       { carrier: "Citizens" },
     ]);
-    expect(await rows(manager, { start: "homes", where: { eq: { field: "id", value: homeA } }, select: ["myRole"] })).toEqual([
-      { myRole: "Manager" },
-    ]);
+    expect(
+      await rows(manager, { start: "homes", where: { eq: { field: "id", value: homeA } }, select: ["myRole"] }),
+    ).toEqual([{ myRole: "Manager" }]);
     expect(await rows(manager, { start: "mortgages", where: pin(homeA) })).toEqual([]);
     expect(await rows(manager, { start: "tax_years", where: pin(homeA) })).toEqual([]);
     expect(await rows(manager, { start: "inventory_items", where: pin(homeB) })).toEqual([]);

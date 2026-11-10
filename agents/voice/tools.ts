@@ -15,11 +15,47 @@ const SERVICE_TYPES = [
  * Uses the normalized ToolDefinition type (AI.5). AnthropicProvider.toAnthropicTools()
  * converts these to the Anthropic wire format before sending to the API.
  *
- * Read operations are handled via context injection — the agent doesn't need
- * tools to read data it already has. These tools are write-only and execute
- * in the browser under the authenticated user's ICP identity.
+ * Most reads come from context injection. query_home_records is the one
+ * generic read tool (OQL over job, bills and property) for records the context
+ * doesn't carry. Every tool executes in the browser under the authenticated
+ * user's ICP identity; anything not read-only asks the user first
+ * (READ_ONLY_TOOLS in frontend/src/hooks/useVoiceAgent.ts).
  */
 export const HOMEGENTIC_TOOLS: ToolDefinition[] = [
+  {
+    name: "query_home_records",
+    description: `Look up the household's own records. Read-only: it only reads, never changes anything, and runs as the signed-in user, so it sees only homes they have a role on.
+
+Sources:
+- job: the maintenance record (jobs: work done, cost, dates, permits, warranties, improvement or repair marks)
+- bills: utility bills (with usage and the >20% jump flag) and fixed recurring costs (mortgage payment, tax, HOA, insurance)
+- property: homes, rooms, fixtures, insurance policies and claims, contents inventory, home warranty plans and claims, mortgages, property tax years, HOA assessments and reviews, flood zones, move-in tasks
+
+Use it for questions the context above doesn't answer (spend since a date, which bills jumped, when insurance renews, what the inventory is worth). Steps:
+1. Call with only source to list its entities and their field names.
+2. If a field's type or unit is unclear, call with source and entity for its fields' meanings.
+3. Call with source and query, an OQL object such as {"start":"jobs","where":{"and":[{"eq":{"field":"serviceType","value":"HVAC"}},{"ge":{"field":"completedDate","value":"2023-01-01"}}]},"aggregate":[{"fn":"sum","field":"amountCents","as":"spent"}]}.
+OQL keys: start (required), where (eq, ne, lt, le, gt, ge, in, contains, icontains, startsWith, endsWith, and, or, not), groupBy, aggregate (count, sum, avg, min, max), orderBy, offset, limit, select. Add up and filter in the query rather than reading every row. At most 50 rows come back; hasMore means there are more. Without a propertyId condition, a query covers the homes the user owns; for a home they manage or co-own, add {"eq":{"field":"propertyId","value":"<id>"}}. Amounts are in US cents. A query error comes back starting "OQL:"; fix the query and try once more.`,
+    parameters: {
+      type: "object" as const,
+      properties: {
+        source: {
+          type: "string",
+          enum: ["job", "bills", "property"],
+          description: "Which records to read",
+        },
+        entity: {
+          type: "string",
+          description: "An entity of the source, to see its fields (omit to list the entities)",
+        },
+        query: {
+          type: "object",
+          description: "An OQL query object; its start names the entity",
+        },
+      },
+      required: ["source"],
+    },
+  },
   {
     name: "create_maintenance_job",
     description: `Record a completed home maintenance or repair job on the blockchain.
