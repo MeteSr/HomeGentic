@@ -53,9 +53,12 @@ a Free user is unlimited questions, which the in-app assistant caps at 3 chats a
    prompt in the URL (`https://chatgpt.com/?q=…`, `https://claude.ai/new?q=…`). Prefill a prompt that names
    `homegentic.app`. Show them to users who have set the connector up (a "I've connected it" tick on the
    setup page is enough) and a "Set it up" link to everyone else.
-5. **Offer it when a Free user hits the daily chat cap.** Today the cap ends the conversation with an upgrade
-   prompt. Add a second option, "Keep asking in ChatGPT or Claude, free", next to the Pro offer. This is the
-   moment the user wants more answers and the in-app answer costs us the most.
+5. **Don't lead with it at the daily chat cap.** Once a Free user has used their 3 chats, we've already paid
+   for them, so pointing at the connector there saves nothing; it only competes with the Pro offer. The
+   saving comes from questions that never reach the in-app assistant, so promote the connector before the
+   first chat: on the empty ask bar ("Ask here, or in your own ChatGPT or Claude"), and for Pro users, who
+   can ask 200 a day and cost the most. A small "or ask in ChatGPT or Claude" link under the Pro offer at the
+   cap is fine as a fallback.
 6. **One onboarding card and one email.** A dismissible dashboard card after the first property is added, and
    a section in the welcome email (or in the first weekly Home Pulse), both pointing at the setup page.
 7. **Sample prompts in context.** Short "Ask your assistant" lines on the pages where a question is natural:
@@ -83,8 +86,8 @@ a Free user is unlimited questions, which the in-app assistant caps at 3 chats a
 The in-app assistant is part of Pro's pitch (10 agent calls a day, 200 chats). If free users get unlimited
 questions elsewhere, that part of the pitch weakens. Keep the upgrade prompt where it is, lead Pro's copy
 with what only Pro unlocks (more homes, bill tracking, storage, unlimited quotes, the voice ask bar), and
-watch Free-to-Pro conversion for the first month after the setup page ships. If it drops noticeably, stop
-offering the connector at the chat cap (5) before doing anything else.
+watch Free-to-Pro conversion for the first month after the setup page ships. If it drops noticeably, drop the
+fallback link at the chat cap (5) before doing anything else.
 
 ## Abuse and cost guardrails
 
