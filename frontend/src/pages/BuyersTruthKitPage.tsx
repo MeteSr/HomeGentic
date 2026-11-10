@@ -513,6 +513,9 @@ export default function BuyersTruthKitPage() {
   const [kit, setKit]           = useState<KitResponse | null>(null);
   const [error, setError]       = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  // Loading-step timers, cleared on unmount so none fires after the page is gone.
+  const stepTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => stepTimers.current.forEach(clearTimeout), []);
 
   // Decode shared URL
   useEffect(() => {
@@ -544,7 +547,8 @@ export default function BuyersTruthKitPage() {
       { label: "Analyzing seller claims...", delay: 3800 },
       { label: "Generating your kit...",     delay: 5200 },
     ];
-    steps.forEach(({ delay }, i) => setTimeout(() => setLoadStep(i + 1), delay));
+    stepTimers.current.forEach(clearTimeout);
+    stepTimers.current = steps.map(({ delay }, i) => setTimeout(() => setLoadStep(i + 1), delay));
 
     try {
       const result = await fetchKit(addr, yr, cl);
