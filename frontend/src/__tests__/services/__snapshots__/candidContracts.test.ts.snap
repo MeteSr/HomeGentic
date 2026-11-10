@@ -108,6 +108,7 @@ deleteMyData(0) -> (1)
 disableMyCalendarFeed(0) -> (1)
 dismissEmailDraft(1) -> (1)
 enableMyCalendarFeed(0) -> (1)
+execute(1) -> (1) [composite_query]
 getApiDoc(0) -> (1) [query]
 getCalendarFeed(1) -> (1) [query]
 getCertificationData(1) -> (1) [query]
@@ -138,6 +139,7 @@ removeInboxRelay(1) -> (1)
 removeJobPaper(2) -> (1)
 resetMyCalendarFeed(0) -> (1)
 resetMyInboxToken(0) -> (1)
+schema(0) -> (1) [query]
 setFeeCanisterId(1) -> (1)
 setJobCostCategory(2) -> (1)
 setPermitStatus(2) -> (1)

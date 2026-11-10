@@ -206,6 +206,7 @@ describe("job IDL factory", () => {
       "disableMyCalendarFeed",
       "dismissEmailDraft",
       "enableMyCalendarFeed",
+      "execute",
       "getApiDoc",
       "getCalendarFeed",
       "getCertificationData",
@@ -236,6 +237,7 @@ describe("job IDL factory", () => {
       "removeJobPaper",
       "resetMyCalendarFeed",
       "resetMyInboxToken",
+      "schema",
       "setFeeCanisterId",
       "setJobCostCategory",
       "setPermitStatus",
@@ -270,6 +272,8 @@ describe("job IDL factory", () => {
       // getReferralJobs is an admin-only update call returning a Result
       "getUnattestedJobIds",
       "relayCheckInboxToken",
+      "schema",
+      // execute (OQL) is a composite query, like getJobsForProperties
     ]);
   });
 

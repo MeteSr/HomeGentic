@@ -23,6 +23,7 @@ import Random    "mo:core/Random";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import Runtime   "mo:core/Runtime";
 import ServiceTypes "../shared/ServiceType";
 import Notify       "../shared/Notify";
 import Index        "../shared/Index";
@@ -34,6 +35,8 @@ import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
 import ApiDoc "ApiDoc";
+import Oql "../shared/Oql";
+import JobOql "JobOql";
 
 persistent actor Job {
 
@@ -697,6 +700,95 @@ persistent actor Job {
       };
     };
     out.toArray()
+  };
+
+  // ─── OQL (schema + execute) for AI assistants ─────────────────────────────
+  // ICP MCP's query convention (shared/Oql.mo, service-discoverability skill
+  // Layer 4): an assistant asks open-ended questions about the household's
+  // record ("what did I spend on HVAC since 2023?") in one call that filters
+  // and adds up here. Read-only. Rows come only from homes the caller has a
+  // role on (property.getAccessRoles), as getJobsForProperties allows.
+
+  /// The OQL catalogue: entity "jobs", its fields and their types.
+  public query func schema() : async Text { Oql.schemaJson(JobOql.ENTITIES) };
+
+  private func jobStatusText(s : JobStatus) : Text {
+    switch s {
+      case (#Pending) "Pending";
+      case (#InProgress) "InProgress";
+      case (#Completed) "Completed";
+      case (#Verified) "Verified";
+      case (#PendingHomeownerApproval) "PendingHomeownerApproval";
+      case (#RejectedByHomeowner) "RejectedByHomeowner";
+    }
+  };
+
+  private func optText(t : ?Text) : Oql.CellValue = switch t { case (?x) #text(x); case null #null_ };
+
+  /// A job as a row of JobOql.JOBS, in its field order.
+  private func jobRow(j : Job) : Oql.Row {
+    [
+      #text(j.id),
+      #text(j.propertyId),
+      #text(j.title),
+      #text(ServiceTypes.toText(j.serviceType)),
+      #text(j.description),
+      optText(j.contractorName),
+      #int(j.amount),
+      #text(Oql.isoDate(j.completedDate)),
+      #int(Oql.yearOfNs(j.completedDate)),
+      optText(j.permitNumber),
+      switch (permitStatuses.get(j.id)) {
+        case (?#Open) #text("Open"); case (?#Closed) #text("Closed"); case (?#Expired) #text("Expired"); case null #null_;
+      },
+      switch (j.warrantyMonths) { case (?m) #int(m); case null #null_ },
+      #bool(j.isDiy),
+      #text(jobStatusText(j.status)),
+      #bool(j.verified),
+      #bool(j.homeownerSigned),
+      #bool(j.contractorSigned),
+      switch (costCategories.get(j.id)) {
+        case (?#Improvement) #text("Improvement"); case (?#Repair) #text("Repair"); case null #null_;
+      },
+    ]
+  };
+
+  /// Runs one OQL query (a JSON object, see `schema()`) over the jobs of the
+  /// caller's homes. Homes come from a propertyId eq/in condition when the
+  /// query has one, otherwise from the jobs the caller recorded as homeowner;
+  /// either way only homes the caller has a role on are read. A malformed
+  /// query traps with a message starting "OQL:", as the convention expects.
+  public composite query(msg) func execute(oql : Text) : async Oql.Result {
+    let empty : Oql.Result = { hasMore = false; rows = [] };
+    if (msg.caller.isAnonymous()) return empty;
+    let q = switch (Oql.parse(oql, JobOql.ENTITIES)) {
+      case (#ok(q)) q;
+      case (#err(m)) Runtime.trap("OQL: " # m);
+    };
+    let named = Oql.textHints(q, "propertyId");
+    let homes = List.empty<Text>();
+    func addHome(id : Text) { if (homes.find(func h = h == id) == null) homes.add(id) };
+    if (named.size() > 0) {
+      for (id in named.values()) addHome(id);
+    } else {
+      for (j in Index.records(jobsByHomeowner, msg.caller.toText(), jobs)) addHome(j.propertyId);
+    };
+    if (homes.size() > JobOql.MAX_HOMES)
+      Runtime.trap("OQL: this covers " # homes.size().toText() # " homes; pin at most " # JobOql.MAX_HOMES.toText() # " with a propertyId condition");
+    let ids = homes.toArray();
+    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller) or Text.size(propCanisterId) == 0;
+    let roles : [?Canisters.AccessRole] =
+      if (open or ids.size() == 0) [] else {
+        try { await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller) }
+        catch (_) { Runtime.trap("OQL: the property canister didn't answer, so access can't be checked; try again later") }
+      };
+    let rows = List.empty<Oql.Row>();
+    for (i in ids.keys()) {
+      if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
+        for (j in Index.records(jobsByProperty, ids[i], jobs)) rows.add(jobRow(j));
+      };
+    };
+    Oql.run(q, rows.values())
   };
 
   // ─── #716: permit close-out and lien waivers ──────────────────────────────

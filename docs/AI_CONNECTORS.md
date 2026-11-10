@@ -20,6 +20,11 @@ ICP MCP manifest is live there):
   separate from the 30-a-minute write limit, which `bills` now has too.
 - The chat-cap message no longer promises Pro "unlimited answers" (Pro chat is capped at 200 a day).
 
+OQL on the job canister (2026-11-10): `job.schema()` and `job.execute(oql)` let an assistant ask open-ended
+questions about the maintenance record (spend by kind of work, jobs since a date, open permits, improvements)
+in one composite-query call that works in "Questions only" sessions and costs nothing. Bills and property are
+next, then a generic read tool for the in-app assistant on top of the same queries.
+
 Owner: the registry request (recommendation 1) is drafted for mcp@dfinity.org; send it after the first mainnet
 deploy. Not built yet: the onboarding card and email (6), in-context prompts on other pages (7), mobile (9).
 
