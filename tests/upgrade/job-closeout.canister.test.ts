@@ -6,7 +6,7 @@
  *       or clear it; viewers and strangers can't; open proposals can't be set
  *  JC.2 the household reads close-outs for its homes; a stranger reads nothing
  *  JC.3 the owner files a Notice of Commencement and a final lien waiver
- *       (vault document ids) on a job and removes one again
+ *       (vault documents of those types) on a job and removes one again
  *  JC.4 a DIY job takes no lien waiver; at most 10 papers per job
  *  JC.5 the contractor who signed a job may upload its final waiver straight
  *       into the home's document vault (photo.beginWaiverUpload, vouched for
@@ -96,6 +96,20 @@ describe("job close-out: permit status and lien waivers", () => {
     const token = ok<string>(await as("job", owner).createInviteToken(jobId, ""));
     ok(await as("job", who).redeemInviteToken(token, "Ray Roofer", "407-555-0100", "ray@example.com", []));
   }
+  /** A vault document on the home, uploaded on-chain by the owner (10 a minute). */
+  let docsThisMinute = 0;
+  async function vaultDoc(description: string) {
+    if (++docsThisMinute > 10) {
+      await pic.advanceTime(61_000);
+      await pic.tick();
+      docsThisMinute = 1;
+    }
+    const bytes = new Uint8Array([3, 1, ++n % 256, Math.floor(n / 256)]);
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    return ok<any>(
+      await as("photo", owner).uploadPhoto(`docs_${propertyId}`, propertyId, { PostConstruction: null }, description, hash, bytes),
+    ).id as string;
+  }
   const fileHash = () => {
     const bytes = new Uint8Array([9, 1, ++n % 256, Math.floor(n / 256)]);
     return { hash: createHash("sha256").update(bytes).digest("hex"), size: BigInt(bytes.length) };
@@ -122,6 +136,7 @@ describe("job close-out: permit status and lien waivers", () => {
     }
     await wire("property", "setPaymentCanisterId", "payment");
     await wire("job", "setPropertyCanisterId", "property");
+    await wire("job", "setPhotoCanisterId", "photo");
     await wire("photo", "setPropertyCanisterId", "property");
     await wire("photo", "setPaymentCanisterId", "payment");
     await wire("photo", "setJobCanisterId", "job");
@@ -201,8 +216,10 @@ describe("job close-out: permit status and lien waivers", () => {
   });
 
   it("JC.3 files a Notice of Commencement and a waiver on a job and removes one", async () => {
-    ok(await as("job", owner).addJobPaper(roofJob, { NoticeOfCommencement: null }, "PHOTO_NOC"));
-    ok(await as("job", manager).addJobPaper(fenceJob, { FinalLienWaiver: null }, "PHOTO_W1"));
+    const noc = await vaultDoc(`[NOC] ${roofJob}|noc.pdf`);
+    const w1 = await vaultDoc(`[LienWaiver] ${fenceJob}|waiver.pdf`);
+    ok(await as("job", owner).addJobPaper(roofJob, { NoticeOfCommencement: null }, noc));
+    ok(await as("job", manager).addJobPaper(fenceJob, { FinalLienWaiver: null }, w1));
     expect(errKey(await as("job", viewer).addJobPaper(fenceJob, { FinalLienWaiver: null }, "PHOTO_X"))).toBe(
       "NotAuthorized",
     );
@@ -212,29 +229,31 @@ describe("job close-out: permit status and lien waivers", () => {
     const papers = seen.get(roofJob).papers as any[];
     expect(papers).toHaveLength(1);
     expect(tag(papers[0].kind)).toBe("NoticeOfCommencement");
-    expect(papers[0].photoId).toBe("PHOTO_NOC");
+    expect(papers[0].photoId).toBe(noc);
     expect(papers[0].addedBy.toText()).toBe(owner.getPrincipal().toText());
     expect(seen.get(roofJob).permitStatus).toHaveLength(1);
 
     // Filing the same document again replaces it instead of adding a copy.
-    ok(await as("job", owner).addJobPaper(fenceJob, { FinalLienWaiver: null }, "PHOTO_W1"));
+    ok(await as("job", owner).addJobPaper(fenceJob, { FinalLienWaiver: null }, w1));
     expect((await closeouts(owner)).get(fenceJob).papers).toHaveLength(1);
 
-    ok(await as("job", owner).removeJobPaper(fenceJob, "PHOTO_W1"));
+    ok(await as("job", owner).removeJobPaper(fenceJob, w1));
     expect((await closeouts(owner)).has(fenceJob)).toBe(false);
-    expect(errKey(await as("job", owner).removeJobPaper(fenceJob, "PHOTO_W1"))).toBe("NotFound");
+    expect(errKey(await as("job", owner).removeJobPaper(fenceJob, w1))).toBe("NotFound");
   });
 
   it("JC.4 takes no lien waiver on a DIY job and keeps at most 10 papers per job", async () => {
-    expect(errKey(await as("job", owner).addJobPaper(paintJob, { FinalLienWaiver: null }, "PHOTO_D"))).toBe(
+    const diyWaiver = await vaultDoc(`[LienWaiver] ${paintJob}|waiver.pdf`);
+    expect(errKey(await as("job", owner).addJobPaper(paintJob, { FinalLienWaiver: null }, diyWaiver))).toBe(
       "InvalidInput",
     );
-    for (let i = 0; i < 9; i++)
-      ok(await as("job", owner).addJobPaper(roofJob, { NoticeOfCommencement: null }, `P_${i}`));
-    expect(errKey(await as("job", owner).addJobPaper(roofJob, { NoticeOfCommencement: null }, "P_10"))).toBe(
+    const nocs: string[] = [];
+    for (let i = 0; i < 10; i++) nocs.push(await vaultDoc(`[NOC] ${roofJob}|noc-${i}.pdf`));
+    for (let i = 0; i < 9; i++) ok(await as("job", owner).addJobPaper(roofJob, { NoticeOfCommencement: null }, nocs[i]));
+    expect(errKey(await as("job", owner).addJobPaper(roofJob, { NoticeOfCommencement: null }, nocs[9]))).toBe(
       "InvalidInput",
     );
-    for (let i = 0; i < 9; i++) ok(await as("job", owner).removeJobPaper(roofJob, `P_${i}`));
+    for (let i = 0; i < 9; i++) ok(await as("job", owner).removeJobPaper(roofJob, nocs[i]));
   });
 
   it("JC.5 lets the contractor who signed a job upload and file its final waiver", async () => {

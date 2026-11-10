@@ -161,6 +161,10 @@ initiateTransfer() + claimTransfer()  → owner changes, TransferRecord appended
 isActive flag                 → soft-delete; property never hard-deleted
 ```
 
+**What a transfer hands over (security audit 2026-11-10).** A claimed transfer (a sale) moves the home's record: jobs, job photos, work-record documents (receipts, invoices, permits, inspections, warranties, lien waivers, Notices of Commencement, surveys, elevation certificates, manuals), rooms and bills. The property canister drops the previous household's insurance policy, claims, inventory, home warranty plan, mortgage, tax years and house guide, and calls `photo.propertyTransferred`, which keeps their closing, title, deed, insurance, HOA and "Other" documents and their insurance-claim (`claim_<id>`) and inventory (`inventory_<id>`) photos private to whoever uploaded them. Those files no longer count toward the home's limits. A completed successor claim is different (Mete, 2026-11-10): the heir inherits all of it, so nothing is dropped and photo isn't told. Both still clear delegated access and the successor, and start a fresh move-in plan.
+
+**Per-home record caps.** Insurance claims, claim log entries, inventory items, architectural review requests, special assessments and home warranty claims are capped per home by the owner's plan: Free 10 / 50 per claim / 100 / 25 / 25 / 25, Pro 50 / 200 / 500 / 100 / 100 / 100.
+
 **Duplicate Address Conflict Window (7 days)**
 
 When User A registers an address, a 7-day window opens. During this window, User B's attempt to register the same address returns `#AddressConflict(expiryTimestamp)`. After the window, User B can register and displaces User A in the address index. Whichever owner first reaches `#Basic` or `#Premium` verification locks the address permanently — subsequent registrations then return `#DuplicateAddress`.

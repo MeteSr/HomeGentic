@@ -1034,6 +1034,13 @@ if [ -n "$PROPERTY_ID" ]   && [ -n "$LISTING_ID" ]; then
   echo "  Wiring property -> listing (a claimed transfer takes the FSBO listing down)..."
   bg_call property   setListingCanisterId    "(principal \"$LISTING_ID\")"   -e "$ENV"
 fi
+if [ -n "$PROPERTY_ID" ]   && [ -n "$PHOTO_ID" ]; then
+  echo "  Wiring photo -> property and job (a transfer keeps personal papers private; close-out papers are checked)..."
+  bg_call property   setPhotoCanisterId      "(principal \"$PHOTO_ID\")"   -e "$ENV"
+fi
+if [ -n "$JOB_ID" ]        && [ -n "$PHOTO_ID" ]; then
+  bg_call job        setPhotoCanisterId      "(\"$PHOTO_ID\")"             -e "$ENV"
+fi
 if [ -n "$MONITORING_ID" ] && [ -n "$PROPERTY_ID" ] && [ -n "$JOB_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PAYMENT_ID" ]; then
   echo "  Wiring product metrics -> monitoring..."
   bg_call monitoring setProductCanisterIds \

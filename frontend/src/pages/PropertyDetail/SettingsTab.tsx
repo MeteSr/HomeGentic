@@ -168,7 +168,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
           {transferStep === "idle" && (
             <>
               <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", fontWeight: 300, lineHeight: 1.6 }}>
-                Selling? Give the buyer a secure link at closing. When they sign in and accept it, the home's record becomes theirs: maintenance history, photos, documents, rooms and appliances, utility bills, and verification status. You'll no longer see the home in your account. Remove any documents you don't want them to have, such as loan papers, from the Documents tab first.
+                Selling? Give the buyer a secure link at closing. When they sign in and accept it, the home's record becomes theirs: maintenance history, job photos, work records such as receipts, permits, warranties and lien waivers, rooms and appliances, utility bills, and verification status. You'll no longer see the home in your account. Your closing papers, title, deed, insurance, HOA and &quot;Other&quot; documents, and insurance-claim and inventory photos stay private to whoever uploaded them.
               </p>
               <p data-testid="handoff-pro-note" style={{ fontSize: "0.8rem", color: "var(--hg-ink)", lineHeight: 1.6 }}>
                 {verified
@@ -278,7 +278,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
         {section("Successor")}
         <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
           <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", fontWeight: 300, lineHeight: 1.6 }}>
-            Name the person who can ask for this home's record if you die or the home passes to a trust or heir. A claim needs a document HomeGentic reviews and a 30-day wait, and you can cancel it. HomeGentic passes on the record only, not the property.
+            Name the person who can ask for this home's record if you die or the home passes to a trust or heir. A claim needs a document HomeGentic reviews and a 30-day wait, and you can cancel it. Your successor gets everything a buyer would, plus your closing, title, insurance, HOA and other personal documents, insurance claims and home inventory, house guide, warranty, mortgage and tax records. HomeGentic passes on the record only, not the property.
           </p>
           <button
             onClick={() => navigate(`/properties/${property.id}/successor`)}

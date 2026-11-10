@@ -6,6 +6,7 @@
 
 import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
+import Char      "mo:core/Char";
 import Debug     "mo:core/Debug";
 import Map       "mo:core/Map";
 import Int       "mo:core/Int";
@@ -159,6 +160,14 @@ persistent actor Photo {
   /// canister's heap) stay on while off-chain storage is being rolled out;
   /// an admin turns them off with setOnChainUploadsEnabled once R2 is live.
   private var onChainUploadsEnabled : Bool = true;
+  /// M-1 (security audit 2026-11-10): photos that stay private to their
+  /// uploader after the home changed hands. When the property canister
+  /// reports a transfer (propertyTransferred), the previous household's
+  /// personal papers (see isPersonal) are added here; from then on only the
+  /// uploader and admins can list, read, verify or delete them, and they no
+  /// longer count toward the home's limits. A new stable map with an inline
+  /// initializer; Photo itself is unchanged.
+  private let sealedIds = Map.empty<Text, ()>();
 
   // Secondary indexes (photo ids by jobId / propertyId), rebuilt on every upgrade.
   private transient let photosByJob      = Index.build(photoStore, func(p) { ?p.jobId });
@@ -202,6 +211,7 @@ persistent actor Photo {
   private func deletePhotoRecord(p: Photo) {
     photoStore.remove(p.id);
     offChainIds.remove(p.id);
+    sealedIds.remove(p.id);
     Index.remove(photosByJob, p.jobId, p.id);
     Index.remove(photosByProperty, p.propertyId, p.id);
     addUsage(p.owner, -1, -p.size);
@@ -258,6 +268,49 @@ persistent actor Photo {
 
   private func listingJobId(propertyId: Text) : Text { "LISTING_" # propertyId };
 
+  /// The type of a vault document, from its description "[Type] filename"
+  /// (frontend documentVault.ts). A vault document with no "[…]" prefix is an
+  /// older receipt. Null for anything that isn't in the home's vault.
+  private func docTypeOf(p : Photo) : ?Text {
+    if (not isDocumentJob(p.jobId, p.propertyId)) return null;
+    let d = p.description;
+    if (not d.startsWith(#char '[')) return ?"Receipt";
+    let inner = d.chars().drop(1);
+    var t = "";
+    for (c in inner) {
+      if (c == ']') return ?t;
+      if (t.size() >= 40) return ?"Other";
+      t #= c.toText();
+    };
+    ?"Other"
+  };
+
+  /// Vault document types that describe the house and go with it when it
+  /// changes hands. Every other type (closing papers, title, deed, insurance,
+  /// HOA, "other", and any type this canister doesn't know) is personal.
+  private transient let HOME_DOC_TYPES : [Text] = [
+    "Receipt", "Invoice", "Permit", "Inspection", "Warranty", "LienWaiver", "NOC",
+    "Survey", "Elevation", "Manual",
+  ];
+
+  /// M-1: whether a file is the household's own paperwork rather than part
+  /// of the home's record: personal vault documents, and insurance-claim
+  /// ("claim_<id>") and contents-inventory ("inventory_<id>") photos.
+  private func isPersonal(p : Photo) : Bool {
+    if (p.jobId.startsWith(#text "claim_") or p.jobId.startsWith(#text "inventory_")) return true;
+    switch (docTypeOf(p)) {
+      case null false;
+      case (?t) HOME_DOC_TYPES.find(func x = x == t) == null;
+    }
+  };
+
+  private func isSealed(p : Photo) : Bool { sealedIds.containsKey(p.id) };
+
+  /// M-1: a sealed photo is hidden from `reader` unless they uploaded it or are an admin.
+  private func sealedFrom(p : Photo, reader : Principal) : Bool {
+    isSealed(p) and p.owner != reader and not isAdmin(reader)
+  };
+
   /// Home document vault (the Documents tab): files are stored under the
   /// synthetic jobId "docs_<propertyId>"; "receipts_<propertyId>" is the
   /// older id for the same tab. Documents have their own per-home limit
@@ -289,6 +342,7 @@ persistent actor Photo {
       #getListingPhotoDataBatch : Any;
       #getMetrics : Any;
       #getMyOffChainPhotoIds : Any;
+      #getPaperDocument : Any;
       #getOnChainUploadsEnabled : Any;
       #getPhoto : Any;
       #getPhotoData : Any;
@@ -301,6 +355,7 @@ persistent actor Photo {
       #guidePhotoAccess : Any;
       #pause : Any;
       #photoAccess : Any;
+      #propertyTransferred : Any;
       #removeAdmin : Any;
       #removePhotoRelay : Any;
       #setAuditCanisterId : Any;
@@ -405,7 +460,7 @@ persistent actor Photo {
   /// toward a job's quota, so photos someone files under another property's
   /// job, room or listing id can't use up that property's quota.
   private func countByJob(jobId: Text, propertyId: Text) : Nat {
-    Index.records(photosByJob, jobId, photoStore).filter(func(p : Photo) : Bool { p.propertyId == propertyId }).size()
+    Index.records(photosByJob, jobId, photoStore).filter(func(p : Photo) : Bool { p.propertyId == propertyId and not isSealed(p) }).size()
   };
 
   /// Documents in the home's vault (both ids the Documents tab has used).
@@ -416,7 +471,7 @@ persistent actor Photo {
   /// The home's photos, leaving out its documents, for the per-home photo limit.
   private func countPhotosOnProperty(propertyId: Text) : Nat {
     Index.records(photosByProperty, propertyId, photoStore)
-      .filter(func p = not isDocumentJob(p.jobId, propertyId))
+      .filter(func p = not isDocumentJob(p.jobId, propertyId) and not isSealed(p))
       .size()
   };
 
@@ -756,7 +811,7 @@ persistent actor Photo {
       case (?p) {
         let isPublic = isListingPhoto(p);
         let canRead = if (isPublic or reader == p.owner or isAdmin(reader)) { true }
-          else if (reader.isAnonymous() or Text.size(propCanisterId) == 0) { false }
+          else if (isSealed(p) or reader.isAnonymous() or Text.size(propCanisterId) == 0) { false }
           else {
             let propActor = Canisters.property(propCanisterId);
             try { await propActor.isAuthorized(p.propertyId, reader, false) } catch (_) { false }
@@ -769,7 +824,7 @@ persistent actor Photo {
   /// #725: whether a photo may be shown through a house guide at all.
   /// Documents never are, and nothing is without the property canister.
   private func guideEligible(p : Photo) : Bool {
-    not isDocumentJob(p.jobId, p.propertyId) and Text.size(propCanisterId) > 0
+    not isDocumentJob(p.jobId, p.propertyId) and not isSealed(p) and Text.size(propCanisterId) > 0
   };
 
   /// #725: for the voice Worker (a photo relay): photoAccess for someone
@@ -807,6 +862,66 @@ persistent actor Photo {
     }
   };
 
+  // ─── Close-out papers (M-2) and transfers (M-1), security audit 2026-11-10 ──
+
+  /// What job.addJobPaper checks before filing a document on a job.
+  public type PaperDocument = { propertyId : Text; docType : Text };
+
+  /// M-2: the home and type of a vault document, for the job canister to
+  /// check a close-out paper against (a final lien waiver must be a
+  /// "[LienWaiver]" document in the job's own home's vault). Null for
+  /// anything that isn't a vault document, for documents kept private after
+  /// a transfer, and for callers other than the job canister and admins.
+  public query(msg) func getPaperDocument(photoId: Text) : async ?PaperDocument {
+    if (msg.caller.toText() != jobCanisterId and not isAdmin(msg.caller)) return null;
+    switch (photoStore.get(photoId)) {
+      case null null;
+      case (?p) {
+        if (isSealed(p)) return null;
+        switch (docTypeOf(p)) {
+          case null null;
+          case (?t) ?{ propertyId = p.propertyId; docType = t };
+        }
+      };
+    }
+  };
+
+  /// M-2: when a waiver or Notice of Commencement leaves the vault, the job
+  /// canister takes it off the job it was filed on. Fire-and-forget: the
+  /// delete stands whatever the job canister answers.
+  private func paperGone(p : Photo) : async* () {
+    if (jobCanisterId == "") return;
+    switch (docTypeOf(p)) {
+      case (?"LienWaiver" or ?"NOC") {
+        let jobActor = actor (jobCanisterId) : actor {
+          paperDocumentDeleted : shared (Text, Text) -> async { #ok : Nat; #err : Any };
+        };
+        try { ignore await jobActor.paperDocumentDeleted(p.id, p.propertyId) } catch _ {
+          Debug.print("[photo] paperDocumentDeleted call failed");
+        };
+      };
+      case _ {};
+    }
+  };
+
+  /// M-1: the property canister reports that `propertyId` changed hands (a
+  /// sale or a completed successor claim). The previous household's personal
+  /// papers on it (closing, title, deed, insurance, HOA and other documents,
+  /// insurance-claim and inventory photos) become private to whoever uploaded
+  /// them; work records and job photos stay with the home. Returns how many
+  /// files were sealed. The property canister and admins only.
+  public shared(msg) func propertyTransferred(propertyId: Text) : async Result.Result<Nat, Error> {
+    if (msg.caller.toText() != propCanisterId and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    var sealed = 0;
+    for (p in Index.records(photosByProperty, propertyId, photoStore)) {
+      if (isPersonal(p) and not isSealed(p)) {
+        sealedIds.add(p.id, ());
+        sealed += 1;
+      };
+    };
+    #ok(sealed)
+  };
+
   /// Register a principal (the voice Worker) that may call photoAccess.
   public shared(msg) func addPhotoRelay(p: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
@@ -830,7 +945,11 @@ persistent actor Photo {
     switch (photoStore.get(photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
-        if (not isAdmin(msg.caller)) {
+        // The uploader may always read their own file (M-1: a seller keeps
+        // their papers after the home changes hands); a sealed file is
+        // theirs alone.
+        if (not isAdmin(msg.caller) and p.owner != msg.caller) {
+          if (isSealed(p)) return #err(#NotAuthorized);
           switch (await* checkPropertyAuth(p.propertyId, p.owner, msg.caller, false)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         };
         #ok(p)
@@ -845,7 +964,11 @@ persistent actor Photo {
     switch (photoStore.get(photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
-        if (not isAdmin(msg.caller)) {
+        // The uploader may always read their own file (M-1: a seller keeps
+        // their papers after the home changes hands); a sealed file is
+        // theirs alone.
+        if (not isAdmin(msg.caller) and p.owner != msg.caller) {
+          if (isSealed(p)) return #err(#NotAuthorized);
           switch (await* checkPropertyAuth(p.propertyId, p.owner, msg.caller, false)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         };
         #ok(p.data)
@@ -880,7 +1003,8 @@ persistent actor Photo {
       switch (photoStore.get(id)) {
         case null {};
         case (?p) {
-          let ok = if (admin or isListingPhoto(p)) { true } else {
+          let ok = if (admin or isListingPhoto(p) or p.owner == msg.caller) { true }
+            else if (isSealed(p)) { false } else {
             switch (allowed.get(p.propertyId)) {
               case (?known) { known };
               case null {
@@ -944,7 +1068,7 @@ persistent actor Photo {
     let out = List.empty<PhotoMeta>();
     for (p in candidates.values()) {
       let ok = if (admin or p.owner == caller) { true }
-        else if (caller.isAnonymous() or Text.size(propCanisterId) == 0) { false }
+        else if (isSealed(p) or caller.isAnonymous() or Text.size(propCanisterId) == 0) { false }
         else {
           switch (allowed.get(p.propertyId)) {
             case (?known) { known };
@@ -997,6 +1121,7 @@ persistent actor Photo {
     switch (photoStore.get(photoId)) {
       case null { #err(#NotFound) };
       case (?existing) {
+        if (sealedFrom(existing, msg.caller)) return #err(#NotAuthorized);
         if (not isAdmin(msg.caller)) {
           switch (await* checkPropertyAuth(existing.propertyId, existing.owner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         };
@@ -1025,11 +1150,18 @@ persistent actor Photo {
     switch (photoStore.get(photoId)) {
       case null { #err(#NotFound) };
       case (?existing) {
-        if (not isAdmin(msg.caller)) {
+        // M-1: a sealed file is its uploader's alone (they may still delete
+        // it, though they no longer have a role on the home).
+        if (isSealed(existing)) {
+          if (existing.owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+        } else if (not isAdmin(msg.caller)) {
           switch (await* checkPropertyAuth(existing.propertyId, existing.owner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
         };
+        // Re-read after the await: a concurrent delete may have removed it.
+        if (photoStore.get(photoId) == null) return #err(#NotFound);
         deletePhotoRecord(existing);
         dropHash(existing);
+        await* paperGone(existing);
         #ok(())
       };
     }
@@ -1064,6 +1196,8 @@ persistent actor Photo {
       dropHash(p);
     };
     usageByOwner.remove(msg.caller.toText());
+    // M-2: close-out papers that pointed at these documents come off their jobs.
+    for (p in mine.values()) await* paperGone(p);
     #ok(mine.size())
   };
 
