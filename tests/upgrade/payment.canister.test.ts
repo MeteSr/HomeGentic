@@ -91,6 +91,49 @@ describe("payment: Stripe relay, gifts and agent credits", () => {
     });
   });
 
+  // X-2 (security review 2026-11-11): a Stripe event may only end a plan
+  // Stripe sold. Gifts, ICP payments and admin grants are left alone.
+  describe("Stripe downgrades (X-2)", () => {
+    it("X2.1 only admins and relays call stripeDowngrade; it ends the plan its subscription set", async () => {
+      const u = user();
+      const exp = (await nowNs()) + 300n * DAY_NS;
+      ok(await as(relay).stripeActivateSubscription(u.getPrincipal(), { Pro: null }, exp, `sub:d${n}:1`));
+      expect(errOf(await as(u).stripeDowngrade(u.getPrincipal(), `d${n}`))).toBe("NotAuthorized");
+      expect(ok(await as(relay).stripeDowngrade(u.getPrincipal(), `d${n}`))).toBe(true);
+      expect(tierOf(await pay.getTierForPrincipal(u.getPrincipal()))).toBe("Free");
+    });
+
+    it("X2.2 another subscription's event leaves the plan alone", async () => {
+      const u = user();
+      const exp = (await nowNs()) + 300n * DAY_NS;
+      ok(await as(relay).stripeActivateSubscription(u.getPrincipal(), { Pro: null }, exp, `sub:new${n}:1`));
+      expect(ok(await as(relay).stripeDowngrade(u.getPrincipal(), `old${n}`))).toBe(false);
+      expect(tierOf(await pay.getTierForPrincipal(u.getPrincipal()))).toBe("Pro");
+    });
+
+    it("X2.3 a redeemed gift survives the giver's or recipient's old Stripe events", async () => {
+      const u = user();
+      const t0 = await nowNs();
+      ok(await as(relay).stripeActivateSubscription(u.getPrincipal(), { Pro: null }, t0 + 10n * DAY_NS, `sub:gx${n}:1`));
+      const t = token();
+      ok(await as(relay).stripeRecordGift(t, { Pro: null }, { Yearly: null }, GIFT_META));
+      ok(await as(u).redeemGift(t));
+      expect(ok(await as(relay).stripeDowngrade(u.getPrincipal(), `gx${n}`))).toBe(false);
+      ok(await as(relay).adminActivateStripeSubscription(u.getPrincipal(), { Free: null }, 0n));
+      expect(tierOf(await pay.getTierForPrincipal(u.getPrincipal()))).toBe("Pro");
+    });
+
+    it("X2.4 an admin grant survives a relay downgrade", async () => {
+      const u = user();
+      const t0 = await nowNs();
+      ok(await as(relay).stripeActivateSubscription(u.getPrincipal(), { Pro: null }, t0 + 10n * DAY_NS, `sub:ad${n}:1`));
+      ok(await as(admin).adminActivateStripeSubscription(u.getPrincipal(), { Pro: null }, 12n));
+      expect(ok(await as(relay).stripeDowngrade(u.getPrincipal(), `ad${n}`))).toBe(false);
+      ok(await as(relay).adminActivateStripeSubscription(u.getPrincipal(), { Free: null }, 0n));
+      expect(tierOf(await pay.getTierForPrincipal(u.getPrincipal()))).toBe("Pro");
+    });
+  });
+
   describe("stripeActivateSubscription", () => {
     it("refuses outsiders, free tiers and out-of-range expiries", async () => {
       const u = user();

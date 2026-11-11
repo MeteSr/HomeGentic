@@ -242,4 +242,20 @@ describe("payment: paying in ICP", () => {
     await expect(as(anon as any).subscribe({ Pro: null })).rejects.toThrow();
     await expect(as(anon as any).getPriceQuote({ Pro: null })).rejects.toThrow();
   });
+
+  it("SUB.9 (X-2) an ICP plan ends Stripe's say over it, and a same-tier payment adds a year", async () => {
+    await reset();
+    await expireRate();
+    const relay = createIdentity(`sub-relay-${++n}`);
+    ok(await as(admin).addStripeRelay(relay.getPrincipal()));
+    const u = user();
+    const t0 = await nowNs();
+    ok(await as(relay).stripeActivateSubscription(u.getPrincipal(), { Pro: null }, t0 + 30n * 24n * 60n * MIN_NS, `sub:icp${n}:1`));
+    const sub = ok(await as(u).subscribe({ Pro: null })) as any;
+    // Paid in ICP while Pro was running: the year starts where Stripe's period ends.
+    expect(BigInt(sub.expiresAt)).toBeGreaterThan(t0 + YEAR_NS + 29n * 24n * 60n * MIN_NS);
+    expect(ok(await as(relay).stripeDowngrade(u.getPrincipal(), `icp${n}`))).toBe(false);
+    ok(await as(relay).adminActivateStripeSubscription(u.getPrincipal(), { Free: null }, 0n));
+    expect(tierOf((ok(await as(u).getMySubscription()) as any).tier)).toBe("Pro");
+  });
 });

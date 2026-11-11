@@ -20,13 +20,13 @@ import { HOMEGENTIC_TOOLS } from "../tools";
 import { resolveModel, PROVIDER_JSON_ERROR } from "../provider";
 import { AnthropicProvider } from "../anthropicProvider";
 import {
-  activateInCanister,
   activateSubscriptionUntil,
   consumeAgentCredit,
   grantAgentCreditsOnce,
   recordGift,
   AlreadyConsumedError,
   PAID_TIERS,
+  stripeDowngradeInCanister,
 } from "../paymentCanister";
 import { getCriticalCycleAlerts, checkCycleLevels as getCanisterCycleLevels } from "../monitoringCanister";
 import {
@@ -1731,10 +1731,12 @@ Rules:
 
     try {
       switch (event.type) {
+        // X-2: a cancelled or unpaid subscription ends only the plan that
+        // subscription sold. A gift, ICP payment or admin grant is untouched.
         case "customer.subscription.deleted": {
           const sub = event.data.object;
           const p   = (sub.metadata?.icp_principal ?? "") as string;
-          if (p) await activateInCanister(p, "Free", 0);
+          if (p && sub.id) await stripeDowngradeInCanister(p, sub.id);
           break;
         }
         case "customer.subscription.updated": {
@@ -1742,7 +1744,7 @@ Rules:
           const p   = (sub.metadata?.icp_principal ?? "") as string;
           if (!p) break;
           if (sub.status === "canceled" || sub.status === "unpaid" || sub.status === "incomplete_expired") {
-            await activateInCanister(p, "Free", 0);
+            if (sub.id) await stripeDowngradeInCanister(p, sub.id);
           } else if (sub.status === "active" || sub.status === "trialing") {
             // cancel_at_period_end: the user keeps what they paid for — the
             // canister expiry is already Stripe's period end, and
@@ -1752,11 +1754,16 @@ Rules:
           break;
         }
         case "invoice.payment_failed": {
+          // Stripe retries a failed renewal (Smart Retries); only the last
+          // failure, with no next attempt, ends the plan.
           const inv = event.data.object;
+          if (inv.next_payment_attempt != null) break;
           const p   = (inv.subscription_details?.metadata?.icp_principal
                        ?? inv.parent?.subscription_details?.metadata?.icp_principal
                        ?? inv.metadata?.icp_principal ?? "") as string;
-          if (p) await activateInCanister(p, "Free", 0);
+          const subId = (typeof inv.subscription === "string" ? inv.subscription : inv.subscription?.id)
+                        ?? inv.parent?.subscription_details?.subscription;
+          if (p && typeof subId === "string" && subId) await stripeDowngradeInCanister(p, subId);
           break;
         }
         case "invoice.payment_succeeded":

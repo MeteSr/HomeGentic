@@ -46,6 +46,7 @@ jest.mock("resend", () => ({
 
 jest.mock("../paymentCanister", () => ({
   activateInCanister:        jest.fn().mockResolvedValue(undefined),
+  stripeDowngradeInCanister: jest.fn().mockResolvedValue(true),
   activateSubscriptionUntil: jest.fn().mockResolvedValue(undefined),
   consumeAgentCredit:        jest.fn().mockRejectedValue(new Error("none")),
   grantAgentCreditsOnce:     jest.fn().mockResolvedValue(undefined),
@@ -74,7 +75,7 @@ jest.mock("../src/tier", () => ({ resolveTier: jest.fn().mockResolvedValue("Free
 
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import worker from "../src/index";
-import { activateInCanister, activateSubscriptionUntil, grantAgentCreditsOnce, AlreadyConsumedError } from "../paymentCanister";
+import { activateInCanister, activateSubscriptionUntil, grantAgentCreditsOnce, AlreadyConsumedError, stripeDowngradeInCanister } from "../paymentCanister";
 const MockAlreadyConsumed = AlreadyConsumedError as any;
 
 function fakeKV() {
@@ -263,9 +264,9 @@ describe("WSEC.9 — webhook", () => {
     expect(activateInCanister).not.toHaveBeenCalled();
   });
 
-  it("subscription.deleted downgrades", async () => {
-    await hook({ id: "evt_3", type: "customer.subscription.deleted", data: { object: { metadata: { icp_principal: "user-aaa" } } } });
-    expect(activateInCanister).toHaveBeenCalledWith("user-aaa", "Free", 0);
+  it("subscription.deleted downgrades the plan that subscription sold", async () => {
+    await hook({ id: "evt_3", type: "customer.subscription.deleted", data: { object: { id: "sub_9", metadata: { icp_principal: "user-aaa" } } } });
+    expect(stripeDowngradeInCanister).toHaveBeenCalledWith("user-aaa", "sub_9");
   });
 
   it("checkout.session.completed grants credits once per session", async () => {

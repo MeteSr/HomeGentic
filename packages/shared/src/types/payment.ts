@@ -118,6 +118,7 @@ export interface _SERVICE {
   removeStripeRelay: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   setBootstrapNonce: ActorMethod<[string], undefined>;
   stripeActivateSubscription: ActorMethod<[Principal, Tier, bigint, string], { ok: Subscription } | { err: Error }>;
+  stripeDowngrade: ActorMethod<[Principal, string], { ok: boolean } | { err: Error }>;
   stripeGrantAgentCredits: ActorMethod<[Principal, bigint, string], { ok: bigint } | { err: Error }>;
   stripeRecordGift: ActorMethod<[string, Tier, BillingPeriod, GiftMeta], { ok: null } | { err: Error }>;
   subscribe: ActorMethod<[Tier], { ok: Subscription } | { err: Error }>;
