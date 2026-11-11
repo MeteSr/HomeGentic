@@ -161,7 +161,12 @@ Each run moves about 60 MB. The Worker logs `photo-migration` with `moved`, `fai
 
 ```bash
 icp canister call photo setOffChainMigrationEnabled '(false)' -e ic
+icp canister call photo setOnChainUploadsEnabled '(false)' -e ic   # retire the on-chain path
 ```
+
+Current apps already upload off-chain whenever the Worker stores photos, and a failed upload asks the user to try again instead of falling back on-chain. Turning on-chain uploads off stops older app versions too. Turn it back on only if R2 is down for a long time.
+
+**Orphans.** The same cron sweeps leftovers every hour. Bytes in `photos/` whose photo record is gone move to `orphans/<id>` and are deleted 30 days later. To put one back, copy `orphans/<id>` to `photos/<id>` (`npx wrangler r2 object get` / `put`). Off-chain records whose bytes never arrived are deleted after 7 days (`photo.dropUnuploadedPhotos`). If most of a page looks orphaned, the sweep leaves it alone and logs `photo-sweep … stopped`; that usually means the Worker points at the wrong canister or bucket.
 
 Keep the snapshot until a sample of moved photos loads in the app. Add `-e testnet` (and `--env testnet` for wrangler) to do the same on testnet first.
 

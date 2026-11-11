@@ -1,13 +1,16 @@
 /**
  * packages/shared/src/photoUpload.ts — upload photo bytes off-chain when the
  * voice Worker has storage, on-chain otherwise, never leaving a record with
- * no bytes anywhere.
+ * no bytes anywhere. Once the Worker stores photos, nothing falls back to
+ * on-chain storage (part 4 of the off-chain move): a failed upload is an
+ * error the user can retry.
  *
  * POFF.1 no Worker URL, storage off, or no session → uploadPhoto on-chain
  * POFF.2 storage on → beginUpload, then PUT the bytes with the session header
- * POFF.3 a failed PUT deletes the half-made record and falls back on-chain
+ * POFF.3 a failed PUT deletes the half-made record and returns a retryable
+ *        #Unavailable, without going on-chain
  * POFF.4 a beginUpload refusal (quota, duplicate) is returned as is
- * POFF.5 a canister without beginUpload falls back on-chain
+ * POFF.5 a beginUpload that can't be reached throws, without going on-chain
  * POFF.6 /photos-config is asked once per Worker, not per upload
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -78,11 +81,12 @@ describe("uploadPhotoPreferOffChain", () => {
     expect((put[1] as any).body).toBe(ARGS.bytes);
   });
 
-  it("POFF.3 a failed PUT deletes the record and uploads on-chain", async () => {
+  it("POFF.3 a failed PUT deletes the record and asks for a retry instead of going on-chain", async () => {
     const a = actor();
     const res = await uploadPhotoPreferOffChain(a, ARGS, deps(worker({ putStatus: 503 })));
     expect(a.deletePhoto).toHaveBeenCalledWith("photo-1");
-    expect(res.ok.id).toBe("onchain-1");
+    expect(res).toEqual({ err: { Unavailable: "The photo didn't finish uploading. Please try again." } });
+    expect(a.uploadPhoto).not.toHaveBeenCalled();
   });
 
   it("POFF.4 returns a beginUpload refusal without trying on-chain", async () => {
@@ -92,10 +96,10 @@ describe("uploadPhotoPreferOffChain", () => {
     expect(a.uploadPhoto).not.toHaveBeenCalled();
   });
 
-  it("POFF.5 falls back on-chain when the canister has no beginUpload yet", async () => {
-    const a = actor({ beginUpload: vi.fn(async () => { throw new Error("method not found"); }) });
-    const res = await uploadPhotoPreferOffChain(a, ARGS, deps(worker()));
-    expect(res.ok.id).toBe("onchain-1");
+  it("POFF.5 throws when beginUpload can't be reached, without going on-chain", async () => {
+    const a = actor({ beginUpload: vi.fn(async () => { throw new Error("canister stopped"); }) });
+    await expect(uploadPhotoPreferOffChain(a, ARGS, deps(worker()))).rejects.toThrow("canister stopped");
+    expect(a.uploadPhoto).not.toHaveBeenCalled();
     expect(a.deletePhoto).not.toHaveBeenCalled();
   });
 

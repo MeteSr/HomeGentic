@@ -455,6 +455,30 @@ describe("photoService — off-chain photos", () => {
     expect(mockFetchWithAgentSession).not.toHaveBeenCalled();
   });
 
+  it("skips the canister's batch call for photos the record marks off-chain", async () => {
+    _mockPhotos.push(makeRawPhoto({ id: "off-4", jobId: "job-mixed", data: [], size: BigInt(2), offChain: true }));
+    _mockPhotos.push(makeRawPhoto({ id: "off-5", jobId: "job-mixed", data: [], size: BigInt(2), offChain: true }));
+    const photos = await photoService.getByJob("job-mixed");
+    expect(mockPhotoActor.getPhotoDataBatch).not.toHaveBeenCalled();
+    expect(mockFetchWithAgentSession).toHaveBeenCalledTimes(2);
+    expect(photos.map((p) => p.id)).toEqual(["off-4", "off-5"]);
+  });
+
+  it("asks the batch call only for photos still on-chain", async () => {
+    _mockPhotos.push(makeRawPhoto({ id: "on-1", jobId: "job-mixed", data: [1, 2], size: BigInt(2), offChain: false }));
+    _mockPhotos.push(makeRawPhoto({ id: "off-6", jobId: "job-mixed", data: [], size: BigInt(2), offChain: true }));
+    await photoService.getByJob("job-mixed");
+    expect(mockPhotoActor.getPhotoDataBatch).toHaveBeenCalledWith(["on-1"]);
+    expect(mockFetchWithAgentSession).toHaveBeenCalledWith("http://localhost:8787/photos/off-6", { method: "GET" });
+  });
+
+  it("loads off-chain listing photos without the listing batch call", async () => {
+    _mockPhotos.push(makeRawPhoto({ id: "off-7", jobId: "LISTING_prop-8", data: [], size: BigInt(2), offChain: true }));
+    const [photo] = await photoService.getListingPhotos("prop-8");
+    expect(mockPhotoActor.getListingPhotoDataBatch).not.toHaveBeenCalled();
+    expect(photo.url).toBe("http://localhost:8787/photos/off-7");
+  });
+
   it("doesn't treat an empty on-chain photo as off-chain", async () => {
     _mockPhotos.push(makeRawPhoto({ id: "empty", jobId: "job-off", data: [], size: BigInt(0) }));
     const [photo] = await photoService.getByJob("job-off");

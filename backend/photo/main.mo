@@ -86,6 +86,9 @@ persistent actor Photo {
     verified: Bool;
     approvals: [Principal];
     createdAt: Time.Time;
+    /// The bytes live off-chain (GET /photos/<id> on the voice Worker), so
+    /// getPhotoDataBatch has nothing for this photo. Returned only, never stored.
+    offChain: Bool;
   };
 
   /// Pre-Blob storage shape: `[Nat8]` spends a machine word per byte. Only the
@@ -262,6 +265,7 @@ persistent actor Photo {
       id = p.id; jobId = p.jobId; propertyId = p.propertyId; owner = p.owner;
       phase = p.phase; description = p.description; hash = p.hash; size = p.size;
       verified = p.verified; approvals = p.approvals; createdAt = p.createdAt;
+      offChain = offChainIds.containsKey(p.id);
     }
   };
 
@@ -343,6 +347,7 @@ persistent actor Photo {
       #beginWaiverUpload : Any;
       #confirmOffChain : Any;
       #deleteMyData : Any;
+      #dropUnuploadedPhotos : Any;
       #deletePhoto : Any;
       #getGuidePhotoData : Any;
       #getListingPhotoDataBatch : Any;
@@ -360,6 +365,8 @@ persistent actor Photo {
       #getPhotosByRoom : Any;
       #getPublicListingPhotos : Any;
       #guidePhotoAccess : Any;
+      #knownPhotoIds : Any;
+      #offChainPhotoPage : Any;
       #onChainPhotoPage : Any;
       #pause : Any;
       #photoAccess : Any;
@@ -1245,6 +1252,7 @@ persistent actor Photo {
   /// relay and admins only, while the migration is on.
   public shared(msg) func onChainPhotoPage(after : ?Text) : async Result.Result<MigrationPage, Error> {
     if (not isRelayOrAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not offChainMigrationEnabled) return #err(#InvalidInput(MIGRATION_OFF));
     let items = List.empty<MigrationItem>();
     var bytes = 0;
@@ -1280,6 +1288,7 @@ persistent actor Photo {
   /// only, while the migration is on.
   public shared(msg) func confirmOffChain(moved : [(Text, Text)]) : async Result.Result<Nat, Error> {
     if (not isRelayOrAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (not offChainMigrationEnabled) return #err(#InvalidInput(MIGRATION_OFF));
     if (moved.size() > MAX_CONFIRM_ITEMS)
       return #err(#InvalidInput("At most " # MAX_CONFIRM_ITEMS.toText() # " photos per call"));
@@ -1301,6 +1310,77 @@ persistent actor Photo {
       };
     };
     #ok(n)
+  };
+
+  // ─── Orphan sweep (part 4) ──────────────────────────────────────────────────
+
+  /// An off-chain photo and when its record was made.
+  public type OffChainPage = { items : [(Text, Time.Time)]; next : ?Text };
+
+  private transient let MAX_KNOWN_IDS          : Nat = 1_000;
+  private transient let OFF_CHAIN_PAGE_ITEMS   : Nat = 500;
+  private transient let MAX_DROP_ITEMS         : Nat = 100;
+  /// An off-chain record whose bytes haven't arrived after this long never will.
+  private transient let UNUPLOADED_MIN_AGE_NS  : Int = 7 * 86_400_000_000_000;
+
+  /// Which of `ids` still have a photo record, so the relay can tell stored
+  /// bytes that lost their record. At most MAX_KNOWN_IDS ids. Photo relay
+  /// and admins only.
+  public query(msg) func knownPhotoIds(ids : [Text]) : async Result.Result<[Text], Error> {
+    if (not isRelayOrAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (ids.size() > MAX_KNOWN_IDS)
+      return #err(#InvalidInput("At most " # MAX_KNOWN_IDS.toText() # " ids per call"));
+    #ok(ids.filter(func id = photoStore.containsKey(id)))
+  };
+
+  /// Off-chain photos after `after`, in id order, with when each record was
+  /// made, so the relay can find records whose bytes never arrived. Photo
+  /// relay and admins only.
+  public query(msg) func offChainPhotoPage(after : ?Text) : async Result.Result<OffChainPage, Error> {
+    if (not isRelayOrAdmin(msg.caller)) return #err(#NotAuthorized);
+    let items = List.empty<(Text, Time.Time)>();
+    let entries = switch after { case null offChainIds.entries(); case (?k) offChainIds.entriesFrom(k) };
+    for ((id, _) in entries) {
+      if (after != ?id) {
+        if (items.size() >= OFF_CHAIN_PAGE_ITEMS) {
+          return #ok({ items = items.toArray(); next = ?(items.at(items.size() - 1 : Nat)).0 });
+        };
+        switch (photoStore.get(id)) {
+          case (?p) items.add((id, p.createdAt));
+          case null {};
+        };
+      };
+    };
+    #ok({ items = items.toArray(); next = null })
+  };
+
+  /// The relay found no stored bytes for these off-chain photos. Each one
+  /// that is still off-chain, has no bytes here and is over 7 days old is
+  /// deleted like deletePhoto would (quota, duplicate index, close-out
+  /// papers); anything else is skipped, so a fresh upload still in flight is
+  /// never touched. Returns how many were dropped. Photo relay and admins only.
+  public shared(msg) func dropUnuploadedPhotos(ids : [Text]) : async Result.Result<Nat, Error> {
+    if (not isRelayOrAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
+    if (ids.size() > MAX_DROP_ITEMS)
+      return #err(#InvalidInput("At most " # MAX_DROP_ITEMS.toText() # " photos per call"));
+    let cutoff = Time.now() - UNUPLOADED_MIN_AGE_NS;
+    let gone = List.empty<Photo>();
+    for (id in ids.values()) {
+      switch (photoStore.get(id)) {
+        case (?p) {
+          if (offChainIds.containsKey(id) and p.data.size() == 0 and p.createdAt < cutoff) {
+            deletePhotoRecord(p);
+            dropHash(p);
+            gone.add(p);
+          };
+        };
+        case null {};
+      };
+    };
+    // M-2: close-out papers that pointed at these come off their jobs.
+    for (p in gone.values()) await* paperGone(p);
+    #ok(gone.size())
   };
 
   /// Account deletion: removes everything this canister holds for the caller.

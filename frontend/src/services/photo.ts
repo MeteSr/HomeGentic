@@ -184,11 +184,12 @@ async function publicOffChainUrl(id: string): Promise<string> {
 }
 
 /**
- * List endpoints return metadata only; bytes come from a batch call that
- * returns as many photos as fit in one reply. Keep asking for the ids it left
- * out until every photo is loaded or a call makes no progress. Off-chain
- * photos come back from the batch with empty bytes; those load from the
- * Worker through `offChainUrl`.
+ * List endpoints return metadata only. A record marked `offChain` loads its
+ * bytes from the Worker through `offChainUrl`. The rest come from a batch call
+ * that returns as many photos as fit in one reply: keep asking for the ids it
+ * left out until every photo is loaded or a call makes no progress. (A photo
+ * canister from before `offChain` existed answers the batch with empty bytes
+ * for off-chain photos, which load from the Worker too.)
  */
 async function withBytes(
   metas: any[],
@@ -196,7 +197,7 @@ async function withBytes(
   offChainUrl: (id: string) => Promise<string> = privateOffChainUrl,
 ): Promise<Photo[]> {
   const bytesById = new Map<string, Uint8Array | number[]>();
-  let pending = metas.map((m) => m.id as string);
+  let pending = metas.filter((m) => m.offChain !== true).map((m) => m.id as string);
   while (pending.length > 0) {
     const got = await fetchBatch(pending);
     if (got.length === 0) break;
@@ -204,6 +205,7 @@ async function withBytes(
     pending = pending.filter((id) => !bytesById.has(id));
   }
   return Promise.all(metas.map(async (m) => {
+    if (m.offChain === true) return fromPhoto(m, undefined, await offChainUrl(m.id));
     const bytes = bytesById.get(m.id);
     const offChainStored = bytes !== undefined && bytes.length === 0 && Number(m.size) > 0;
     return fromPhoto(m, bytes, offChainStored ? await offChainUrl(m.id) : "");

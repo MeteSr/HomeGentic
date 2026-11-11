@@ -6,8 +6,9 @@
  * access checks as uploadPhoto, with only the hash and size), then the bytes
  * go to PUT <worker>/photos/<id>, which stores them only if they match that
  * hash and size. If the PUT fails, the half-made record is deleted and the
- * photo goes on-chain instead, so an upload never ends with a photo that has
- * no bytes anywhere. Used by the web app and the mobile app.
+ * upload fails with a retryable #Unavailable: once the Worker stores photos,
+ * nothing goes on-chain (part 4 of the off-chain move), so an upload never
+ * ends with a photo that has no bytes. Used by the web app and the mobile app.
  */
 
 import { SESSION_HEADER } from "./agentSession";
@@ -38,6 +39,7 @@ export interface PhotoUploadArgs {
 }
 
 const CONFIG_TTL_MS = 5 * 60_000;
+const UPLOAD_UNFINISHED = "The photo didn't finish uploading. Please try again.";
 const configCache = new Map<string, { at: number; enabled: Promise<boolean> }>();
 
 /** Whether the Worker stores photos off-chain (GET /photos-config), cached for a few minutes. */
@@ -71,18 +73,12 @@ export async function uploadPhotoPreferOffChain(
   const phase = { [args.phase]: null };
   const token = await offChainToken(deps);
   if (token) {
-    let begun: any = null;
-    try {
-      begun = await actor.beginUpload(args.jobId, args.propertyId, phase, args.description, args.hash, BigInt(args.bytes.length));
-    } catch {
-      begun = null;   // canister without beginUpload (not upgraded yet): go on-chain
-    }
-    if (begun && "err" in begun) return begun;   // quota, duplicate, access: on-chain would refuse too
-    if (begun) {
-      const id: string = begun.ok.id;
-      if (await putBytes(deps, token, id, args)) return begun;
-      try { await actor.deletePhoto(id); } catch { /* the uploader can delete it later */ }
-    }
+    const begun = await actor.beginUpload(args.jobId, args.propertyId, phase, args.description, args.hash, BigInt(args.bytes.length));
+    if ("err" in begun) return begun;   // quota, duplicate, access
+    const id: string = begun.ok.id;
+    if (await putBytes(deps, token, id, args)) return begun;
+    try { await actor.deletePhoto(id); } catch { /* the uploader can delete it later; the sweep drops it after 7 days */ }
+    return { err: { Unavailable: UPLOAD_UNFINISHED } };
   }
   return actor.uploadPhoto(args.jobId, args.propertyId, phase, args.description, args.hash, args.bytes);
 }

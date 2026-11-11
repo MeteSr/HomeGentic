@@ -34,6 +34,9 @@ type PhotoActor = {
     next: [] | [string];
   }>>;
   confirmOffChain(moved: Array<[string, string]>): Promise<CandidResult<bigint>>;
+  knownPhotoIds(ids: string[]): Promise<CandidResult<string[]>>;
+  offChainPhotoPage(after: [] | [string]): Promise<CandidResult<{ items: Array<[string, bigint]>; next: [] | [string] }>>;
+  dropUnuploadedPhotos(ids: string[]): Promise<CandidResult<bigint>>;
 };
 
 const agents = new Map<string, Promise<HttpAgent>>();
@@ -91,5 +94,22 @@ export const photoMigrationCanister = {
   },
   async confirm(moved: Array<[string, string]>): Promise<number> {
     return Number(unwrap(await (await photoActor()).confirmOffChain(moved), "confirmOffChain"));
+  },
+};
+
+/** Part 4: the photo canister calls the orphan sweep makes (src/photoSweep.ts). */
+export const photoSweepCanister = {
+  async known(ids: string[]): Promise<string[]> {
+    return unwrap(await (await photoActor()).knownPhotoIds(ids), "knownPhotoIds");
+  },
+  async offChainPage(after: string | null): Promise<{ items: Array<{ id: string; createdAtMs: number }>; next: string | null }> {
+    const r = unwrap(await (await photoActor()).offChainPhotoPage(after === null ? [] : [after]), "offChainPhotoPage");
+    return {
+      items: r.items.map(([id, ns]) => ({ id, createdAtMs: Number(ns / 1_000_000n) })),
+      next: r.next.length ? r.next[0]! : null,
+    };
+  },
+  async dropUnuploaded(ids: string[]): Promise<number> {
+    return Number(unwrap(await (await photoActor()).dropUnuploadedPhotos(ids), "dropUnuploadedPhotos"));
   },
 };

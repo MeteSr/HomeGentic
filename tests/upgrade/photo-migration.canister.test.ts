@@ -14,7 +14,8 @@
  *  PMIG.5 a photo whose recorded hash was wrong is moved under its real hash,
  *         and duplicate detection follows the new hash
  *  PMIG.6 confirmOffChain ignores photos it can't vouch for: already moved,
- *         deleted, unknown, or a hash that isn't 64 characters
+ *         deleted, unknown, or a hash that isn't 64 characters; a paused canister
+ *         or a switched-off migration refuses the relay
  *
  * Run: cd tests/upgrade && npx vitest run photo-migration.canister.test.ts
  * (needs .dfx/local/canisters/{photo,property,payment,auth}/*.wasm and agents/voice/node_modules)
@@ -299,6 +300,10 @@ describe("moving on-chain photos to R2 (part 3)", () => {
     ).id;
     expect(ok<any>(await as("photo", relay).confirmOffChain([[kept, "abc"]]))).toBe(0n);
     expect(ok<any>(await as("photo", owner).getPhoto(kept)).data.length).toBe(2048);
+    // Pausing the canister stops the relay too.
+    ok(await as("photo", admin).pause([]));
+    expect(errKey(await as("photo", relay).confirmOffChain([[kept, sha256(image(13))]]))).toBe("Paused");
+    ok(await as("photo", admin).unpause());
     // Turning it off stops the relay again.
     ok(await as("photo", admin).setOffChainMigrationEnabled(false));
     expect(errKey(await as("photo", relay).confirmOffChain([[kept, sha256(image(13))]]))).toBe("InvalidInput");

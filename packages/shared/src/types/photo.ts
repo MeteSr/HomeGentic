@@ -39,6 +39,7 @@ export type Photo = {
   propertyId: string;
   phase: ConstructionPhase;
   approvals: Principal[];
+  offChain: boolean;
 };
 
 export type MigrationStatus = {
@@ -55,6 +56,11 @@ export type PhotoAccess = {
   canRead: boolean;
   isPublic: boolean;
   offChain: boolean;
+};
+
+export type OffChainPage = {
+  next: [] | [string];
+  items: Array<[string, bigint]>;
 };
 
 export type MigrationPage = {
@@ -76,6 +82,7 @@ export interface _SERVICE {
   confirmOffChain: ActorMethod<[Array<[string, string]>], { ok: bigint } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   deletePhoto: ActorMethod<[string], { ok: null } | { err: Error }>;
+  dropUnuploadedPhotos: ActorMethod<[string[]], { ok: bigint } | { err: Error }>;
   getGuidePhotoData: ActorMethod<[string, string], { ok: Uint8Array | number[] } | { err: Error }>;
   getListingPhotoDataBatch: ActorMethod<[string[]], Array<[string, Uint8Array | number[]]>>;
   getMyOffChainPhotoIds: ActorMethod<[], string[]>;
@@ -86,6 +93,8 @@ export interface _SERVICE {
   getPhotosByRoom: ActorMethod<[string], Photo[]>;
   getPublicListingPhotos: ActorMethod<[string], Photo[]>;
   guidePhotoAccess: ActorMethod<[string, string], [] | [PhotoAccess]>;
+  knownPhotoIds: ActorMethod<[string[]], { ok: string[] } | { err: Error }>;
+  offChainPhotoPage: ActorMethod<[[] | [string]], { ok: OffChainPage } | { err: Error }>;
   onChainPhotoPage: ActorMethod<[[] | [string]], { ok: MigrationPage } | { err: Error }>;
   photoAccess: ActorMethod<[string, Principal], [] | [PhotoAccess]>;
   removePhotoRelay: ActorMethod<[Principal], { ok: null } | { err: Error }>;
