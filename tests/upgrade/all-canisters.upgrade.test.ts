@@ -49,6 +49,49 @@ const ACCESS_NARROWED: Record<string, string[]> = {
   job: ["getJobSnapshotsForProperty"], // private to the owner and trusted canisters
 };
 
+function adoptModes(svc: IDL.ServiceClass, wasm: string) {
+  const now = new Map(serviceFromWasm(wasm).idlFactory({ IDL })._fields);
+  for (const field of svc._fields) {
+    const cur = now.get(field[0]);
+    if (cur) field[1] = IDL.Func(field[1].argTypes, field[1].retTypes, cur.annotations);
+  }
+}
+
+/**
+ * Reads that answer differently on purpose after the jump from the build
+ * testnet still runs (PR #581, 2026-10-07) to main. Applied only when
+ * upgrading from the deployed build (UPGRADE_BASE_DIR=.dfx/deployed, set by
+ * scripts/ci/upgrade-from-deployed.sh), so PR checks stay strict. Clear it
+ * once testnet has been deployed past 2026-11-10.
+ */
+const CHANGED_SINCE_DEPLOYED: Record<string, Record<string, string>> = {
+  ai_proxy: {
+    "admin.getKeyStatus": "postupgrade clears the on-chain API keys (moved to Worker secrets, #597)",
+    "user.getKeyStatus": "same",
+  },
+  auth: { "user.getUserStats": "admin-only; others get zeros" },
+  maintenance: { "user.getScheduleByProperty": "owner/manager only, checked with property (M8)" },
+  market: {
+    "admin.getZipStats": "k-anonymity: no ZIP stats under MIN_ZIP_SAMPLE scores (M12)",
+    "user.getZipStats": "same",
+  },
+  monitoring: {
+    "user.getActiveAlerts": "admin-only",
+    "user.getAllCanisterMetrics": "admin-only",
+    "user.getCriticalCycleAlerts": "admin-only",
+    "user.getMetrics": "per-method cycle costs are admin-only",
+  },
+  payment: {
+    "admin.isStripeConfigured": "postupgrade clears the Stripe config (Stripe runs in the voice Worker)",
+    "admin.transform": "removed with the retired Stripe outcalls",
+    "user.transform": "same",
+  },
+  quote: { "user.getOpenRequests": "contractors no longer see the homeowner or the home (redactFor)" },
+  recurring: { "user.getByProperty": "owner/manager only, checked with property (M8)" },
+  sensor: { "user.getDevicesForProperty": "owner/manager only, checked with property" },
+};
+const fromDeployed = /\.dfx\/deployed\/?$/.test(process.env.UPGRADE_BASE_DIR ?? "");
+
 const norm = (x: unknown) => JSON.stringify(x, (_k, v) =>
   typeof v === "bigint" ? v.toString() : (v && v._isPrincipal ? v.toText() : v));
 
@@ -88,6 +131,22 @@ describe("every canister keeps its data across an upgrade", () => {
     for (const who of [admin, user]) {
       for (const m of updates) await call(who, m, sample(m, who));
     }
+    // A build that still made HTTPS outcalls (payment's Stripe calls before
+    // they moved to the Worker) leaves them waiting for an answer PocketIC
+    // never gives, and an upgrade with a call in flight is refused. Fail them,
+    // as Stripe would with test keys.
+    for (let round = 0; round < 5; round++) {
+      const pending = await pic.getPendingHttpsOutcalls();
+      if (pending.length === 0) break;
+      for (const o of pending) {
+        await pic.mockPendingHttpsOutcall({
+          requestId: o.requestId,
+          subnetId: o.subnetId,
+          response: { type: "reject", statusCode: 2, message: "no outcalls in this test" },
+        });
+      }
+      await pic.tick(2);
+    }
 
     const read = async () => {
       const out: Record<string, string> = {};
@@ -108,10 +167,15 @@ describe("every canister keeps its data across an upgrade", () => {
 
     await pic.upgradeCanister({ canisterId, wasm: readFileSync(wasmPath(name)) });
     await pic.advanceTime(1000); await pic.tick();
+    // Keep reading through the base interface, but call each method the way
+    // the new build exports it: a query that became an update (to check
+    // access with another canister) can't be called as a query any more.
+    adoptModes(svc, wasmPath(name));
 
     const after = await read();
     if (process.env.DEBUG_UPGRADE) console.log(name, JSON.stringify(before, null, 1));
-    const changed = stable.filter((k) => again[k] !== after[k])
+    const onPurpose = fromDeployed ? CHANGED_SINCE_DEPLOYED[name] ?? {} : {};
+    const changed = stable.filter((k) => again[k] !== after[k] && !(k in onPurpose))
       .map((k) => ({ read: k, before: again[k].slice(0, 300), after: after[k].slice(0, 300) }));
     expect(changed).toEqual([]);
     // Note whether the plausible-argument writes stored anything that a read

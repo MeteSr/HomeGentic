@@ -122,3 +122,77 @@ test("deploy-voice-worker.sh installs the Worker's dependencies when they're mis
   assert.equal(code, 0, out);
   assert.match(log, /^npm ci/m);
 });
+
+// ── Canister install order ──────────────────────────────────────────────────
+// deploy.sh upgrades the canisters one at a time (stop, snapshot, install,
+// start). Until a callee is upgraded, a caller already on the new build that
+// calls one of the callee's new methods gets a reject. Each pair below is a
+// callee the caller needs upgraded first, found by type-checking main's
+// callers against the Candid of the build testnet still ran (PR #581,
+// 2026-10-07): scripts/ci/check-canister-calls.mjs with one callee's .did
+// swapped for the deployed one at a time. Cycles (job <-> photo,
+// property <-> photo, property <-> listing) can't be ordered away; the window
+// is the few seconds between the two installs.
+const BEFORE = [
+  ["payment", "property", "property.claimTransfer calls payment.grantHandoffYear"],
+  ["property", "job", "every caller reads property.getAccessRoles (Canisters.property)"],
+  ["property", "bills", "Canisters.property.getAccessRoles"],
+  ["property", "recurring", "Canisters.property.getAccessRoles"],
+  ["property", "maintenance", "Canisters.property.getAccessRoles"],
+  ["property", "sensor", "Canisters.property.getAccessRoles"],
+  ["property", "market", "Canisters.property.getAccessRoles"],
+  ["property", "report", "Canisters.property.getAccessRoles"],
+  ["property", "listing", "Canisters.property.getAccessRoles"],
+  ["fee", "job", "job calls fee.recordReferralAccepted (Contractor Free referral fee)"],
+  ["fee", "quote", "quote calls fee.recordReferralAccepted"],
+  ["job", "contractor", "contractor calls job.hasJobWithContractor"],
+  ["quote", "contractor", "contractor calls quote.hasBidFrom"],
+  ["job", "photo", "photo calls job.waiverUploadTarget (#716 lien waivers)"],
+  ["job", "report", "report calls job.getCloseoutsForProperty"],
+  ["market", "report", "report and market certify scores together"],
+  ["sensor", "report", "report calls sensor.getDevicesForReader (risk profile)"],
+  ["photo", "listing", "listing checks listing photos with photo"],
+  ["listing", "agent", "agent calls listing.getReviewEligibility"],
+];
+
+test("deploy.sh installs each callee before the canisters that call its new methods", () => {
+  const sh = read("scripts/deploy.sh");
+  const m = sh.match(/^CANISTERS=\(([^)]*)\)/m);
+  assert.ok(m, "deploy.sh has a CANISTERS=(...) install order");
+  const order = m[1].trim().split(/\s+/);
+  for (const [callee, caller, why] of BEFORE) {
+    assert.ok(order.includes(callee) && order.includes(caller), `${callee} and ${caller} are deployed`);
+    assert.ok(order.indexOf(callee) < order.indexOf(caller), `${callee} before ${caller}: ${why}`);
+  }
+});
+
+test("deploy.sh passes an argument to every canister call, so icp never prompts for one", () => {
+  // `icp canister call X m` with no argument opens an interactive prompt,
+  // which a CI run answers with nothing: the call fails (report's
+  // refreshAttestationKey did, in a local rehearsal of the testnet deploy).
+  const sh = read("scripts/deploy.sh");
+  const bare = [...sh.matchAll(/icp canister call\s+(\S+)\s+(\w+)\s+(-e\b|--|2>|>|\||\)|$)/gm)].map((x) => `${x[1]}.${x[2]}`);
+  assert.deepEqual(bare, []);
+});
+
+test("deploy-relays.yml deploys testnet relays only after Deploy Testnet has upgraded the canisters", () => {
+  // The relay calls canister methods added since the last deploy (Home Pulse,
+  // contractor prefs, quote records); deploying it on every push to main ran
+  // it against canisters still waiting for the testnet deploy's approval.
+  const yml = read(".github/workflows/deploy-relays.yml");
+  const on = yml.slice(yml.indexOf("\non:"), yml.indexOf("\npermissions:"));
+  assert.doesNotMatch(on, /^ {2}push:/m, "no deploy on a bare push to main");
+  assert.match(on, /workflow_run:\s*\n\s+workflows: \[Deploy Testnet\]/);
+  const deploy = jobBlock(yml, "deploy");
+  assert.match(deploy, /github\.event\.workflow_run\.conclusion == 'success'/);
+});
+
+for (const wf of [".github/workflows/deploy-testnet.yml", ".github/workflows/deploy-mainnet.yml"]) {
+  test(`${wf}: an interface break can be accepted without waiving the stable-memory check`, () => {
+    const yml = read(wf);
+    assert.match(yml, /^ {6}allow_candid_break:/m, "has an allow_candid_break input");
+    const gate = jobBlock(yml, "upgrade-gate");
+    assert.match(gate, /ALLOW_CANDID_BREAK: \$\{\{ \(inputs\.allow_candid_break \|\| inputs\.allow_upgrade_break\) && '1' \|\| '' \}\}/);
+    assert.match(gate, /ALLOW_STABLE_BREAK: \$\{\{ inputs\.allow_upgrade_break && '1' \|\| '' \}\}/);
+  });
+}

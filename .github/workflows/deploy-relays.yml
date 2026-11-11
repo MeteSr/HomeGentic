@@ -2,18 +2,15 @@ name: Deploy Relays
 
 # The notification relay and IoT gateway run as one always-on Fly.io machine
 # each (agents/<service>/fly.toml), with their state on a Fly volume. Pull
-# requests only build the images. A push to main deploys to testnet; production
-# is a manual run from main. Setup steps: docs/DEPLOYMENT.md → "Hosting on Fly.io".
+# requests only build the images. Testnet gets them after each successful
+# Deploy Testnet run, so the relay never calls canister methods the testnet
+# canisters don't have yet; production is a manual run from main, after
+# Deploy Mainnet. Setup steps: docs/DEPLOYMENT.md → "Hosting on Fly.io".
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'agents/notifications/**'
-      - 'agents/iot-gateway/**'
-      - 'packages/shared/**'
-      - '.dockerignore'
-      - '.github/workflows/deploy-relays.yml'
+  workflow_run:
+    workflows: [Deploy Testnet]
+    types: [completed]
   pull_request:
     paths:
       - 'agents/notifications/**'
@@ -47,6 +44,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # After Deploy Testnet: the commit it deployed, not whatever main is now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - name: Build the image
         run: docker build -f agents/${{ matrix.service }}/Dockerfile -t hg-${{ matrix.service }} .
@@ -64,10 +63,14 @@ jobs:
     name: Deploy ${{ matrix.service }} (${{ inputs.environment || 'testnet' }})
     needs: build
     runs-on: ubuntu-latest
-    # Push to main → testnet. Manual runs only from main, so the production
-    # token is never used with an unreviewed branch.
+    # After a successful Deploy Testnet of main → testnet (Deploy Testnet only
+    # runs for main). Manual runs only from main, so the production token is
+    # never used with an unreviewed branch.
     if: >-
-      (github.event_name == 'push') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository) ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     environment: ${{ inputs.environment || 'testnet' }}
     strategy:
@@ -80,6 +83,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # After Deploy Testnet: the commit it deployed, not whatever main is now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - name: Check Fly is set up
         id: gate

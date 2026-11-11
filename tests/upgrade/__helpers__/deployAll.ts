@@ -94,6 +94,14 @@ export interface Deployment {
   ids: Record<CanisterName, Principal>;
   svcs: Record<CanisterName, IDL.ServiceClass>;
   actor: (name: CanisterName, who: Identity) => any;
+  /** Whether the installed build of `name` exports `method` (a base build many merges back may not). */
+  has: (name: CanisterName, method: string) => boolean;
+  /**
+   * After `name` is upgraded to this branch's build: keep reading through the
+   * installed (older) interface, but call each method the way the new build
+   * exports it (a query that became an update can't be called as a query).
+   */
+  adoptModes: (name: CanisterName) => void;
 }
 
 /**
@@ -180,6 +188,9 @@ export async function deployAll(
     if (!svcs[name]) throw new Error(`deploy-canisters.sh calls unknown canister ${call.canister}`);
     if (call.guard && !new Map(svcs[call.guard.canister as CanisterName]._fields).has(call.guard.method)) continue;
     const fn = new Map(svcs[name]._fields).get(call.method);
+    // A build older than the wiring call (the base or deployed build, many
+    // merges back) was wired by its own deploy, which didn't make this call.
+    if (!fn && wasm(name) !== wasmPath(name)) continue;
     if (!fn)
       throw new Error(`deploy-canisters.sh calls ${call.canister}.${call.method}, which the canister doesn't export`);
     const values = call.args.map((a, i) => {
@@ -191,5 +202,17 @@ export async function deployAll(
     });
     okOrThrow(`${call.canister}.${call.method}`, await actor(name, admin)[call.method](...values));
   }
-  return { ids, svcs, actor };
+  const has = (name: CanisterName, method: string) => new Map(svcs[name]._fields).has(method);
+  const adoptModes = (name: CanisterName) => {
+    const now = new Map(serviceFromWasm(wasmPath(name)).idlFactory({ IDL })._fields);
+    svcs[name] = IDL.Service(
+      Object.fromEntries(
+        svcs[name]._fields.map(([m, f]) => {
+          const cur = now.get(m);
+          return [m, cur ? IDL.Func(f.argTypes, f.retTypes, cur.annotations) : f];
+        }),
+      ),
+    );
+  };
+  return { ids, svcs, actor, has, adoptModes };
 }

@@ -75,7 +75,9 @@ describe(
         myQuoteReqs: await as("quote", owner).getMyQuoteRequests(),
         quotesForReq: await as("quote", owner).getQuotesForRequest(quoteRequestId),
         proQuotes: await as("quote", pro).getMyQuotes(),
-        openQuoteReqs: await as("quote", pro).getOpenRequests(),
+        // By id: a contractor's view hides the homeowner and the home (redactFor),
+        // which builds before that redaction (2026-10) still showed.
+        openQuoteReqs: (await as("quote", pro).getOpenRequests()).map((r: any) => r.id),
         billsP1: await as("bills", owner).getBillsForProperty(p1),
         expensesP1: await as("bills", owner).getRecurringExpensesForProperty(p1),
         servicesP1: await as("recurring", owner).getByProperty(p1),
@@ -88,7 +90,7 @@ describe(
         myProposals: await as("listing", agent).getMyProposals(),
         proposals: await as("listing", admin).getProposalsForRequest(bidRequestId),
         agentReviews: await as("agent", other).getReviews(agent.getPrincipal()),
-        feeForRequest: await as("fee", admin).getFeeForRequest(bidRequestId),
+        feeForRequest: d.has("fee", "getFeeForRequest") ? await as("fee", admin).getFeeForRequest(bidRequestId) : null,
         proReviews: await as("contractor", other).getReviewsForContractor(pro.getPrincipal()),
       });
 
@@ -320,10 +322,11 @@ describe(
       expect(before.myBidRequests).toHaveLength(1);
       expect(before.myProposals).toHaveLength(1);
       expect(before.agentReviews).toHaveLength(1);
-      expect(before.feeForRequest).toHaveLength(1);
+      if (d.has("fee", "getFeeForRequest")) expect(before.feeForRequest).toHaveLength(1);
 
       for (const name of ALL_CANISTERS) {
         await pic.upgradeCanister({ canisterId: d.ids[name], wasm: readFileSync(wasmPath(name)) });
+        d.adoptModes(name);
       }
       await pic.tick();
       expect(await snapshot()).toEqual(before);
