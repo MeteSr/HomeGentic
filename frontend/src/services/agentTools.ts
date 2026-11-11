@@ -27,6 +27,8 @@ import { reportService, jobToInput, propertyToInput } from "./report";
 import { getPriceBenchmark, hasSufficientSamples, benchmarkBasis } from "./priceBenchmark";
 import { proposeJob } from "./contractorJobProposal";
 import { queryHomeRecords } from "./homeRecords";
+import { prepareHomeTask } from "./assistantTasks";
+import { insuranceClaimService, validateClaim, EMPTY_CLAIM, type ClaimInput } from "./insuranceClaims";
 
 export type ToolName =
   | "classify_home_issue"
@@ -53,7 +55,10 @@ export type ToolName =
   | "add_room"
   | "add_recurring_service"
   | "add_property"
-  | "query_home_records";
+  | "query_home_records"
+  | "prepare_home_task"
+  | "propose_plan"
+  | "create_insurance_claim";
 
 export interface ToolCallResult {
   success: boolean;
@@ -705,6 +710,37 @@ export async function executeTool(
       case "query_home_records":
         return await queryHomeRecords({ source: input.source, entity: input.entity, query: input.query });
 
+      // ── Multi-step tasks (assistantPlan.ts / assistantTasks.ts) ─────────────
+      // Read-only: gathers one home's facts and suggested writes for a plan.
+      case "prepare_home_task":
+        return await prepareHomeTask(input);
+
+      // A plan runs only from the review card in useVoiceAgent, step by step.
+      case "propose_plan":
+        return { success: false, error: "A plan can only run after the user approves it on the review card." };
+
+      // The household's own record in the claim kit. Nothing is filed with the insurer.
+      case "create_insurance_claim": {
+        const claim: ClaimInput = {
+          ...EMPTY_CLAIM,
+          title:       String(input.title ?? "").trim(),
+          dateOfLoss:  String(input.date_of_loss ?? "").trim(),
+          cause:       String(input.cause ?? "").trim(),
+          description: String(input.description ?? "").trim(),
+        };
+        const problem = validateClaim(claim);
+        if (problem) return { success: false, error: problem };
+        const created = await insuranceClaimService.create(String(input.property_id), claim);
+        return {
+          success: true,
+          data: {
+            claimId: created.id,
+            path:    `/properties/${created.propertyId}?tab=insurance`,
+            summary: `Claim record "${claim.title}" started in your claim kit. Nothing was sent to your insurer; file the claim with them and add the claim number when you have it.`,
+          },
+        };
+      }
+
       case "get_price_benchmark": {
         const serviceType = String(input.service_type);
         const zipCode     = String(input.zip_code);
@@ -857,6 +893,9 @@ export function toolActionLabel(name: ToolName): string {
     add_recurring_service:     "adding recurring service",
     add_property:              "registering property",
     query_home_records:        "reading your home records",
+    prepare_home_task:         "gathering what the task needs",
+    propose_plan:              "preparing a plan for your review",
+    create_insurance_claim:    "starting a claim record",
   };
   return labels[name] ?? name;
 }

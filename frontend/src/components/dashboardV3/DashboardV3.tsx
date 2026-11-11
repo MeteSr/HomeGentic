@@ -23,6 +23,8 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAddPropertyStore } from "@/store/addPropertyStore";
 import { useAuthStore } from "@/store/authStore";
+import { PlanReviewCard, planHomeAddress } from "./PlanReviewCard";
+import { matchTaskQuery, TASK_KINDS, TASK_LABELS } from "@/services/assistantPlan";
 import { usePropertySummary } from "@/hooks/usePropertySummary";
 import { useJobSummary } from "@/hooks/useJobSummary";
 import { useQuoteSummary } from "@/hooks/useQuoteSummary";
@@ -407,9 +409,27 @@ export function DashboardV3() {
   const mode: "idle" | "voice" | "panel" | "answer" =
     activePanel ? "panel" : answer ? "answer" : isVoiceActive ? "voice" : "idle";
 
+  // Multi-step assistant tasks (storm prep, claim packet, closing check) need a home and the homeowner's tools.
+  const taskHome = activeProperty && profile?.role !== "Contractor"
+    ? { id: String(activeProperty.id), address: activeProperty.address }
+    : null;
+  const startTask = (kind: (typeof TASK_KINDS)[number], said?: string) => {
+    if (!taskHome) return;
+    setActiveKey(null);
+    setAnswerSystem(null);
+    setQuery("");
+    if (said === undefined) voice.runTask(kind, taskHome);
+    else voice.runTask(kind, taskHome, said);
+  };
+
   const submit = () => {
     const q = query.trim();
     if (!q) return;
+    const task = taskHome ? matchTaskQuery(q) : null;
+    if (task) {
+      startTask(task, q);
+      return;
+    }
     const system = matchSystemQuestion(q);
     if (system && systems.some((s) => s.systemName === system)) {
       voice.reset();
@@ -682,6 +702,16 @@ export function DashboardV3() {
                   </button>
                 </div>
 
+                {voice.pendingPlan && (
+                  <PlanReviewCard
+                    key={voice.pendingPlan.title}
+                    plan={voice.pendingPlan}
+                    homeAddress={planHomeAddress(voice.pendingPlan, properties)}
+                    onApprove={voice.approvePlan}
+                    onDismiss={voice.dismissPlan}
+                  />
+                )}
+
                 {voice.pendingProposal && (
                   <div style={{ marginTop: 18, border: "1px solid var(--hg-good-edge)", background: "var(--hg-good-wash)", borderRadius: 14, padding: "13px 15px" }}>
                     <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-good)" }}>PROPOSED JOB</div>
@@ -810,6 +840,20 @@ export function DashboardV3() {
       <div style={{ flex: "none", display: "flex", gap: 22, padding: "14px 24px 18px" }}>
         <div style={{ flex: "none", width: RAIL_WIDTH }} />
         <div style={{ flex: 1, minWidth: 0, maxWidth: 820, margin: "0 auto", width: "100%" }}>
+          {taskHome && !isVoiceActive && (
+            <div role="group" aria-label="Assistant tasks" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-muted)" }}>TASKS</span>
+              {TASK_KINDS.map((kind) => (
+                <button
+                  key={kind} type="button" onClick={() => startTask(kind)}
+                  title="The assistant gathers what it needs (a few AI calls), then shows every change for your OK before anything is saved."
+                  style={{ ...BUTTON_RESET, minHeight: 32, padding: "0 12px", borderRadius: 100, background: "var(--hg-fill)", border: "1.5px solid var(--hg-line-2)", font: "600 12px/1 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-3)", cursor: "pointer" }}
+                >
+                  {TASK_LABELS[kind]}
+                </button>
+              ))}
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--hg-fill)", border: `1.5px solid ${focus ? "#2B34FF" : "var(--hg-line-2)"}`, borderRadius: 100, padding: "6px 6px 6px 20px" }}>
             <input
               type="text" value={query}

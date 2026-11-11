@@ -159,6 +159,8 @@ User speaks
   → POST /api/agent on the voice Worker (agents/voice/src/index.ts)  { message, context }
   → Worker builds a scoped system prompt, calls Claude (tool-use loop / streaming SSE)
   → Claude can call read tools such as query_home_records (OQL over the job, bills and property canisters)
+  → For multi-step tasks (storm prep, claim packet, closing check) Claude proposes one plan;
+    the user approves its writes on one review card before anything is saved
   → Text streams back into the answer card
   → SpeechSynthesis reads full response aloud
 ```

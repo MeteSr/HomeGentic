@@ -15,6 +15,7 @@ import { useAuthStore } from "../store/authStore";
 import { paymentService } from "../services/payment";
 import { contractorService } from "../services/contractor";
 import { fetchWithAgentSession, aiRefusalMessage } from "../services/agentSession";
+import { validatePlan, runPlan, taskRequest, TASK_LABELS, type AssistantPlan, type TaskKind } from "../services/assistantPlan";
 
 // ── Minimal message types (mirrors Anthropic SDK without importing it) ─────────
 
@@ -65,6 +66,8 @@ export interface UseVoiceAgentReturn {
   history:            AgentAction[];
   pendingImage:       { base64: string; mimeType: string } | null;
   pendingProposal:    PendingProposal | null;
+  /** A multi-step task's plan waiting for the user's review; nothing in it has run. */
+  pendingPlan:        AssistantPlan | null;
   creditBalance:      number | null;
   quotaExhausted:     boolean;
   fallbackNotice:     boolean;
@@ -78,6 +81,12 @@ export interface UseVoiceAgentReturn {
   sendImageToAgent:   (userText: string) => void;
   confirmProposal:    () => Promise<void>;
   dismissProposal:    () => void;
+  /** Run the plan's steps at these indexes (in plan order); the rest are skipped. */
+  approvePlan:        (stepIndexes: number[]) => void;
+  /** Decline the whole plan: nothing is saved. */
+  dismissPlan:        () => void;
+  /** Start a multi-step task (storm prep, claim packet, closing check) for one home. */
+  runTask:            (kind: TaskKind, home: { id: string; address: string }, said?: string) => Promise<void>;
   buyCredits:         (packSize: 25 | 100) => Promise<void>;
 }
 
@@ -132,6 +141,8 @@ export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
   "get_price_benchmark",
   // OQL reads over job, bills and property; the canisters scope the rows.
   "query_home_records",
+  // Gathers one home's facts for a multi-step task; reads only.
+  "prepare_home_task",
 ]);
 
 export type ToolConfirmationHandler = (
@@ -175,6 +186,11 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
   const [alerts,          setAlerts]         = useState<ProactiveAlert[]>([]);
   const [pendingImage,    setPendingImage]   = useState<{ base64: string; mimeType: string } | null>(null);
   const [pendingProposal, setPendingProposal] = useState<PendingProposal | null>(null);
+  const [pendingPlan,     setPendingPlan]    = useState<AssistantPlan | null>(null);
+  // Settles the review card: the ticked step indexes, or null when declined.
+  const planDecisionRef = useRef<((approved: number[] | null) => void) | null>(null);
+  // Bumped by reset(), so a loop waiting on a dismissed card stops quietly.
+  const loopRunRef = useRef(0);
   const [creditBalance,     setCreditBalance]    = useState<number | null>(null);
   const [quotaExhausted,    setQuotaExhausted]   = useState(false);
   const [fallbackNotice,    setFallbackNotice]   = useState(false);
@@ -513,11 +529,50 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Plan review (multi-step tasks) ───────────────────────────────────────────
+
+  const reviewPlan = async (input: Record<string, unknown>) => {
+    const checked = validatePlan(input);
+    if ("error" in checked) return { success: false, error: checked.error };
+    const { plan } = checked;
+    const approved = await new Promise<number[] | null>((resolve) => {
+      planDecisionRef.current = resolve;
+      setPendingPlan(plan);
+      setResponse("Here's the plan for your review.");
+    });
+    planDecisionRef.current = null;
+    setPendingPlan(null);
+    if (!approved || approved.length === 0) {
+      addAction({ toolName: "propose_plan", label: TASK_LABELS[plan.task], summary: "Plan declined by user", success: false });
+      return { success: false, error: "The user declined the plan. Nothing was saved. Do not retry it unless they ask." };
+    }
+    setResponse("Saving the steps you approved…");
+    const result = await runPlan(plan, approved, (tool, stepInput) => executeTool(tool, stepInput));
+    for (const r of result.ran) addAction({ toolName: r.tool, label: toolActionLabel(r.tool), summary: r.summary, success: true });
+    for (const f of result.failed) addAction({ toolName: f.tool, label: toolActionLabel(f.tool), summary: f.error, success: false });
+    return {
+      success: true,
+      data: {
+        ...result,
+        summary: `${result.ran.length} step(s) saved, ${result.failed.length} failed, ${result.skipped.length} left out by the user.`,
+      },
+    };
+  };
+
+  const approvePlan = useCallback((stepIndexes: number[]) => {
+    planDecisionRef.current?.(stepIndexes);
+  }, []);
+
+  const dismissPlan = useCallback(() => {
+    planDecisionRef.current?.(null);
+  }, []);
+
   // ── Agentic loop ─────────────────────────────────────────────────────────────
 
   const runAgentLoop = useCallback(async (userMessage: string, image?: { base64: string; mimeType: string }) => {
     setState("processing");
     setResponse("");
+    const run = loopRunRef.current;
 
     try {
       const context = await buildContext();
@@ -585,6 +640,10 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
           const toolResults: ToolResultBlock[] = [];
           for (const tc of data.toolCalls as { id: string; name: ToolName; input: Record<string, unknown> }[]) {
             toolResults.push(await (async () => {
+                // A multi-step task's writes: one review card instead of a confirm per step.
+                if (tc.name === "propose_plan") {
+                  return { type: "tool_result" as const, tool_use_id: tc.id, content: JSON.stringify(await reviewPlan(tc.input)) };
+                }
                 if (toolNeedsConfirmation(tc.name)) {
                   let approved = false;
                   try { approved = await confirmHandler(tc.name, tc.input ?? {}, toolActionLabel(tc.name)); }
@@ -627,6 +686,8 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
             })());
           }
 
+          // The user closed the answer while a plan was waiting: stop here.
+          if (loopRunRef.current !== run) return;
           messages.push({ role: "user", content: toolResults });
           continue;
         }
@@ -646,6 +707,14 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       setState("error");
     }
   }, [addAction, sendChat]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Multi-step tasks ─────────────────────────────────────────────────────────
+
+  const runTask = useCallback(async (kind: TaskKind, home: { id: string; address: string }, said?: string) => {
+    setTranscript(said?.trim() || TASK_LABELS[kind]);
+    setError(null);
+    await runAgentLoop(taskRequest(kind, home, said));
+  }, [runAgentLoop]);
 
   // ── Speech recognition ────────────────────────────────────────────────────────
 
@@ -698,6 +767,9 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
   }, []);
 
   const reset = useCallback(() => {
+    loopRunRef.current++;
+    planDecisionRef.current?.(null);
+    setPendingPlan(null);
     recognitionRef.current?.abort();
     window.speechSynthesis.cancel();
     setTranscript("");
@@ -753,9 +825,9 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
   return {
     state, transcript, response, error, isSupported,
     alerts, history, clearHistory, pendingImage,
-    pendingProposal, creditBalance, quotaExhausted, fallbackNotice,
+    pendingProposal, pendingPlan, creditBalance, quotaExhausted, fallbackNotice,
     startListening, stopListening, reset, sendChat,
     attachImage, clearImage, sendImageToAgent,
-    confirmProposal, dismissProposal, buyCredits,
+    confirmProposal, dismissProposal, approvePlan, dismissPlan, runTask, buyCredits,
   };
 }

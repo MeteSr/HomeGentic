@@ -39,8 +39,19 @@ vi.mock("@/services/homeRecords", () => ({
   queryHomeRecords: vi.fn(),
 }));
 
+vi.mock("@/services/assistantTasks", () => ({
+  prepareHomeTask: vi.fn(),
+}));
+
+vi.mock("@/services/insuranceClaims", async (orig) => ({
+  ...(await orig<typeof import("@/services/insuranceClaims")>()),
+  insuranceClaimService: { create: vi.fn() },
+}));
+
 import { executeTool, toolActionLabel, type ToolName } from "@/services/agentTools";
 import { queryHomeRecords } from "@/services/homeRecords";
+import { prepareHomeTask } from "@/services/assistantTasks";
+import { insuranceClaimService } from "@/services/insuranceClaims";
 import { jobService }          from "@/services/job";
 import { quoteService }        from "@/services/quote";
 import { contractorService }   from "@/services/contractor";
@@ -510,5 +521,56 @@ describe("executeTool — query_home_records", () => {
 
   it("has an action label", () => {
     expect(toolActionLabel("query_home_records")).toBe("reading your home records");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Multi-step tasks: prepare_home_task, create_insurance_claim, propose_plan
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("executeTool — prepare_home_task", () => {
+  it("hands the input to prepareHomeTask and returns its result", async () => {
+    vi.mocked(prepareHomeTask).mockResolvedValue({ success: true, data: { gaps: [] } });
+    const input = { task: "storm_prep", property_id: "prop-1" };
+    expect(await executeTool("prepare_home_task", input)).toEqual({ success: true, data: { gaps: [] } });
+    expect(prepareHomeTask).toHaveBeenCalledWith(input);
+  });
+
+  it("has an action label", () => {
+    expect(toolActionLabel("prepare_home_task")).toBe("gathering what the task needs");
+  });
+});
+
+describe("executeTool — create_insurance_claim", () => {
+  const input = {
+    property_id: "prop-1", title: "Hail damage", date_of_loss: "2026-05-08",
+    cause: "Hail", description: "Two skylights cracked",
+  };
+
+  it("starts an open claim record in the claim kit with only what was given", async () => {
+    vi.mocked(insuranceClaimService.create).mockResolvedValue({ id: "C9", propertyId: "prop-1" } as any);
+    const r = await executeTool("create_insurance_claim", input);
+    expect(insuranceClaimService.create).toHaveBeenCalledWith("prop-1", {
+      title: "Hail damage", dateOfLoss: "2026-05-08", cause: "Hail", description: "Two skylights cracked",
+      claimNumber: "", adjusterName: "", adjusterContact: "", status: "open",
+    });
+    expect(r.success).toBe(true);
+    expect(r.data).toMatchObject({ claimId: "C9" });
+    expect(String(r.data!.summary)).toMatch(/not sent to your insurer|nothing was sent/i);
+  });
+
+  it("refuses what the canister would refuse, without calling it", async () => {
+    const r = await executeTool("create_insurance_claim", { ...input, date_of_loss: "last week" });
+    expect(r).toEqual({ success: false, error: "Enter a real date of loss" });
+    expect(insuranceClaimService.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("executeTool — propose_plan", () => {
+  it("never runs a plan by itself: plans only run from the review card", async () => {
+    const r = await executeTool("propose_plan", { task: "storm_prep", title: "t", steps: [] });
+    expect(r.success).toBe(false);
+    expect(quoteService.createRequest).not.toHaveBeenCalled();
+    expect(maintenanceService.createScheduleEntry).not.toHaveBeenCalled();
   });
 });
