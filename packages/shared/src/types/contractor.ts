@@ -189,6 +189,7 @@ export interface _SERVICE {
   removeLicenseRelay: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   removeNotifier: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   setJobCanisterId: ActorMethod<[string], { ok: null } | { err: Error }>;
+  setLicenseHolder: ActorMethod<[string, [] | [Principal]], { ok: null } | { err: Error }>;
   setPaymentCanisterId: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   setPortfolio: ActorMethod<[PortfolioInput[]], { ok: PortfolioItem[] } | { err: Error }>;
   setProfilePrivacy: ActorMethod<[ProfilePrivacy], { ok: ProfilePrivacy } | { err: Error }>;

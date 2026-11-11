@@ -94,6 +94,7 @@ describe("payment: Stripe relay, gifts and agent credits", () => {
   // X-2 (security review 2026-11-11): a Stripe event may only end a plan
   // Stripe sold. Gifts, ICP payments and admin grants are left alone.
   describe("Stripe downgrades (X-2)", () => {
+    const token = () => `cs_test_x2gift${++n}abc`;
     it("X2.1 only admins and relays call stripeDowngrade; it ends the plan its subscription set", async () => {
       const u = user();
       const exp = (await nowNs()) + 300n * DAY_NS;

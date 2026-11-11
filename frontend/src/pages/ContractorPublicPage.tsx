@@ -257,7 +257,7 @@ export default function ContractorPublicPage() {
                 </div>
               )}
             </div>
-            {contractor.licenseNumber && licenseCheck && <LicenseCheckBadge check={licenseCheck} />}
+            {contractor.licenseNumber && licenseCheck && <LicenseCheckBadge check={licenseCheck} confirmed={contractor.isVerified} />}
             {contractor.bio && (
               <p style={{ fontSize: "0.85rem", fontWeight: 300, color: UI.inkLight, lineHeight: 1.6 }}>{contractor.bio}</p>
             )}

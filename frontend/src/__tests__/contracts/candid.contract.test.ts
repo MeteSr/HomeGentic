@@ -161,6 +161,7 @@ describe("payment IDL factory", () => {
       "removeStripeRelay",
       "setBootstrapNonce",
       "stripeActivateSubscription",
+      "stripeDowngrade",
       "stripeGrantAgentCredits",
       "stripeRecordGift",
       "subscribe",
@@ -727,6 +728,7 @@ describe("contractor IDL factory", () => {
       "removeLicenseRelay",
       "removeNotifier",
       "setJobCanisterId",
+      "setLicenseHolder",
       "setPaymentCanisterId",
       "setPortfolio",
       "setProfilePrivacy",
@@ -783,6 +785,7 @@ describe("photo IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(photoIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "addCronRelay",
       "addPhotoRelay",
       "beginUpload",
       "beginWaiverUpload",
@@ -804,7 +807,9 @@ describe("photo IDL factory", () => {
       "offChainPhotoPage",
       "onChainPhotoPage",
       "photoAccess",
+      "removeCronRelay",
       "removePhotoRelay",
+      "setCronDailyLimits",
       "setOffChainMigrationEnabled",
       "setPropertyCanisterId",
       "uploadPhoto",

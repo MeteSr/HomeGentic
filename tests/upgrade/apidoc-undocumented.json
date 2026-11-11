@@ -209,6 +209,7 @@
     "removeTrustedCanister",
     "setBootstrapNonce",
     "setJobCanisterId",
+    "setLicenseHolder",
     "setPaymentCanisterId",
     "setQuoteCanisterId",
     "setUpdateRateLimit",

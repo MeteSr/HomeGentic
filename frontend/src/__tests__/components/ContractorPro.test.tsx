@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { licenseCheckSummary, licenseCheckSource, looksLikeFlLicense, normLicense } from "@/components/LicenseCheck";
+import { LicenseCheckBadge, licenseCheckTone, licenseCheckSummary, licenseCheckSource, looksLikeFlLicense, normLicense } from "@/components/LicenseCheck";
 import { earningsByMonth, earningsCsv } from "@/components/EarningsView";
 import { FeaturedWork, PortfolioEditor } from "@/components/ContractorPortfolio";
 import type { LicenseCheck } from "@/services/contractor";
@@ -37,6 +37,35 @@ describe("licence check wording", () => {
     expect(normLicense("cgc-123 4567")).toBe("CGC1234567");
     expect(looksLikeFlLicense("EC13001234")).toBe(true);
     expect(looksLikeFlLicense("TX-HVAC-12345")).toBe(false);
+  });
+});
+
+// X-3 (security review 2026-11-11): a name match proves nothing about who
+// holds the account, so the badge is green only for an admin-verified profile.
+describe("licence badge tone", () => {
+  it("is green only when DBPR's file is good AND HomeGentic verified the profile", () => {
+    expect(licenseCheckTone(CHECK, true)).toBe("good");
+    expect(licenseCheckTone(CHECK, false)).toBe("neutral");
+  });
+
+  it("warns when the file disagrees, verified or not", () => {
+    expect(licenseCheckTone({ ...CHECK, nameMatches: false }, true)).toBe("warn");
+    expect(licenseCheckTone({ ...CHECK, active: false }, false)).toBe("warn");
+    expect(licenseCheckTone({ ...CHECK, found: false }, false)).toBe("warn");
+  });
+
+  it("an unverified profile says the account isn't confirmed to hold the licence", () => {
+    render(<LicenseCheckBadge check={CHECK} confirmed={false} />);
+    const badge = screen.getByTestId("license-check");
+    expect(badge).toHaveAttribute("data-tone", "neutral");
+    expect(badge).toHaveTextContent("HomeGentic hasn't confirmed that this account holds the licence.");
+  });
+
+  it("a verified profile doesn't carry that line", () => {
+    render(<LicenseCheckBadge check={CHECK} confirmed />);
+    const badge = screen.getByTestId("license-check");
+    expect(badge).toHaveAttribute("data-tone", "good");
+    expect(badge).not.toHaveTextContent("hasn't confirmed");
   });
 });
 

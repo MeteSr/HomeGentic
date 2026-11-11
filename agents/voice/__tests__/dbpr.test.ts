@@ -4,13 +4,14 @@
  * DBPR.1  CSV lines, dates, statuses, licence numbers and names are read the way DBPR writes them
  * DBPR.2  the file is streamed until the licence's row; not found vs. a changed layout
  * DBPR.3  checkLicense uses the profile's number, caches 24h, throttles 1h, records the result
+ * DBPR.4  a licence another account already holds is 409, not a badge (X-3)
  */
 
 import { describe, it, expect, jest } from "@jest/globals";
 import {
   parseCsvLine, isoDate, isActive, namesMatch, normLicense, looksLikeFlLicense,
   findInDbprFile, checkLicense, DBPR_CONSTRUCTION_URL, LOOKUP_CACHE_TTL_S, THROTTLE_TTL_S,
-  DEFAULT_DBPR_DAILY_DOWNLOADS,
+  DEFAULT_DBPR_DAILY_DOWNLOADS, LicenseHeldError,
 } from "../src/dbpr";
 
 const row = (lic: string, name: string, dba: string, primary = "Current", secondary = "Active", expires = "08/31/2026") =>
@@ -163,5 +164,28 @@ describe("DBPR.3 checkLicense", () => {
     const { d, recorded } = deps("CGC1234567");
     expect((await checkLicense("p1", env as any, d, dbpr("", 500))).status).toBe(502);
     expect(recorded).toHaveLength(0);
+  });
+});
+
+describe("DBPR.4 a licence another account holds (X-3)", () => {
+  it("answers 409 with a way to contest it, and still throttles", async () => {
+    const { env, puts } = kv();
+    const d = {
+      getProfile: async () => ({ name: "Sunshine Homes", licenseNumber: "CGC1234567" }),
+      record: async () => { throw new LicenseHeldError(); },
+    };
+    const r = await checkLicense("p9", env as any, d, dbpr(FILE));
+    expect(r.status).toBe(409);
+    expect((r.body as any).error).toMatch(/already holds this licence number.*contact support/i);
+    expect(puts.some((p) => p.key === "dbpr:rl:p9")).toBe(true);
+  });
+
+  it("other canister errors still throw", async () => {
+    const { env } = kv();
+    const d = {
+      getProfile: async () => ({ name: "Sunshine Homes", licenseNumber: "CGC1234567" }),
+      record: async () => { throw new Error("License record failed: Paused"); },
+    };
+    await expect(checkLicense("p9", env as any, d, dbpr(FILE))).rejects.toThrow("Paused");
   });
 });
