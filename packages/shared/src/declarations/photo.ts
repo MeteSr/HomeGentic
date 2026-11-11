@@ -107,6 +107,10 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
+    // X-1 (2026-11-11): the migration/sweep cron's own identity and daily caps.
+    addCronRelay: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    removeCronRelay: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    setCronDailyLimits: IDL.Func([IDL.Nat, IDL.Nat], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     getPhotosByJob:          IDL.Func([IDL.Text], [IDL.Vec(Photo)], []),
     getPhotosByProperty:     IDL.Func([IDL.Text], [IDL.Vec(Photo)], []),
     getPhotosByRoom:         IDL.Func([IDL.Text], [IDL.Vec(Photo)], []),

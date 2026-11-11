@@ -76,6 +76,7 @@ export type MigrationItem = {
 
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
+  addCronRelay: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   addPhotoRelay: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   beginUpload: ActorMethod<[string, string, ConstructionPhase, string, string, bigint], { ok: Photo } | { err: Error }>;
   beginWaiverUpload: ActorMethod<[string, string, string, bigint], { ok: Photo } | { err: Error }>;
@@ -97,7 +98,9 @@ export interface _SERVICE {
   offChainPhotoPage: ActorMethod<[[] | [string]], { ok: OffChainPage } | { err: Error }>;
   onChainPhotoPage: ActorMethod<[[] | [string]], { ok: MigrationPage } | { err: Error }>;
   photoAccess: ActorMethod<[string, Principal], [] | [PhotoAccess]>;
+  removeCronRelay: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   removePhotoRelay: ActorMethod<[Principal], { ok: null } | { err: Error }>;
+  setCronDailyLimits: ActorMethod<[bigint, bigint], { ok: null } | { err: Error }>;
   setOffChainMigrationEnabled: ActorMethod<[boolean], { ok: null } | { err: Error }>;
   setPropertyCanisterId: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   uploadPhoto: ActorMethod<

@@ -115,6 +115,8 @@ export interface Env {
   STRIPE_PRICE_CREDITS_100?: string;
   // ICP
   DFX_IDENTITY_PEM?:     string;
+  /** X-1: the photo migration/sweep cron's own key (photo.addCronRelay). Unset = cron off. */
+  PHOTO_CRON_IDENTITY_PEM?: string;
   DFX_NETWORK?:          string;
   IC_HOST?:              string;   // overrides the IC host (tests point it at PocketIC)
   CANISTER_ID_PAYMENT?:  string;
@@ -1931,7 +1933,9 @@ async function scheduledReferralFees(env: Env): Promise<void> {
  */
 async function scheduledPhotoMigration(env: Env): Promise<void> {
   if (!env.PHOTOS || !photoStorageReady(env)) return;
-  (process.env as any).DFX_IDENTITY_PEM  = env.DFX_IDENTITY_PEM;
+  // X-1: the cron runs only under its own key, never the request-path one.
+  if (!env.PHOTO_CRON_IDENTITY_PEM) return;
+  (process.env as any).PHOTO_CRON_IDENTITY_PEM = env.PHOTO_CRON_IDENTITY_PEM;
   (process.env as any).DFX_NETWORK       = env.DFX_NETWORK ?? "ic";
   (process.env as any).IC_HOST           = env.IC_HOST ?? "";
   (process.env as any).CANISTER_ID_PHOTO = env.CANISTER_ID_PHOTO;
@@ -1949,7 +1953,11 @@ async function scheduledPhotoMigration(env: Env): Promise<void> {
  * records whose bytes never arrived (part 4, src/photoSweep.ts).
  */
 async function scheduledPhotoSweep(env: Env): Promise<void> {
-  if (!env.PHOTOS || !photoStorageReady(env)) return;
+  if (!env.PHOTOS || !photoStorageReady(env) || !env.PHOTO_CRON_IDENTITY_PEM) return;
+  (process.env as any).PHOTO_CRON_IDENTITY_PEM = env.PHOTO_CRON_IDENTITY_PEM;
+  (process.env as any).DFX_NETWORK       = env.DFX_NETWORK ?? "ic";
+  (process.env as any).IC_HOST           = env.IC_HOST ?? "";
+  (process.env as any).CANISTER_ID_PHOTO = env.CANISTER_ID_PHOTO;
   const store = r2PhotoStore(env.PHOTOS);
   const state = {
     get: (k: string) => env.RATE_LIMIT.get(k),

@@ -147,6 +147,17 @@ Photos uploaded before off-chain storage existed keep their bytes in the photo c
 
 Before you start, the Worker's `PHOTOS` bucket must be bound and `/photos-config` must answer `{"offChain":true}`.
 
+The cron runs under its own key, not the Worker's request-path one (security review 2026-11-11, X-1). Generate it once, store it as a Worker secret and grant it:
+
+```bash
+openssl genpkey -algorithm ed25519 -out photo-cron.pem
+npx wrangler secret put PHOTO_CRON_IDENTITY_PEM < photo-cron.pem      # add --env testnet for testnet
+icp identity import photo-cron --from-pem photo-cron.pem
+icp canister call photo addCronRelay "(principal \"$(icp identity principal --identity photo-cron)\")" -e ic
+```
+
+Set the same principal as the `PHOTO_CRON_PRINCIPAL` variable in the GitHub environment so `deploy.sh` keeps the grant. The canister also caps, per UTC day, how many photos `confirmOffChain` may empty (20,000) and `dropUnuploadedPhotos` may drop (1,000). Over the cap the cron logs `run incomplete` and carries on the next day. Change the caps with `setCronDailyLimits(confirms, drops)`. `confirmOffChain` also checks each hash against the SHA-256 of the bytes it holds, so the cron can't attach a hash of its choosing.
+
 ```bash
 # The way back (Option A above). A canister holds one snapshot here, so this
 # replaces the pre-deploy one; don't deploy photo again until the move is checked.

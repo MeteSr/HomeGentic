@@ -4,7 +4,8 @@
  * Canister side (photo + property + payment, no Worker):
  *  PSWP.1 photo records say whether their bytes are off-chain (PhotoMeta.offChain),
  *         so the apps skip the batch call for them
- *  PSWP.2 knownPhotoIds and offChainPhotoPage answer only the photo relay and admins
+ *  PSWP.2 knownPhotoIds, offChainPhotoPage and dropUnuploadedPhotos answer only the
+ *         cron relay and admins, never the request-path photo relay (X-1, 2026-11-11)
  *  PSWP.3 knownPhotoIds returns the ids that still have a record
  *  PSWP.4 offChainPhotoPage lists off-chain records with their creation time
  *  PSWP.5 dropUnuploadedPhotos drops only off-chain records over 7 days old,
@@ -82,6 +83,10 @@ async function setup(prefix: string) {
   const pem = generateKeyPairSync("ed25519").privateKey.export({ format: "pem", type: "pkcs8" }).toString();
   const relay = payment.identityFromPem(pem);
   ok(await as("photo", admin).addPhotoRelay(relay.getPrincipal()));
+  // X-1: the hourly cron signs with its own key.
+  const cronPem = generateKeyPairSync("ed25519").privateKey.export({ format: "pem", type: "pkcs8" }).toString();
+  const cron = payment.identityFromPem(cronPem);
+  ok(await as("photo", admin).addCronRelay(cron.getPrincipal()));
   ok(await as("photo", admin).setPropertyCanisterId(ids.property));
   ok(await as("photo", admin).setPaymentCanisterId(ids.payment));
   ok(await as("property", admin).addTrustedCanister(ids.photo));
@@ -101,7 +106,7 @@ async function setup(prefix: string) {
     as("photo", owner).beginUpload(job, propertyId, { Finishing: null }, "", sha256(bytes), BigInt(bytes.length));
   const onChain = (job: string, bytes: Uint8Array) =>
     as("photo", owner).uploadPhoto(job, propertyId, { Finishing: null }, "", sha256(bytes), bytes);
-  return { pic, ids, as, admin, owner, relay, pem, propertyId, begin, onChain };
+  return { pic, ids, as, admin, owner, relay, pem, cron, cronPem, propertyId, begin, onChain };
 }
 
 describe("photo canister: what the sweep needs (part 4)", () => {
@@ -127,8 +132,8 @@ describe("photo canister: what the sweep needs (part 4)", () => {
     expect(flags).toEqual({ [empty]: true, [stored]: true, [chain]: false });
   });
 
-  it("PSWP.2 answers only the relay and admins", async () => {
-    for (const who of [t.owner, stranger]) {
+  it("PSWP.2 answers only the cron relay and admins", async () => {
+    for (const who of [t.owner, stranger, t.relay]) {
       expect(errKey(await t.as("photo", who).knownPhotoIds([empty]))).toBe("NotAuthorized");
       expect(errKey(await t.as("photo", who).offChainPhotoPage([]))).toBe("NotAuthorized");
       expect(errKey(await t.as("photo", who).dropUnuploadedPhotos([empty]))).toBe("NotAuthorized");
@@ -136,11 +141,11 @@ describe("photo canister: what the sweep needs (part 4)", () => {
   });
 
   it("PSWP.3 knownPhotoIds returns the ids that still have a record", async () => {
-    expect(ok(await t.as("photo", t.relay).knownPhotoIds([empty, "PHOTO_404", chain]))).toEqual([empty, chain]);
+    expect(ok(await t.as("photo", t.cron).knownPhotoIds([empty, "PHOTO_404", chain]))).toEqual([empty, chain]);
   });
 
   it("PSWP.4 offChainPhotoPage lists off-chain records with their creation time", async () => {
-    const page = ok<any>(await t.as("photo", t.relay).offChainPhotoPage([]));
+    const page = ok<any>(await t.as("photo", t.cron).offChainPhotoPage([]));
     expect(page.items.map(([id]: [string, bigint]) => id).sort()).toEqual([empty, stored].sort());
     expect(page.next).toEqual([]);
     const created = (await t.as("photo", t.owner).getPhotosByJob("JOB_1")).find((m: any) => m.id === empty).createdAt;
@@ -148,14 +153,25 @@ describe("photo canister: what the sweep needs (part 4)", () => {
   });
 
   it("PSWP.5 drops only off-chain records over 7 days old", async () => {
-    expect(ok(await t.as("photo", t.relay).dropUnuploadedPhotos([empty]))).toBe(0n); // too new
+    expect(ok(await t.as("photo", t.cron).dropUnuploadedPhotos([empty]))).toBe(0n); // too new
     await t.pic.advanceTime(Number((8n * DAY_NS) / 1_000_000n));
     await t.pic.tick();
-    expect(ok(await t.as("photo", t.relay).dropUnuploadedPhotos([empty, chain, "PHOTO_404"]))).toBe(1n);
+    expect(ok(await t.as("photo", t.cron).dropUnuploadedPhotos([empty, chain, "PHOTO_404"]))).toBe(1n);
     expect(errKey(await t.as("photo", t.owner).getPhoto(empty))).toBe("NotFound");
     expect(ok<any>(await t.as("photo", t.owner).getPhoto(chain)).data.length).toBe(1024); // on-chain: never dropped
     // Its hash is free again, so the same image can be uploaded.
     expect(errKey(await t.begin("JOB_2", image(3)))).toBe("ok");
+  });
+
+  it("PSWP.7 caps drops per day (X-1)", async () => {
+    const old = ok<any>(await t.begin("JOB_3", image(31))).id;
+    await t.pic.advanceTime(Number((8n * DAY_NS) / 1_000_000n));
+    await t.pic.tick();
+    ok(await t.as("photo", t.admin).setCronDailyLimits(20_000n, 0n));
+    expect(errKey(await t.as("photo", t.cron).dropUnuploadedPhotos([old]))).toBe("InvalidInput");
+    expect(errKey(await t.as("photo", t.owner).getPhoto(old))).toBe("ok");
+    ok(await t.as("photo", t.admin).setCronDailyLimits(20_000n, 1_000n));
+    expect(ok(await t.as("photo", t.cron).dropUnuploadedPhotos([old]))).toBe(1n);
   });
 });
 
@@ -203,6 +219,7 @@ describe("the Worker's hourly sweep (part 4)", () => {
       ICP_ROOT_KEY: await gatewayRootKeyHex(`http://localhost:${port}`),
       DFX_NETWORK: "local",
       DFX_IDENTITY_PEM: t.pem,
+      PHOTO_CRON_IDENTITY_PEM: t.cronPem,
       CANISTER_ID_PHOTO: t.ids.photo.toText(),
     };
     Object.assign(process.env, vars);
@@ -219,7 +236,7 @@ describe("the Worker's hourly sweep (part 4)", () => {
     };
   }, 180_000);
   afterAll(async () => {
-    for (const k of ["IC_HOST", "ICP_ROOT_KEY", "DFX_NETWORK", "DFX_IDENTITY_PEM", "CANISTER_ID_PHOTO"])
+    for (const k of ["IC_HOST", "ICP_ROOT_KEY", "DFX_NETWORK", "DFX_IDENTITY_PEM", "PHOTO_CRON_IDENTITY_PEM", "CANISTER_ID_PHOTO"])
       delete process.env[k];
     await t?.pic.stopLive().catch(() => {});
     await t?.pic.tearDown();

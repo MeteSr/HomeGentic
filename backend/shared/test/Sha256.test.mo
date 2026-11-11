@@ -26,3 +26,9 @@ assert Sha256.hexOfText("hgs_" # rep("0f", 32)) == "89a5369c4d1d473c0c8b70b084ca
 assert Sha256.hexOfText("héllo ✓") == "5657cdef8a85a584e0e961e6f8247cf5d3f8ed21496ed6fdbcfd43a761e94245";
 
 assert Sha256.digest("abc".encodeUtf8()).size() == 32;
+
+// X-1 (2026-11-11): hexOfBlob hashes raw bytes (photo.confirmOffChain checks
+// the cron's hash against the on-chain bytes with it).
+assert Sha256.hexOfBlob("" : Blob) == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+assert Sha256.hexOfBlob("\ff\d8\ff" : Blob) == "6e568e1f67fba258184c78181539e5e8fdee447e49bb706fc0ea34fbf12336a5";
+assert Sha256.hexOfBlob("abc" : Blob) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
