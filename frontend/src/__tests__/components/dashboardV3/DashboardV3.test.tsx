@@ -424,3 +424,48 @@ describe("DashboardV3 — answer cards", () => {
     expect(screen.getByText("Back to quiet")).toBeInTheDocument();
   });
 });
+
+describe("DashboardV3 — multi-step assistant tasks", () => {
+  it("offers the three tasks for the home and starts one", () => {
+    const runTask = vi.fn();
+    mockUseVoiceAgent.mockReturnValue(voiceReturn({ runTask }));
+    renderDashboard();
+    const group = screen.getByRole("group", { name: "Assistant tasks" });
+    expect(within(group).getByRole("button", { name: /Storm prep/ })).toBeInTheDocument();
+    expect(within(group).getByRole("button", { name: /Insurance claim packet/ })).toBeInTheDocument();
+    fireEvent.click(within(group).getByRole("button", { name: /Closing handoff check/ }));
+    expect(runTask).toHaveBeenCalledWith("closing_handoff", { id: "prop-1", address: "1 Main St" });
+  });
+
+  it("a typed request that names a task starts it instead of opening a panel", () => {
+    const runTask = vi.fn();
+    mockUseVoiceAgent.mockReturnValue(voiceReturn({ runTask }));
+    renderDashboard();
+    const input = screen.getByLabelText("Ask about your home");
+    fireEvent.change(input, { target: { value: "hail hit us, put together my insurance claim" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(runTask).toHaveBeenCalledWith("insurance_claim", { id: "prop-1", address: "1 Main St" }, "hail hit us, put together my insurance claim");
+  });
+
+  it("hides the tasks from contractors", () => {
+    mockUseAuthStore.mockReturnValue({ principal: "c", profile: { email: "c@example.com", role: "Contractor" } });
+    renderDashboard();
+    expect(screen.queryByRole("group", { name: "Assistant tasks" })).toBeNull();
+  });
+
+  it("shows the plan's review card and passes the ticked steps on", () => {
+    const approvePlan = vi.fn();
+    mockUseVoiceAgent.mockReturnValue(voiceReturn({
+      state: "processing", transcript: "Storm prep", response: "Here's the plan.",
+      approvePlan, dismissPlan: vi.fn(),
+      pendingPlan: {
+        task: "storm_prep", title: "Storm prep for 1 Main St",
+        steps: [{ tool: "share_report", input: { property_id: "prop-1", visibility: "BuyerOnly", expiry_days: 90 }, why: "old link" }],
+      },
+    }));
+    renderDashboard();
+    expect(screen.getByText(/^For 1 Main St/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save 1 step" }));
+    expect(approvePlan).toHaveBeenCalledWith([0]);
+  });
+});

@@ -12,8 +12,8 @@
  *       read-only tools run without asking
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
 
 // Mock all heavy service dependencies — useVoiceAgent imports many services
 vi.mock("@/services/property",          () => ({ propertyService: { getMyProperties: vi.fn().mockResolvedValue([]) } }));
@@ -214,5 +214,109 @@ describe("VA.7 — side-effecting tools need confirmation (F-8)", () => {
       setToolConfirmationHandler(null);
     }
     expect(vi.mocked(executeTool).mock.calls.map((c) => c[0])).toEqual(["accept_bid", "list_bids"]);
+  });
+});
+
+// ── VA.8 ─────────────────────────────────────────────────────────────────────
+// Multi-step tasks: the model proposes one plan; the user reviews every write
+// on one card, and only ticked steps run. No per-step window.confirm.
+
+describe("VA.8 — multi-step task plans run only from the review card", () => {
+  const gutters = {
+    tool: "schedule_maintenance_task",
+    input: { property_id: "P1", system_name: "Gutters", task_description: "Clean gutters", planned_year: 2026, planned_month: 6 },
+    why: "No gutter cleaning on record",
+  };
+  const roof = {
+    tool: "create_quote_request",
+    input: { property_id: "P1", service_type: "Roofing", description: "Roof inspection", urgency: "Medium" },
+    why: "Roof is near the end of its life",
+  };
+  const planCall = (steps: unknown[]) => ({
+    status: 200, ok: true,
+    json: async () => ({
+      type: "tool_calls",
+      assistantMessage: { role: "assistant", content: [] },
+      toolCalls: [{ id: "p1", name: "propose_plan", input: { task: "storm_prep", title: "Storm prep for 12 Oak St", steps } }],
+    }),
+  });
+  const answer = { status: 200, ok: true, json: async () => ({ type: "answer", text: "Done." }) };
+  const confirm = vi.fn();
+
+  beforeEach(() => {
+    confirm.mockReset().mockReturnValue(true);
+    setToolConfirmationHandler(confirm);
+    vi.mocked(executeTool).mockReset().mockResolvedValue({ success: true, data: { summary: "saved" } });
+    mockFetchWithAgentSession.mockReset();
+  });
+  afterEach(() => setToolConfirmationHandler(null));
+
+  const lastToolResult = (call: number) =>
+    JSON.parse(JSON.parse(mockFetchWithAgentSession.mock.calls[call][1].body).messages.at(-1).content[0].content);
+
+  it("prepare_home_task reads without asking; the task writes and plans need the user", () => {
+    expect(toolNeedsConfirmation("prepare_home_task")).toBe(false);
+    expect(toolNeedsConfirmation("create_insurance_claim")).toBe(true);
+    expect(toolNeedsConfirmation("propose_plan")).toBe(true);
+  });
+
+  it("a task chip sends the task request to the agent", async () => {
+    mockFetchWithAgentSession.mockResolvedValueOnce(answer);
+    const { result } = renderHook(() => useVoiceAgent());
+    await act(async () => { await result.current.runTask("storm_prep", { id: "P1", address: "12 Oak St" }); });
+    const body = JSON.parse(mockFetchWithAgentSession.mock.calls[0][1].body);
+    expect(mockFetchWithAgentSession.mock.calls[0][0]).toMatch(/\/api\/agent$/);
+    expect(body.messages[0].content).toMatch(/storm prep.*12 Oak St.*P1/i);
+  });
+
+  it("shows the plan, runs only the ticked steps, and tells the model what ran", async () => {
+    mockFetchWithAgentSession.mockResolvedValueOnce(planCall([gutters, roof])).mockResolvedValueOnce(answer);
+    const { result } = renderHook(() => useVoiceAgent());
+    let run!: Promise<void>;
+    act(() => { run = result.current.runTask("storm_prep", { id: "P1", address: "12 Oak St" }); });
+    await waitFor(() => expect(result.current.pendingPlan).not.toBeNull());
+    expect(result.current.pendingPlan!.steps).toHaveLength(2);
+    expect(executeTool).not.toHaveBeenCalled();
+    await act(async () => { result.current.approvePlan([1]); await run; });
+    expect(confirm).not.toHaveBeenCalled();
+    expect(vi.mocked(executeTool).mock.calls).toEqual([["create_quote_request", roof.input]]);
+    const sent = lastToolResult(1);
+    expect(sent.success).toBe(true);
+    expect(sent.data.ran).toHaveLength(1);
+    expect(sent.data.skipped).toEqual([{ tool: "schedule_maintenance_task" }]);
+    expect(result.current.pendingPlan).toBeNull();
+    expect(result.current.response).toBe("Done.");
+  });
+
+  it("a dismissed plan saves nothing and the model is told", async () => {
+    mockFetchWithAgentSession.mockResolvedValueOnce(planCall([gutters])).mockResolvedValueOnce(answer);
+    const { result } = renderHook(() => useVoiceAgent());
+    let run!: Promise<void>;
+    act(() => { run = result.current.runTask("storm_prep", { id: "P1", address: "12 Oak St" }); });
+    await waitFor(() => expect(result.current.pendingPlan).not.toBeNull());
+    await act(async () => { result.current.dismissPlan(); await run; });
+    expect(executeTool).not.toHaveBeenCalled();
+    expect(lastToolResult(1)).toMatchObject({ success: false, error: expect.stringMatching(/declined/) });
+  });
+
+  it("a plan with a step outside the curated list never reaches the card", async () => {
+    const bad = { tool: "accept_bid", input: { property_id: "P1", quote_id: "Q-ATTACKER" }, why: "cheapest" };
+    mockFetchWithAgentSession.mockResolvedValueOnce(planCall([gutters, bad])).mockResolvedValueOnce(answer);
+    const { result } = renderHook(() => useVoiceAgent());
+    await act(async () => { await result.current.runTask("storm_prep", { id: "P1", address: "12 Oak St" }); });
+    expect(result.current.pendingPlan).toBeNull();
+    expect(executeTool).not.toHaveBeenCalled();
+    expect(lastToolResult(1)).toMatchObject({ success: false, error: expect.stringMatching(/accept_bid/) });
+  });
+
+  it("reset() while a plan is waiting declines it", async () => {
+    mockFetchWithAgentSession.mockResolvedValueOnce(planCall([gutters])).mockResolvedValueOnce(answer);
+    const { result } = renderHook(() => useVoiceAgent());
+    let run!: Promise<void>;
+    act(() => { run = result.current.runTask("storm_prep", { id: "P1", address: "12 Oak St" }); });
+    await waitFor(() => expect(result.current.pendingPlan).not.toBeNull());
+    await act(async () => { result.current.reset(); await run; });
+    expect(executeTool).not.toHaveBeenCalled();
+    expect(result.current.pendingPlan).toBeNull();
   });
 });

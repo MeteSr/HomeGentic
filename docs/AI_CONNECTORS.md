@@ -38,6 +38,13 @@ OQL on bills and property, and the in-app read tool (2026-11-10):
   entities from `schema()` and runs OQL against `execute()`, so a field or entity added to a catalogue reaches
   the assistant with no new tool. It is in `READ_ONLY_TOOLS` (no confirmation prompt) because it can't change
   anything; every write still asks first.
+- Multi-step tasks (storm prep, insurance claim packet, closing handoff check) use plan, review, run: the
+  assistant reads with `prepare_home_task` (read-only, `frontend/src/services/assistantTasks.ts`), then calls
+  `propose_plan` once with every write. The browser checks the plan against `PLAN_STEP_TOOLS`
+  (`frontend/src/services/assistantPlan.ts`: schedule a task, open a quote request, start a claim record, a
+  buyer-only report link) and shows it on one review card with the real arguments; only the steps the user
+  ticks run. Bids, signatures, transfers and payments are never plan steps. Started from the task chips above
+  the dashboard's ask bar, or by typing the task.
 
 Owner: the registry request (recommendation 1) is drafted for mcp@dfinity.org; send it after the first mainnet
 deploy. Not built yet: the onboarding card and email (6), in-context prompts on other pages (7), mobile (9).

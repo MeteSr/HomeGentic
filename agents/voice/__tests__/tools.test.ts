@@ -235,3 +235,45 @@ describe("query_home_records — generic OQL read tool", () => {
     expect(desc).toMatch(/insurance|warranty|mortgage/i);
   });
 });
+
+// ── Multi-step tasks: prepare_home_task → propose_plan → one review card ─────
+// (audits/icp-aiware-2026-11-10.md, opportunity 3) The browser runs
+// prepare_home_task without asking (it only reads), checks propose_plan's steps
+// against the same four tools (frontend/src/services/assistantPlan.ts), and
+// runs only the steps the user ticks on the card.
+
+describe("multi-step task tools", () => {
+  const TASKS = ["storm_prep", "insurance_claim", "closing_handoff"];
+
+  it("prepare_home_task takes a task and a home, plus claim details", () => {
+    expect(getRequired("prepare_home_task")).toEqual(["task", "property_id"]);
+    const props = getProperties("prepare_home_task");
+    expect(props.task.enum).toEqual(TASKS);
+    expect(Object.keys(props)).toEqual(expect.arrayContaining(["cause", "date_of_loss", "damage_description"]));
+    expect(getTool("prepare_home_task").description).toMatch(/read-only|only reads/i);
+  });
+
+  it("propose_plan's steps can only be the four curated writes", () => {
+    expect(getRequired("propose_plan")).toEqual(["task", "title", "steps"]);
+    const props = getProperties("propose_plan");
+    expect(props.task.enum).toEqual(TASKS);
+    expect(props.steps.type).toBe("array");
+    expect(props.steps.maxItems).toBe(8);
+    expect(props.steps.items.properties.tool.enum).toEqual(
+      ["schedule_maintenance_task", "create_quote_request", "create_insurance_claim", "share_report"],
+    );
+    expect(props.steps.items.required).toEqual(["tool", "input", "why"]);
+  });
+
+  it("propose_plan says nothing is saved until the user approves", () => {
+    const desc = getTool("propose_plan").description;
+    expect(desc).toMatch(/one review card|review card/i);
+    expect(desc).toMatch(/nothing is saved|until the user approves/i);
+    expect(desc).toMatch(/BuyerOnly/);
+  });
+
+  it("create_insurance_claim starts the household's own record and files nothing", () => {
+    expect(getRequired("create_insurance_claim")).toEqual(["property_id", "title", "date_of_loss"]);
+    expect(getTool("create_insurance_claim").description).toMatch(/not filed|doesn't file|never files|nothing is sent/i);
+  });
+});

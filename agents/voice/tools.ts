@@ -56,6 +56,78 @@ OQL keys: start (required), where (eq, ne, lt, le, gt, ge, in, contains, icontai
       required: ["source"],
     },
   },
+  // ── Multi-step tasks (frontend/src/services/assistantPlan.ts) ──────────────
+  {
+    name: "prepare_home_task",
+    description: `First step of a multi-step task for one home. Read-only: it only reads the household's records and changes nothing.
+
+Tasks:
+- storm_prep: what the storm and emergency card is missing (never the house guide's text), roof and gutter state, the hurricane deductible, what's already scheduled.
+- insurance_claim: the policy on file, open claim records and their damage photos, earlier work on what was damaged, the contents inventory. Pass cause, date_of_loss and damage_description when the user gave them; never invent a date.
+- closing_handoff: whether the latest report link covers every job, permits and final lien waivers as recorded, jobs not fully signed.
+
+It returns facts, gaps, suggestedSteps (writes you can put in a plan, adjusted or dropped as fits), humanSteps (things only the user can do; never plan steps) and links. Then call propose_plan once.`,
+    parameters: {
+      type: "object" as const,
+      properties: {
+        task: { type: "string", enum: ["storm_prep", "insurance_claim", "closing_handoff"], description: "Which task" },
+        property_id: { type: "string", description: "The [ID: ...] of the home, from the property list" },
+        cause: {
+          type: "string",
+          enum: ["Wind or hurricane", "Hail", "Water leak", "Flood", "Fire or smoke", "Theft or vandalism", "Other"],
+          description: "insurance_claim only: what caused the damage",
+        },
+        date_of_loss: { type: "string", description: "insurance_claim only: YYYY-MM-DD, as the user said it" },
+        damage_description: { type: "string", description: "insurance_claim only: the damage in the user's words" },
+      },
+      required: ["task", "property_id"],
+    },
+  },
+  {
+    name: "propose_plan",
+    description: `Propose every write a multi-step task needs, as ONE plan. The user sees all the steps with their exact arguments on one review card, can untick any, and nothing is saved until the user approves. The result says which steps ran, failed or were left out; tell the user in one or two sentences.
+
+Rules: one home per plan; at most 8 steps; each step is one of the tools listed, with the same input that tool takes; give each a short why. A share_report step must use visibility BuyerOnly. Don't call those tools one by one during a task, and don't propose anything the user can't undo (accepting bids, signing jobs, transfers, payments). If nothing needs saving, answer instead of proposing an empty plan.`,
+    parameters: {
+      type: "object" as const,
+      properties: {
+        task: { type: "string", enum: ["storm_prep", "insurance_claim", "closing_handoff"], description: "Which task this plan is for" },
+        title: { type: "string", description: "A short title naming the task and the home, e.g. \"Storm prep for 12 Oak St\"" },
+        steps: {
+          type: "array",
+          maxItems: 8,
+          items: {
+            type: "object",
+            properties: {
+              tool: {
+                type: "string",
+                enum: ["schedule_maintenance_task", "create_quote_request", "create_insurance_claim", "share_report"],
+              },
+              input: { type: "object", description: "The tool's input, exactly as that tool takes it" },
+              why: { type: "string", description: "One short sentence the user will read on the card" },
+            },
+            required: ["tool", "input", "why"],
+          },
+        },
+      },
+      required: ["task", "title", "steps"],
+    },
+  },
+  {
+    name: "create_insurance_claim",
+    description: `Start a claim record in the household's claim kit: their own notes on a claim (what happened, when, what was damaged). Nothing is sent to the insurer and nothing is filed; the user files the claim with their insurer and adds the claim number later. Usually a step in an insurance_claim plan.`,
+    parameters: {
+      type: "object" as const,
+      properties: {
+        property_id: { type: "string", description: "The [ID: ...] of the home" },
+        title: { type: "string", description: "Short title, at most 100 characters" },
+        date_of_loss: { type: "string", description: "YYYY-MM-DD" },
+        cause: { type: "string", description: "e.g. Wind or hurricane, Hail, Water leak, Flood, Fire or smoke, Theft or vandalism, Other" },
+        description: { type: "string", description: "What was damaged, in the user's words (at most 2,000 characters)" },
+      },
+      required: ["property_id", "title", "date_of_loss"],
+    },
+  },
   {
     name: "create_maintenance_job",
     description: `Record a completed home maintenance or repair job on the blockchain.

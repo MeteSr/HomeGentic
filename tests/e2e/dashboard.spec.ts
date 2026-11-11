@@ -179,3 +179,58 @@ test.describe("DashboardPage — /dashboard (single property)", () => {
     await expect(page).toHaveURL("/dashboard");
   });
 });
+
+// ── Multi-step assistant tasks ────────────────────────────────────────────────
+// The Worker is stubbed with page.route: the first /api/agent call proposes a
+// plan, so the review card shows every step before anything is saved.
+
+test.describe("DashboardPage — assistant tasks", () => {
+  test.beforeEach(async ({ page }) => {
+    await setup(page);
+  });
+
+  test("offers storm prep, a claim packet and a closing check above the ask bar", async ({ page }) => {
+    await page.goto("/dashboard");
+    const tasks = page.getByRole("group", { name: "Assistant tasks" });
+    await expect(tasks.getByRole("button", { name: "Storm prep" })).toBeVisible();
+    await expect(tasks.getByRole("button", { name: "Insurance claim packet" })).toBeVisible();
+    await expect(tasks.getByRole("button", { name: "Closing handoff check" })).toBeVisible();
+  });
+
+  test("a task shows one review card, and cancelling saves nothing", async ({ page }) => {
+    const bodies: any[] = [];
+    await page.route("**/api/agent", async (route) => {
+      const body = route.request().postDataJSON();
+      bodies.push(body);
+      const reply = bodies.length === 1
+        ? {
+            type: "tool_calls",
+            assistantMessage: { role: "assistant", content: [{ type: "tool_use", id: "p1", name: "propose_plan", input: {} }] },
+            toolCalls: [{
+              id: "p1", name: "propose_plan",
+              input: {
+                task: "closing_handoff", title: "Closing check for 123 Maple Street",
+                steps: [{ tool: "share_report", input: { property_id: "1", visibility: "BuyerOnly", expiry_days: 90 }, why: "The last report link predates two jobs" }],
+              },
+            }],
+          }
+        : { type: "answer", text: "No problem, nothing was saved." };
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(reply) });
+    });
+
+    await page.goto("/dashboard");
+    await page.getByRole("group", { name: "Assistant tasks" }).getByRole("button", { name: "Closing handoff check" }).click();
+
+    await expect(page.getByText("Closing check for 123 Maple Street")).toBeVisible();
+    await expect(page.getByText("Create a buyer report link")).toBeVisible();
+    await expect(page.getByText(/expires in 90 days/)).toBeVisible();
+    await expect(page.getByText(/Nothing is saved until you approve/)).toBeVisible();
+    expect(bodies[0].messages[0].content).toMatch(/closing handoff check.*123 Maple Street/i);
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByText("No problem, nothing was saved.")).toBeVisible();
+    const declined = JSON.parse(bodies[1].messages.at(-1).content[0].content);
+    expect(declined).toMatchObject({ success: false });
+    await assertNoA11yViolations(page);
+  });
+});
