@@ -366,14 +366,12 @@ export function closingHandoffFacts(input: {
         onFile: review.withWaiver.length,
       },
       unsignedJobCount: unsigned.length,
-      unsignedJobs: unsigned
-        .slice(0, LIST_CAP)
-        .map((j) => ({
-          jobId: j.id,
-          serviceType: j.serviceType,
-          date: j.date,
-          contractorName: j.contractorName ?? null,
-        })),
+      unsignedJobs: unsigned.slice(0, LIST_CAP).map((j) => ({
+        jobId: j.id,
+        serviceType: j.serviceType,
+        date: j.date,
+        contractorName: j.contractorName ?? null,
+      })),
     },
     gaps,
     suggestedSteps: current
