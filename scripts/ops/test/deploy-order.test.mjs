@@ -196,3 +196,15 @@ for (const wf of [".github/workflows/deploy-testnet.yml", ".github/workflows/dep
     assert.match(gate, /ALLOW_STABLE_BREAK: \$\{\{ inputs\.allow_upgrade_break && '1' \|\| '' \}\}/);
   });
 }
+
+test("deploy.sh reads a multi-line ok from report.refreshAttestationKey as success", () => {
+  // icp prints a result that carries a value over several lines
+  // ("variant {\n    ok = blob ..."), which a one-line "variant { ok" match
+  // reported as a failure in the local rehearsal.
+  const sh = read("scripts/deploy.sh");
+  const block = sh.match(/^if out=\$\(icp canister call report refreshAttestationKey[\s\S]*?^fi$/m);
+  assert.ok(block, "deploy.sh refreshes report's signing key");
+  const script = `icp() { printf '(\\n  variant {\\n    ok = blob "\\\\4b\\\\82"\\n  },\\n)\\n'; }\nENV=testnet\n${block[0]}\n`;
+  const res = spawnSync("bash", ["-c", script], { encoding: "utf8" });
+  assert.match(res.stdout, /✓ report signing key published/, res.stdout + res.stderr);
+});

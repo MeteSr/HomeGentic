@@ -900,7 +900,8 @@ fi
 grant() {  # grant <canister> <method> <principal> <description>
   local out
   echo "  $4 on $1..."
-  if out=$(icp canister call "$1" "$2" "(principal \"$3\")" -e "$ENV" 2>&1) && [[ "$out" == *"variant { ok"* ]]; then
+  if out=$(icp canister call "$1" "$2" "(principal \"$3\")" -e "$ENV" 2>&1) \
+      && [[ "$(tr -s '[:space:]' ' ' <<<"$out")" == *"variant { ok"* ]]; then
     echo "    ✓ $1.$2"
   else
     echo "    ⚠️  $1.$2 failed: $out"
@@ -1169,7 +1170,9 @@ if [ "$ENV" = "ic" ]; then
   icp canister call report setAttestationKeyName '("key_1")' -e "$ENV" >/dev/null \
     || { echo "❌ could not set the signing key on report"; exit 1; }
 fi
-if out=$(icp canister call report refreshAttestationKey '()' -e "$ENV" 2>&1) && [[ "$out" == *"variant { ok"* ]]; then
+# icp prints a result with a value over several lines; squeeze it to one.
+if out=$(icp canister call report refreshAttestationKey '()' -e "$ENV" 2>&1) \
+    && [[ "$(tr -s '[:space:]' ' ' <<<"$out")" == *"variant { ok"* ]]; then
   echo "  ✓ report signing key published"
 else
   echo "  ⚠️  report.refreshAttestationKey failed (records still get signed): $out"
