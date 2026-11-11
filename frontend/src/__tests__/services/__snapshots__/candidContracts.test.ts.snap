@@ -285,19 +285,26 @@ exports[`Candid contract snapshots — method arity > photo 1`] = `
 "addPhotoRelay(1) -> (1)
 beginUpload(6) -> (1)
 beginWaiverUpload(4) -> (1)
+confirmOffChain(1) -> (1)
 deleteMyData(0) -> (1)
 deletePhoto(1) -> (1)
+dropUnuploadedPhotos(1) -> (1)
 getGuidePhotoData(2) -> (1) [composite_query]
 getListingPhotoDataBatch(1) -> (1) [query]
 getMyOffChainPhotoIds(0) -> (1) [query]
+getOffChainMigrationStatus(0) -> (1) [query]
 getPhotoDataBatch(1) -> (1)
 getPhotosByJob(1) -> (1)
 getPhotosByProperty(1) -> (1)
 getPhotosByRoom(1) -> (1)
 getPublicListingPhotos(1) -> (1) [query]
 guidePhotoAccess(2) -> (1) [composite_query]
+knownPhotoIds(1) -> (1) [query]
+offChainPhotoPage(1) -> (1) [query]
+onChainPhotoPage(1) -> (1)
 photoAccess(2) -> (1) [composite_query]
 removePhotoRelay(1) -> (1)
+setOffChainMigrationEnabled(1) -> (1)
 setPropertyCanisterId(1) -> (1)
 uploadPhoto(6) -> (1)
 uploadWaiver(4) -> (1)"

@@ -141,6 +141,37 @@ Add `--env testnet` for the testnet Worker. Worker secrets are not rolled back.
 
 ---
 
+## Moving existing photos off-chain
+
+Photos uploaded before off-chain storage existed keep their bytes in the photo canister. The voice Worker's hourly cron copies them to R2 while an admin has turned the migration on. For each photo it writes the bytes, reads them back and checks their SHA-256 before it asks the canister to empty its copy (`confirmOffChain`), so a photo is never emptied unless R2 really holds it. Records, sizes and quota use don't change, and the apps already load photos with empty on-chain bytes from the Worker.
+
+Before you start, the Worker's `PHOTOS` bucket must be bound and `/photos-config` must answer `{"offChain":true}`.
+
+```bash
+# The way back (Option A above). A canister holds one snapshot here, so this
+# replaces the pre-deploy one; don't deploy photo again until the move is checked.
+icp canister stop photo -e ic
+icp canister snapshot create photo --replace "$(icp canister snapshot list photo -q -e ic | head -1)" -e ic
+icp canister start photo -e ic
+icp canister call photo setOffChainMigrationEnabled '(true)' -e ic
+icp canister call photo getOffChainMigrationStatus -e ic       # onChainPhotos falls each hour
+```
+
+Each run moves about 60 MB. The Worker logs `photo-migration` with `moved`, `failed` and `rehashed` counts. `rehashed` counts photos whose recorded hash didn't match their bytes. Those were uploaded on-chain, where the hash was never checked, and they now carry their real hash. A `failed` photo stays on-chain and is tried again on the next run. When `onChainPhotos` reaches 0, turn the migration off:
+
+```bash
+icp canister call photo setOffChainMigrationEnabled '(false)' -e ic
+icp canister call photo setOnChainUploadsEnabled '(false)' -e ic   # retire the on-chain path
+```
+
+Current apps already upload off-chain whenever the Worker stores photos, and a failed upload asks the user to try again instead of falling back on-chain. Turning on-chain uploads off stops older app versions too. Turn it back on only if R2 is down for a long time.
+
+**Orphans.** The same cron sweeps leftovers every hour. Bytes in `photos/` whose photo record is gone move to `orphans/<id>` and are deleted 30 days later. To put one back, copy `orphans/<id>` to `photos/<id>` (`npx wrangler r2 object get` / `put`). Off-chain records whose bytes never arrived are deleted after 7 days (`photo.dropUnuploadedPhotos`). If most of a page looks orphaned, the sweep leaves it alone and logs `photo-sweep … stopped`; that usually means the Worker points at the wrong canister or bucket.
+
+Keep the snapshot until a sample of moved photos loads in the app. Add `-e testnet` (and `--env testnet` for wrangler) to do the same on testnet first.
+
+---
+
 ## Incidents
 
 See `docs/INCIDENT_RUNBOOK.md`: severity, containment, telling users,

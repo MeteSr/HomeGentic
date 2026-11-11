@@ -59,7 +59,9 @@ import { handleCalendarFeed } from "./calendarFeed";
 import { handlePhotos } from "./photos";
 import { handleShowingRequest, fileShowingInCanister } from "./showings";
 import { r2PhotoStore } from "./photoStore";
-import { fetchPhotoAccess, fetchGuidePhotoAccess } from "../photoCanister";
+import { fetchPhotoAccess, fetchGuidePhotoAccess, photoMigrationCanister, photoSweepCanister } from "../photoCanister";
+import { migratePhotos } from "./photoMigration";
+import { sweepStoredOrphans, sweepUnuploadedRecords } from "./photoSweep";
 import { markIdentityCleared, floodTarget, saveFloodZone } from "./propertyCanister";
 import { reportServiceError, routeKey } from "./serviceErrors";
 import {
@@ -392,6 +394,7 @@ export default {
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(scheduledBidtolist(env));
     ctx.waitUntil(scheduledReferralFees(env));
+    ctx.waitUntil(scheduledPhotoMigration(env).then(() => scheduledPhotoSweep(env)));
   },
 
   /** Forwarded invoices → draft jobs (src/inbox.ts). Never replies or rejects, so forged senders get no backscatter. */
@@ -1918,6 +1921,46 @@ async function scheduledReferralFees(env: Env): Promise<void> {
     logger.info("referral-fees", "charge run", { ...summary });
   } catch (err) {
     logger.error("referral-fees", "charge run failed", { error: (err as Error)?.message });
+  }
+}
+
+/**
+ * Hourly: copy photos still on the photo canister into R2 (part 3 of the
+ * off-chain move, src/photoMigration.ts). The canister answers only while an
+ * admin has turned the migration on; otherwise this ends after one refused call.
+ */
+async function scheduledPhotoMigration(env: Env): Promise<void> {
+  if (!env.PHOTOS || !photoStorageReady(env)) return;
+  (process.env as any).DFX_IDENTITY_PEM  = env.DFX_IDENTITY_PEM;
+  (process.env as any).DFX_NETWORK       = env.DFX_NETWORK ?? "ic";
+  (process.env as any).IC_HOST           = env.IC_HOST ?? "";
+  (process.env as any).CANISTER_ID_PHOTO = env.CANISTER_ID_PHOTO;
+  const result = await migratePhotos(r2PhotoStore(env.PHOTOS), photoMigrationCanister);
+  if (result.error && /InvalidInput/.test(result.error)) return;   // migration is off
+  if (result.error || result.failed) {
+    logger.error("photo-migration", "run incomplete", { ...result });
+  } else if (result.moved) {
+    logger.info("photo-migration", "run", { ...result });
+  }
+}
+
+/**
+ * Hourly, after the migration: clear stored bytes that lost their record and
+ * records whose bytes never arrived (part 4, src/photoSweep.ts).
+ */
+async function scheduledPhotoSweep(env: Env): Promise<void> {
+  if (!env.PHOTOS || !photoStorageReady(env)) return;
+  const store = r2PhotoStore(env.PHOTOS);
+  const state = {
+    get: (k: string) => env.RATE_LIMIT.get(k),
+    put: (k: string, v: string) => env.RATE_LIMIT.put(k, v),
+  };
+  const now = Date.now();
+  const stored = await sweepStoredOrphans(store, photoSweepCanister, state, now);
+  const records = await sweepUnuploadedRecords(store, photoSweepCanister, state, now);
+  for (const [what, r] of [["stored", stored], ["records", records]] as const) {
+    if (r.error || r.aborted) logger.error("photo-sweep", `${what} sweep stopped`, { ...r });
+    else if ("quarantined" in r ? r.quarantined || r.purged : r.dropped) logger.info("photo-sweep", what, { ...r });
   }
 }
 
