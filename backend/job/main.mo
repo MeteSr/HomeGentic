@@ -638,6 +638,10 @@ persistent actor Job {
     #ok(matches)
   };
 
+  private func ownsJob(jobId : Text, caller : Principal) : Bool {
+    switch (jobs.get(jobId)) { case (?j) j.homeowner == caller; case null false }
+  };
+
   /// Jobs for several properties in one call (the dashboard's job summary and
   /// activity feed), with the same access rule as getJobsForProperty: ids the
   /// caller has no role on are skipped. A composite query, so the roles come
@@ -645,12 +649,17 @@ persistent actor Job {
   public composite query(msg) func getJobsForProperties(propertyIds: [Text]) : async [Job] {
     if (msg.caller.isAnonymous()) return [];
     let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
-    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller) or Text.size(propCanisterId) == 0;
+    // X-5: with no property canister wired, a caller sees only jobs they
+    // recorded themselves, never everyone's (as bills does).
+    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller);
+    let unwired = not open and Text.size(propCanisterId) == 0;
     let roles : [?Canisters.AccessRole] =
-      if (open) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
+      if (open or unwired) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
     let out = List.empty<Job>();
     for (i in ids.keys()) {
-      if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
+      if (unwired) {
+        for (j in Index.records(jobsByProperty, ids[i], jobs)) { if (j.homeowner == msg.caller) out.add(j) };
+      } else if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
         for (j in Index.records(jobsByProperty, ids[i], jobs)) out.add(j);
       };
     };
@@ -685,14 +694,17 @@ persistent actor Job {
   public composite query(msg) func getJobCostCategories(propertyIds: [Text]) : async [(Text, CostCategory)] {
     if (msg.caller.isAnonymous()) return [];
     let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
-    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller) or Text.size(propCanisterId) == 0;
+    // X-5: with no property canister wired, a caller sees only jobs they
+    // recorded themselves, never everyone's (as bills does).
+    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller);
+    let unwired = not open and Text.size(propCanisterId) == 0;
     let roles : [?Canisters.AccessRole] =
-      if (open) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
+      if (open or unwired) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
     let out = List.empty<(Text, CostCategory)>();
     for (i in ids.keys()) {
-      if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
+      if (open or unwired or (i < roles.size() and Canisters.hasRole(roles[i]))) {
         for (jobId in Index.ids(jobsByProperty, ids[i])) {
-          switch (costCategories.get(jobId)) {
+          if (not unwired or ownsJob(jobId, msg.caller)) switch (costCategories.get(jobId)) {
             case (?c) out.add((jobId, c));
             case null {};
           };
@@ -776,15 +788,20 @@ persistent actor Job {
     if (homes.size() > JobOql.MAX_HOMES)
       Runtime.trap("OQL: this covers " # homes.size().toText() # " homes; pin at most " # JobOql.MAX_HOMES.toText() # " with a propertyId condition");
     let ids = homes.toArray();
-    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller) or Text.size(propCanisterId) == 0;
+    // X-5: with no property canister wired, a caller sees only jobs they
+    // recorded themselves, never everyone's (as bills does).
+    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller);
+    let unwired = not open and Text.size(propCanisterId) == 0;
     let roles : [?Canisters.AccessRole] =
-      if (open or ids.size() == 0) [] else {
+      if (open or unwired or ids.size() == 0) [] else {
         try { await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller) }
         catch (_) { Runtime.trap("OQL: the property canister didn't answer, so access can't be checked; try again later") }
       };
     let rows = List.empty<Oql.Row>();
     for (i in ids.keys()) {
-      if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
+      if (unwired) {
+        for (j in Index.records(jobsByProperty, ids[i], jobs)) { if (j.homeowner == msg.caller) rows.add(jobRow(j)) };
+      } else if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
         for (j in Index.records(jobsByProperty, ids[i], jobs)) rows.add(jobRow(j));
       };
     };
@@ -922,14 +939,17 @@ persistent actor Job {
   public composite query(msg) func getJobCloseouts(propertyIds: [Text]) : async [JobCloseout] {
     if (msg.caller.isAnonymous()) return [];
     let ids = propertyIds.sliceToArray(0, Nat.min(propertyIds.size(), MAX_PROPERTY_BATCH));
-    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller) or Text.size(propCanisterId) == 0;
+    // X-5: with no property canister wired, a caller sees only jobs they
+    // recorded themselves, never everyone's (as bills does).
+    let open = isAdmin(msg.caller) or isTrustedCanister(msg.caller);
+    let unwired = not open and Text.size(propCanisterId) == 0;
     let roles : [?Canisters.AccessRole] =
-      if (open) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
+      if (open or unwired) [] else await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller);
     let out = List.empty<JobCloseout>();
     for (i in ids.keys()) {
-      if (open or (i < roles.size() and Canisters.hasRole(roles[i]))) {
+      if (open or unwired or (i < roles.size() and Canisters.hasRole(roles[i]))) {
         for (jobId in Index.ids(jobsByProperty, ids[i])) {
-          switch (closeoutOf(jobId)) { case (?c) out.add(c); case null {} };
+          if (not unwired or ownsJob(jobId, msg.caller)) switch (closeoutOf(jobId)) { case (?c) out.add(c); case null {} };
         };
       };
     };

@@ -20,6 +20,16 @@
  *   X4.2 the relay (a notifier) pages through every contractor, hidden ones
  *        included, with no gaps or repeats; the page size is capped at 200
  *
+ *  X-5 OQL is no wider than the getters
+ *   X5.1 a Viewer reads the policy, inventory and warranty plan with the
+ *        policy number, serial numbers and contract number blanked; a
+ *        Manager and the owner read them in full
+ *   X5.2 property OQL blanks the same fields (and fixture serial numbers)
+ *        for a Viewer, and not for a Manager
+ *   X5.3 an unwired job canister (no property canister id) shows a signed-in
+ *        caller only their own jobs, in execute and getJobsForProperties,
+ *        instead of every job
+ *
  * Run: cd tests/upgrade && npx vitest run security-2026-11-11.canister.test.ts
  * (needs .dfx/local/canisters/{contractor,job,property,payment}/*.wasm)
  */
@@ -30,6 +40,15 @@ import { IDL } from "@icp-sdk/core/candid";
 import type { Identity } from "@icp-sdk/core/agent";
 import { createPic, wasmPath, CONTROLLER } from "./__helpers__/setup";
 import { serviceFromWasm } from "./__helpers__/candid";
+
+type Cell = { name: string; value: Record<string, unknown> };
+const plain = (row: Cell[]) =>
+  Object.fromEntries(
+    row.map((c) => {
+      const [k, v] = Object.entries(c.value)[0];
+      return [c.name, k === "null" ? null : typeof v === "bigint" ? Number(v) : v];
+    }),
+  );
 
 type R<T> = { ok: T } | { err: Record<string, unknown> };
 function ok<T>(r: R<T>): T {
@@ -189,6 +208,97 @@ describe("security review 2026-11-11", () => {
       expect(new Set(seen).size).toBe(total);
       for (const c of crew) expect(seen).toContain(c.getPrincipal().toText());
       expect((await as("contractor", admin).getLeadAlertTargetsPage([], 10_000n)).length).toBeLessThanOrEqual(200);
+    });
+  });
+
+  // ── X-5 ──────────────────────────────────────────────────────────────────
+  describe("X-5 OQL is no wider than the getters", () => {
+    const owner   = createIdentity("x5-owner");
+    const manager = createIdentity("x5-manager");
+    const viewer  = createIdentity("x5-viewer");
+    const outsider = createIdentity("x5-outsider");
+    let home = "";
+
+    const oql = async (who: Identity, q: object) =>
+      ((await as("property", who).execute(JSON.stringify(q))).rows as Cell[][]).map(plain);
+
+    beforeAll(async () => {
+      ok(await as("payment", admin).adminActivateStripeSubscription(owner.getPrincipal(), { Pro: null }, 12n));
+      home = ok<any>(await as("property", owner).registerProperty({
+        address: "5 Secret Ln", city: "Orlando", state: "FL", zipCode: "32801",
+        propertyType: { SingleFamily: null }, yearBuilt: 2001n, squareFeet: 1500n, tier: { Pro: null },
+      })).id;
+      for (const [who, role] of [[manager, "Manager"], [viewer, "Viewer"]] as const) {
+        const invite = ok<any>(await as("property", owner).inviteManager(home, { [role]: null }, role, []));
+        ok(await as("property", who).claimManagerRole(invite.token));
+      }
+      ok(await as("property", owner).setInsurancePolicy(home, [{
+        carrier: "Citizens", policyNumber: "HO3-999", renewalDate: "2027-06-01",
+        coverageACents: [35_000_000n], hurricaneDeductible: [],
+      }]));
+      ok(await as("property", owner).addInventoryItem(home, {
+        roomId: [], name: "TV", category: "Electronics", quantity: 1n, valueCents: [120_000n],
+        purchaseDate: "", serialNumber: "SN-TV-1", notes: "",
+      }));
+      ok(await as("property", owner).setHomeWarrantyPlan(home, [{
+        provider: "American Home Shield", planName: "ShieldGold", contractNumber: "AHS-123456",
+        claimContact: "1-800-555-0100", serviceFeeCents: [12_500n], startDate: "2026-03-15",
+        renewalDate: "2027-03-15", coverageNotes: "", exclusionNotes: "", contractDocId: [],
+      }]));
+      const room = ok<any>(await as("property", owner).createRoom({
+        propertyId: home, name: "Kitchen", floorName: "First Floor", floorType: "Tile",
+        paintColor: "", paintBrand: "", paintCode: "", notes: "",
+      }));
+      ok(await as("property", owner).addFixture(room.id, {
+        brand: "Bosch", model: "SHX", serialNumber: "SN-DW-1", installedDate: "", warrantyExpiry: "", notes: "",
+      }));
+    });
+
+    it("X5.1 a Viewer's getters blank the numbers; a Manager's don't", async () => {
+      const read = async (who: Identity) => ({
+        policy:   ok<any[]>(await as("property", who).getInsurancePolicy(home))[0].policyNumber,
+        serial:   ok<any[]>(await as("property", who).getInventory(home))[0].serialNumber,
+        contract: ok<any[]>(await as("property", who).getHomeWarrantyPlan(home))[0].contractNumber,
+      });
+      expect(await read(viewer)).toEqual({ policy: "", serial: "", contract: "" });
+      for (const who of [manager, owner]) {
+        expect(await read(who)).toEqual({ policy: "HO3-999", serial: "SN-TV-1", contract: "AHS-123456" });
+      }
+      // The rest of the record still reads.
+      expect(ok<any[]>(await as("property", viewer).getInsurancePolicy(home))[0].carrier).toBe("Citizens");
+    });
+
+    it("X5.2 OQL blanks the same fields for a Viewer", async () => {
+      const pin = { eq: { field: "propertyId", value: home } };
+      const read = async (who: Identity) => ({
+        policy:   (await oql(who, { start: "insurance_policies", where: pin, select: ["policyNumber"] }))[0]?.policyNumber,
+        serial:   (await oql(who, { start: "inventory_items", where: pin, select: ["serialNumber"] }))[0]?.serialNumber,
+        contract: (await oql(who, { start: "warranty_plans", where: pin, select: ["contractNumber"] }))[0]?.contractNumber,
+        fixture:  (await oql(who, { start: "fixtures", where: pin, select: ["serialNumber"] }))[0]?.serialNumber,
+      });
+      expect(await read(viewer)).toEqual({ policy: "", serial: "", contract: "", fixture: "" });
+      expect(await read(manager)).toEqual({ policy: "HO3-999", serial: "SN-TV-1", contract: "AHS-123456", fixture: "SN-DW-1" });
+    });
+
+    it("X5.3 an unwired job canister shows a caller only their own jobs", async () => {
+      const { idlFactory, initArgs } = serviceFromWasm(wasmPath("job"));
+      const svc = idlFactory({ IDL });
+      const arg = new Uint8Array(IDL.encode(initArgs, initArgs.map(() => admin.getPrincipal())));
+      const loose = (await pic.setupCanister({ idlFactory: (() => svc) as any, wasm: wasmPath("job"), arg })).canisterId;
+      const job = (who: Identity) => {
+        const a = pic.createActor<any>((() => svc) as any, loose);
+        a.setIdentity(who);
+        return a;
+      };
+      const PID = "unwired-home";
+      ok(await job(owner).createJob(PID, "Roof", { Roofing: null }, "Roof work", ["Acme"], 500_000n,
+        1_600_000_000_000_000_000n, [], [12n], false, []));
+
+      expect((await job(owner).getJobsForProperties([PID])).length).toBe(1);
+      expect(await job(outsider).getJobsForProperties([PID])).toEqual([]);
+      const q = JSON.stringify({ start: "jobs", where: { eq: { field: "propertyId", value: PID } } });
+      expect((await job(owner).execute(q)).rows.length).toBe(1);
+      expect((await job(outsider).execute(q)).rows).toEqual([]);
     });
   });
 });

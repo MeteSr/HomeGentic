@@ -2665,10 +2665,19 @@ persistent actor Property {
     ]
   };
 
+  /// X-5 (security review 2026-11-11, L-3 of 11-10): policy, contract and
+  /// serial numbers are for people who can change the home's records (owner,
+  /// co-owner, manager) and admins. A Viewer reads those records with the
+  /// numbers blanked, in the getters and in OQL alike.
+  private func seesAccountNumbers(propertyId : Text, caller : Principal) : Bool {
+    isAdmin(caller) or checkAuthorized(propertyId, caller, true)
+  };
+
   /// The rows of entity `name` for one home the caller may read; `full` is
   /// true for the owner and co-owners.
   private func oqlRowsFor(name : Text, p : Property, role : AccessRole, full : Bool, out : List.List<Oql.Row>) {
     let pid = p.id;
+    let numbers = role != #Viewer;
     switch name {
       case "homes" out.add(homeRow(p, role));
       case "rooms" for (r in Index.records(roomsByProperty, pid, rooms)) {
@@ -2677,14 +2686,14 @@ persistent actor Property {
       };
       case "fixtures" for (r in Index.records(roomsByProperty, pid, rooms)) {
         for (f in r.fixtures.values()) {
-          out.add([#text(f.id), #text(pid), #text(r.id), #text(r.name), #text(f.brand), #text(f.model), #text(f.serialNumber),
+          out.add([#text(f.id), #text(pid), #text(r.id), #text(r.name), #text(f.brand), #text(f.model), #text(if (numbers) f.serialNumber else ""),
                    oqlDate(f.installedDate), oqlDate(f.warrantyExpiry), #text(f.notes)]);
         };
       };
       case "insurance_policies" switch (insurancePolicies.get(pid)) {
         case null {};
         case (?x) out.add([
-          #text(pid), #text(x.carrier), #text(x.policyNumber), #text(x.renewalDate), oqlNat(x.coverageACents),
+          #text(pid), #text(x.carrier), #text(if (numbers) x.policyNumber else ""), #text(x.renewalDate), oqlNat(x.coverageACents),
           switch (x.hurricaneDeductible) { case (?#PercentOfCoverageA(n)) #int(n); case _ #null_ },
           switch (x.hurricaneDeductible) { case (?#Amount(n)) #int(n); case _ #null_ },
           #text(Oql.isoDate(x.updatedAt)),
@@ -2700,11 +2709,11 @@ persistent actor Property {
       };
       case "inventory_items" for (i in Index.records(inventoryByProperty, pid, inventoryItems)) {
         out.add([#text(i.id), #text(pid), oqlText(i.roomId), #text(i.name), #text(i.category), #int(i.quantity),
-                 oqlNat(i.valueCents), oqlDate(i.purchaseDate), #text(i.serialNumber), #text(i.notes)]);
+                 oqlNat(i.valueCents), oqlDate(i.purchaseDate), #text(if (numbers) i.serialNumber else ""), #text(i.notes)]);
       };
       case "warranty_plans" switch (homeWarrantyPlans.get(pid)) {
         case null {};
-        case (?w) out.add([#text(pid), #text(w.provider), #text(w.planName), #text(w.contractNumber), #text(w.claimContact),
+        case (?w) out.add([#text(pid), #text(w.provider), #text(w.planName), #text(if (numbers) w.contractNumber else ""), #text(w.claimContact),
                            oqlNat(w.serviceFeeCents), oqlDate(w.startDate), #text(w.renewalDate), #text(w.coverageNotes),
                            #text(w.exclusionNotes)]);
       };
@@ -3200,7 +3209,9 @@ persistent actor Property {
   public query(msg) func getInventory(propertyId: Text) : async Result.Result<[InventoryItem], Error> {
     if (properties.get(propertyId) == null) return #err(#NotFound);
     if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    #ok(Index.records(inventoryByProperty, propertyId, inventoryItems).toArray())
+    let items = Index.records(inventoryByProperty, propertyId, inventoryItems);
+    if (seesAccountNumbers(propertyId, msg.caller)) #ok(items.toArray())
+    else #ok(items.map(func(i : InventoryItem) : InventoryItem = { i with serialNumber = "" }).toArray())
   };
 
   /// #711: the home's insurance policy, or null when none is on record. Anyone
@@ -3208,7 +3219,9 @@ persistent actor Property {
   public query(msg) func getInsurancePolicy(propertyId: Text) : async Result.Result<?InsurancePolicy, Error> {
     if (properties.get(propertyId) == null) return #err(#NotFound);
     if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    #ok(insurancePolicies.get(propertyId))
+    let p = insurancePolicies.get(propertyId);
+    if (seesAccountNumbers(propertyId, msg.caller)) #ok(p)
+    else #ok(p.map(func(x : InsurancePolicy) : InsurancePolicy = { x with policyNumber = "" }))
   };
 
   // ─── House guide (#725) ───────────────────────────────────────────────────
@@ -3513,7 +3526,9 @@ persistent actor Property {
   public query(msg) func getHomeWarrantyPlan(propertyId: Text) : async Result.Result<?HomeWarrantyPlan, Error> {
     if (properties.get(propertyId) == null) return #err(#NotFound);
     if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    #ok(homeWarrantyPlans.get(propertyId))
+    let w = homeWarrantyPlans.get(propertyId);
+    if (seesAccountNumbers(propertyId, msg.caller)) #ok(w)
+    else #ok(w.map(func(x : HomeWarrantyPlan) : HomeWarrantyPlan = { x with contractNumber = "" }))
   };
 
   /// #719: log a claim filed with the home warranty company. Needs write
