@@ -75,3 +75,26 @@ describe("requestPrincipal", () => {
     expect(await requestPrincipal(req(undefined, { principal: "dev-user" }), resolve)).toBeNull();
   });
 });
+
+describe("X-7: short cache, token kept out of logs", () => {
+  afterEach(() => jest.useRealTimers());
+
+  it("asks the auth canister again after a minute", async () => {
+    jest.useFakeTimers({ now: 1_000_000 });
+    const resolve = jest.fn(async () => "user-1");
+    await requestPrincipal(req(TOKEN), resolve);
+    jest.setSystemTime(1_000_000 + 61_000);
+    await requestPrincipal(req(TOKEN), resolve);
+    expect(resolve).toHaveBeenCalledTimes(2);
+  });
+
+  it("never logs the token when the lookup fails", async () => {
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const resolve = jest.fn(async () => { throw new Error(`lookup of ${TOKEN} failed`); });
+    expect(await requestPrincipal(req(TOKEN), resolve)).toBeNull();
+    const logged = JSON.stringify(spy.mock.calls);
+    expect(logged).toContain("failed");
+    expect(logged).not.toContain(TOKEN);
+    spy.mockRestore();
+  });
+});

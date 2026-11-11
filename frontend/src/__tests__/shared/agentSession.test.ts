@@ -8,6 +8,7 @@ import {
   isSessionToken,
   createSessionTokenCache,
   createRequestPrincipalResolver,
+  SESSION_CACHE_TTL_MS,
 } from "@homegentic/shared/agentSession";
 
 const TOKEN = `hgs_${"a".repeat(64)}`;
@@ -164,5 +165,28 @@ describe("createRequestPrincipalResolver", () => {
   it("uses a per-call resolver when one is passed", async () => {
     const own = vi.fn().mockResolvedValue("from-call");
     expect(await make().requestPrincipal(req(TOKEN), own)).toBe("from-call");
+  });
+
+  // X-7 (security review 2026-11-11): one token works at the Worker and both
+  // relays, so a revoked or leaked token must stop working within a minute,
+  // and the token must never reach a log.
+  it("by default caches for at most a minute", async () => {
+    expect(SESSION_CACHE_TTL_MS).toBeLessThanOrEqual(MIN);
+    vi.useFakeTimers();
+    const resolve = vi.fn().mockResolvedValue("principal-a");
+    const r = make({ resolve });
+    await r.requestPrincipal(req(TOKEN));
+    vi.advanceTimersByTime(MIN + 1);
+    await r.requestPrincipal(req(TOKEN));
+    expect(resolve).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports errors with the token taken out", async () => {
+    const onError = vi.fn();
+    const r = make({ resolve: vi.fn().mockRejectedValue(new Error(`call failed for ${TOKEN}`)), onError });
+    expect(await r.requestPrincipal(req(TOKEN))).toBeNull();
+    const reported = onError.mock.calls[0][0];
+    expect(String(reported instanceof Error ? reported.message : reported)).not.toContain(TOKEN);
+    expect(String(reported instanceof Error ? reported.message : reported)).toContain("call failed for");
   });
 });

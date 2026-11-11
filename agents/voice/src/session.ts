@@ -15,7 +15,7 @@ import { isSessionToken } from "../../../packages/shared/src/agentSession";
 
 export { SESSION_HEADER } from "../../../packages/shared/src/agentSession";
 /** Also bounds how long a revoked token keeps working. */
-export const SESSION_CACHE_TTL_SECONDS = 120;
+export const SESSION_CACHE_TTL_SECONDS = 60;   // KV's minimum; X-7
 
 async function sha256Hex(s: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
