@@ -176,6 +176,7 @@ export interface _SERVICE {
     }>
   >;
   getLeadAlertTargets: ActorMethod<[], LeadAlertTarget[]>;
+  getLeadAlertTargetsPage: ActorMethod<[[] | [Principal], bigint], LeadAlertTarget[]>;
   getLicenseCheck: ActorMethod<[Principal], [] | [LicenseCheck]>;
   getMyProfile: ActorMethod<[], { ok: ContractorProfile } | { err: Error }>;
   getMyProfilePrivacy: ActorMethod<[], ProfilePrivacy>;

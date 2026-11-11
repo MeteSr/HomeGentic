@@ -144,6 +144,7 @@ export const idlFactory = ({ IDL }: any) => {
     getAll: IDL.Func([], [IDL.Vec(ContractorProfile)], ["query"]),
     getPage: IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(ContractorProfile)], ["query"]),
     getLeadAlertTargets: IDL.Func([], [IDL.Vec(LeadAlertTarget)], ["query"]),
+    getLeadAlertTargetsPage: IDL.Func([IDL.Opt(IDL.Principal), IDL.Nat], [IDL.Vec(LeadAlertTarget)], ["query"]),
     setProfilePrivacy: IDL.Func(
       [ProfilePrivacy],
       [IDL.Variant({ ok: ProfilePrivacy, err: Error })],

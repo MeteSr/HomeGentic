@@ -14,6 +14,12 @@
  *   X3.4 when the holder changes or drops the number, the hold lapses
  *   X3.5 an admin can move the hold (setLicenseHolder); nobody else can
  *
+ *  X-4 lead-alert targets are for the notification relay
+ *   X4.1 getLeadAlertTargets and getLeadAlertTargetsPage are empty for a
+ *        signed-in stranger and for a contractor
+ *   X4.2 the relay (a notifier) pages through every contractor, hidden ones
+ *        included, with no gaps or repeats; the page size is capped at 200
+ *
  * Run: cd tests/upgrade && npx vitest run security-2026-11-11.canister.test.ts
  * (needs .dfx/local/canisters/{contractor,job,property,payment}/*.wasm)
  */
@@ -45,6 +51,7 @@ describe("security review 2026-11-11", () => {
 
   const admin = createIdentity("x11-admin");
   const relay = createIdentity("x11-relay");
+  const notifier = createIdentity("x11-notifier");
 
   const as = (name: Name, who: Identity) => {
     const a = pic.createActor<any>((() => svcs[name]) as any, ids[name]);
@@ -71,6 +78,7 @@ describe("security review 2026-11-11", () => {
     ok(await as("job", admin).addTrustedCanister(ids.property));
     ok(await as("contractor", admin).setJobCanisterId(ids.job.toText()));
     ok(await as("contractor", admin).addLicenseRelay(relay.getPrincipal()));
+    ok(await as("contractor", admin).addNotifier(notifier.getPrincipal()));
   }, 180_000);
 
   afterAll(async () => { await pic?.tearDown(); });
@@ -143,6 +151,44 @@ describe("security review 2026-11-11", () => {
       ok(await as("contractor", admin).setLicenseHolder(LIC, []));
       ok(await record(fake));
       expect(errKey(await record(real))).toBe("AlreadyExists");
+    });
+  });
+
+  // ── X-4 ──────────────────────────────────────────────────────────────────
+  describe("X-4 lead-alert targets are for the notification relay", () => {
+    const crew = Array.from({ length: 5 }, (_, i) => createIdentity(`x4-c${i}`));
+    const stranger = createIdentity("x4-stranger");
+
+    beforeAll(async () => {
+      for (const c of crew) {
+        ok(await as("contractor", c).register({ name: "Crew", specialties: [{ Plumbing: null }], email: "c@example.com", phone: "+14075550123" }));
+      }
+      ok(await as("contractor", crew[0]).setProfilePrivacy({ listed: false, showTrustScore: false, showJobsCompleted: false }));
+    });
+
+    it("X4.1 strangers and contractors get nothing", async () => {
+      for (const who of [stranger, crew[1]]) {
+        expect(await as("contractor", who).getLeadAlertTargets()).toEqual([]);
+        expect(await as("contractor", who).getLeadAlertTargetsPage([], 50n)).toEqual([]);
+      }
+    });
+
+    it("X4.2 the relay pages through everyone, hidden profiles included", async () => {
+      const total = (await as("contractor", notifier).getLeadAlertTargets()).length;
+      expect(total).toBeGreaterThanOrEqual(crew.length);
+      const seen: string[] = [];
+      let after: [] | [any] = [];
+      for (;;) {
+        const page: any[] = await as("contractor", notifier).getLeadAlertTargetsPage(after, 2n);
+        expect(page.length).toBeLessThanOrEqual(2);
+        seen.push(...page.map((t: any) => t.id.toText()));
+        if (page.length < 2) break;
+        after = [page[page.length - 1].id];
+      }
+      expect(seen.length).toBe(total);
+      expect(new Set(seen).size).toBe(total);
+      for (const c of crew) expect(seen).toContain(c.getPrincipal().toText());
+      expect((await as("contractor", admin).getLeadAlertTargetsPage([], 10_000n)).length).toBeLessThanOrEqual(200);
     });
   });
 });

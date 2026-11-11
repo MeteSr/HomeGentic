@@ -196,6 +196,7 @@
     "getApiDoc",
     "getContractorStats",
     "getLeadAlertTargets",
+    "getLeadAlertTargetsPage",
     "getMetrics",
     "getMyProfilePrivacy",
     "getProfilePrivacies",

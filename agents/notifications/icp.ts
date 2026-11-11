@@ -164,13 +164,26 @@ export async function getSuccessionNotice(claimId: string): Promise<SuccessionNo
   };
 }
 
+/** Contractors per getLeadAlertTargetsPage call (the canister caps it at 200). */
+const LEAD_TARGET_PAGE = 200n;
+
 export async function getContractors(): Promise<ContractorInfo[]> {
+  // Signed as the relay: lead-alert targets answer only notifiers and admins
+  // (X-4, security review 2026-11-11).
   const actor = Actor.createActor(contractorIdl, {
-    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_CONTRACTOR"),
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_CONTRACTOR"),
   }) as any;
   // Not getAll(): that leaves out contractors who hid their profile from the
-  // directory, and they still get the lead alerts they asked for.
-  const all: any[] = await actor.getLeadAlertTargets();
+  // directory, and they still get the lead alerts they asked for. Walk every
+  // page, so contractors past the first page aren't silently skipped.
+  const all: any[] = [];
+  let after: [] | [Principal] = [];
+  for (;;) {
+    const page: any[] = await actor.getLeadAlertTargetsPage(after, LEAD_TARGET_PAGE);
+    all.push(...page);
+    if (page.length < Number(LEAD_TARGET_PAGE)) break;
+    after = [page[page.length - 1].id as Principal];
+  }
   return all.map((c) => ({
     principal:     (c.id as Principal).toText(),
     specialties:   c.specialties.map((s: object) => Object.keys(s)[0]),
