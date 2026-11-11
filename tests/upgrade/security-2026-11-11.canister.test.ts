@@ -96,8 +96,15 @@ describe("security review 2026-11-11", () => {
     for (const name of CANISTERS) {
       const { idlFactory, initArgs } = serviceFromWasm(wasmPath(name));
       svcs[name] = idlFactory({ IDL });
-      const arg = new Uint8Array(IDL.encode(initArgs, initArgs.map(() => admin.getPrincipal())));
-      ids[name] = (await pic.setupCanister({ idlFactory: (() => svcs[name]) as any, wasm: wasmPath(name), arg })).canisterId;
+      const arg = new Uint8Array(
+        IDL.encode(
+          initArgs,
+          initArgs.map(() => admin.getPrincipal()),
+        ),
+      );
+      ids[name] = (
+        await pic.setupCanister({ idlFactory: (() => svcs[name]) as any, wasm: wasmPath(name), arg })
+      ).canisterId;
       const methods = new Map(svcs[name]._fields);
       if (methods.has("setBootstrapNonce")) await as(name, CONTROLLER).setBootstrapNonce("n");
       if (methods.has("initAdmins")) ok(await as(name, admin).initAdmins([admin.getPrincipal()], "n"));
@@ -114,31 +121,54 @@ describe("security review 2026-11-11", () => {
     ok(await as("contractor", admin).addNotifier(notifier.getPrincipal()));
   }, 180_000);
 
-  afterAll(async () => { await pic?.tearDown(); });
+  afterAll(async () => {
+    await pic?.tearDown();
+  });
 
   // ── X-3 ──────────────────────────────────────────────────────────────────
   describe("X-3 one account per licence number", () => {
-    const real  = createIdentity("x3-real");
-    const fake  = createIdentity("x3-fake");
+    const real = createIdentity("x3-real");
+    const fake = createIdentity("x3-fake");
     const other = createIdentity("x3-other");
     const LIC = "CGC1234567";
     const NAME = "Smith Roofing LLC";
 
     const profile = (name: string, licenseNumber: string | null) => ({
-      name, specialties: [{ Roofing: null }], email: "x@example.com", phone: "+14075550123",
-      bio: [], licenseNumber: licenseNumber ? [licenseNumber] : [], serviceArea: [], serviceZips: [],
+      name,
+      specialties: [{ Roofing: null }],
+      email: "x@example.com",
+      phone: "+14075550123",
+      bio: [],
+      licenseNumber: licenseNumber ? [licenseNumber] : [],
+      serviceArea: [],
+      serviceZips: [],
     });
     const check = (over: Record<string, unknown> = {}) => ({
-      licenseNumber: LIC, found: true, licenseeName: "SMITH, JOHN", dbaName: "SMITH ROOFING LLC",
-      licenseType: "Certified General Contractor", status: "Current, Active", active: true,
-      expiresOn: "2027-08-31", nameMatches: true, sourceDate: "2026-11-01", ...over,
+      licenseNumber: LIC,
+      found: true,
+      licenseeName: "SMITH, JOHN",
+      dbaName: "SMITH ROOFING LLC",
+      licenseType: "Certified General Contractor",
+      status: "Current, Active",
+      active: true,
+      expiresOn: "2027-08-31",
+      nameMatches: true,
+      sourceDate: "2026-11-01",
+      ...over,
     });
     const record = (who: Identity, over: Record<string, unknown> = {}) =>
       as("contractor", relay).relayRecordLicenseCheck(who.getPrincipal(), check(over));
 
     beforeAll(async () => {
       for (const who of [real, fake, other]) {
-        ok(await as("contractor", who).register({ name: NAME, specialties: [{ Roofing: null }], email: "x@example.com", phone: "+14075550123" }));
+        ok(
+          await as("contractor", who).register({
+            name: NAME,
+            specialties: [{ Roofing: null }],
+            email: "x@example.com",
+            phone: "+14075550123",
+          }),
+        );
         ok(await as("contractor", who).updateProfile(profile(NAME, LIC)));
       }
     });
@@ -194,9 +224,22 @@ describe("security review 2026-11-11", () => {
 
     beforeAll(async () => {
       for (const c of crew) {
-        ok(await as("contractor", c).register({ name: "Crew", specialties: [{ Plumbing: null }], email: "c@example.com", phone: "+14075550123" }));
+        ok(
+          await as("contractor", c).register({
+            name: "Crew",
+            specialties: [{ Plumbing: null }],
+            email: "c@example.com",
+            phone: "+14075550123",
+          }),
+        );
       }
-      ok(await as("contractor", crew[0]).setProfilePrivacy({ listed: false, showTrustScore: false, showJobsCompleted: false }));
+      ok(
+        await as("contractor", crew[0]).setProfilePrivacy({
+          listed: false,
+          showTrustScore: false,
+          showJobsCompleted: false,
+        }),
+      );
     });
 
     it("X4.1 strangers and contractors get nothing", async () => {
@@ -227,9 +270,9 @@ describe("security review 2026-11-11", () => {
 
   // ── X-5 ──────────────────────────────────────────────────────────────────
   describe("X-5 OQL is no wider than the getters", () => {
-    const owner   = createIdentity("x5-owner");
+    const owner = createIdentity("x5-owner");
     const manager = createIdentity("x5-manager");
-    const viewer  = createIdentity("x5-viewer");
+    const viewer = createIdentity("x5-viewer");
     const outsider = createIdentity("x5-outsider");
     let home = "";
 
@@ -238,40 +281,92 @@ describe("security review 2026-11-11", () => {
 
     beforeAll(async () => {
       ok(await as("payment", admin).adminActivateStripeSubscription(owner.getPrincipal(), { Pro: null }, 12n));
-      home = ok<any>(await as("property", owner).registerProperty({
-        address: "5 Secret Ln", city: "Orlando", state: "FL", zipCode: "32801",
-        propertyType: { SingleFamily: null }, yearBuilt: 2001n, squareFeet: 1500n, tier: { Pro: null },
-      })).id;
-      for (const [who, role] of [[manager, "Manager"], [viewer, "Viewer"]] as const) {
+      home = ok<any>(
+        await as("property", owner).registerProperty({
+          address: "5 Secret Ln",
+          city: "Orlando",
+          state: "FL",
+          zipCode: "32801",
+          propertyType: { SingleFamily: null },
+          yearBuilt: 2001n,
+          squareFeet: 1500n,
+          tier: { Pro: null },
+        }),
+      ).id;
+      for (const [who, role] of [
+        [manager, "Manager"],
+        [viewer, "Viewer"],
+      ] as const) {
         const invite = ok<any>(await as("property", owner).inviteManager(home, { [role]: null }, role, []));
         ok(await as("property", who).claimManagerRole(invite.token));
       }
-      ok(await as("property", owner).setInsurancePolicy(home, [{
-        carrier: "Citizens", policyNumber: "HO3-999", renewalDate: "2027-06-01",
-        coverageACents: [35_000_000n], hurricaneDeductible: [],
-      }]));
-      ok(await as("property", owner).addInventoryItem(home, {
-        roomId: [], name: "TV", category: "Electronics", quantity: 1n, valueCents: [120_000n],
-        purchaseDate: "", serialNumber: "SN-TV-1", notes: "",
-      }));
-      ok(await as("property", owner).setHomeWarrantyPlan(home, [{
-        provider: "American Home Shield", planName: "ShieldGold", contractNumber: "AHS-123456",
-        claimContact: "1-800-555-0100", serviceFeeCents: [12_500n], startDate: "2026-03-15",
-        renewalDate: "2027-03-15", coverageNotes: "", exclusionNotes: "", contractDocId: [],
-      }]));
-      const room = ok<any>(await as("property", owner).createRoom({
-        propertyId: home, name: "Kitchen", floorName: "First Floor", floorType: "Tile",
-        paintColor: "", paintBrand: "", paintCode: "", notes: "",
-      }));
-      ok(await as("property", owner).addFixture(room.id, {
-        brand: "Bosch", model: "SHX", serialNumber: "SN-DW-1", installedDate: "", warrantyExpiry: "", notes: "",
-      }));
+      ok(
+        await as("property", owner).setInsurancePolicy(home, [
+          {
+            carrier: "Citizens",
+            policyNumber: "HO3-999",
+            renewalDate: "2027-06-01",
+            coverageACents: [35_000_000n],
+            hurricaneDeductible: [],
+          },
+        ]),
+      );
+      ok(
+        await as("property", owner).addInventoryItem(home, {
+          roomId: [],
+          name: "TV",
+          category: "Electronics",
+          quantity: 1n,
+          valueCents: [120_000n],
+          purchaseDate: "",
+          serialNumber: "SN-TV-1",
+          notes: "",
+        }),
+      );
+      ok(
+        await as("property", owner).setHomeWarrantyPlan(home, [
+          {
+            provider: "American Home Shield",
+            planName: "ShieldGold",
+            contractNumber: "AHS-123456",
+            claimContact: "1-800-555-0100",
+            serviceFeeCents: [12_500n],
+            startDate: "2026-03-15",
+            renewalDate: "2027-03-15",
+            coverageNotes: "",
+            exclusionNotes: "",
+            contractDocId: [],
+          },
+        ]),
+      );
+      const room = ok<any>(
+        await as("property", owner).createRoom({
+          propertyId: home,
+          name: "Kitchen",
+          floorName: "First Floor",
+          floorType: "Tile",
+          paintColor: "",
+          paintBrand: "",
+          paintCode: "",
+          notes: "",
+        }),
+      );
+      ok(
+        await as("property", owner).addFixture(room.id, {
+          brand: "Bosch",
+          model: "SHX",
+          serialNumber: "SN-DW-1",
+          installedDate: "",
+          warrantyExpiry: "",
+          notes: "",
+        }),
+      );
     });
 
     it("X5.1 a Viewer's getters blank the numbers; a Manager's don't", async () => {
       const read = async (who: Identity) => ({
-        policy:   ok<any[]>(await as("property", who).getInsurancePolicy(home))[0].policyNumber,
-        serial:   ok<any[]>(await as("property", who).getInventory(home))[0].serialNumber,
+        policy: ok<any[]>(await as("property", who).getInsurancePolicy(home))[0].policyNumber,
+        serial: ok<any[]>(await as("property", who).getInventory(home))[0].serialNumber,
         contract: ok<any[]>(await as("property", who).getHomeWarrantyPlan(home))[0].contractNumber,
       });
       expect(await read(viewer)).toEqual({ policy: "", serial: "", contract: "" });
@@ -285,28 +380,54 @@ describe("security review 2026-11-11", () => {
     it("X5.2 OQL blanks the same fields for a Viewer", async () => {
       const pin = { eq: { field: "propertyId", value: home } };
       const read = async (who: Identity) => ({
-        policy:   (await oql(who, { start: "insurance_policies", where: pin, select: ["policyNumber"] }))[0]?.policyNumber,
-        serial:   (await oql(who, { start: "inventory_items", where: pin, select: ["serialNumber"] }))[0]?.serialNumber,
-        contract: (await oql(who, { start: "warranty_plans", where: pin, select: ["contractNumber"] }))[0]?.contractNumber,
-        fixture:  (await oql(who, { start: "fixtures", where: pin, select: ["serialNumber"] }))[0]?.serialNumber,
+        policy: (await oql(who, { start: "insurance_policies", where: pin, select: ["policyNumber"] }))[0]
+          ?.policyNumber,
+        serial: (await oql(who, { start: "inventory_items", where: pin, select: ["serialNumber"] }))[0]?.serialNumber,
+        contract: (await oql(who, { start: "warranty_plans", where: pin, select: ["contractNumber"] }))[0]
+          ?.contractNumber,
+        fixture: (await oql(who, { start: "fixtures", where: pin, select: ["serialNumber"] }))[0]?.serialNumber,
       });
       expect(await read(viewer)).toEqual({ policy: "", serial: "", contract: "", fixture: "" });
-      expect(await read(manager)).toEqual({ policy: "HO3-999", serial: "SN-TV-1", contract: "AHS-123456", fixture: "SN-DW-1" });
+      expect(await read(manager)).toEqual({
+        policy: "HO3-999",
+        serial: "SN-TV-1",
+        contract: "AHS-123456",
+        fixture: "SN-DW-1",
+      });
     });
 
     it("X5.3 an unwired job canister shows a caller only their own jobs", async () => {
       const { idlFactory, initArgs } = serviceFromWasm(wasmPath("job"));
       const svc = idlFactory({ IDL });
-      const arg = new Uint8Array(IDL.encode(initArgs, initArgs.map(() => admin.getPrincipal())));
-      const loose = (await pic.setupCanister({ idlFactory: (() => svc) as any, wasm: wasmPath("job"), arg })).canisterId;
+      const arg = new Uint8Array(
+        IDL.encode(
+          initArgs,
+          initArgs.map(() => admin.getPrincipal()),
+        ),
+      );
+      const loose = (await pic.setupCanister({ idlFactory: (() => svc) as any, wasm: wasmPath("job"), arg }))
+        .canisterId;
       const job = (who: Identity) => {
         const a = pic.createActor<any>((() => svc) as any, loose);
         a.setIdentity(who);
         return a;
       };
       const PID = "unwired-home";
-      ok(await job(owner).createJob(PID, "Roof", { Roofing: null }, "Roof work", ["Acme"], 500_000n,
-        1_600_000_000_000_000_000n, [], [12n], false, []));
+      ok(
+        await job(owner).createJob(
+          PID,
+          "Roof",
+          { Roofing: null },
+          "Roof work",
+          ["Acme"],
+          500_000n,
+          1_600_000_000_000_000_000n,
+          [],
+          [12n],
+          false,
+          [],
+        ),
+      );
 
       expect((await job(owner).getJobsForProperties([PID])).length).toBe(1);
       expect(await job(outsider).getJobsForProperties([PID])).toEqual([]);
@@ -319,22 +440,43 @@ describe("security review 2026-11-11", () => {
   // ── X-6 and X-8 ──────────────────────────────────────────────────────────
   describe("X-6 role lookups, X-8 the seller after a sale", () => {
     const seller = createIdentity("x8-seller");
-    const buyer  = createIdentity("x8-buyer");
+    const buyer = createIdentity("x8-buyer");
     const viewer = createIdentity("x8-viewer");
-    const nosy   = createIdentity("x8-nosy");
+    const nosy = createIdentity("x8-nosy");
     let sold = "";
     let kept = "";
     let soldJob = "";
     let keptJob = "";
 
     const register = async (who: Identity, address: string) =>
-      ok<any>(await as("property", who).registerProperty({
-        address, city: "Orlando", state: "FL", zipCode: "32801",
-        propertyType: { SingleFamily: null }, yearBuilt: 1999n, squareFeet: 1400n, tier: { Pro: null },
-      })).id as string;
+      ok<any>(
+        await as("property", who).registerProperty({
+          address,
+          city: "Orlando",
+          state: "FL",
+          zipCode: "32801",
+          propertyType: { SingleFamily: null },
+          yearBuilt: 1999n,
+          squareFeet: 1400n,
+          tier: { Pro: null },
+        }),
+      ).id as string;
     const createJob = async (who: Identity, pid: string, title: string) =>
-      ok<any>(await as("job", who).createJob(pid, title, { Roofing: null }, `${title} work`, ["Acme"], 400_000n,
-        1_600_000_000_000_000_000n, [], [12n], false, [])).id as string;
+      ok<any>(
+        await as("job", who).createJob(
+          pid,
+          title,
+          { Roofing: null },
+          `${title} work`,
+          ["Acme"],
+          400_000n,
+          1_600_000_000_000_000_000n,
+          [],
+          [12n],
+          false,
+          [],
+        ),
+      ).id as string;
 
     beforeAll(async () => {
       for (const who of [seller, buyer])
@@ -386,7 +528,9 @@ describe("security review 2026-11-11", () => {
 
     it("X8.2 job.propertyTransferred answers only the property canister and admins", async () => {
       for (const who of [seller, buyer, nosy]) {
-        expect(errKey(await as("job", who).propertyTransferred(kept, seller.getPrincipal(), nosy.getPrincipal()))).toBe("NotAuthorized");
+        expect(errKey(await as("job", who).propertyTransferred(kept, seller.getPrincipal(), nosy.getPrincipal()))).toBe(
+          "NotAuthorized",
+        );
       }
       ok(await as("job", seller).getJob(keptJob));
       ok(await as("job", admin).propertyTransferred(kept, seller.getPrincipal(), buyer.getPrincipal()));

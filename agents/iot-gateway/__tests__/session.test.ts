@@ -40,8 +40,12 @@ it("asks the auth canister again after a minute", async () => {
 });
 
 it("never logs the token, and fails closed, when the lookup fails", async () => {
-  const spies = (["error", "warn", "log", "info"] as const).map((m) => jest.spyOn(console, m).mockImplementation(() => {}));
-  const resolve = jest.fn(async () => { throw new Error(`lookup of ${TOKEN} failed`); });
+  const spies = (["error", "warn", "log", "info"] as const).map((m) =>
+    jest.spyOn(console, m).mockImplementation(() => {}),
+  );
+  const resolve = jest.fn(async () => {
+    throw new Error(`lookup of ${TOKEN} failed`);
+  });
   expect(await requestPrincipal(req(TOKEN), resolve)).toBeNull();
   const logged = JSON.stringify(spies.map((s) => s.mock.calls));
   expect(logged).toContain("failed");
