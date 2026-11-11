@@ -10,7 +10,7 @@ module {
     "- `getMyManagedProperties()` (query): properties the caller manages for someone else, with their role.\n" #
     "- `getProperty(id)` (query): one property, if the caller owns or manages it.\n" #
     "- `getRoomsByProperty(propertyId)` / `getRoom(id)` (query): rooms and the fixtures in them (appliances, model numbers, install dates).\n" #
-    "- `getOwnershipHistory(propertyId)` (query): past owner transfers.\n" #
+    "- `getOwnershipHistory(propertyId)` (query): past owner transfers, for the home's owner and co-owners (empty for anyone else).\n" #
     "- `getInsurancePolicy(propertyId)` (query): the home insurance policy details the household saved (carrier, policy number, renewal date as YYYY-MM-DD, Coverage A and hurricane deductible), or null. HomeGentic doesn't check them with the insurer. A Viewer gets the policy number blanked.\n" #
     "- `getInsuranceClaims(propertyId)` (query): the household's records of insurance claims on the home, newest date of loss first, each with its dated log (`log`: date, note). These are the household's own notes; HomeGentic doesn't file or track anything with the insurer.\n" #
     "- `getInventory(propertyId)` (query): the household's list of what's in the home (name, category, quantity, value in cents, purchase date, serial number, notes, and the room it's in, if any), for an insurance claim. Only the household can read it, and a Viewer gets the serial numbers blanked.\n" #

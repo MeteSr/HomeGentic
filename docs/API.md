@@ -79,7 +79,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `getPendingTransferByToken` | query | `(token: Text)` | Looks up a pending transfer by its bearer token. |
 | `cancelTransfer` | update | `(propertyId: Text)` | Cancel a pending transfer |
 | `getPendingTransfer` | query | `(propertyId: Text)` | Get pending transfer record |
-| `getOwnershipHistory` | query | `(propertyId: Text)` | Full transfer history |
+| `getOwnershipHistory` | query | `(propertyId: Text)` | Full transfer history, for the current owner, co-owners, admins and canisters (empty for anyone else) |
 
 ### Rooms & Fixtures
 
@@ -107,9 +107,9 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `removeManager` | update | `(propertyId: Text, managerPrincipal: Principal)` | Owner removes a manager from a property. |
 | `resignAsManager` | update | `(propertyId: Text)` | Manager voluntarily removes themselves. |
 | `recordManagerActivity` | update | `(propertyId: Text, description: Text)` | Called by a Manager-role user (via the frontend) after completing a significant write action to notify the property owner. |
-| `getAccessRole` | query | `(propertyId: Text, principal: Principal)` | Public query: the principal's role on a property, or null when the property doesn't exist. |
-| `getAccessRoles` | query | `(propertyIds: [Text], principal: Principal)` | `getAccessRole` for up to 100 properties, in the same order; lets job, bills and recurring check every property in one call. |
-| `isAuthorized` | query | `(propertyId: Text, caller: Principal, requireWrite: Bool)` | Public query: returns true if `caller` is the owner OR an authorised manager. |
+| `getAccessRole` | query | `(propertyId: Text, principal: Principal)` | The principal's role on a property, or null when the property doesn't exist. Answers a caller about themself, and admins and canisters about anyone; null otherwise. |
+| `getAccessRoles` | query | `(propertyIds: [Text], principal: Principal)` | `getAccessRole` for up to 100 properties, in the same order; lets job, bills and recurring check every property in one call. Same callers as `getAccessRole`. |
+| `isAuthorized` | query | `(propertyId: Text, caller: Principal, requireWrite: Bool)` | True if `caller` is the owner or an authorised manager. Answers a caller about themself, and admins and canisters about anyone; false otherwise. |
 | `requestApproval` | update | `(propertyId: Text, description: Text, amountCents: Nat)` | Called by a Manager who wants to spend above their limit (or a Viewer requesting an action they can't take directly). |
 | `respondToApproval` | update | `(propertyId: Text, approvalId: Nat, approve: Bool)` | Owner approves or declines a pending approval request. |
 | `dismissNotifications` | update | `(propertyId: Text)` | Owner dismisses all notifications for a property (marks as seen + clears). |

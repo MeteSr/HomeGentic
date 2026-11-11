@@ -96,6 +96,7 @@
     "hasJobWithContractor",
     "paperDocumentDeleted",
     "pause",
+    "propertyTransferred",
     "redeemInviteToken",
     "refreshContractorAttestation",
     "relayAddEmailDraft",

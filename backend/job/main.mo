@@ -392,9 +392,21 @@ persistent actor Job {
   /// The job's homeowner and linked contractor, admins and trusted canisters.
   /// Property managers read jobs through getJobsForProperty, which checks the
   /// property canister (a query cannot make that call).
+  /// X-8 (security review 2026-11-11): who sold each home, so the seller
+  /// stops reading the jobs they recorded there. Written by the property
+  /// canister on a sale (propertyTransferred); buying a home back clears it.
+  private let formerOwners = Map.empty<Text, [Principal]>();
+
+  private func soldHome(propertyId : Text, p : Principal) : Bool {
+    switch (formerOwners.get(propertyId)) {
+      case (?list) list.find(func(x : Principal) : Bool { x == p }) != null;
+      case null false;
+    }
+  };
+
   private func canViewJob(j: Job, caller: Principal) : Bool {
     if (caller.isAnonymous()) return false;
-    if (j.homeowner == caller) return true;
+    if (j.homeowner == caller and not soldHome(j.propertyId, caller)) return true;
     switch (j.contractor) { case (?c) { if (c == caller) return true }; case null {} };
     isAdmin(caller) or isTrustedCanister(caller)
   };
@@ -1024,9 +1036,23 @@ persistent actor Job {
     if (msg.caller.isAnonymous()) return [];
     // Notifiers: the relay builds the weekly Home Pulse email from these.
     if (msg.caller != owner and not isAdmin(msg.caller) and not isTrustedCanister(msg.caller) and not isNotifier(msg.caller)) return [];
-    Index.records(jobsByHomeowner, owner.toText(), jobs).toArray(
-      
-    )
+    Index.records(jobsByHomeowner, owner.toText(), jobs)
+      .filter(func(j : Job) : Bool { not soldHome(j.propertyId, owner) }).toArray()
+  };
+
+  /// X-8: the property canister reports that `from` sold `propertyId` to
+  /// `to`. `from` stops reading the jobs they recorded on it (getJob,
+  /// getJobsByOwner); `to` loses any earlier mark, so buying a home back
+  /// restores the view. The property canister and admins only.
+  public shared(msg) func propertyTransferred(propertyId : Text, from : Principal, to : Principal) : async Result.Result<(), Error> {
+    if (msg.caller.toText() != propCanisterId and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (propertyId.size() == 0 or propertyId.size() > 100) return #err(#InvalidInput("invalid propertyId"));
+    let list = (formerOwners.get(propertyId) ?? []).filter(func(x : Principal) : Bool { x != from and x != to });
+    let grown = if (from == to) list else list.concat([from]);
+    // Keep the 100 most recent sellers of one home.
+    let next = if (grown.size() > 100) grown.sliceToArray(grown.size() - 100, grown.size()) else grown;
+    if (next.size() == 0) formerOwners.remove(propertyId) else formerOwners.add(propertyId, next);
+    #ok(())
   };
 
   /// Fetch jobs where the caller is the linked contractor and has not yet signed.

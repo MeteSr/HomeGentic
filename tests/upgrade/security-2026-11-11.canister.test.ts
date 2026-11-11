@@ -30,6 +30,19 @@
  *        caller only their own jobs, in execute and getJobsForProperties,
  *        instead of every job
  *
+ *  X-6 role lookups answer about yourself
+ *   X6.1 isAuthorized, getAccessRole and getAccessRoles tell a signed-in
+ *        stranger nothing about someone else's role, but answer about the
+ *        caller themself, to admins, and to sibling canisters (a Viewer still
+ *        reads the home's jobs through job.getJobsForProperties)
+ *   X6.2 getOwnershipHistory is for the home's owner, co-owners and admins
+ *
+ *  X-8 the seller stops reading the jobs after a sale
+ *   X8.1 after claimTransfer the seller can't getJob or list (getJobsByOwner)
+ *        the jobs they recorded on the sold home; the buyer reads them, and
+ *        the seller still reads jobs on a home they kept
+ *   X8.2 job.propertyTransferred answers only the property canister and admins
+ *
  * Run: cd tests/upgrade && npx vitest run security-2026-11-11.canister.test.ts
  * (needs .dfx/local/canisters/{contractor,job,property,payment}/*.wasm)
  */
@@ -96,6 +109,7 @@ describe("security review 2026-11-11", () => {
     ok(await as("job", admin).addTrustedCanister(ids.contractor));
     ok(await as("job", admin).addTrustedCanister(ids.property));
     ok(await as("contractor", admin).setJobCanisterId(ids.job.toText()));
+    ok(await as("property", admin).setJobCanisterId(ids.job));
     ok(await as("contractor", admin).addLicenseRelay(relay.getPrincipal()));
     ok(await as("contractor", admin).addNotifier(notifier.getPrincipal()));
   }, 180_000);
@@ -299,6 +313,87 @@ describe("security review 2026-11-11", () => {
       const q = JSON.stringify({ start: "jobs", where: { eq: { field: "propertyId", value: PID } } });
       expect((await job(owner).execute(q)).rows.length).toBe(1);
       expect((await job(outsider).execute(q)).rows).toEqual([]);
+    });
+  });
+
+  // ── X-6 and X-8 ──────────────────────────────────────────────────────────
+  describe("X-6 role lookups, X-8 the seller after a sale", () => {
+    const seller = createIdentity("x8-seller");
+    const buyer  = createIdentity("x8-buyer");
+    const viewer = createIdentity("x8-viewer");
+    const nosy   = createIdentity("x8-nosy");
+    let sold = "";
+    let kept = "";
+    let soldJob = "";
+    let keptJob = "";
+
+    const register = async (who: Identity, address: string) =>
+      ok<any>(await as("property", who).registerProperty({
+        address, city: "Orlando", state: "FL", zipCode: "32801",
+        propertyType: { SingleFamily: null }, yearBuilt: 1999n, squareFeet: 1400n, tier: { Pro: null },
+      })).id as string;
+    const createJob = async (who: Identity, pid: string, title: string) =>
+      ok<any>(await as("job", who).createJob(pid, title, { Roofing: null }, `${title} work`, ["Acme"], 400_000n,
+        1_600_000_000_000_000_000n, [], [12n], false, [])).id as string;
+
+    beforeAll(async () => {
+      for (const who of [seller, buyer])
+        ok(await as("payment", admin).adminActivateStripeSubscription(who.getPrincipal(), { Pro: null }, 12n));
+      sold = await register(seller, "8 Sold St");
+      kept = await register(seller, "9 Kept St");
+      soldJob = await createJob(seller, sold, "Roof");
+      keptJob = await createJob(seller, kept, "Gutters");
+      const invite = ok<any>(await as("property", seller).inviteManager(sold, { Viewer: null }, "Viewer", []));
+      ok(await as("property", viewer).claimManagerRole(invite.token));
+    }, 120_000);
+
+    it("X6.1 a stranger learns nothing about someone else's role", async () => {
+      const p = as("property", nosy);
+      const sp = seller.getPrincipal();
+      expect(await p.isAuthorized(sold, sp, false)).toBe(false);
+      expect(await p.getAccessRole(sold, sp)).toEqual([]);
+      expect(await p.getAccessRoles([sold, kept], sp)).toEqual([[], []]);
+      // About themselves, and for admins, the answer is real.
+      expect(await as("property", seller).getAccessRole(sold, sp)).toEqual([{ Owner: null }]);
+      expect(await as("property", viewer).isAuthorized(sold, viewer.getPrincipal(), false)).toBe(true);
+      expect(await as("property", admin).getAccessRoles([sold], sp)).toEqual([[{ Owner: null }]]);
+      // Sibling canisters still ask: the Viewer reads the home's jobs.
+      const jobs = await as("job", viewer).getJobsForProperties([sold]);
+      expect(jobs.map((j: any) => j.id)).toEqual([soldJob]);
+    });
+
+    it("X6.2 ownership history is for the household", async () => {
+      expect(await as("property", nosy).getOwnershipHistory(sold)).toEqual([]);
+      expect(await as("property", viewer).getOwnershipHistory(sold)).toEqual([]);
+    });
+
+    it("X8.1 after the sale the seller loses the sold home's jobs, not the kept one's", async () => {
+      const { token } = ok<any>(await as("property", seller).initiateTransfer(sold));
+      ok(await as("property", buyer).claimTransfer(token));
+
+      expect(errKey(await as("job", seller).getJob(soldJob))).toBe("NotFound");
+      ok(await as("job", seller).getJob(keptJob));
+      const mine = (await as("job", seller).getJobsByOwner(seller.getPrincipal())).map((j: any) => j.id);
+      expect(mine).toEqual([keptJob]);
+      const buyerSees = (await as("job", buyer).getJobsForProperties([sold])).map((j: any) => j.id);
+      expect(buyerSees).toEqual([soldJob]);
+
+      // The new owner reads the history; the old one and strangers don't.
+      expect((await as("property", buyer).getOwnershipHistory(sold)).length).toBe(1);
+      expect(await as("property", seller).getOwnershipHistory(sold)).toEqual([]);
+      expect((await as("property", admin).getOwnershipHistory(sold)).length).toBe(1);
+    });
+
+    it("X8.2 job.propertyTransferred answers only the property canister and admins", async () => {
+      for (const who of [seller, buyer, nosy]) {
+        expect(errKey(await as("job", who).propertyTransferred(kept, seller.getPrincipal(), nosy.getPrincipal()))).toBe("NotAuthorized");
+      }
+      ok(await as("job", seller).getJob(keptJob));
+      ok(await as("job", admin).propertyTransferred(kept, seller.getPrincipal(), buyer.getPrincipal()));
+      expect(errKey(await as("job", seller).getJob(keptJob))).toBe("NotFound");
+      // Buying a home back restores the view.
+      ok(await as("job", admin).propertyTransferred(kept, buyer.getPrincipal(), seller.getPrincipal()));
+      ok(await as("job", seller).getJob(keptJob));
     });
   });
 });

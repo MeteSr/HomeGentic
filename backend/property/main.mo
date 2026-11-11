@@ -1907,6 +1907,15 @@ persistent actor Property {
       let photo : actor { propertyTransferred : shared Text -> async { #ok : Nat; #err : Any } } = actor (photoCanisterId);
       try { ignore await photo.propertyTransferred(propertyId) } catch _ { Debug.print("[property] photo transfer call failed") };
     };
+    // X-8 (security review 2026-11-11): the seller stops reading the jobs
+    // they recorded on the home they sold.
+    switch (jobCanisterId) {
+      case (?jid) if (sale) {
+        let job : actor { propertyTransferred : shared (Text, Principal, Principal) -> async { #ok : Any; #err : Any } } = actor (jid.toText());
+        try { ignore await job.propertyTransferred(propertyId, prop.owner, to) } catch _ { Debug.print("[property] job transfer call failed") };
+      };
+      case _ {};
+    };
     if (listingCanisterId != "") {
       let listing : actor { propertyTransferred : shared Text -> async { #ok : Any; #err : Any } } = actor (listingCanisterId);
       try { ignore await listing.propertyTransferred(propertyId) } catch _ { Debug.print("[property] listing transfer call failed") };
@@ -2020,9 +2029,11 @@ persistent actor Property {
     }
   };
 
-  /// Public, unauthenticated ownership history for a property.
-  /// Returns records sorted by timestamp ascending (oldest first).
-  public query func getOwnershipHistory(propertyId: Text) : async [TransferRecord] {
+  /// A property's ownership history, sorted by timestamp ascending (oldest
+  /// first). For the current owner and co-owners, admins and canisters
+  /// (X-6, security review 2026-11-11); empty for anyone else.
+  public query(msg) func getOwnershipHistory(propertyId: Text) : async [TransferRecord] {
+    if (not (hasFullControl(propertyId, msg.caller) or isAdmin(msg.caller) or isTrustedCanister(msg.caller) or msg.caller.isCanister())) return [];
     let filtered = Iter.toArray(
       transfers.values().filter(func(r: TransferRecord) : Bool {
         r.propertyId == propertyId
@@ -2583,18 +2594,28 @@ persistent actor Property {
   /// Public query: returns true if `caller` is the owner OR an authorised manager.
   /// `requireWrite` = true means #Viewer role is not sufficient.
   /// Called cross-canister by job, photo, quote, and maintenance canisters for auth checks.
-  public query func isAuthorized(
+  public query(msg) func isAuthorized(
     propertyId  : Text,
     caller      : Principal,
     requireWrite : Bool
   ) : async Bool {
+    if (not answersRoleLookup(msg.caller, caller)) return false;
     checkAuthorized(propertyId, caller, requireWrite)
+  };
+
+  /// X-6 (security review 2026-11-11): role lookups answer a person about
+  /// themself, and admins and canisters (the sibling canisters ask on behalf
+  /// of their callers) about anyone. A signed-in stranger can't probe who has
+  /// a role on a home.
+  private func answersRoleLookup(caller : Principal, about : Principal) : Bool {
+    caller == about or isAdmin(caller) or isTrustedCanister(caller) or caller.isCanister()
   };
 
   /// Public query: the principal's role on a property, or null when the
   /// property doesn't exist. Finer-grained than isAuthorized — called
   /// cross-canister by bills, which hides mortgage entries from #Manager/#Viewer.
-  public query func getAccessRole(propertyId : Text, principal : Principal) : async ?AccessRole {
+  public query(msg) func getAccessRole(propertyId : Text, principal : Principal) : async ?AccessRole {
+    if (not answersRoleLookup(msg.caller, principal)) return null;
     accessRoleOf(propertyId, principal)
   };
 
@@ -2604,9 +2625,10 @@ persistent actor Property {
   /// getAccessRole for many properties at once, in the same order. Lets job,
   /// bills and recurring answer "records for all my properties" with one
   /// cross-canister call instead of one per property.
-  public query func getAccessRoles(propertyIds : [Text], principal : Principal) : async [?AccessRole] {
+  public query(msg) func getAccessRoles(propertyIds : [Text], principal : Principal) : async [?AccessRole] {
+    let answer = answersRoleLookup(msg.caller, principal);
     Array.tabulate(propertyIds.size(), func(i) {
-      if (i < MAX_ROLE_BATCH) accessRoleOf(propertyIds[i], principal) else null
+      if (answer and i < MAX_ROLE_BATCH) accessRoleOf(propertyIds[i], principal) else null
     })
   };
 
