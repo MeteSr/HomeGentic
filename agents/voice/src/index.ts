@@ -59,7 +59,8 @@ import { handleCalendarFeed } from "./calendarFeed";
 import { handlePhotos } from "./photos";
 import { handleShowingRequest, fileShowingInCanister } from "./showings";
 import { r2PhotoStore } from "./photoStore";
-import { fetchPhotoAccess, fetchGuidePhotoAccess } from "../photoCanister";
+import { fetchPhotoAccess, fetchGuidePhotoAccess, photoMigrationCanister } from "../photoCanister";
+import { migratePhotos } from "./photoMigration";
 import { markIdentityCleared, floodTarget, saveFloodZone } from "./propertyCanister";
 import { reportServiceError, routeKey } from "./serviceErrors";
 import {
@@ -392,6 +393,7 @@ export default {
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(scheduledBidtolist(env));
     ctx.waitUntil(scheduledReferralFees(env));
+    ctx.waitUntil(scheduledPhotoMigration(env));
   },
 
   /** Forwarded invoices → draft jobs (src/inbox.ts). Never replies or rejects, so forged senders get no backscatter. */
@@ -1918,6 +1920,26 @@ async function scheduledReferralFees(env: Env): Promise<void> {
     logger.info("referral-fees", "charge run", { ...summary });
   } catch (err) {
     logger.error("referral-fees", "charge run failed", { error: (err as Error)?.message });
+  }
+}
+
+/**
+ * Hourly: copy photos still on the photo canister into R2 (part 3 of the
+ * off-chain move, src/photoMigration.ts). The canister answers only while an
+ * admin has turned the migration on; otherwise this ends after one refused call.
+ */
+async function scheduledPhotoMigration(env: Env): Promise<void> {
+  if (!env.PHOTOS || !photoStorageReady(env)) return;
+  (process.env as any).DFX_IDENTITY_PEM  = env.DFX_IDENTITY_PEM;
+  (process.env as any).DFX_NETWORK       = env.DFX_NETWORK ?? "ic";
+  (process.env as any).IC_HOST           = env.IC_HOST ?? "";
+  (process.env as any).CANISTER_ID_PHOTO = env.CANISTER_ID_PHOTO;
+  const result = await migratePhotos(r2PhotoStore(env.PHOTOS), photoMigrationCanister);
+  if (result.error && /InvalidInput/.test(result.error)) return;   // migration is off
+  if (result.error || result.failed) {
+    logger.error("photo-migration", "run incomplete", { ...result });
+  } else if (result.moved) {
+    logger.info("photo-migration", "run", { ...result });
   }
 }
 

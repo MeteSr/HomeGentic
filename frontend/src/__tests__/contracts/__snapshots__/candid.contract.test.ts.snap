@@ -2746,6 +2746,15 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; verified:bool; owner:principal; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}; err:variant {Paused; InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; RateLimited; Unavailable:text; QuotaExceeded:text}}",
     ],
   },
+  "confirmOffChain": {
+    "args": [
+      "vec record {text; text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {Paused; InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; RateLimited; Unavailable:text; QuotaExceeded:text}}",
+    ],
+  },
   "deleteMyData": {
     "args": [],
     "mode": [],
@@ -2792,6 +2801,15 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec text",
+    ],
+  },
+  "getOffChainMigrationStatus": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:record {enabled:bool; offChainPhotos:nat; onChainPhotos:nat; onChainBytes:nat}; err:variant {Paused; InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; RateLimited; Unavailable:text; QuotaExceeded:text}}",
     ],
   },
   "getPhotoDataBatch": {
@@ -2853,6 +2871,15 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
       "opt record {owner:principal; hash:text; size:nat; canRead:bool; isPublic:bool; offChain:bool}",
     ],
   },
+  "onChainPhotoPage": {
+    "args": [
+      "opt text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {next:opt text; items:vec record {id:text; data:vec nat8; hash:text}}; err:variant {Paused; InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; RateLimited; Unavailable:text; QuotaExceeded:text}}",
+    ],
+  },
   "photoAccess": {
     "args": [
       "text",
@@ -2868,6 +2895,15 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
   "removePhotoRelay": {
     "args": [
       "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; Duplicate:text; NotFound; NotAuthorized; RateLimited; Unavailable:text; QuotaExceeded:text}}",
+    ],
+  },
+  "setOffChainMigrationEnabled": {
+    "args": [
+      "bool",
     ],
     "mode": [],
     "rets": [

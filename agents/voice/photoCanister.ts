@@ -25,9 +25,15 @@ type RawAccess = {
   owner: Principal; hash: string; size: bigint;
   offChain: boolean; isPublic: boolean; canRead: boolean;
 };
+type CandidResult<T> = { ok: T } | { err: Record<string, unknown> };
 type PhotoActor = {
   photoAccess(photoId: string, reader: Principal): Promise<[] | [RawAccess]>;
   guidePhotoAccess(photoId: string, token: string): Promise<[] | [RawAccess]>;
+  onChainPhotoPage(after: [] | [string]): Promise<CandidResult<{
+    items: Array<{ id: string; hash: string; data: Uint8Array | number[] }>;
+    next: [] | [string];
+  }>>;
+  confirmOffChain(moved: Array<[string, string]>): Promise<CandidResult<bigint>>;
 };
 
 const agents = new Map<string, Promise<HttpAgent>>();
@@ -68,3 +74,22 @@ export async function fetchPhotoAccess(photoId: string, reader: string): Promise
 export async function fetchGuidePhotoAccess(photoId: string, token: string): Promise<PhotoAccess | null> {
   return fromRaw(await (await photoActor()).guidePhotoAccess(photoId, token));
 }
+
+function unwrap<T>(r: CandidResult<T>, method: string): T {
+  if ("err" in r) throw new Error(`${method}: ${Object.keys(r.err)[0]}`);
+  return r.ok;
+}
+
+/** Part 3: the photo canister calls the migration cron makes (src/photoMigration.ts). */
+export const photoMigrationCanister = {
+  async page(after: string | null): Promise<{ items: Array<{ id: string; hash: string; data: Uint8Array }>; next: string | null }> {
+    const r = unwrap(await (await photoActor()).onChainPhotoPage(after === null ? [] : [after]), "onChainPhotoPage");
+    return {
+      items: r.items.map((i) => ({ id: i.id, hash: i.hash, data: i.data instanceof Uint8Array ? i.data : Uint8Array.from(i.data) })),
+      next: r.next.length ? r.next[0]! : null,
+    };
+  },
+  async confirm(moved: Array<[string, string]>): Promise<number> {
+    return Number(unwrap(await (await photoActor()).confirmOffChain(moved), "confirmOffChain"));
+  },
+};

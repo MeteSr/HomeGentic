@@ -335,7 +335,9 @@ Sensor-triggered: createSensorJob()→ #Pending, isDiy=false, amount=0
 
 **File:** `backend/photo/main.mo`
 
-Stores raw image bytes on-chain with SHA-256 deduplication and tier-based upload quotas. Also handles FSBO listing photos (publicly readable) and room photos.
+Keeps each photo's record, SHA-256 and access rules, with per-uploader SHA-256 deduplication and tier-based upload quotas. Also handles FSBO listing photos (publicly readable), room photos and vault documents.
+
+**Where the bytes live.** New uploads go off-chain: `beginUpload` creates the record with empty `data`, and the app sends the bytes to the voice Worker (`PUT /photos/<id>`), which stores them in R2 only if they match the recorded size and hash. Photos uploaded earlier with `uploadPhoto` keep their bytes in `data` until the migration moves them (`onChainPhotoPage` → R2 → `confirmOffChain`, run by the Worker's hourly cron while `setOffChainMigrationEnabled(true)`; steps in `docs/UPGRADE_RUNBOOK.md`). `offChainIds` says which photos are off-chain. Readers get empty bytes for those from the canister and load them from `GET /photos/<id>`.
 
 ### Data Types
 
@@ -391,7 +393,7 @@ Stores raw image bytes on-chain with SHA-256 deduplication and tier-based upload
 
 ### Notable Edge Cases
 
-- **Inline storage** — Raw bytes are stored in canister stable memory. Large images directly increase `Metrics.totalStorageBytes` and canister cycle costs.
+- **Inline storage for older photos** — Photos uploaded on-chain keep their bytes in canister memory until the migration moves them. `Metrics.totalStorageBytes` sums recorded sizes, wherever the bytes are.
 - **Hash deduplication is global** — The same image cannot be uploaded twice across any job or property, even by different users.
 - **Property canister traps if unset** — Unlike other canisters, Photo traps (halts) if `propCanisterId` is unset and a non-admin calls a protected function. Auth must not silently degrade.
 
