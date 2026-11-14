@@ -144,7 +144,8 @@ describe("insurance policy tracker", () => {
     expect(saved.coverageACents).toEqual([35_000_000n]);
     expect(saved.hurricaneDeductible).toEqual([{ Amount: 500_000n }]);
     expect(saved.updatedAt).toBeGreaterThan(0n);
-    expect(ok<any[]>(await policyOf(viewer))).toEqual([saved]);
+    // A Viewer gets the policy number blanked (X-5, security review 2026-11-11).
+    expect(ok<any[]>(await policyOf(viewer))).toEqual([{ ...saved, policyNumber: "" }]);
     expect(ok<any[]>(await policyOf(manager))).toEqual([saved]);
     expect(errKey(await policyOf(stranger))).toBe("NotAuthorized");
     expect(errKey(await policyOf(owner, "no-such-home"))).toBe("NotFound");

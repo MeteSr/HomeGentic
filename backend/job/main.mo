@@ -1050,7 +1050,7 @@ persistent actor Job {
     let list = (formerOwners.get(propertyId) ?? []).filter(func(x : Principal) : Bool { x != from and x != to });
     let grown = if (from == to) list else list.concat([from]);
     // Keep the 100 most recent sellers of one home.
-    let next = if (grown.size() > 100) grown.sliceToArray(grown.size() - 100, grown.size()) else grown;
+    let next = if (grown.size() > 100) grown.sliceToArray(grown.size() - 100 : Int, grown.size()) else grown;
     if (next.size() == 0) formerOwners.remove(propertyId) else formerOwners.add(propertyId, next);
     #ok(())
   };

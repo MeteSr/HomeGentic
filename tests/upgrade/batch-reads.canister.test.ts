@@ -108,6 +108,8 @@ describe("batch reads for the dashboard", () => {
   afterAll(async () => { await pic?.tearDown(); });
 
   it("property.getAccessRoles answers per id, in order", async () => {
+    // Role lookups answer a caller about themself (X-6).
+    property.setIdentity(alice);
     const roles = await property.getAccessRoles([aliceProp, "no-such-property", bobProp], alice.getPrincipal());
     expect(roles).toEqual([[{ Owner: null }], [], [{ NoAccess: null }]]);
   });
