@@ -31,13 +31,30 @@ OQL on bills and property, and the in-app read tool (2026-11-10):
   `fixtures`, `insurance_policies`, `insurance_claims`, `inventory_items`, `warranty_plans`, `warranty_claims`,
   `mortgages` and `tax_years` (owner and co-owners only), `hoa_assessments`, `hoa_reviews`, `flood_zones`,
   `move_in_tasks`. The house guide is left out on purpose (Wi-Fi passwords, alarm codes).
-- All three canisters: only homes the caller has a role on, at most 20 homes a query, no principals in any row,
+- `maintenance.schema()` / `maintenance.execute(oql)` (composite query, 2026-11-14): `planned_tasks` (with
+  `plannedPeriod`, `YYYY-MM`). Same visibility as `getScheduleForProperties`.
+- `recurring.schema()` / `recurring.execute(oql)` (composite query, 2026-11-14): `services` (with `visitCount`,
+  `lastVisitDate` and `nextVisitEstimate`: the last visit logged plus the frequency, an estimate and never an
+  appointment) and `visits`. Provider licence numbers are left out.
+- `sensor.schema()` / `sensor.execute(oql)` (composite query, 2026-11-14): `devices` and `events` (newest 1,000 a
+  home). Vendor device ids and raw gateway payloads are left out. The sensor canister is not in the ICP MCP
+  manifest, so only the in-app assistant reaches this one.
+- Every one of these canisters: only homes the caller has a role on, at most 20 homes a query, no principals in any row,
   nothing writes.
 - The in-app assistant has one generic read tool, `query_home_records` (`agents/voice/tools.ts`, executed in
-  the browser by `frontend/src/services/homeRecords.ts` under the user's own identity). It lists a source's
+  the browser by `frontend/src/services/homeRecords.ts` and on the phone by `mobile/src/services/assistantTools.ts`,
+  both through `packages/shared/src/homeRecords.ts`, under the user's own identity). Its sources are job, bills,
+  property, maintenance, recurring and sensor. It lists a source's
   entities from `schema()` and runs OQL against `execute()`, so a field or entity added to a catalogue reaches
   the assistant with no new tool. It is in `READ_ONLY_TOOLS` (no confirmation prompt) because it can't change
   anything; every write still asks first.
+- `get_home_checkup` (read-only, `frontend/src/services/homeCheckups.ts`) hands the assistant what the app's own
+  pages already work out for one home: the document vault's file names, kinds and dates (never contents or
+  links), Florida 4-point and wind mitigation readiness, the reserve target, and possible CPSC recalls. Each
+  uses the page's own function and caveat.
+- The mobile assistant runs the read-only lookups only: `query_home_records`, `get_home_checkup` for documents,
+  and `get_price_benchmark` from verified local costs. Every other tool is answered as "not available from the
+  mobile app yet", so nothing that changes the record runs from the phone's assistant.
 - Multi-step tasks (storm prep, insurance claim packet, closing handoff check) use plan, review, run: the
   assistant reads with `prepare_home_task` (read-only, `frontend/src/services/assistantTasks.ts`), then calls
   `propose_plan` once with every write. The browser checks the plan against `PLAN_STEP_TOOLS`

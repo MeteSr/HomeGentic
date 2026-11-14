@@ -24,6 +24,18 @@ export type Error =
   | { RateLimited: null }
   | { Unavailable: string };
 
+export type OqlResult = {
+  hasMore: boolean;
+  rows: Array<OqlCell[]>;
+};
+
+export type OqlCell = {
+  value: OqlCellValue;
+  name: string;
+};
+
+export type OqlCellValue = { int: bigint } | { float: number } | { bool: boolean } | { null: null } | { text: string };
+
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
   createScheduleEntry: ActorMethod<
@@ -31,8 +43,10 @@ export interface _SERVICE {
     { ok: ScheduleEntry } | { err: Error }
   >;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
+  execute: ActorMethod<[string], OqlResult>;
   getApiDoc: ActorMethod<[], string>;
   getScheduleByProperty: ActorMethod<[string], ScheduleEntry[]>;
   getScheduleForProperties: ActorMethod<[string[]], ScheduleEntry[]>;
   markCompleted: ActorMethod<[string], { ok: ScheduleEntry } | { err: Error }>;
+  schema: ActorMethod<[], string>;
 }

@@ -48,8 +48,9 @@ test("the tokenizer factor scales every token count", () => {
 
 test("the baseline is Sonnet 5.5 with the agent's tool list cached", () => {
   assert.equal(PRICES.ai.model, "claude-sonnet-5-5");
-  // HOMEGENTIC_TOOLS with query_home_records and the multi-step task tools (~32,900 chars of JSON)
-  assert.equal(PRICES.tokens.agent.cachedInputTokens, 8_300);
+  // HOMEGENTIC_TOOLS with query_home_records, get_home_checkup and the multi-step task tools (~35,300 chars of JSON)
+  assert.equal(PRICES.tokens.agent.cachedInputTokens, 8_900);
+  assert.equal(PRICES.tokens.agent.inputTokens, 12_400);
 });
 
 test("Pro's yearly Stripe fee is card fee plus Billing fee on $59", () => {

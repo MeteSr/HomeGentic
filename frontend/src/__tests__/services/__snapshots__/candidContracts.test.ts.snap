@@ -226,10 +226,12 @@ withdrawProposal(1) -> (1)"
 exports[`Candid contract snapshots — method arity > maintenance 1`] = `
 "createScheduleEntry(6) -> (1)
 deleteMyData(0) -> (1)
+execute(1) -> (1) [composite_query]
 getApiDoc(0) -> (1) [query]
 getScheduleByProperty(1) -> (1)
 getScheduleForProperties(1) -> (1) [composite_query]
-markCompleted(1) -> (1)"
+markCompleted(1) -> (1)
+schema(0) -> (1) [query]"
 `;
 
 exports[`Candid contract snapshots — method arity > monitoring 1`] = `
@@ -473,12 +475,14 @@ exports[`Candid contract snapshots — method arity > recurring 1`] = `
 attachContractDoc(2) -> (1)
 createRecurringService(9) -> (1)
 deleteMyData(0) -> (1)
+execute(1) -> (1) [composite_query]
 getApiDoc(0) -> (1) [query]
 getByProperty(1) -> (1)
 getMetrics(0) -> (1) [query]
 getRecurringService(1) -> (1)
 getScheduleForProperties(1) -> (1) [composite_query]
 getVisitLogs(1) -> (1)
+schema(0) -> (1) [query]
 updateStatus(2) -> (1)"
 `;
 
@@ -509,6 +513,7 @@ setAttestationKeyName(1) -> (1)"
 exports[`Candid contract snapshots — method arity > sensor 1`] = `
 "deactivateDevice(1) -> (1)
 deleteMyData(0) -> (1)
+execute(1) -> (1) [composite_query]
 getDevicesForProperty(1) -> (1) [composite_query]
 getEventsForProperty(2) -> (1)
 getPendingAlerts(1) -> (1)
@@ -517,5 +522,6 @@ recordEvent(5) -> (1)
 recordEventFor(7) -> (1)
 registerDevice(4) -> (1)
 registerVerifiedDevice(6) -> (1)
+schema(0) -> (1) [query]
 setVerifiedOnlySources(1) -> (1)"
 `;

@@ -187,6 +187,8 @@ describe("VA.7 — side-effecting tools need confirmation (F-8)", () => {
     expect(toolNeedsConfirmation("list_bids")).toBe(false);
     // the generic OQL read tool only reads, so it runs without a prompt
     expect(toolNeedsConfirmation("query_home_records")).toBe(false);
+    // documents, readiness, reserve and recalls are reads too
+    expect(toolNeedsConfirmation("get_home_checkup")).toBe(false);
     expect(toolNeedsConfirmation("some_future_tool")).toBe(true);
   });
 

@@ -274,6 +274,16 @@ function createPhotoService() {
     return withBytes(await a.getPhotosByJob(jobId), (ids) => a.getPhotoDataBatch(ids));
   },
 
+  /** Records only (name, date, size): no file bytes and no link. For lists that never show the file. */
+  async listByJob(jobId: string): Promise<Photo[]> {
+    if (typeof window !== "undefined" && (window as any).__e2e_baseline_photos) {
+      const photosMap = (window as any).__e2e_baseline_photos as Record<string, Photo[]>;
+      if (jobId in photosMap) return photosMap[jobId] ?? [];
+    }
+    const a = await getActor();
+    return (await a.getPhotosByJob(jobId)).map((m) => fromPhoto(m, undefined));
+  },
+
   async getByProperty(propertyId: string): Promise<Photo[]> {
     const a = await getActor();
     return withBytes(await a.getPhotosByProperty(propertyId), (ids) => a.getPhotoDataBatch(ids));

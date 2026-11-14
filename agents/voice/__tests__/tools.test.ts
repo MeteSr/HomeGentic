@@ -217,8 +217,16 @@ describe("query_home_records — generic OQL read tool", () => {
     expect(getRequired("query_home_records")).toEqual(["source"]);
   });
 
-  it("source is limited to the three canisters with OQL", () => {
-    expect(getProperties("query_home_records").source.enum).toEqual(["job", "bills", "property"]);
+  it("source is limited to the canisters with OQL", () => {
+    expect(getProperties("query_home_records").source.enum).toEqual(["job", "bills", "property", "maintenance", "recurring", "sensor"]);
+  });
+
+  it("says what the schedule, recurring service and sensor sources hold, and how far to trust them", () => {
+    const desc = getTool("query_home_records").description;
+    expect(desc).toMatch(/maintenance: .*planned/i);
+    expect(desc).toMatch(/recurring: .*(visit|provider)/i);
+    expect(desc).toMatch(/sensor: .*(alert|device)/i);
+    expect(desc).toMatch(/estimate, not an appointment/i);
   });
 
   it("takes an optional entity and an OQL query object", () => {
@@ -275,5 +283,43 @@ describe("multi-step task tools", () => {
   it("create_insurance_claim starts the household's own record and files nothing", () => {
     expect(getRequired("create_insurance_claim")).toEqual(["property_id", "title", "date_of_loss"]);
     expect(getTool("create_insurance_claim").description).toMatch(/not filed|doesn't file|never files|nothing is sent/i);
+  });
+});
+
+// ── get_price_benchmark covers every service type ────────────────────────────
+
+describe("get_price_benchmark — service types", () => {
+  it("offers every service type the app has, not a subset", () => {
+    const priced = getProperties("get_price_benchmark").service_type.enum;
+    const all = getProperties("create_maintenance_job").service_type.enum;
+    expect(all).toHaveLength(21);
+    expect(priced).toEqual(all);
+  });
+});
+
+// ── get_home_checkup: what the app's own pages already work out ──────────────
+
+describe("get_home_checkup — read-only checks for one home", () => {
+  it("needs the check and the home", () => {
+    expect(getRequired("get_home_checkup")).toEqual(["check", "property_id"]);
+  });
+
+  it("offers documents, inspection readiness, reserve and recalls", () => {
+    expect(getProperties("get_home_checkup").check.enum).toEqual(["documents", "inspection_readiness", "reserve", "recalls"]);
+  });
+
+  it("can narrow documents to one kind of paper", () => {
+    const kinds = getProperties("get_home_checkup").doc_type.enum;
+    expect(kinds).toContain("Warranty");
+    expect(kinds).toContain("Permit");
+    expect(kinds).toHaveLength(16);
+  });
+
+  it("says it is read-only, lists names not contents, and keeps the pages' caveats", () => {
+    const desc = getTool("get_home_checkup").description;
+    expect(desc).toMatch(/read-only/i);
+    expect(desc).toMatch(/names.*not (their|the) contents/i);
+    expect(desc).toMatch(/possible recall/i);
+    expect(desc).toMatch(/Florida/);
   });
 });

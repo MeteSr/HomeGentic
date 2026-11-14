@@ -28,6 +28,7 @@ import { getPriceBenchmark, hasSufficientSamples, benchmarkBasis } from "./price
 import { proposeJob } from "./contractorJobProposal";
 import { queryHomeRecords } from "./homeRecords";
 import { prepareHomeTask } from "./assistantTasks";
+import { getHomeCheckup } from "./homeCheckups";
 import { insuranceClaimService, validateClaim, EMPTY_CLAIM, type ClaimInput } from "./insuranceClaims";
 
 export type ToolName =
@@ -56,6 +57,7 @@ export type ToolName =
   | "add_recurring_service"
   | "add_property"
   | "query_home_records"
+  | "get_home_checkup"
   | "prepare_home_task"
   | "propose_plan"
   | "create_insurance_claim";
@@ -710,6 +712,10 @@ export async function executeTool(
       case "query_home_records":
         return await queryHomeRecords({ source: input.source, entity: input.entity, query: input.query });
 
+      // ── The app's own checks for one home (homeCheckups.ts); read-only ──────
+      case "get_home_checkup":
+        return await getHomeCheckup(input);
+
       // ── Multi-step tasks (assistantPlan.ts / assistantTasks.ts) ─────────────
       // Read-only: gathers one home's facts and suggested writes for a plan.
       case "prepare_home_task":
@@ -893,6 +899,7 @@ export function toolActionLabel(name: ToolName): string {
     add_recurring_service:     "adding recurring service",
     add_property:              "registering property",
     query_home_records:        "reading your home records",
+    get_home_checkup:          "checking your home's records",
     prepare_home_task:         "gathering what the task needs",
     propose_plan:              "preparing a plan for your review",
     create_insurance_claim:    "starting a claim record",

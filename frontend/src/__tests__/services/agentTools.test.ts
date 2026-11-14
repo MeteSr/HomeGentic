@@ -39,6 +39,7 @@ vi.mock("@/services/homeRecords", () => ({
   queryHomeRecords: vi.fn(),
 }));
 
+vi.mock("@/services/homeCheckups", () => ({ getHomeCheckup: vi.fn() }));
 vi.mock("@/services/assistantTasks", () => ({
   prepareHomeTask: vi.fn(),
 }));
@@ -50,6 +51,7 @@ vi.mock("@/services/insuranceClaims", async (orig) => ({
 
 import { executeTool, toolActionLabel, type ToolName } from "@/services/agentTools";
 import { queryHomeRecords } from "@/services/homeRecords";
+import { getHomeCheckup } from "@/services/homeCheckups";
 import { prepareHomeTask } from "@/services/assistantTasks";
 import { insuranceClaimService } from "@/services/insuranceClaims";
 import { jobService }          from "@/services/job";
@@ -521,6 +523,24 @@ describe("executeTool — query_home_records", () => {
 
   it("has an action label", () => {
     expect(toolActionLabel("query_home_records")).toBe("reading your home records");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// get_home_checkup (documents, inspection readiness, reserve, recalls)
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("executeTool — get_home_checkup", () => {
+  it("hands the input to getHomeCheckup and returns its result", async () => {
+    vi.mocked(getHomeCheckup).mockResolvedValue({ success: true, data: { check: "reserve" } });
+    const input = { check: "reserve", property_id: "home-1" };
+    const r = await executeTool("get_home_checkup", input);
+    expect(getHomeCheckup).toHaveBeenCalledWith(input);
+    expect(r).toEqual({ success: true, data: { check: "reserve" } });
+  });
+
+  it("has an action label", () => {
+    expect(toolActionLabel("get_home_checkup")).toBe("checking your home's records");
   });
 });
 

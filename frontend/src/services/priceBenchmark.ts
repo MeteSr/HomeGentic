@@ -13,6 +13,7 @@
 
 import { aiProxyService } from "./aiProxy";
 import { lazyActor } from "./lazyActor";
+import { serviceTypeKey } from "@homegentic/shared/serviceTypes";
 import { idlFactory as jobIdl } from "@homegentic/shared/declarations/job";
 import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
 
@@ -36,11 +37,11 @@ export interface PriceBenchmarkResult {
   area?:        string;
 }
 
-async function getLocalBenchmark(serviceType: string, zipCode: string): Promise<PriceBenchmarkResult | null> {
+async function getLocalBenchmark(serviceType: string, tag: string, zipCode: string): Promise<PriceBenchmarkResult | null> {
   if (!JOB_CANISTER_ID) return null;
   try {
     const a = await getJobActor();
-    const s = (await a.getVerifiedLocalCosts(serviceType, zipCode))[0];
+    const s = (await a.getVerifiedLocalCosts(tag, zipCode))[0];
     if (!s) return null;
     return {
       serviceType, zipCode, source: "local",
@@ -52,16 +53,19 @@ async function getLocalBenchmark(serviceType: string, zipCode: string): Promise<
   }
 }
 
-/** Verified local costs when the area has enough sharing homes, else the national range. Null on any error. */
+/** Verified local costs when the area has enough sharing homes, else the national range. Null on any error.
+ *  `serviceType` is a label ("Pest Control") or a tag ("Pest"); the canisters take the tag. */
 export async function getPriceBenchmark(
   serviceType: string,
   zipCode: string
 ): Promise<PriceBenchmarkResult | null> {
   if (!serviceType || !zipCode) return null;
-  const local = await getLocalBenchmark(serviceType, zipCode);
+  const tag = serviceTypeKey(serviceType);
+  if (!tag) return null;
+  const local = await getLocalBenchmark(serviceType, tag, zipCode);
   if (local) return local;
   try {
-    const json = await aiProxyService.getPriceBenchmark(serviceType, zipCode);
+    const json = await aiProxyService.getPriceBenchmark(tag, zipCode);
     if (!json) return null;
     const n = JSON.parse(json);
     return {

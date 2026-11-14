@@ -60,7 +60,20 @@ export const idlFactory = ({ IDL }: any) => {
     RateLimited: IDL.Null,
     Unavailable: IDL.Text,
   });
+  // OQL (backend/shared/Oql.mo): rows of named cells.
+  const OqlCellValue = IDL.Variant({
+    text:  IDL.Text,
+    int:   IDL.Int,
+    float: IDL.Float64,
+    bool:  IDL.Bool,
+    null:  IDL.Null,
+  });
+  const OqlCell = IDL.Record({ name: IDL.Text, value: OqlCellValue });
+  const OqlResult = IDL.Record({ hasMore: IDL.Bool, rows: IDL.Vec(IDL.Vec(OqlCell)) });
   return IDL.Service({
+    // OQL for AI assistants: a JSON catalogue, and one JSON query -> paged rows.
+    schema:  IDL.Func([], [IDL.Text], ["query"]),
+    execute: IDL.Func([IDL.Text], [OqlResult], ["composite_query"]),
     registerDevice: IDL.Func(
       [IDL.Text, IDL.Text, DeviceSource, IDL.Text],
       [IDL.Variant({ ok: SensorDevice, err: Error })],

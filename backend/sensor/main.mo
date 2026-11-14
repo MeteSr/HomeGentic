@@ -32,6 +32,11 @@ import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
+import Int "mo:core/Int";
+import List "mo:core/List";
+import Runtime "mo:core/Runtime";
+import Oql "../shared/Oql";
+import SensorOql "SensorOql";
 
 persistent actor Sensor {
 
@@ -187,6 +192,8 @@ persistent actor Sensor {
   private transient let MAX_EVENTS_PER_PROPERTY : Nat = 1_000;
 
   private transient let devicesByProperty = Index.build(devices, func(d) { ?d.propertyId });
+  /// Who registered each device, so `execute` finds a caller's homes without a scan.
+  private transient let devicesByHomeowner = Index.build(devices, func(d) { ?d.homeowner.toText() });
 
   private func fileEvent(ix : Map.Map<Text, Set.Set<Nat>>, seq : Nat, propertyId : Text) {
     switch (ix.get(propertyId)) {
@@ -565,6 +572,7 @@ persistent actor Sensor {
     devices.add(id, device);
     externalIdIdx.add(externalDeviceId, id);
     Index.add(devicesByProperty, propertyId, id);
+    Index.add(devicesByHomeowner, msg.caller.toText(), id);
     #ok(device)
   };
 
@@ -659,6 +667,7 @@ persistent actor Sensor {
     verifiedIdx.add(key, id);
     deviceVendorAccount.add(id, vendorAccountId);
     Index.add(devicesByProperty, propertyId, id);
+    Index.add(devicesByHomeowner, owner.toText(), id);
     #ok(device)
   };
 
@@ -706,6 +715,112 @@ persistent actor Sensor {
         d.isActive
       })
     )
+  };
+
+  // ─── OQL (schema + execute) for the in-app assistant ──────────────────────
+  // The query convention of shared/Oql.mo (service-discoverability skill
+  // Layer 4), called by the assistant's query_home_records tool. Read-only.
+  // Rows are those of homes the caller has a role on, as getDevicesForProperty
+  // decides; unwired (local dev), only devices the caller registered and
+  // their events. Vendor device ids and raw payloads are never returned.
+
+  /// The OQL catalogue: entities "devices" and "events".
+  public query func schema() : async Text { Oql.schemaJson(SensorOql.ENTITIES) };
+
+  private func sourceText(src : DeviceSource) : Text {
+    switch src {
+      case (#Nest) "Nest"; case (#Ecobee) "Ecobee"; case (#MoenFlo) "MoenFlo"; case (#Manual) "Manual";
+      case (#RingAlarm) "RingAlarm"; case (#HoneywellHome) "HoneywellHome"; case (#RheemEcoNet) "RheemEcoNet";
+      case (#Sense) "Sense"; case (#EmporiaVue) "EmporiaVue"; case (#Rachio) "Rachio";
+      case (#SmartThings) "SmartThings"; case (#HomeAssistant) "HomeAssistant";
+      case (#EnphaseEnvoy) "EnphaseEnvoy"; case (#TeslaPowerwall) "TeslaPowerwall";
+      case (#LGThinQ) "LGThinQ"; case (#GESmartHQ) "GESmartHQ"; case (#SolarEdge) "SolarEdge";
+    }
+  };
+
+  private func eventTypeText(t : SensorEventType) : Text {
+    switch t {
+      case (#WaterLeak) "WaterLeak"; case (#LeakDetected) "LeakDetected"; case (#FloodRisk) "FloodRisk";
+      case (#LowTemperature) "LowTemperature"; case (#HvacAlert) "HvacAlert"; case (#HvacFilterDue) "HvacFilterDue";
+      case (#HighHumidity) "HighHumidity"; case (#HighTemperature) "HighTemperature";
+      case (#SolarFault) "SolarFault"; case (#LowProduction) "LowProduction"; case (#BatteryLow) "BatteryLow";
+      case (#GridOutage) "GridOutage"; case (#ApplianceFault) "ApplianceFault";
+      case (#ApplianceMaintenance) "ApplianceMaintenance";
+    }
+  };
+
+  /// A nanosecond timestamp as `YYYY-MM-DDTHH:MM:SSZ` (UTC).
+  private func isoTime(ns : Int) : Text {
+    let secs = Int.abs(ns / 1_000_000_000) % 86_400;
+    func two(n : Nat) : Text = (if (n < 10) "0" else "") # n.toText();
+    Oql.isoDate(ns) # "T" # two(secs / 3600) # ":" # two(secs % 3600 / 60) # ":" # two(secs % 60) # "Z"
+  };
+
+  /// A device as a row of SensorOql.DEVICES, in its field order.
+  private func deviceRow(d : SensorDevice) : Oql.Row {
+    [#text(d.id), #text(d.propertyId), #text(d.name), #text(sourceText(d.source)), #text(Oql.isoDate(d.registeredAt)), #bool(d.isActive)]
+  };
+
+  /// An event as a row of SensorOql.EVENTS, in its field order.
+  private func eventRow(e : SensorEvent) : Oql.Row {
+    [
+      #text(e.id),
+      #text(e.propertyId),
+      #text(e.deviceId),
+      switch (devices.get(e.deviceId)) { case (?d) #text(d.name); case null #null_ },
+      #text(eventTypeText(e.eventType)),
+      #text(switch (e.severity) { case (#Info) "Info"; case (#Warning) "Warning"; case (#Critical) "Critical" }),
+      #float(e.value),
+      #text(e.unit),
+      #text(Oql.isoDate(e.timestamp)),
+      #text(isoTime(e.timestamp)),
+      switch (e.jobId) { case (?j) #text(j); case null #null_ },
+    ]
+  };
+
+  /// Runs one OQL query (a JSON object, see `schema()`) over the devices or
+  /// events of the caller's homes. Homes come from a propertyId eq/in
+  /// condition when the query has one, otherwise from the devices the caller
+  /// registered; at most 20. A malformed query traps with a message starting
+  /// "OQL:", as the convention expects.
+  public composite query(msg) func execute(oql : Text) : async Oql.Result {
+    if (msg.caller.isAnonymous()) return { hasMore = false; rows = [] };
+    let q = switch (Oql.parse(oql, SensorOql.ENTITIES)) {
+      case (#ok(q)) q;
+      case (#err(m)) Runtime.trap("OQL: " # m);
+    };
+    let wantDevices = Oql.start(q) == SensorOql.DEVICES.name;
+    let named = Oql.textHints(q, "propertyId");
+    let homes = List.empty<Text>();
+    func addHome(id : Text) { if (homes.find(func h = h == id) == null) homes.add(id) };
+    if (named.size() > 0) {
+      for (id in named.values()) addHome(id);
+    } else {
+      for (d in Index.records(devicesByHomeowner, msg.caller.toText(), devices)) addHome(d.propertyId);
+    };
+    if (homes.size() > SensorOql.MAX_HOMES)
+      Runtime.trap("OQL: at most " # SensorOql.MAX_HOMES.toText() # " homes per query; this covers " # homes.size().toText() # ", so pin fewer with a propertyId condition");
+    let ids = homes.toArray();
+    let wired = propCanisterId != "";
+    let roles : [?Canisters.AccessRole] =
+      if (not wired or ids.size() == 0) [] else {
+        try { await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller) }
+        catch (_) { Runtime.trap("OQL: the property canister didn't answer, so access can't be checked; try again later") }
+      };
+    let rows = List.empty<Oql.Row>();
+    for (i in ids.keys()) {
+      let sees = wired and i < roles.size() and Canisters.hasRole(roles[i]);
+      if (wantDevices) {
+        for (d in Index.records(devicesByProperty, ids[i], devices)) {
+          if (sees or (not wired and d.homeowner == msg.caller)) rows.add(deviceRow(d));
+        };
+      } else {
+        for (e in propertyEvents(ids[i])) {
+          if (sees or (not wired and e.homeowner == msg.caller)) rows.add(eventRow(e));
+        };
+      };
+    };
+    Oql.run(q, rows.values())
   };
 
   /// getDevicesForProperty for trusted reader canisters, which call from
@@ -974,6 +1089,7 @@ persistent actor Sensor {
       deviceVendorAccount.remove(d.id);
       lastCriticalJobNs.remove(d.id);
       Index.remove(devicesByProperty, d.propertyId, d.id);
+      Index.remove(devicesByHomeowner, d.homeowner.toText(), d.id);
       devices.remove(d.id);
       removed += 1;
     };

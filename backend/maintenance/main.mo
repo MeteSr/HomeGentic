@@ -24,6 +24,9 @@ import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
+import Runtime "mo:core/Runtime";
+import Oql "../shared/Oql";
+import MaintenanceOql "MaintenanceOql";
 import ApiDoc "ApiDoc";
 
 persistent actor Maintenance {
@@ -404,6 +407,73 @@ persistent actor Maintenance {
       };
     };
     out.toArray()
+  };
+
+  // ─── OQL (schema + execute) for AI assistants ─────────────────────────────
+  // ICP MCP's query convention (shared/Oql.mo, service-discoverability skill
+  // Layer 4), and what the in-app assistant's query_home_records tool calls.
+  // Read-only. Rows follow getScheduleForProperties' rule: homes the caller
+  // has a role on; unwired (local dev), only entries the caller created.
+
+  /// The OQL catalogue: one entity, "planned_tasks".
+  public query func schema() : async Text { Oql.schemaJson(MaintenanceOql.ENTITIES) };
+
+  /// A schedule entry as a row of MaintenanceOql.PLANNED, in its field order.
+  private func plannedRow(e : ScheduleEntry) : Oql.Row {
+    let year = e.plannedYear.toText();
+    [
+      #text(e.id),
+      #text(e.propertyId),
+      #text(e.systemName),
+      #text(e.taskDescription),
+      #int(e.plannedYear),
+      switch (e.plannedMonth) { case (?m) #int(m); case null #null_ },
+      #text(switch (e.plannedMonth) {
+        case (?m) year # "-" # (if (m < 10) "0" else "") # m.toText();
+        case null year;
+      }),
+      switch (e.estimatedCostCents) { case (?c) #int(c); case null #null_ },
+      #bool(e.isCompleted),
+      #text(Oql.isoDate(e.createdAt)),
+    ]
+  };
+
+  /// Runs one OQL query (a JSON object, see `schema()`) over the planned
+  /// tasks of the caller's homes. Homes come from a propertyId eq/in
+  /// condition when the query has one, otherwise from the tasks the caller
+  /// planned; at most 20. A malformed query traps with a message starting
+  /// "OQL:", as the convention expects.
+  public composite query(msg) func execute(oql : Text) : async Oql.Result {
+    if (msg.caller.isAnonymous()) return { hasMore = false; rows = [] };
+    let q = switch (Oql.parse(oql, MaintenanceOql.ENTITIES)) {
+      case (#ok(q)) q;
+      case (#err(m)) Runtime.trap("OQL: " # m);
+    };
+    let named = Oql.textHints(q, "propertyId");
+    let homes = List.empty<Text>();
+    func addHome(id : Text) { if (homes.find(func h = h == id) == null) homes.add(id) };
+    if (named.size() > 0) {
+      for (id in named.values()) addHome(id);
+    } else {
+      for (e in Index.records(scheduleByCreator, msg.caller.toText(), schedule)) addHome(e.propertyId);
+    };
+    if (homes.size() > MaintenanceOql.MAX_HOMES)
+      Runtime.trap("OQL: at most " # MaintenanceOql.MAX_HOMES.toText() # " homes per query; this covers " # homes.size().toText() # ", so pin fewer with a propertyId condition");
+    let ids = homes.toArray();
+    let wired = propCanisterId != "";
+    let roles : [?Canisters.AccessRole] =
+      if (not wired or ids.size() == 0) [] else {
+        try { await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller) }
+        catch (_) { Runtime.trap("OQL: the property canister didn't answer, so access can't be checked; try again later") }
+      };
+    let rows = List.empty<Oql.Row>();
+    for (i in ids.keys()) {
+      let sees = wired and i < roles.size() and Canisters.hasRole(roles[i]);
+      for (e in Index.records(scheduleByProperty, ids[i], schedule)) {
+        if (sees or (not wired and e.createdBy == msg.caller)) rows.add(plannedRow(e));
+      };
+    };
+    Oql.run(q, rows.values())
   };
 
   public shared(msg) func markCompleted(entryId: Text) : async Result.Result<ScheduleEntry, Error> {
