@@ -221,8 +221,9 @@ function reportTopups(failed, { githubActions = true } = {}) {
   writeFileSync(summary, "");
   const r = spawnSync(
     "bash",
-    ["-c", 'source "$1"; cycles_report_topup_failures testnet "$2"; echo "rc=$?"', "_", join(ROOT, "scripts/lib/cycles.sh"), failed],
+    ["-c", 'source scripts/lib/cycles.sh; cycles_report_topup_failures testnet "$1"; echo "rc=$?"', "_", failed],
     {
+      cwd: ROOT,
       encoding: "utf8",
       env: { ...process.env, GITHUB_ACTIONS: githubActions ? "true" : "", GITHUB_STEP_SUMMARY: githubActions ? summary : "" },
     },
