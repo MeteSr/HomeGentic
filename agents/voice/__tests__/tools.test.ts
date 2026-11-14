@@ -277,3 +277,14 @@ describe("multi-step task tools", () => {
     expect(getTool("create_insurance_claim").description).toMatch(/not filed|doesn't file|never files|nothing is sent/i);
   });
 });
+
+// ── get_price_benchmark covers every service type ────────────────────────────
+
+describe("get_price_benchmark — service types", () => {
+  it("offers every service type the app has, not a subset", () => {
+    const priced = getProperties("get_price_benchmark").service_type.enum;
+    const all = getProperties("create_maintenance_job").service_type.enum;
+    expect(all).toHaveLength(21);
+    expect(priced).toEqual(all);
+  });
+});

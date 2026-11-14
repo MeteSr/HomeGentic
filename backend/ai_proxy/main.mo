@@ -154,7 +154,8 @@ persistent actor AiProxy {
   };
 
   // ── Price benchmark seed data ──────────────────────────────────────────────
-  // Fixed typical U.S. ranges (cents). They are not local and not bids: the
+  // Fixed typical U.S. ranges (cents), one per ServiceType tag
+  // (shared/ServiceType.mo). They are not local and not bids: the
   // frontend labels them as national and prefers job.getVerifiedLocalCosts
   // once an area has enough homes sharing their finished job costs.
 
@@ -170,6 +171,17 @@ persistent actor AiProxy {
     ("Landscaping", { low = 30000;   median = 90000;   high = 350000 }),
     ("Windows",     { low = 45000;   median = 120000;  high = 350000 }),
     ("Foundation",  { low = 400000;  median = 900000;  high = 2500000 }),
+    ("Gutters",         { low = 15000;   median = 120000;  high = 300000 }),
+    ("GeneralHandyman", { low = 10000;   median = 40000;   high = 120000 }),
+    ("Pest",            { low = 10000;   median = 25000;   high = 60000 }),
+    ("Concrete",        { low = 150000;  median = 400000;  high = 900000 }),
+    ("Fencing",         { low = 180000;  median = 350000;  high = 800000 }),
+    ("Insulation",      { low = 100000;  median = 200000;  high = 450000 }),
+    ("Solar",           { low = 1500000; median = 2200000; high = 3500000 }),
+    ("Pool",            { low = 15000;   median = 80000;   high = 400000 }),
+    ("Drywall",         { low = 30000;   median = 80000;   high = 250000 }),
+    ("KitchenRemodel",  { low = 1200000; median = 2700000; high = 6000000 }),
+    ("BathroomRemodel", { low = 600000;  median = 1200000; high = 2800000 }),
     ("Other",       { low = 10000;   median = 40000;   high = 200000 }),
   ];
 

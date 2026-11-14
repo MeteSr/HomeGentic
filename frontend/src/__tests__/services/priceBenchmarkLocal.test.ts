@@ -48,4 +48,19 @@ describe("getPriceBenchmark — verified local costs", () => {
     mockNational.mockResolvedValue(NATIONAL);
     expect(await getPriceBenchmark("Roofing", "32114")).toMatchObject({ source: "national" });
   });
+
+  it("sends the canisters the service type's tag, whatever label the caller used", async () => {
+    mockLocalCosts.mockResolvedValue([]);
+    mockNational.mockResolvedValue(NATIONAL);
+    const r = await getPriceBenchmark("Pest Control", "32114");
+    expect(mockLocalCosts).toHaveBeenCalledWith("Pest", "32114");
+    expect(mockNational).toHaveBeenCalledWith("Pest", "32114");
+    expect(r).toMatchObject({ serviceType: "Pest Control", source: "national" });
+  });
+
+  it("returns nothing for something that isn't a service type, without calling a canister", async () => {
+    expect(await getPriceBenchmark("Pool Cleaning", "32114")).toBeNull();
+    expect(mockLocalCosts).not.toHaveBeenCalled();
+    expect(mockNational).not.toHaveBeenCalled();
+  });
 });

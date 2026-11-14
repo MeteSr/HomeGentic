@@ -946,7 +946,7 @@ Returns low, median, and high estimates with a "source" field. "local" means the
       properties: {
         service_type: {
           type: "string",
-          enum: ["Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows", "Landscaping", "Foundation", "Other"],
+          enum: SERVICE_TYPES,
           description: "The type of home service to benchmark",
         },
         zip_code: {
