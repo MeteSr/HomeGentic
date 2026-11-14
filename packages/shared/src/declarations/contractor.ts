@@ -125,6 +125,7 @@ export const idlFactory = ({ IDL }: any) => {
     getPortfolio: IDL.Func([IDL.Principal], [IDL.Vec(PortfolioItem)], ["query"]),
     setPaymentCanisterId: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     addLicenseRelay: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    setLicenseHolder: IDL.Func([IDL.Text, IDL.Opt(IDL.Principal)], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     removeLicenseRelay: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     addNotifier: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     removeNotifier: IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
@@ -143,6 +144,7 @@ export const idlFactory = ({ IDL }: any) => {
     getAll: IDL.Func([], [IDL.Vec(ContractorProfile)], ["query"]),
     getPage: IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(ContractorProfile)], ["query"]),
     getLeadAlertTargets: IDL.Func([], [IDL.Vec(LeadAlertTarget)], ["query"]),
+    getLeadAlertTargetsPage: IDL.Func([IDL.Opt(IDL.Principal), IDL.Nat], [IDL.Vec(LeadAlertTarget)], ["query"]),
     setProfilePrivacy: IDL.Func(
       [ProfilePrivacy],
       [IDL.Variant({ ok: ProfilePrivacy, err: Error })],

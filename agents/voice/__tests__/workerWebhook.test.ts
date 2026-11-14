@@ -3,7 +3,10 @@
  * delivery rules around them (testing-gaps audit 2026-10-29, item 2).
  *
  * WH.1 signature, configuration and size checks come before any work
- * WH.2 subscription lifecycle: updated / deleted / invoice paid / failed
+ * WH.2 subscription lifecycle: updated / deleted / invoice paid / failed.
+ *      X-2 (2026-11-11): downgrades name the Stripe subscription, so the
+ *      canister only ends the plan that subscription sold, and a failed
+ *      invoice downgrades only once Stripe has no retry left
  * WH.3 checkout.session.completed: credit packs, gifts, referral cards
  * WH.4 referral-fee invoice and payment intent go to the fee ledger
  * WH.5 delivery: a redelivered event does nothing, an event still being
@@ -29,6 +32,7 @@ jest.mock("../paymentCanister", () => {
   class AlreadyConsumedError extends Error {}
   return {
     activateInCanister:        jest.fn().mockResolvedValue(undefined),
+    stripeDowngradeInCanister: jest.fn().mockResolvedValue(true),
     activateSubscriptionUntil: jest.fn().mockResolvedValue(undefined),
     consumeAgentCredit:        jest.fn().mockRejectedValue(new Error("none")),
     grantAgentCreditsOnce:     jest.fn().mockResolvedValue(undefined),
@@ -68,6 +72,7 @@ import { describe, it, expect, beforeEach } from "@jest/globals";
 import worker from "../src/index";
 import {
   activateInCanister, activateSubscriptionUntil, grantAgentCreditsOnce, recordGift, AlreadyConsumedError,
+  stripeDowngradeInCanister,
 } from "../paymentCanister";
 import { markInvoicePaid, markPaymentIntentPaid, saveCardFromSession } from "../src/referralFees";
 import { sendGiftEmail } from "../src/offchainOutcalls";
@@ -147,9 +152,10 @@ describe("WH.2 — subscription lifecycle", () => {
     expect(activateSubscriptionUntil).toHaveBeenCalledWith("user-aaa", "Pro", PERIOD_END + 5, `sub:sub_1:${PERIOD_END + 5}`);
   });
 
-  it.each(["canceled", "unpaid", "incomplete_expired"])("a %s subscription drops to Free", async (status) => {
+  it.each(["canceled", "unpaid", "incomplete_expired"])("a %s subscription ends the plan it sold", async (status) => {
     await deliver({ type: "customer.subscription.updated", data: { object: sub({ status }) } });
-    expect(activateInCanister).toHaveBeenCalledWith("user-aaa", "Free", 0);
+    expect(stripeDowngradeInCanister).toHaveBeenCalledWith("user-aaa", "sub_1");
+    expect(activateInCanister).not.toHaveBeenCalled();
     expect(activateSubscriptionUntil).not.toHaveBeenCalled();
   });
 
@@ -174,9 +180,10 @@ describe("WH.2 — subscription lifecycle", () => {
     expect(activateSubscriptionUntil).not.toHaveBeenCalled();
   });
 
-  it("deleted drops to Free", async () => {
+  it("deleted ends the plan that subscription sold", async () => {
     await deliver({ type: "customer.subscription.deleted", data: { object: sub({ status: "canceled" }) } });
-    expect(activateInCanister).toHaveBeenCalledWith("user-aaa", "Free", 0);
+    expect(stripeDowngradeInCanister).toHaveBeenCalledWith("user-aaa", "sub_1");
+    expect(activateInCanister).not.toHaveBeenCalled();
   });
 
   it("a paid renewal invoice re-reads the subscription for the new period", async () => {
@@ -199,11 +206,24 @@ describe("WH.2 — subscription lifecycle", () => {
     expect(activateSubscriptionUntil).not.toHaveBeenCalled();
   });
 
-  it("a failed invoice drops to Free, wherever the principal is", async () => {
-    await deliver({ type: "invoice.payment_failed", data: { object: { subscription_details: { metadata: { icp_principal: "user-a" } } } } });
-    await deliver({ type: "invoice.payment_failed", data: { object: { parent: { subscription_details: { metadata: { icp_principal: "user-b" } } } } } });
-    await deliver({ type: "invoice.payment_failed", data: { object: { metadata: { icp_principal: "user-c" } } } });
-    expect((activateInCanister as jest.Mock).mock.calls.map((c) => c[0])).toEqual(["user-a", "user-b", "user-c"]);
+  it("a failed invoice with no retry left ends its subscription's plan, wherever the principal is", async () => {
+    const last = { next_payment_attempt: null };
+    await deliver({ type: "invoice.payment_failed", data: { object: { ...last, subscription: "sub_a", subscription_details: { metadata: { icp_principal: "user-a" } } } } });
+    await deliver({ type: "invoice.payment_failed", data: { object: { ...last, parent: { subscription_details: { subscription: "sub_b", metadata: { icp_principal: "user-b" } } } } } });
+    await deliver({ type: "invoice.payment_failed", data: { object: { ...last, subscription: { id: "sub_c" }, metadata: { icp_principal: "user-c" } } } });
+    expect((stripeDowngradeInCanister as jest.Mock).mock.calls).toEqual([["user-a", "sub_a"], ["user-b", "sub_b"], ["user-c", "sub_c"]]);
+    expect(activateInCanister).not.toHaveBeenCalled();
+  });
+
+  it("a failed invoice Stripe will retry changes nothing", async () => {
+    await deliver({ type: "invoice.payment_failed", data: { object: { next_payment_attempt: 1_900_000_000, subscription: "sub_a", subscription_details: { metadata: { icp_principal: "user-a" } } } } });
+    expect(stripeDowngradeInCanister).not.toHaveBeenCalled();
+    expect(activateInCanister).not.toHaveBeenCalled();
+  });
+
+  it("a failed invoice with no subscription id downgrades nothing", async () => {
+    await deliver({ type: "invoice.payment_failed", data: { object: { next_payment_attempt: null, metadata: { icp_principal: "user-a" } } } });
+    expect(stripeDowngradeInCanister).not.toHaveBeenCalled();
   });
 });
 
@@ -270,35 +290,35 @@ describe("WH.5 — delivery", () => {
     const again = await deliver(event, env);
     expect(again.status).toBe(200);
     expect(await again.json()).toMatchObject({ duplicate: true });
-    expect(activateInCanister).toHaveBeenCalledTimes(1);
+    expect(stripeDowngradeInCanister).toHaveBeenCalledTimes(1);
   });
 
   it("two deliveries of one event at once: one runs, the other gets 409 and is retried by Stripe", async () => {
     const env = makeEnv();
     let release!: () => void;
-    (activateInCanister as jest.Mock).mockImplementationOnce(() => new Promise<void>((r) => { release = r; }));
+    (stripeDowngradeInCanister as jest.Mock).mockImplementationOnce(() => new Promise<void>((r) => { release = r; }));
     const first = deliver(event, env);
     await new Promise((r) => setTimeout(r, 10));   // the first is inside the handler
     const second = await deliver(event, env);
     expect(second.status).toBe(409);
     release();
     expect((await first).status).toBe(200);
-    expect(activateInCanister).toHaveBeenCalledTimes(1);
+    expect(stripeDowngradeInCanister).toHaveBeenCalledTimes(1);
   });
 
   it("a handler error releases the event, so Stripe's retry runs it again", async () => {
     const env = makeEnv();
-    (activateInCanister as jest.Mock).mockRejectedValueOnce(new Error("canister down"));
+    (stripeDowngradeInCanister as jest.Mock).mockRejectedValueOnce(new Error("canister down"));
     expect((await deliver(event, env)).status).toBe(500);
     expect((await deliver(event, env)).status).toBe(200);
-    expect(activateInCanister).toHaveBeenCalledTimes(2);
+    expect(stripeDowngradeInCanister).toHaveBeenCalledTimes(2);
   });
 
   it("a handler error is reported to monitoring for the ops watchdog", async () => {
     const { recordServiceError } = jest.requireMock("../monitoringCanister");
     (recordServiceError as jest.Mock).mockClear();
     require("../src/serviceErrors")._reset();
-    (activateInCanister as jest.Mock).mockRejectedValueOnce(new Error("canister down"));
+    (stripeDowngradeInCanister as jest.Mock).mockRejectedValueOnce(new Error("canister down"));
     expect((await deliver(event, makeEnv())).status).toBe(500);
     const reported = (recordServiceError as jest.Mock).mock.calls.map(([i]) => i);
     expect(reported).toEqual(expect.arrayContaining([

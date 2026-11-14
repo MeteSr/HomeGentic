@@ -928,6 +928,12 @@ if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
   grant property addIdentityRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker record Stripe Identity results"
   grant listing addShowingRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker file buyers' FSBO showing requests"
 fi
+if [ -n "${PHOTO_CRON_PRINCIPAL:-}" ]; then
+  # X-1 (security review 2026-11-11): the photo migration and orphan sweep can
+  # empty on-chain bytes and drop records, so they run under their own key
+  # (the Worker's PHOTO_CRON_IDENTITY_PEM), never the request-path one.
+  grant photo addCronRelay "$PHOTO_CRON_PRINCIPAL" "Letting the photo cron move photos off-chain and sweep orphans"
+fi
 if [ -n "${IOT_GATEWAY_PRINCIPAL:-}" ]; then
   # Once a gateway is registered, sensor refuses self-asserted registerDevice
   # for the vendor-OAuth platforms (Ecobee, Honeywell, LG ThinQ, GE SmartHQ).

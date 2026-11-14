@@ -59,6 +59,28 @@ async function photoActor(): Promise<PhotoActor> {
   return Actor.createActor(idlFactory, { agent: await getAgent(), canisterId }) as unknown as PhotoActor;
 }
 
+/**
+ * X-1 (security review 2026-11-11): the migration and orphan sweep can empty
+ * on-chain bytes and drop records, so they sign with their own key,
+ * PHOTO_CRON_IDENTITY_PEM, granted by photo.addCronRelay. Never the
+ * request-path DFX_IDENTITY_PEM: a leak of that key can't erase photos.
+ */
+const cronAgents = new Map<string, Promise<HttpAgent>>();
+
+async function cronActor(): Promise<PhotoActor> {
+  const pem = process.env.PHOTO_CRON_IDENTITY_PEM;
+  if (!pem) throw new Error("PHOTO_CRON_IDENTITY_PEM is not set — the photo cron is off");
+  const canisterId = process.env.CANISTER_ID_PHOTO;
+  if (!canisterId) throw new Error("CANISTER_ID_PHOTO is not set — the photo cron is off");
+  const { host, rootKey } = icHost();
+  let agent = cronAgents.get(host);
+  if (!agent) {
+    agent = HttpAgent.create({ host, identity: identityFromPem(pem), rootKey });
+    cronAgents.set(host, agent);
+  }
+  return Actor.createActor(idlFactory, { agent: await agent, canisterId }) as unknown as PhotoActor;
+}
+
 function fromRaw(res: [] | [RawAccess]): PhotoAccess | null {
   if (!res.length) return null;
   const a = res[0];
@@ -86,30 +108,30 @@ function unwrap<T>(r: CandidResult<T>, method: string): T {
 /** Part 3: the photo canister calls the migration cron makes (src/photoMigration.ts). */
 export const photoMigrationCanister = {
   async page(after: string | null): Promise<{ items: Array<{ id: string; hash: string; data: Uint8Array }>; next: string | null }> {
-    const r = unwrap(await (await photoActor()).onChainPhotoPage(after === null ? [] : [after]), "onChainPhotoPage");
+    const r = unwrap(await (await cronActor()).onChainPhotoPage(after === null ? [] : [after]), "onChainPhotoPage");
     return {
       items: r.items.map((i) => ({ id: i.id, hash: i.hash, data: i.data instanceof Uint8Array ? i.data : Uint8Array.from(i.data) })),
       next: r.next.length ? r.next[0]! : null,
     };
   },
   async confirm(moved: Array<[string, string]>): Promise<number> {
-    return Number(unwrap(await (await photoActor()).confirmOffChain(moved), "confirmOffChain"));
+    return Number(unwrap(await (await cronActor()).confirmOffChain(moved), "confirmOffChain"));
   },
 };
 
 /** Part 4: the photo canister calls the orphan sweep makes (src/photoSweep.ts). */
 export const photoSweepCanister = {
   async known(ids: string[]): Promise<string[]> {
-    return unwrap(await (await photoActor()).knownPhotoIds(ids), "knownPhotoIds");
+    return unwrap(await (await cronActor()).knownPhotoIds(ids), "knownPhotoIds");
   },
   async offChainPage(after: string | null): Promise<{ items: Array<{ id: string; createdAtMs: number }>; next: string | null }> {
-    const r = unwrap(await (await photoActor()).offChainPhotoPage(after === null ? [] : [after]), "offChainPhotoPage");
+    const r = unwrap(await (await cronActor()).offChainPhotoPage(after === null ? [] : [after]), "offChainPhotoPage");
     return {
       items: r.items.map(([id, ns]) => ({ id, createdAtMs: Number(ns / 1_000_000n) })),
       next: r.next.length ? r.next[0]! : null,
     };
   },
   async dropUnuploaded(ids: string[]): Promise<number> {
-    return Number(unwrap(await (await photoActor()).dropUnuploadedPhotos(ids), "dropUnuploadedPhotos"));
+    return Number(unwrap(await (await cronActor()).dropUnuploadedPhotos(ids), "dropUnuploadedPhotos"));
   },
 };

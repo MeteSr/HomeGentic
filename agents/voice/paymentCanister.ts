@@ -90,6 +90,10 @@ type PaymentActor = {
     amount: bigint,
     stripeRef: string,
   ): Promise<{ ok: bigint } | { err: unknown }>;
+  stripeDowngrade(
+    user: Principal,
+    subscriptionId: string,
+  ): Promise<{ ok: boolean } | { err: unknown }>;
   getTierForPrincipal(user: Principal): Promise<Record<string, null>>;
   stripeRecordGift(
     giftToken: string,
@@ -175,6 +179,22 @@ export async function activateSubscriptionUntil(
     stripeRef,
   );
   if ("err" in result) throw new Error("Canister activation failed");
+}
+
+/**
+ * End the plan Stripe subscription `subscriptionId` sold (X-2). The canister
+ * changes nothing, and this resolves false, when the user's current plan came
+ * from somewhere else (another subscription, a gift, ICP, an admin grant).
+ */
+export async function stripeDowngradeInCanister(
+  principal: string,
+  subscriptionId: string,
+): Promise<boolean> {
+  if (!PRINCIPAL_RE.test(principal)) throw new Error("Invalid principal format");
+  if (!subscriptionId || subscriptionId.length > 200) throw new Error("Invalid subscription id");
+  const result = await (await getActor()).stripeDowngrade(Principal.fromText(principal), subscriptionId);
+  if ("err" in result) throw new Error("Canister downgrade failed");
+  return result.ok;
 }
 
 /**

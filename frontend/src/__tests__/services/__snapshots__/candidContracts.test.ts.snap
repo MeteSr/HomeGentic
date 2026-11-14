@@ -76,6 +76,7 @@ getContractor(1) -> (1) [query]
 getContractorEmail(1) -> (1) [composite_query]
 getCredentials(1) -> (1) [query]
 getLeadAlertTargets(0) -> (1) [query]
+getLeadAlertTargetsPage(2) -> (1) [query]
 getLicenseCheck(1) -> (1) [query]
 getMyProfile(0) -> (1) [query]
 getMyProfilePrivacy(0) -> (1) [query]
@@ -89,6 +90,7 @@ relayRecordLicenseCheck(2) -> (1)
 removeLicenseRelay(1) -> (1)
 removeNotifier(1) -> (1)
 setJobCanisterId(1) -> (1)
+setLicenseHolder(2) -> (1)
 setPaymentCanisterId(1) -> (1)
 setPortfolio(1) -> (1)
 setProfilePrivacy(1) -> (1)
@@ -275,6 +277,7 @@ redeemGift(1) -> (1)
 removeStripeRelay(1) -> (1)
 setBootstrapNonce(1) -> (0)
 stripeActivateSubscription(4) -> (1)
+stripeDowngrade(2) -> (1)
 stripeGrantAgentCredits(3) -> (1)
 stripeRecordGift(4) -> (1)
 subscribe(1) -> (1)
@@ -282,7 +285,8 @@ verifyStripeSession(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > photo 1`] = `
-"addPhotoRelay(1) -> (1)
+"addCronRelay(1) -> (1)
+addPhotoRelay(1) -> (1)
 beginUpload(6) -> (1)
 beginWaiverUpload(4) -> (1)
 confirmOffChain(1) -> (1)
@@ -303,7 +307,9 @@ knownPhotoIds(1) -> (1) [query]
 offChainPhotoPage(1) -> (1) [query]
 onChainPhotoPage(1) -> (1)
 photoAccess(2) -> (1) [composite_query]
+removeCronRelay(1) -> (1)
 removePhotoRelay(1) -> (1)
+setCronDailyLimits(2) -> (1)
 setOffChainMigrationEnabled(1) -> (1)
 setPropertyCanisterId(1) -> (1)
 uploadPhoto(6) -> (1)

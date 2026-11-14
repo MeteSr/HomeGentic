@@ -97,6 +97,24 @@ export interface RequestPrincipalResolver {
  * `trustBodyPrincipal()` is true (local dev with no auth canister) the body's
  * principal is accepted instead.
  */
+/**
+ * How long a positive lookup is trusted. The same token works at the voice
+ * Worker and both relays, so this also bounds how long a revoked or leaked
+ * token keeps working (X-7, security review 2026-11-11).
+ */
+export const SESSION_CACHE_TTL_MS = 60_000;
+
+/** `err` with every copy of `token` taken out, so it can be logged. */
+function withoutToken(err: unknown, token: string): unknown {
+  const scrub = (t: string) => t.split(token).join("[session token]");
+  if (err instanceof Error) {
+    const e = new Error(scrub(err.message));
+    e.name = err.name;
+    return e;
+  }
+  return typeof err === "string" ? scrub(err) : "session lookup failed";
+}
+
 export function createRequestPrincipalResolver(opts: {
   resolve: (token: string) => Promise<string | null>;
   hash: (token: string) => string;
@@ -105,7 +123,7 @@ export function createRequestPrincipalResolver(opts: {
   maxEntries?: number;
   onError?: (err: unknown) => void;
 }): RequestPrincipalResolver {
-  const ttlMs = opts.ttlMs ?? 120_000;
+  const ttlMs = opts.ttlMs ?? SESSION_CACHE_TTL_MS;
   const maxEntries = opts.maxEntries ?? 10_000;
   const cache = new Map<string, { principal: string; expiresAt: number }>();
 
@@ -127,7 +145,7 @@ export function createRequestPrincipalResolver(opts: {
       try {
         principal = await resolve(token);
       } catch (err) {
-        opts.onError?.(err);
+        opts.onError?.(withoutToken(err, token));
         return null;
       }
       if (principal) {

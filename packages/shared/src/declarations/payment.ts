@@ -199,6 +199,11 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: Subscription, err: Error })],
       []
     ),
+    stripeDowngrade: IDL.Func(
+      [IDL.Principal, IDL.Text],
+      [IDL.Variant({ ok: IDL.Bool, err: Error })],
+      []
+    ),
     addStripeRelay: IDL.Func(
       [IDL.Principal],
       [IDL.Variant({ ok: IDL.Null, err: Error })],

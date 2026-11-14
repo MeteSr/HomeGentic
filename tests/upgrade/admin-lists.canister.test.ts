@@ -58,6 +58,7 @@ export const PRINCIPAL_LISTS: [CanisterName, string, string, string | null][] = 
   ["payment", "addStripeRelay", "removeStripeRelay", "listStripeRelays"],
   ["payment", "addTrustedCanister", "removeTrustedCanister", "getTrustedCanisters"],
   ["photo", "addPhotoRelay", "removePhotoRelay", null],
+  ["photo", "addCronRelay", "removeCronRelay", null],
   ["monitoring", "addReporter", "removeReporter", null],
   ["report", "addTrustedCanister", "removeTrustedCanister", "getTrustedCanisters"],
   ["sensor", "addGateway", "removeGateway", null],

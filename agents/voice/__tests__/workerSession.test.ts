@@ -69,3 +69,9 @@ describe("resolveSessionPrincipal", () => {
     expect(puts).toEqual([]);
   });
 });
+
+describe("X-7 session cache lifetime", () => {
+  it("is a minute, the shortest KV allows, so a revoked token stops working quickly", () => {
+    expect(SESSION_CACHE_TTL_SECONDS).toBe(60);
+  });
+});

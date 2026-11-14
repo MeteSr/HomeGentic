@@ -74,6 +74,9 @@ crons = ["0 * * * *"]   # every hour — scheduledBidtolist (deadline reminders)
 #   CANISTER_ID_JOB               contractor-invite email (/api/email/contractor-invite)
 #   CANISTER_ID_PHOTO             photo access checks for /photos/* (deploy.sh registers the
 #                                 DFX_IDENTITY_PEM principal with photo.addPhotoRelay)
+#   PHOTO_CRON_IDENTITY_PEM       a SEPARATE Ed25519 PEM for the hourly photo migration and
+#                                 orphan sweep (deploy.sh grants PHOTO_CRON_PRINCIPAL with
+#                                 photo.addCronRelay). Unset = the photo cron doesn't run.
 #   CANISTER_ID_PROPERTY          records Stripe Identity results (identity.verification_session.verified;
 #                                 deploy.sh registers the principal with property.addIdentityRelay)
 #   CANISTER_ID_CONTRACTOR        records Florida DBPR licence lookups (/api/license/check;

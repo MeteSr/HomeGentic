@@ -277,10 +277,13 @@ dfx canister call contractor setProfilePrivacy \
   "(record { listed = false; showTrustScore = false; showJobsCompleted = true })" --identity guest-signed-test
 P1_MINE=$(dfx canister call contractor getMyProfilePrivacy --identity guest-signed-test)
 P1_ANON=$(dfx canister call contractor getAll --identity anonymous)
-P1_LEADS=$(dfx canister call contractor getLeadAlertTargets --identity anonymous)
+# Lead-alert targets answer only the notification relay and admins (X-4).
+P1_LEADS=$(dfx canister call contractor getLeadAlertTargets)
+P1_LEADS_ANON=$(dfx canister call contractor getLeadAlertTargets --identity anonymous)
 if echo "$P1_MINE" | grep -q "listed = false" \
   && ! echo "$P1_ANON" | grep -q "$GUEST_PRINCIPAL" \
-  && echo "$P1_LEADS" | grep -q "$GUEST_PRINCIPAL"; then
+  && echo "$P1_LEADS" | grep -q "$GUEST_PRINCIPAL" \
+  && ! echo "$P1_LEADS_ANON" | grep -q "$GUEST_PRINCIPAL"; then
   echo "  ✓ saved; hidden from getAll, still a lead-alert target"
 else
   echo "  ↳ ❌ Expected the unlisted profile out of getAll but in getLeadAlertTargets"

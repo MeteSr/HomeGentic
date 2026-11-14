@@ -20,13 +20,13 @@ import { HOMEGENTIC_TOOLS } from "../tools";
 import { resolveModel, PROVIDER_JSON_ERROR } from "../provider";
 import { AnthropicProvider } from "../anthropicProvider";
 import {
-  activateInCanister,
   activateSubscriptionUntil,
   consumeAgentCredit,
   grantAgentCreditsOnce,
   recordGift,
   AlreadyConsumedError,
   PAID_TIERS,
+  stripeDowngradeInCanister,
 } from "../paymentCanister";
 import { getCriticalCycleAlerts, checkCycleLevels as getCanisterCycleLevels } from "../monitoringCanister";
 import {
@@ -115,6 +115,8 @@ export interface Env {
   STRIPE_PRICE_CREDITS_100?: string;
   // ICP
   DFX_IDENTITY_PEM?:     string;
+  /** X-1: the photo migration/sweep cron's own key (photo.addCronRelay). Unset = cron off. */
+  PHOTO_CRON_IDENTITY_PEM?: string;
   DFX_NETWORK?:          string;
   IC_HOST?:              string;   // overrides the IC host (tests point it at PocketIC)
   CANISTER_ID_PAYMENT?:  string;
@@ -1729,10 +1731,12 @@ Rules:
 
     try {
       switch (event.type) {
+        // X-2: a cancelled or unpaid subscription ends only the plan that
+        // subscription sold. A gift, ICP payment or admin grant is untouched.
         case "customer.subscription.deleted": {
           const sub = event.data.object;
           const p   = (sub.metadata?.icp_principal ?? "") as string;
-          if (p) await activateInCanister(p, "Free", 0);
+          if (p && sub.id) await stripeDowngradeInCanister(p, sub.id);
           break;
         }
         case "customer.subscription.updated": {
@@ -1740,7 +1744,7 @@ Rules:
           const p   = (sub.metadata?.icp_principal ?? "") as string;
           if (!p) break;
           if (sub.status === "canceled" || sub.status === "unpaid" || sub.status === "incomplete_expired") {
-            await activateInCanister(p, "Free", 0);
+            if (sub.id) await stripeDowngradeInCanister(p, sub.id);
           } else if (sub.status === "active" || sub.status === "trialing") {
             // cancel_at_period_end: the user keeps what they paid for — the
             // canister expiry is already Stripe's period end, and
@@ -1750,11 +1754,16 @@ Rules:
           break;
         }
         case "invoice.payment_failed": {
+          // Stripe retries a failed renewal (Smart Retries); only the last
+          // failure, with no next attempt, ends the plan.
           const inv = event.data.object;
+          if (inv.next_payment_attempt != null) break;
           const p   = (inv.subscription_details?.metadata?.icp_principal
                        ?? inv.parent?.subscription_details?.metadata?.icp_principal
                        ?? inv.metadata?.icp_principal ?? "") as string;
-          if (p) await activateInCanister(p, "Free", 0);
+          const subId = (typeof inv.subscription === "string" ? inv.subscription : inv.subscription?.id)
+                        ?? inv.parent?.subscription_details?.subscription;
+          if (p && typeof subId === "string" && subId) await stripeDowngradeInCanister(p, subId);
           break;
         }
         case "invoice.payment_succeeded":
@@ -1931,7 +1940,9 @@ async function scheduledReferralFees(env: Env): Promise<void> {
  */
 async function scheduledPhotoMigration(env: Env): Promise<void> {
   if (!env.PHOTOS || !photoStorageReady(env)) return;
-  (process.env as any).DFX_IDENTITY_PEM  = env.DFX_IDENTITY_PEM;
+  // X-1: the cron runs only under its own key, never the request-path one.
+  if (!env.PHOTO_CRON_IDENTITY_PEM) return;
+  (process.env as any).PHOTO_CRON_IDENTITY_PEM = env.PHOTO_CRON_IDENTITY_PEM;
   (process.env as any).DFX_NETWORK       = env.DFX_NETWORK ?? "ic";
   (process.env as any).IC_HOST           = env.IC_HOST ?? "";
   (process.env as any).CANISTER_ID_PHOTO = env.CANISTER_ID_PHOTO;
@@ -1949,7 +1960,11 @@ async function scheduledPhotoMigration(env: Env): Promise<void> {
  * records whose bytes never arrived (part 4, src/photoSweep.ts).
  */
 async function scheduledPhotoSweep(env: Env): Promise<void> {
-  if (!env.PHOTOS || !photoStorageReady(env)) return;
+  if (!env.PHOTOS || !photoStorageReady(env) || !env.PHOTO_CRON_IDENTITY_PEM) return;
+  (process.env as any).PHOTO_CRON_IDENTITY_PEM = env.PHOTO_CRON_IDENTITY_PEM;
+  (process.env as any).DFX_NETWORK       = env.DFX_NETWORK ?? "ic";
+  (process.env as any).IC_HOST           = env.IC_HOST ?? "";
+  (process.env as any).CANISTER_ID_PHOTO = env.CANISTER_ID_PHOTO;
   const store = r2PhotoStore(env.PHOTOS);
   const state = {
     get: (k: string) => env.RATE_LIMIT.get(k),

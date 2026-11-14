@@ -20,6 +20,8 @@ const resolver = createRequestPrincipalResolver({
   resolve: (token) => resolveAgentSession(token),
   hash: (token) => createHash("sha256").update(token).digest("hex"),
   trustBodyPrincipal: () => !process.env.CANISTER_ID_AUTH && process.env.NODE_ENV !== "production",
+  // The resolver hands over the error with the token already taken out.
+  onError: (err) => console.error("[session] resolveAgentSession failed:", err instanceof Error ? err.message : err),
 });
 
 export function clearSessionCache(): void {

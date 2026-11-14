@@ -308,6 +308,12 @@ persistent actor Payment {
   /// "sub:<subscription id>:<period end>". Value = the principal credited.
   /// Never pruned, so a replayed verify / credit purchase / gift is a no-op.
   private let consumedStripeRefs = Map.empty<Text, Principal>();
+  /// X-2 (security review 2026-11-11): the Stripe subscription id behind each
+  /// principal's current plan, when Stripe sold it. A Stripe event can only
+  /// end a plan listed here under the same id, so gifts, ICP payments,
+  /// handoff years and admin grants are never wiped by an old subscription's
+  /// cancellation or failed card. New stable var, inline initializer.
+  private let stripeSource = Map.empty<Principal, Text>();
 
   // Stripe
   private var stripeConfig        : ?StripeConfig                  = null;
@@ -617,6 +623,7 @@ persistent actor Payment {
           cancelledAt = null;
         };
         subscriptions.add(msg.caller, sub);
+        stripeSource.remove(msg.caller);   // X-2: no longer Stripe's plan
         // Mark redeemed BEFORE the first await so concurrent calls see the guard
         // and return #err(#InvalidInput) instead of granting a second subscription.
         pendingGifts.add(giftToken, {
@@ -656,6 +663,7 @@ persistent actor Payment {
       owner = buyer; tier = #Pro; expiresAt = now + HANDOFF_YEAR_NS; createdAt = now; cancelledAt = null;
     };
     subscriptions.add(buyer, sub);
+    stripeSource.remove(buyer);   // X-2
     handoffGrantsByBuyer.add(buyer, now);
     handoffGrantsByProperty.add(propertyId, now);
     try { await auditLog("HandoffYearGranted", ?buyer, "property=" # propertyId) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
@@ -776,14 +784,21 @@ persistent actor Payment {
       case (_)                        { 30 * 24 * 60 * 60 * 1_000_000_000 };
     };
     let now = Time.now();
+    // X-2: paying for the plan already running adds to it, so no paid time
+    // is lost (as redeemGift does).
+    let (createdAt, from) = switch (subscriptions.get(caller)) {
+      case (?e) { if (durationNs > 0 and e.tier == tier and e.expiresAt > now) (e.createdAt, e.expiresAt) else (now, now) };
+      case null { (now, now) };
+    };
     let sub: Subscription = {
       owner       = caller;
       tier;
-      expiresAt   = if (durationNs == 0) 0 else now + durationNs;
-      createdAt   = now;
+      expiresAt   = if (durationNs == 0) 0 else from + durationNs;
+      createdAt;
       cancelledAt = null;
     };
     subscriptions.add(caller, sub);
+    stripeSource.remove(caller);   // X-2: paid in ICP, not Stripe's plan
     #ok(sub)
   };
 
@@ -797,11 +812,21 @@ persistent actor Payment {
     tier           : Tier,
     months         : Nat,
   ) : async Result.Result<Subscription, Error> {
-    if (not isAdmin(msg.caller)) {
+    let relayOnly = not isAdmin(msg.caller);
+    if (relayOnly) {
       if (not isStripeRelay(msg.caller)) return #err(#NotAuthorized);
       switch (tier) {
         case (#Free or #ContractorFree) {};
         case _ { return #err(#NotAuthorized) };
+      };
+      // X-2: a relay downgrade only ends a plan Stripe sold. Others (gift,
+      // ICP, handoff, admin grant) stay; the current plan comes back unchanged.
+      if (not stripeSource.containsKey(userPrincipal)) {
+        let now0 = Time.now();
+        return #ok(switch (subscriptions.get(userPrincipal)) {
+          case (?s) s;
+          case null ({ owner = userPrincipal; tier = #Free; expiresAt = 0; createdAt = now0; cancelledAt = null });
+        });
       };
     };
     let now = Time.now();
@@ -814,6 +839,7 @@ persistent actor Payment {
       cancelledAt = null;
     };
     subscriptions.add(userPrincipal, sub);
+    stripeSource.remove(userPrincipal);   // X-2: a downgrade or an admin's plan
     try { await auditLog("TierActivated", ?userPrincipal, "months=" # months.toText() # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
@@ -865,8 +891,42 @@ persistent actor Payment {
     // Consume and write before any await.
     consumedStripeRefs.add(stripeRef, userPrincipal);
     subscriptions.add(userPrincipal, sub);
+    // X-2: Stripe owns the plan when its period is the one in effect; a longer
+    // running plan (a gift) it only topped up stays the other source's.
+    if (finalExpiry == expiresAt) {
+      switch (subscriptionIdOf(stripeRef)) {
+        case (?id) stripeSource.add(userPrincipal, id);
+        case null stripeSource.remove(userPrincipal);
+      };
+    };
     try { await auditLog("TierActivated", ?userPrincipal, "ref=" # stripeRef # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
+  };
+
+  /// The subscription id in a Stripe reference "sub:<id>:<period end>".
+  private func subscriptionIdOf(stripeRef : Text) : ?Text {
+    let parts = stripeRef.split(#char ':').toArray();
+    if (parts.size() >= 2 and parts[0] == "sub" and parts[1].size() > 0) ?parts[1] else null
+  };
+
+  /// X-2: end the plan Stripe subscription `subscriptionId` sold to
+  /// `userPrincipal` (cancelled, unpaid, or out of payment retries). Does
+  /// nothing, and returns false, when the current plan came from somewhere
+  /// else: another subscription, a gift, an ICP payment, a handoff year or an
+  /// admin grant. Admin or Stripe relay only.
+  public shared(msg) func stripeDowngrade(userPrincipal : Principal, subscriptionId : Text) : async Result.Result<Bool, Error> {
+    if (not isAdminOrRelay(msg.caller)) return #err(#NotAuthorized);
+    if (subscriptionId.size() == 0 or subscriptionId.size() > 200) return #err(#InvalidInput("invalid subscriptionId"));
+    if (stripeSource.get(userPrincipal) != ?subscriptionId) return #ok(false);
+    let now = Time.now();
+    let free : Tier = switch (subscriptions.get(userPrincipal)) {
+      case (?s) { if (s.tier == #ContractorPro or s.tier == #ContractorFree) #ContractorFree else #Free };
+      case null #Free;
+    };
+    subscriptions.add(userPrincipal, { owner = userPrincipal; tier = free; expiresAt = now; createdAt = now; cancelledAt = null });
+    stripeSource.remove(userPrincipal);
+    try { await auditLog("StripeDowngrade", ?userPrincipal, "sub=" # subscriptionId # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    #ok(true)
   };
 
   /// Admin helper: grant a subscription without payment.
@@ -887,6 +947,7 @@ persistent actor Payment {
       cancelledAt = null;
     };
     subscriptions.add(principal, sub);
+    stripeSource.remove(principal);   // X-2
     try { await auditLog("TierGranted", ?principal, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };

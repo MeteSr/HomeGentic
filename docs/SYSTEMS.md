@@ -1177,7 +1177,7 @@ Proxy between the frontend and the Claude API. Handles streaming chat, agentic t
 |--------|---------|
 | `x-api-key` | Required on all `/api/` routes except `/api/errors` and `/api/buyers-truth-kit` |
 | `x-context-hmac` | SHA-256 HMAC of the request context body, signed with `VOICE_API_KEY`; verified on `/api/chat` and `/api/agent` |
-| `x-agent-session` | Session token from `auth.issueAgentSession()`. The Worker resolves it with `auth.resolveAgentSession` (cached 120 s in KV under the token's SHA-256) to get the caller's **verified** principal for `/api/chat` and `/api/agent`; missing or invalid → 401 `{ error: "session_required" }`, and the frontend re-issues once and retries |
+| `x-agent-session` | Session token from `auth.issueAgentSession()`. The Worker resolves it with `auth.resolveAgentSession` (cached 60 s in KV (the notification relay and IoT gateway cache it 60 s in memory) under the token's SHA-256) to get the caller's **verified** principal for `/api/chat` and `/api/agent`; missing or invalid → 401 `{ error: "session_required" }`, and the frontend re-issues once and retries |
 | `x-icp-principal` | Still sent, but only used for log attribution, and as the principal in local dev when the Worker has no `CANISTER_ID_AUTH` and `NODE_ENV` isn't `production` |
 | `x-subscription-tier` | Sent by the frontend but **not trusted**: the Worker resolves the tier from the payment canister (`getTierForPrincipal`, cached 60 s in KV) |
 

@@ -229,6 +229,11 @@ persistent actor Contractor {
   /// written by the voice Worker (relayRecordLicenseCheck). A side map so
   /// ContractorProfile's stored type is unchanged.
   private let licenseChecks = Map.empty<Principal, LicenseCheck>();
+  /// X-3 (security review 2026-11-11): which account holds each licence
+  /// number (normalised). The first account whose check matches DBPR's file
+  /// takes it; a second one is refused until an admin moves it
+  /// (setLicenseHolder) or the holder's profile stops carrying the number.
+  private let licenseHolders = Map.empty<Text, Principal>();
   /// Principals (the voice Worker) allowed to record licence checks.
   private var licenseRelayEntries : [Principal] = [];
   /// Principals (the notification relay) allowed to read contractors' email
@@ -622,20 +627,47 @@ persistent actor Contractor {
     contractors.values().filter(directoryFilter(msg.caller)).drop(from).take(Nat.min(limit, 100)).map(viewFor(msg.caller)).toArray()
   };
 
-  /// Every contractor's lead-matching fields, for the notification relay.
-  public query func getLeadAlertTargets() : async [LeadAlertTarget] {
-    contractors.values().take(500).map(func(c: ContractorProfile) : LeadAlertTarget {
-      {
-        id            = c.id;
-        specialties   = c.specialties;
-        serviceZips   = c.serviceZips;
-        alertZips     = c.alertZips;
-        notifyPush    = c.notifyPush;
-        trustScore    = c.trustScore;
-        jobsCompleted = c.jobsCompleted;
-        isVerified    = c.isVerified;
-      }
-    }).toArray()
+  private func leadTarget(c: ContractorProfile) : LeadAlertTarget {
+    {
+      id            = c.id;
+      specialties   = c.specialties;
+      serviceZips   = c.serviceZips;
+      alertZips     = c.alertZips;
+      notifyPush    = c.notifyPush;
+      trustScore    = c.trustScore;
+      jobsCompleted = c.jobsCompleted;
+      isVerified    = c.isVerified;
+    }
+  };
+
+  /// X-4 (security review 2026-11-11): lead-matching fields include ones a
+  /// contractor may have hidden (trust score, jobs completed), so only the
+  /// notification relay and admins read them.
+  private func readsLeadTargets(caller: Principal) : Bool {
+    isAdmin(caller) or Admin.contains(notifierEntries, caller)
+  };
+
+  /// The first 500 contractors' lead-matching fields. Kept for older relay
+  /// builds; use getLeadAlertTargetsPage. Empty for anyone but the
+  /// notification relay and admins.
+  public query(msg) func getLeadAlertTargets() : async [LeadAlertTarget] {
+    if (not readsLeadTargets(msg.caller)) return [];
+    contractors.values().take(500).map(leadTarget).toArray()
+  };
+
+  /// Every contractor's lead-matching fields, a page at a time in principal
+  /// order: the `limit` (at most 200) contractors after `after`. Empty for
+  /// anyone but the notification relay and admins.
+  public query(msg) func getLeadAlertTargetsPage(after: ?Principal, limit: Nat) : async [LeadAlertTarget] {
+    if (not readsLeadTargets(msg.caller)) return [];
+    let n = Nat.min(limit, 200);
+    switch (after) {
+      case null { contractors.values().take(n).map(leadTarget).toArray() };
+      case (?a) {
+        contractors.entriesFrom(a).filter(func((k, _) : (Principal, ContractorProfile)) : Bool { k != a })
+          .take(n).map(func((_, c) : (Principal, ContractorProfile)) : LeadAlertTarget { leadTarget(c) }).toArray()
+      };
+    }
   };
 
   // ─── Privacy ───────────────────────────────────────────────────────────────────
@@ -929,6 +961,13 @@ persistent actor Contractor {
           expiresOn = input.expiresOn; nameMatches = input.found and input.nameMatches;
           sourceDate = input.sourceDate; checkedAt = Time.now();
         };
+        // X-3: a matching check claims the number; only one account holds it.
+        if (check.nameMatches) {
+          switch (holderOf(current)) {
+            case (?h) { if (h != contractor) return #err(#AlreadyExists) };
+            case null { licenseHolders.add(current, contractor) };
+          };
+        };
         licenseChecks.add(contractor, check);
         #ok(check)
       };
@@ -942,10 +981,43 @@ persistent actor Contractor {
     switch (contractors.get(contractor), licenseChecks.get(contractor)) {
       case (?p, ?c) {
         let current = switch (p.licenseNumber) { case (?l) normLicense(l); case null "" };
-        if (current != "" and current == c.licenseNumber) ?c else null
+        if (current == "" or current != c.licenseNumber) return null;
+        // X-3: a matching check shows only for the account holding the number.
+        if (not c.nameMatches) return ?c;
+        switch (holderOf(current)) { case (?h) { if (h == contractor) ?c else null }; case null ?c }
       };
       case _ null;
     }
+  };
+
+  /// The account holding licence number `lic` (normalised), if its profile
+  /// still carries the number. A holder that changed or dropped it has lapsed.
+  private func holderOf(lic: Text) : ?Principal {
+    switch (licenseHolders.get(lic)) {
+      case null null;
+      case (?h) {
+        let still = switch (contractors.get(h)) {
+          case (?p) { switch (p.licenseNumber) { case (?l) normLicense(l) == lic; case null false } };
+          case null false;
+        };
+        if (still) ?h else null
+      };
+    }
+  };
+
+  /// X-3: move licence number `licenseNumber` to `holder`, or clear its hold
+  /// (null), after support has confirmed who really holds the licence. The
+  /// new holder's next check shows; any other account's matching check is
+  /// hidden. Admin only.
+  public shared(msg) func setLicenseHolder(licenseNumber: Text, holder: ?Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let lic = normLicense(licenseNumber);
+    if (lic.size() == 0 or lic.size() > 50) return #err(#InvalidInput("licenseNumber is invalid"));
+    switch (holder) {
+      case (?h) { licenseHolders.add(lic, h) };
+      case null { licenseHolders.remove(lic) };
+    };
+    #ok(())
   };
 
   public shared(msg) func addLicenseRelay(p: Principal) : async Result.Result<(), Error> {

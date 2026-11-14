@@ -1907,6 +1907,15 @@ persistent actor Property {
       let photo : actor { propertyTransferred : shared Text -> async { #ok : Nat; #err : Any } } = actor (photoCanisterId);
       try { ignore await photo.propertyTransferred(propertyId) } catch _ { Debug.print("[property] photo transfer call failed") };
     };
+    // X-8 (security review 2026-11-11): the seller stops reading the jobs
+    // they recorded on the home they sold.
+    switch (jobCanisterId) {
+      case (?jid) if (sale) {
+        let job : actor { propertyTransferred : shared (Text, Principal, Principal) -> async { #ok : Any; #err : Any } } = actor (jid.toText());
+        try { ignore await job.propertyTransferred(propertyId, prop.owner, to) } catch _ { Debug.print("[property] job transfer call failed") };
+      };
+      case _ {};
+    };
     if (listingCanisterId != "") {
       let listing : actor { propertyTransferred : shared Text -> async { #ok : Any; #err : Any } } = actor (listingCanisterId);
       try { ignore await listing.propertyTransferred(propertyId) } catch _ { Debug.print("[property] listing transfer call failed") };
@@ -2020,9 +2029,11 @@ persistent actor Property {
     }
   };
 
-  /// Public, unauthenticated ownership history for a property.
-  /// Returns records sorted by timestamp ascending (oldest first).
-  public query func getOwnershipHistory(propertyId: Text) : async [TransferRecord] {
+  /// A property's ownership history, sorted by timestamp ascending (oldest
+  /// first). For the current owner and co-owners, admins and canisters
+  /// (X-6, security review 2026-11-11); empty for anyone else.
+  public query(msg) func getOwnershipHistory(propertyId: Text) : async [TransferRecord] {
+    if (not (hasFullControl(propertyId, msg.caller) or isAdmin(msg.caller) or isTrustedCanister(msg.caller) or msg.caller.isCanister())) return [];
     let filtered = Iter.toArray(
       transfers.values().filter(func(r: TransferRecord) : Bool {
         r.propertyId == propertyId
@@ -2583,18 +2594,28 @@ persistent actor Property {
   /// Public query: returns true if `caller` is the owner OR an authorised manager.
   /// `requireWrite` = true means #Viewer role is not sufficient.
   /// Called cross-canister by job, photo, quote, and maintenance canisters for auth checks.
-  public query func isAuthorized(
+  public query(msg) func isAuthorized(
     propertyId  : Text,
     caller      : Principal,
     requireWrite : Bool
   ) : async Bool {
+    if (not answersRoleLookup(msg.caller, caller)) return false;
     checkAuthorized(propertyId, caller, requireWrite)
+  };
+
+  /// X-6 (security review 2026-11-11): role lookups answer a person about
+  /// themself, and admins and canisters (the sibling canisters ask on behalf
+  /// of their callers) about anyone. A signed-in stranger can't probe who has
+  /// a role on a home.
+  private func answersRoleLookup(caller : Principal, about : Principal) : Bool {
+    caller == about or isAdmin(caller) or isTrustedCanister(caller) or caller.isCanister()
   };
 
   /// Public query: the principal's role on a property, or null when the
   /// property doesn't exist. Finer-grained than isAuthorized — called
   /// cross-canister by bills, which hides mortgage entries from #Manager/#Viewer.
-  public query func getAccessRole(propertyId : Text, principal : Principal) : async ?AccessRole {
+  public query(msg) func getAccessRole(propertyId : Text, principal : Principal) : async ?AccessRole {
+    if (not answersRoleLookup(msg.caller, principal)) return null;
     accessRoleOf(propertyId, principal)
   };
 
@@ -2604,9 +2625,10 @@ persistent actor Property {
   /// getAccessRole for many properties at once, in the same order. Lets job,
   /// bills and recurring answer "records for all my properties" with one
   /// cross-canister call instead of one per property.
-  public query func getAccessRoles(propertyIds : [Text], principal : Principal) : async [?AccessRole] {
+  public query(msg) func getAccessRoles(propertyIds : [Text], principal : Principal) : async [?AccessRole] {
+    let answer = answersRoleLookup(msg.caller, principal);
     Array.tabulate(propertyIds.size(), func(i) {
-      if (i < MAX_ROLE_BATCH) accessRoleOf(propertyIds[i], principal) else null
+      if (answer and i < MAX_ROLE_BATCH) accessRoleOf(propertyIds[i], principal) else null
     })
   };
 
@@ -2665,10 +2687,19 @@ persistent actor Property {
     ]
   };
 
+  /// X-5 (security review 2026-11-11, L-3 of 11-10): policy, contract and
+  /// serial numbers are for people who can change the home's records (owner,
+  /// co-owner, manager) and admins. A Viewer reads those records with the
+  /// numbers blanked, in the getters and in OQL alike.
+  private func seesAccountNumbers(propertyId : Text, caller : Principal) : Bool {
+    isAdmin(caller) or checkAuthorized(propertyId, caller, true)
+  };
+
   /// The rows of entity `name` for one home the caller may read; `full` is
   /// true for the owner and co-owners.
   private func oqlRowsFor(name : Text, p : Property, role : AccessRole, full : Bool, out : List.List<Oql.Row>) {
     let pid = p.id;
+    let numbers = role != #Viewer;
     switch name {
       case "homes" out.add(homeRow(p, role));
       case "rooms" for (r in Index.records(roomsByProperty, pid, rooms)) {
@@ -2677,14 +2708,14 @@ persistent actor Property {
       };
       case "fixtures" for (r in Index.records(roomsByProperty, pid, rooms)) {
         for (f in r.fixtures.values()) {
-          out.add([#text(f.id), #text(pid), #text(r.id), #text(r.name), #text(f.brand), #text(f.model), #text(f.serialNumber),
+          out.add([#text(f.id), #text(pid), #text(r.id), #text(r.name), #text(f.brand), #text(f.model), #text(if (numbers) f.serialNumber else ""),
                    oqlDate(f.installedDate), oqlDate(f.warrantyExpiry), #text(f.notes)]);
         };
       };
       case "insurance_policies" switch (insurancePolicies.get(pid)) {
         case null {};
         case (?x) out.add([
-          #text(pid), #text(x.carrier), #text(x.policyNumber), #text(x.renewalDate), oqlNat(x.coverageACents),
+          #text(pid), #text(x.carrier), #text(if (numbers) x.policyNumber else ""), #text(x.renewalDate), oqlNat(x.coverageACents),
           switch (x.hurricaneDeductible) { case (?#PercentOfCoverageA(n)) #int(n); case _ #null_ },
           switch (x.hurricaneDeductible) { case (?#Amount(n)) #int(n); case _ #null_ },
           #text(Oql.isoDate(x.updatedAt)),
@@ -2700,11 +2731,11 @@ persistent actor Property {
       };
       case "inventory_items" for (i in Index.records(inventoryByProperty, pid, inventoryItems)) {
         out.add([#text(i.id), #text(pid), oqlText(i.roomId), #text(i.name), #text(i.category), #int(i.quantity),
-                 oqlNat(i.valueCents), oqlDate(i.purchaseDate), #text(i.serialNumber), #text(i.notes)]);
+                 oqlNat(i.valueCents), oqlDate(i.purchaseDate), #text(if (numbers) i.serialNumber else ""), #text(i.notes)]);
       };
       case "warranty_plans" switch (homeWarrantyPlans.get(pid)) {
         case null {};
-        case (?w) out.add([#text(pid), #text(w.provider), #text(w.planName), #text(w.contractNumber), #text(w.claimContact),
+        case (?w) out.add([#text(pid), #text(w.provider), #text(w.planName), #text(if (numbers) w.contractNumber else ""), #text(w.claimContact),
                            oqlNat(w.serviceFeeCents), oqlDate(w.startDate), #text(w.renewalDate), #text(w.coverageNotes),
                            #text(w.exclusionNotes)]);
       };
@@ -3200,7 +3231,9 @@ persistent actor Property {
   public query(msg) func getInventory(propertyId: Text) : async Result.Result<[InventoryItem], Error> {
     if (properties.get(propertyId) == null) return #err(#NotFound);
     if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    #ok(Index.records(inventoryByProperty, propertyId, inventoryItems).toArray())
+    let items = Index.records(inventoryByProperty, propertyId, inventoryItems);
+    if (seesAccountNumbers(propertyId, msg.caller)) #ok(items.toArray())
+    else #ok(items.map(func(i : InventoryItem) : InventoryItem = { i with serialNumber = "" }).toArray())
   };
 
   /// #711: the home's insurance policy, or null when none is on record. Anyone
@@ -3208,7 +3241,9 @@ persistent actor Property {
   public query(msg) func getInsurancePolicy(propertyId: Text) : async Result.Result<?InsurancePolicy, Error> {
     if (properties.get(propertyId) == null) return #err(#NotFound);
     if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    #ok(insurancePolicies.get(propertyId))
+    let p = insurancePolicies.get(propertyId);
+    if (seesAccountNumbers(propertyId, msg.caller)) #ok(p)
+    else #ok(p.map(func(x : InsurancePolicy) : InsurancePolicy = { x with policyNumber = "" }))
   };
 
   // ─── House guide (#725) ───────────────────────────────────────────────────
@@ -3513,7 +3548,9 @@ persistent actor Property {
   public query(msg) func getHomeWarrantyPlan(propertyId: Text) : async Result.Result<?HomeWarrantyPlan, Error> {
     if (properties.get(propertyId) == null) return #err(#NotFound);
     if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    #ok(homeWarrantyPlans.get(propertyId))
+    let w = homeWarrantyPlans.get(propertyId);
+    if (seesAccountNumbers(propertyId, msg.caller)) #ok(w)
+    else #ok(w.map(func(x : HomeWarrantyPlan) : HomeWarrantyPlan = { x with contractNumber = "" }))
   };
 
   /// #719: log a claim filed with the home warranty company. Needs write

@@ -362,7 +362,7 @@ export default function QuoteDetailPage() {
                           </p>
                         )}
                         {licenseChecks[quote.contractor] && (
-                          <div style={{ marginTop: "0.4rem", maxWidth: "28rem" }}><LicenseCheckBadge check={licenseChecks[quote.contractor]} /></div>
+                          <div style={{ marginTop: "0.4rem", maxWidth: "28rem" }}><LicenseCheckBadge check={licenseChecks[quote.contractor]} confirmed={isVerified} /></div>
                         )}
                       </div>
                       <div style={{ textAlign: "right" }}>

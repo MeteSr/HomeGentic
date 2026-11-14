@@ -105,7 +105,7 @@ describe("relay, gateway and mobile clients on real canisters", () => {
     ok(await as("sensor", admin).addGateway(gatewayPrincipal));
     // The relay is granted on auth, property and job up front; quote waits
     // for the first test, which checks the relay is refused without it.
-    for (const c of ["auth", "property", "job"] as const) ok(await as(c, admin).addNotifier(relayPrincipal));
+    for (const c of ["auth", "property", "job", "contractor"] as const) ok(await as(c, admin).addNotifier(relayPrincipal));
 
     ok(await as("auth", homeowner).register({ role: { Homeowner: null }, email: "home@example.com", phone: "555-0100" }));
     ok(await as("auth", contractor).register({ role: { Contractor: null }, email: "pro@example.com", phone: "555-0101" }));

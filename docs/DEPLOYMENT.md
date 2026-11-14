@@ -133,6 +133,7 @@ deadline reminders.
 | `STRIPE_PRICE_CREDITS_25` | Stripe price ID — agent-credit pack |
 | `STRIPE_PRICE_CREDITS_100` | Stripe price ID — agent-credit pack |
 | `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity the Worker signs canister calls with. Its principal is `VOICE_WORKER_PRINCIPAL`, which `deploy.sh` grants on the canisters — see [One-time canister configuration](#one-time-canister-configuration) |
+| `PHOTO_CRON_IDENTITY_PEM` | A second Ed25519 PEM, used only by the hourly photo migration and orphan sweep. Its principal is `PHOTO_CRON_PRINCIPAL`. Unset, the photo cron doesn't run |
 | `CANISTER_ID_PAYMENT` | Payment canister ID |
 | `CANISTER_ID_AUTH` | Auth canister ID — resolves the `x-agent-session` tokens that identify callers on `/api/chat` and `/api/agent`. Without it those routes return 401 in production |
 | `CANISTER_ID_JOB` | Job canister ID — contractor-invite email, and filing forwarded invoices as drafts |
@@ -632,6 +633,7 @@ idempotent; a failure is printed without stopping the deploy, so read the log.
 |---|---|
 | `NOTIFIER_PRINCIPAL` | `addNotifier` on `auth`, `property`, `job`, `quote`, `listing` and `contractor` for the notification relay (its principal is logged at startup) |
 | `VOICE_WORKER_PRINCIPAL` | `payment.addStripeRelay`, `monitoring.addReporter`, `agent.addContactReader`, `photo.addPhotoRelay`, `job.addInboxRelay`, `contractor.addLicenseRelay`, `fee.addReferralRelay` and `property.addIdentityRelay` for the voice Worker (the principal of its `DFX_IDENTITY_PEM`, which must be **Ed25519**: `openssl genpkey -algorithm ed25519`) |
+| `PHOTO_CRON_PRINCIPAL` | `photo.addCronRelay` for the voice Worker's photo cron (the principal of its separate `PHOTO_CRON_IDENTITY_PEM` secret). The migration and orphan sweep only run under this key, so a leaked request-path key can't empty or drop photos (security review 2026-11-11, X-1) |
 | `IOT_GATEWAY_PRINCIPAL` | `sensor.addGateway` for the IoT gateway. Without it, sensor accepts self-asserted device IDs |
 
 To grant one by hand, as an admin of the canister:

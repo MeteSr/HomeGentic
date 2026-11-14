@@ -153,6 +153,14 @@ export async function findInDbprFile(license: string, url: string, fetchImpl: ty
   return notFound;
 }
 
+/**
+ * The canister refused the check because another account already holds this
+ * licence number (X-3: contractor.relayRecordLicenseCheck → #AlreadyExists).
+ */
+export class LicenseHeldError extends Error {
+  constructor() { super("license_held"); this.name = "LicenseHeldError"; }
+}
+
 export interface ContractorDeps {
   getProfile: (principal: string) => Promise<{ name: string; licenseNumber: string | null } | null>;
   record:     (principal: string, check: DbprLicense & { nameMatches: boolean }) => Promise<void>;
@@ -177,7 +185,10 @@ export function canisterDeps(): ContractorDeps {
         licenseType: c.licenseType, status: c.status, active: c.active, expiresOn: c.expiresOn,
         nameMatches: c.nameMatches, sourceDate: c.sourceDate,
       });
-      if ("err" in res) throw new Error(`License record failed: ${Object.keys(res.err)[0]}`);
+      if ("err" in res) {
+        if ("AlreadyExists" in res.err) throw new LicenseHeldError();
+        throw new Error(`License record failed: ${Object.keys(res.err)[0]}`);
+      }
     },
   };
 }
@@ -232,7 +243,13 @@ export async function checkLicense(
   }
 
   const check = { ...found, nameMatches: found.found && (namesMatch(found.licenseeName, profile.name) || namesMatch(found.dbaName, profile.name)) };
-  await deps.record(principal, check);
+  try {
+    await deps.record(principal, check);
+  } catch (e) {
+    if (!(e instanceof LicenseHeldError)) throw e;
+    await env.RATE_LIMIT.put(throttleKey, "1", { expirationTtl: THROTTLE_TTL_S });
+    return { status: 409, body: { error: "Another HomeGentic account already holds this licence number. If it's yours, contact support and we'll move it to this account." } };
+  }
   await env.RATE_LIMIT.put(throttleKey, "1", { expirationTtl: THROTTLE_TTL_S });
   return { status: 200, body: { ...check, checkedAt: Date.now() } };
 }

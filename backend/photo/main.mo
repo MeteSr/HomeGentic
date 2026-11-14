@@ -24,6 +24,7 @@ import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
+import Sha256 "../shared/Sha256";
 
 persistent actor Photo {
 
@@ -168,6 +169,15 @@ persistent actor Photo {
   /// has this canister empty its copy (confirmOffChain). Off until an admin
   /// has taken a snapshot and turns it on. New stable var, inline initializer.
   private var offChainMigrationEnabled : Bool = false;
+  /// X-1 (security review 2026-11-11): the migration and orphan sweep can
+  /// empty on-chain bytes and drop records, so they answer only these
+  /// principals (the Worker's cron key, PHOTO_CRON_IDENTITY_PEM) and admins,
+  /// never the request-path photo relay. New stable vars, inline initializers.
+  private var cronRelays : [Principal] = [];
+  /// Most photos confirmOffChain may empty, and dropUnuploadedPhotos may
+  /// drop, per UTC day across all callers. Admin-tunable (setCronDailyLimits).
+  private var cronConfirmsPerDay : Nat = 20_000;
+  private var cronDropsPerDay : Nat = 1_000;
   /// M-1 (security audit 2026-11-10): photos that stay private to their
   /// uploader after the home changed hands. When the property canister
   /// reports a transfer (propertyTransferred), the previous household's
@@ -342,6 +352,7 @@ persistent actor Photo {
     arg : Blob;
     msg : {
       #addAdmin : Any;
+      #addCronRelay : Any;
       #addPhotoRelay : Any;
       #beginUpload : Any;
       #beginWaiverUpload : Any;
@@ -372,9 +383,11 @@ persistent actor Photo {
       #photoAccess : Any;
       #propertyTransferred : Any;
       #removeAdmin : Any;
+      #removeCronRelay : Any;
       #removePhotoRelay : Any;
       #setAuditCanisterId : Any;
       #setBootstrapNonce : Any;
+      #setCronDailyLimits : Any;
       #setJobCanisterId : Any;
       #setOffChainMigrationEnabled : Any;
       #setOnChainUploadsEnabled : Any;
@@ -1214,7 +1227,46 @@ persistent actor Photo {
   private transient let MAX_CONFIRM_ITEMS    : Nat = 100;
 
   private func isRelayOrAdmin(p : Principal) : Bool {
-    Admin.contains(photoRelays, p) or isAdmin(p)
+    Admin.contains(cronRelays, p) or isAdmin(p)
+  };
+
+  /// Today's (UTC day, count) of confirmed and dropped photos. Transient: a
+  /// count that resets on upgrade is fine and changes no stable type.
+  private transient var confirmsToday : (Int, Nat) = (0, 0);
+  private transient var dropsToday : (Int, Nat) = (0, 0);
+  private transient let DAY_NS : Int = 86_400_000_000_000;
+
+  /// Counts `n` against a daily cap; false (and nothing counted) when today's
+  /// total would pass `max`.
+  private func takeDaily(count : (Int, Nat), n : Nat, max : Nat, now : Int) : ?(Int, Nat) {
+    let day = now / DAY_NS;
+    let used = if (count.0 == day) count.1 else 0;
+    if (used + n > max) null else ?(day, used + n)
+  };
+
+  /// Register the photo cron's identity (X-1). Admin only.
+  public shared(msg) func addCronRelay(p : Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (p.isAnonymous()) return #err(#InvalidInput("anonymous principal"));
+    cronRelays := Admin.add(cronRelays, p);
+    try { await auditLog("PhotoCronRelayAdded", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    #ok(())
+  };
+
+  public shared(msg) func removeCronRelay(p : Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    cronRelays := Admin.remove(cronRelays, p);
+    try { await auditLog("PhotoCronRelayRemoved", ?p, "caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    #ok(())
+  };
+
+  /// Daily caps on confirmOffChain and dropUnuploadedPhotos (X-1). Admin only.
+  public shared(msg) func setCronDailyLimits(confirms : Nat, drops : Nat) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    cronConfirmsPerDay := confirms;
+    cronDropsPerDay := drops;
+    try { await auditLog("PhotoCronLimitsSet", null, "confirms=" # confirms.toText() # " drops=" # drops.toText() # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
+    #ok(())
   };
 
   private func isOnChain(id : Text, p : Photo) : Bool {
@@ -1234,7 +1286,7 @@ persistent actor Photo {
     #ok(())
   };
 
-  /// How far the migration has got. Admins and the photo relay only.
+  /// How far the migration has got. Admins and the cron relay only.
   public query(msg) func getOffChainMigrationStatus() : async Result.Result<MigrationStatus, Error> {
     if (not isRelayOrAdmin(msg.caller)) return #err(#NotAuthorized);
     var photos = 0;
@@ -1248,7 +1300,7 @@ persistent actor Photo {
   /// The next on-chain photos after `after`, in id order: at most
   /// MIGRATION_PAGE_ITEMS photos and ~1.5 MB of bytes, looking at no more
   /// than MIGRATION_SCAN_LIMIT records. An update call, so the relay copies
-  /// bytes the subnet agreed on rather than one replica's answer. Photo
+  /// bytes the subnet agreed on rather than one replica's answer. Cron
   /// relay and admins only, while the migration is on.
   public shared(msg) func onChainPhotoPage(after : ?Text) : async Result.Result<MigrationPage, Error> {
     if (not isRelayOrAdmin(msg.caller)) return #err(#NotAuthorized);
@@ -1292,11 +1344,19 @@ persistent actor Photo {
     if (not offChainMigrationEnabled) return #err(#InvalidInput(MIGRATION_OFF));
     if (moved.size() > MAX_CONFIRM_ITEMS)
       return #err(#InvalidInput("At most " # MAX_CONFIRM_ITEMS.toText() # " photos per call"));
+    // X-1: a canister-wide daily cap, so a stolen cron key or a runaway cron
+    // can't empty everything in one go.
+    switch (takeDaily(confirmsToday, moved.size(), cronConfirmsPerDay, Time.now())) {
+      case null return #err(#InvalidInput("Today's photo migration limit is reached. It resumes tomorrow, or an admin can raise it with setCronDailyLimits."));
+      case (?c) confirmsToday := c;
+    };
     var n = 0;
     for ((id, hash) in moved.values()) {
       switch (photoStore.get(id)) {
         case (?p) {
-          if (isOnChain(id, p) and isSha256Hex(hash)) {
+          // X-1: the hash must be the bytes' own, as this canister computes
+          // it, so the cron can't re-key a photo to a hash of its choosing.
+          if (isOnChain(id, p) and isSha256Hex(hash) and Sha256.hexOfBlob(p.data) == hash) {
             if (hash != p.hash) {
               dropHash(p);
               if (dupOf(p.owner, hash) == null) hashIndex.add(hashKey(p.owner, hash), id);
@@ -1334,7 +1394,7 @@ persistent actor Photo {
   };
 
   /// Off-chain photos after `after`, in id order, with when each record was
-  /// made, so the relay can find records whose bytes never arrived. Photo
+  /// made, so the relay can find records whose bytes never arrived. Cron
   /// relay and admins only.
   public query(msg) func offChainPhotoPage(after : ?Text) : async Result.Result<OffChainPage, Error> {
     if (not isRelayOrAdmin(msg.caller)) return #err(#NotAuthorized);
@@ -1358,12 +1418,16 @@ persistent actor Photo {
   /// that is still off-chain, has no bytes here and is over 7 days old is
   /// deleted like deletePhoto would (quota, duplicate index, close-out
   /// papers); anything else is skipped, so a fresh upload still in flight is
-  /// never touched. Returns how many were dropped. Photo relay and admins only.
+  /// never touched. Returns how many were dropped. Cron relay and admins only.
   public shared(msg) func dropUnuploadedPhotos(ids : [Text]) : async Result.Result<Nat, Error> {
     if (not isRelayOrAdmin(msg.caller)) return #err(#NotAuthorized);
     if (Admin.pausedNow(isPaused, pauseExpiryNs, Time.now())) return #err(#Paused);
     if (ids.size() > MAX_DROP_ITEMS)
       return #err(#InvalidInput("At most " # MAX_DROP_ITEMS.toText() # " photos per call"));
+    switch (takeDaily(dropsToday, ids.size(), cronDropsPerDay, Time.now())) {
+      case null return #err(#InvalidInput("Today's limit on dropping unuploaded photos is reached. It resumes tomorrow, or an admin can raise it with setCronDailyLimits."));
+      case (?c) dropsToday := c;
+    };
     let cutoff = Time.now() - UNUPLOADED_MIN_AGE_NS;
     let gone = List.empty<Photo>();
     for (id in ids.values()) {

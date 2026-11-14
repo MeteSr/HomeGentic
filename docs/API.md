@@ -79,7 +79,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `getPendingTransferByToken` | query | `(token: Text)` | Looks up a pending transfer by its bearer token. |
 | `cancelTransfer` | update | `(propertyId: Text)` | Cancel a pending transfer |
 | `getPendingTransfer` | query | `(propertyId: Text)` | Get pending transfer record |
-| `getOwnershipHistory` | query | `(propertyId: Text)` | Full transfer history |
+| `getOwnershipHistory` | query | `(propertyId: Text)` | Full transfer history, for the current owner, co-owners, admins and canisters (empty for anyone else) |
 
 ### Rooms & Fixtures
 
@@ -107,9 +107,9 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `removeManager` | update | `(propertyId: Text, managerPrincipal: Principal)` | Owner removes a manager from a property. |
 | `resignAsManager` | update | `(propertyId: Text)` | Manager voluntarily removes themselves. |
 | `recordManagerActivity` | update | `(propertyId: Text, description: Text)` | Called by a Manager-role user (via the frontend) after completing a significant write action to notify the property owner. |
-| `getAccessRole` | query | `(propertyId: Text, principal: Principal)` | Public query: the principal's role on a property, or null when the property doesn't exist. |
-| `getAccessRoles` | query | `(propertyIds: [Text], principal: Principal)` | `getAccessRole` for up to 100 properties, in the same order; lets job, bills and recurring check every property in one call. |
-| `isAuthorized` | query | `(propertyId: Text, caller: Principal, requireWrite: Bool)` | Public query: returns true if `caller` is the owner OR an authorised manager. |
+| `getAccessRole` | query | `(propertyId: Text, principal: Principal)` | The principal's role on a property, or null when the property doesn't exist. Answers a caller about themself, and admins and canisters about anyone; null otherwise. |
+| `getAccessRoles` | query | `(propertyIds: [Text], principal: Principal)` | `getAccessRole` for up to 100 properties, in the same order; lets job, bills and recurring check every property in one call. Same callers as `getAccessRole`. |
+| `isAuthorized` | query | `(propertyId: Text, caller: Principal, requireWrite: Bool)` | True if `caller` is the owner or an authorised manager. Answers a caller about themself, and admins and canisters about anyone; false otherwise. |
 | `requestApproval` | update | `(propertyId: Text, description: Text, amountCents: Nat)` | Called by a Manager who wants to spend above their limit (or a Viewer requesting an action they can't take directly). |
 | `respondToApproval` | update | `(propertyId: Text, approvalId: Nat, approve: Bool)` | Owner approves or declines a pending approval request. |
 | `dismissNotifications` | update | `(propertyId: Text)` | Owner dismisses all notifications for a property (marks as seen + clears). |
@@ -179,7 +179,8 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `getAll` | query | `()` | List contractors in the directory (unlisted profiles are left out except for themselves, admins and trusted canisters; same for `getPage`, `getBySpecialty`, `getByZip`) |
 | `getBySpecialty` | query | `(s: ServiceType)` | Filter listed contractors by specialty |
 | `getByZip` | query | `(zipCode: Text)` | Listed contractors who explicitly list that zip code in `serviceZips` (at most 500, as `getAll`; same for `getBySpecialty`) |
-| `getLeadAlertTargets` | query | `()` | Lead-matching fields for every contractor, listed or not, without name or contact details; used by the notification relay |
+| `getLeadAlertTargets` | query | `()` | The first 500 contractors' lead-matching fields, listed or not, without name or contact details. Notification relay and admins only (empty for anyone else); kept for older relay builds |
+| `getLeadAlertTargetsPage` | query | `(after: ?Principal, limit: Nat)` | The same fields a page at a time (at most 200, in principal order). Notification relay and admins only |
 | `setProfilePrivacy` | update | `(p: ProfilePrivacy)` | Settings → Privacy; `ProfilePrivacy = { listed: Bool, showTrustScore: Bool, showJobsCompleted: Bool }` (caller needs a profile) |
 | `getMyProfilePrivacy` | query | `()` | Caller's privacy settings (defaults: all true) |
 | `getProfilePrivacies` | query | `(ps: [Principal])` | Privacy settings for up to 500 contractors, in order; the public profile and directory card use them to hide the trust score and job count |
@@ -193,7 +194,8 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `createOrLinkGuestProfile` | update | `(contractorPrincipal: Principal, name: Text, phone: Text, email: Text, licenseNumber: ?Text, serviceTypeText: Text, originJobId: Text)` | #518 — Called by the Job canister (cross-canister) when a guest (no-account) contractor redeems an invite token. |
 | `getContractorStats` | query | `(p: Principal)` | Lightweight stats query used by the quote canister to check visibility thresholds. |
 | `getPage` | query | `(from: Nat, limit: Nat)` | Paginated contractor list |
-| `relayRecordLicenseCheck` | update | `(contractor: Principal, input: LicenseCheckInput)` | Licence relay (the voice Worker) or admin: record what Florida DBPR's licensee file says about the contractor's licence number. Refused when `input.licenseNumber` isn't the profile's current number (compared uppercased, without spaces or dashes) |
+| `relayRecordLicenseCheck` | update | `(contractor: Principal, input: LicenseCheckInput)` | Licence relay (the voice Worker) or admin: record what Florida DBPR's licensee file says about the contractor's licence number. Refused when `input.licenseNumber` isn't the profile's current number (compared uppercased, without spaces or dashes). A check that matches DBPR's file claims the number for this account; `#AlreadyExists` when another account already holds it |
+| `setLicenseHolder` | update | `(licenseNumber: Text, holder: ?Principal)` | Admin: move a licence number's hold to `holder`, or clear it (null), after support confirms who holds the licence. Only the holder's matching DBPR check is shown |
 | `getLicenseCheck` | query | `(contractor: Principal)` | Public: the last DBPR lookup (`LicenseCheck`: number, found, licensee and DBA name, licence type, status, active, expiry, nameMatches, DBPR file date, checkedAt), or null when never checked or the number has changed since |
 | `addLicenseRelay` / `removeLicenseRelay` | update | `(p: Principal)` | Admin: allow or revoke a principal recording licence checks |
 | `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke the notification relay reading contractors' emails |

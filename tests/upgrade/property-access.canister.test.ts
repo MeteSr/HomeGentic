@@ -88,7 +88,14 @@ describe("property access across canisters", () => {
   const createService = (who: Identity, propertyId: string) =>
     as(recurring, who).createRecurringService(propertyId, { LawnCare: null }, "Green Co", [], [], { Monthly: null }, "2026-01-01", [], []);
   const role = async (propertyId: string, who: Identity) =>
-    Object.keys((await property.getAccessRole(propertyId, who.getPrincipal()))[0] ?? { none: null })[0];
+    // Role lookups answer a caller about themself (X-6), so ask as `who`, on a
+    // separate actor so the shared one keeps its identity.
+    Object.keys((await asSelf(who).getAccessRole(propertyId, who.getPrincipal()))[0] ?? { none: null })[0];
+  const asSelf = (who: Identity) => {
+    const a = pic.createActor<any>(propertyTestIdl as any, propertyCid);
+    a.setIdentity(who);
+    return a;
+  };
 
   /** Everything `who` can do on `propertyId` through the other canisters. */
   async function reach(who: Identity, propertyId: string) {
@@ -175,7 +182,7 @@ describe("property access across canisters", () => {
       // The link is single-use.
       expect(errOf(await as(property, createIdentity(`pa-late-${++n}`)).claimTransfer(pending.token))).toBe("NotFound");
 
-      const history = await property.getOwnershipHistory(prop);
+      const history = await asSelf(buyer).getOwnershipHistory(prop);
       expect(history.map((h: any) => [h.from.toText(), h.to.toText()]))
         .toEqual([[seller.getPrincipal().toText(), buyer.getPrincipal().toText()]]);
 
@@ -234,7 +241,7 @@ describe("property access across canisters", () => {
       expect(results.filter((r: any) => "ok" in r)).toHaveLength(1);
       const winner = buyers[results.findIndex((r: any) => "ok" in r)];
       expect(await role(prop, winner)).toBe("Owner");
-      expect(await property.getOwnershipHistory(prop)).toHaveLength(1);
+      expect(await asSelf(winner).getOwnershipHistory(prop)).toHaveLength(1);
     });
   });
 

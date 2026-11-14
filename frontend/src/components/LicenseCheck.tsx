@@ -28,16 +28,33 @@ export function licenseCheckSource(c: LicenseCheck): string {
   return `Checked ${fmtDate(c.checkedAt)} against DBPR's licensee file${c.sourceDate ? ` dated ${c.sourceDate}` : ""}.`;
 }
 
-/** Compact public version for profile pages and bid cards. */
-export function LicenseCheckBadge({ check }: { check: LicenseCheck }) {
-  const good = check.found && check.active && check.nameMatches;
-  const Icon = good ? FileSearch : CircleAlert;
+/**
+ * "good" only when DBPR's file matches AND HomeGentic verified the profile:
+ * the name match compares DBPR's licensee with a name the account chose, so
+ * on its own it doesn't show who holds the account (security review
+ * 2026-11-11, X-3).
+ */
+export function licenseCheckTone(c: LicenseCheck, confirmed: boolean): "good" | "neutral" | "warn" {
+  if (!(c.found && c.active && c.nameMatches)) return "warn";
+  return confirmed ? "good" : "neutral";
+}
+
+const TONE_COLOR = { good: "#188038", neutral: V2_COLORS.muted, warn: "#B3261E" } as const;
+
+/**
+ * Compact public version for profile pages and bid cards. `confirmed` is the
+ * profile's admin verification (isVerified).
+ */
+export function LicenseCheckBadge({ check, confirmed }: { check: LicenseCheck; confirmed: boolean }) {
+  const tone = licenseCheckTone(check, confirmed);
+  const Icon = tone === "warn" ? CircleAlert : FileSearch;
   return (
-    <div data-testid="license-check" style={{ fontFamily: V2_FONTS.body, fontSize: "0.72rem", lineHeight: 1.45, color: V2_COLORS.ink }}>
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, color: good ? "#188038" : "#B3261E" }}>
+    <div data-testid="license-check" data-tone={tone} style={{ fontFamily: V2_FONTS.body, fontSize: "0.72rem", lineHeight: 1.45, color: V2_COLORS.ink }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, color: TONE_COLOR[tone] }}>
         <Icon size={12} aria-hidden /> Florida DBPR
       </span>{" "}
       {licenseCheckSummary(check)}{check.found && check.licenseType ? ` ${check.licenseType}.` : ""}
+      {tone === "neutral" && " HomeGentic hasn't confirmed that this account holds the licence."}
       <span style={{ display: "block", color: V2_COLORS.muted, fontSize: "0.66rem" }}>{licenseCheckSource(check)}</span>
     </div>
   );

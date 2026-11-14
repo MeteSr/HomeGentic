@@ -125,10 +125,13 @@ module {
   };
 
   /// Lowercase hex of the SHA-256 of `t`'s UTF-8 bytes.
-  public func hexOfText(t : Text) : Text {
+  public func hexOfText(t : Text) : Text { hexOfBlob(t.encodeUtf8()) };
+
+  /// Lowercase hex of the SHA-256 of `data`.
+  public func hexOfBlob(data : Blob) : Text {
     let hex = "0123456789abcdef".toArray();
     var s = "";
-    for (byte in digest(t.encodeUtf8()).toArray().values()) {
+    for (byte in digest(data).toArray().values()) {
       let n = byte.toNat();
       s := s # hex[n / 16].toText() # hex[n % 16].toText();
     };
