@@ -20,7 +20,7 @@ const F = {
   mono:    "'JetBrains Mono', monospace",
 };
 
-const EFFECTIVE_DATE = "November 2, 2026";
+const EFFECTIVE_DATE = "November 14, 2026";
 
 interface Section {
   id: string;
@@ -100,6 +100,7 @@ const SECTIONS: Section[] = [
         <p>Your records are stored in HomeGentic's canisters on the Internet Computer. Each canister's data is replicated across several independent node machines, which protects against data loss. HomeGentic controls these canisters: we can update, correct and delete the records in them, and we pay to keep them running.</p>
         <p>The Internet Computer is not a public ledger of your records: other people cannot browse them. Only you, the people you share with, and HomeGentic's own services can read them. You can export your records as a file at any time from Settings → Privacy.</p>
         <p><strong>Public by design.</strong> A property's street address is visible to other users while it is being claimed, so that two people can't claim the same home. Reports and listings you choose to share are visible to whoever has the link or, for public listings, to anyone.</p>
+        <p><strong>Shared job costs.</strong> If you turn on Share job costs for a home in Settings → Privacy, the prices of its finished jobs from the last 2 years that you and a HomeGentic-verified contractor both signed go into anonymous price ranges that anyone can see on our price lookup. A range appears only when at least 5 homes and 3 contractors in the area share, prices are rounded, and it never shows an address, contractor, date or name. Sharing is off until you turn it on, and it stops when you turn it off, sell the home or delete your account.</p>
       </>
     ),
   },

@@ -221,6 +221,21 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
+    // Verified local costs: the owner's per-home sharing switch and the
+    // anonymous range anyone can read (cents; homes rounded down to 5s).
+    setCostSharing: IDL.Func(
+      [IDL.Text, IDL.Bool],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    getMyCostSharing: IDL.Func([], [IDL.Vec(IDL.Text)], ["query"]),
+    getVerifiedLocalCosts: IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Opt(IDL.Record({
+        low: IDL.Nat, median: IDL.Nat, high: IDL.Nat, homes: IDL.Nat, area: IDL.Text,
+      }))],
+      ["query"]
+    ),
     getJobsForProperty: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Vec(Job), err: Error })],

@@ -61,6 +61,7 @@ vi.mock("@/store/jobStore",      () => ({ useJobStore:      vi.fn(() => ({ jobs:
 vi.mock("react-hot-toast", () => ({ default: { success: vi.fn(), error: mockToastError } }));
 vi.mock("@/components/Layout", () => ({ Layout: ({ children }: any) => <>{children}</> }));
 vi.mock("@/components/DeleteAccountSection", () => ({ DeleteAccountSection: () => null }));
+vi.mock("@/components/CostSharingSettings", () => ({ CostSharingSettings: () => null }));
 
 import SettingsPage from "@/pages/SettingsPage";
 import { DEFAULT_PROFILE_PRIVACY } from "@/services/contractor";

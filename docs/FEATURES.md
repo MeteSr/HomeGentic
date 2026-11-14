@@ -54,7 +54,7 @@ rewiring screens.
 | Route | Page | What it does |
 |---|---|---|
 | `/check` | CheckAddressPage | Look up any address — shows if a HomeGentic report exists; lets buyers submit a request |
-| `/prices` | PriceLookupPage | Contractor price benchmarks by service type + zip code |
+| `/prices` | PriceLookupPage | Verified local costs by service type + zip code (finished jobs signed by the owner and a verified contractor, from homes whose owners share them in Settings → Privacy; 5+ homes and 3+ contractors, rounded); otherwise the typical U.S. range |
 | `/instant-forecast` | InstantForecastPage | 10-year maintenance cost forecast from address + year built; system-age overrides inline |
 | `/home-systems` | HomeSystemsEstimatorPage | Urgency table for 9 home systems from year built; shareable URL |
 | `/truth-kit` | BuyersTruthKitPage | Buyer's due-diligence kit: permit records, credibility flags, questions to ask before closing |

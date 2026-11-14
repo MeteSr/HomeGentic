@@ -157,6 +157,9 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `getMyEmailDrafts` | query | `()` → `[EmailDraft]` | The caller's drafts, newest first. A draft never becomes a job by itself |
 | `dismissEmailDraft` | update | `(id: Text)` | Delete one of the caller's drafts (the app also does this after the homeowner logs it) |
 | `addInboxRelay` / `removeInboxRelay` | update | `(p: Principal)` | Admin: allow or revoke the principal that files drafts |
+| `setCostSharing` | update | `(propertyId: Text, share: Bool)` | Owner only: share (or stop sharing) a home's finished job costs in the anonymous local ranges. The ZIP is read from the home's record. Cleared on sale (`propertyTransferred`) and `deleteMyData` |
+| `getMyCostSharing` | query | `()` → `[Text]` | The caller's homes that share their costs |
+| `getVerifiedLocalCosts` | query | `(serviceType: Text, zip: Text)` → `?{ low; median; high; homes; area }` | Public. p25/median/p75 (cents, two significant figures) of each sharing home's newest job of that trade finished in the last 24 months, signed by the homeowner and a verified contractor, not DIY. ZIP first, else its first 3 digits (`area` "328xx"). Null under 5 homes or 3 contractors; `homes` rounded down to a multiple of 5 |
 
 **EmailDraft:** `{ id; owner; receivedAt: Int; fromAddress; subject; title; serviceType: Text (label, "" if unknown); contractorName; amountCents: Nat; completedDate: Text (YYYY-MM-DD or ""); warrantyMonths: Nat; description }`. `EmailDraftInput` is the same without `id`, `owner` and `receivedAt`. `deleteMyData` removes the caller's token and drafts.
 
@@ -222,7 +225,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `getMyQuoteRequests` | query | `()` | Caller's requests |
 | `submitQuote` | update | `(requestId: Text, amount: Nat, timeline: Nat, validUntil: Time.Time)` | Contractor submits a bid |
 | `getQuotesForRequest` | query | `(requestId: Text)` | All bids on a request |
-| `getLocalPriceStats` | query | `(serviceType: Text, zip: Text)` | p25/median/p75 of accepted quotes for a trade in a ZIP (or its first 3 digits); null under 5 quotes |
+| `getLocalPriceStats` | query | `(serviceType: Text, zip: Text)` | Retired: always null. Local prices come from `job.getVerifiedLocalCosts` |
 | `acceptQuote` | update | `(quoteId: Text)` | Homeowner accepts a bid |
 | `closeQuoteRequest` | update | `(requestId: Text)` | Close a request without accepting |
 | `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: notification outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |

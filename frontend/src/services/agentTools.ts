@@ -770,7 +770,7 @@ export async function executeTool(
             sampleSize:  result.sampleSize,
             summary: result.source === "local"
               ? `Typical ${serviceType} cost near ${result.area ?? zipCode}: ${fmt(result.low)}–${fmt(result.high)} (median ${fmt(result.median)}) · ${benchmarkBasis(result)}`
-              : `Typical U.S. ${serviceType} cost: ${fmt(result.low)}–${fmt(result.high)} (median ${fmt(result.median)}). This is a national range, not local bids; say so if you quote it.`,
+              : `Typical U.S. ${serviceType} cost: ${fmt(result.low)}–${fmt(result.high)} (median ${fmt(result.median)}). This is a national range, not local prices; say so if you quote it.`,
           },
         };
       }

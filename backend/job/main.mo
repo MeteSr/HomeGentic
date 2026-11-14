@@ -36,6 +36,7 @@ import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
 import ApiDoc "ApiDoc";
 import Oql "../shared/Oql";
+import LocalCosts "LocalCosts";
 import JobOql "JobOql";
 
 persistent actor Job {
@@ -1052,6 +1053,8 @@ persistent actor Job {
     // Keep the 100 most recent sellers of one home.
     let next = if (grown.size() > 100) grown.sliceToArray(grown.size() - 100 : Int, grown.size()) else grown;
     if (next.size() == 0) formerOwners.remove(propertyId) else formerOwners.add(propertyId, next);
+    // The new owner hasn't chosen to share this home's costs.
+    Index.delete(costShares, shareIndexes, propertyId);
     #ok(())
   };
 
@@ -2550,6 +2553,123 @@ persistent actor Job {
     }
   };
 
+  // ─── Verified local costs ───────────────────────────────────────────────────
+  // Owners choose, home by home, to share their finished job costs. Anyone can
+  // then read an anonymous price range for a trade near a ZIP, built from
+  // those homes' dual-signed jobs (rules in LocalCosts.mo).
+
+  /// A home whose owner shares its finished job costs. `zip` is read from the
+  /// home's record when sharing is turned on, never typed by the owner.
+  public type CostShare = { owner : Principal; zip : Text; since : Int };
+  public type VerifiedCosts = LocalCosts.Stats;
+
+  /// propertyId → sharing record. A side map (new stable var), so Job is
+  /// unchanged. Entries go when sharing is turned off, when the home changes
+  /// hands (propertyTransferred) and on the owner's deleteMyData.
+  private let costShares = Map.empty<Text, CostShare>();
+  private transient let sharesByOwner = Index.empty();
+  private transient let sharesByZip   = Index.empty();
+  private transient let sharesByZip3  = Index.empty();
+  private transient let shareIndexes : [Index.Keyed<CostShare>] = Index.indexed(costShares, [
+    (sharesByOwner, func(s : CostShare) : ?Text { ?s.owner.toText() }),
+    (sharesByZip,   func(s : CostShare) : ?Text { ?Text.fromIter(s.zip.chars().take(5)) }),
+    (sharesByZip3,  func(s : CostShare) : ?Text { ?Text.fromIter(s.zip.chars().take(3)) }),
+  ]);
+
+  /// Turn sharing of one home's finished job costs on or off. The home's
+  /// owner only (not co-owners or managers).
+  public shared(msg) func setCostSharing(propertyId : Text, share : Bool) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (propertyId.size() == 0 or propertyId.size() > 100) return #err(#InvalidInput("invalid propertyId"));
+    if (propCanisterId == "") return #err(#Unavailable(Canisters.unavailable("property")));
+    switch (await* propertyOwner(propertyId)) {
+      case (#err(e)) return #err(e);
+      case (#ok(owner)) { if (owner != msg.caller) return #err(#NotAuthorized) };
+    };
+    if (not share) {
+      Index.delete(costShares, shareIndexes, propertyId);
+      return #ok(());
+    };
+    let propActor : actor { getPropertyAddress : shared query Text -> async ?Text } = actor (propCanisterId);
+    let address = try { await propActor.getPropertyAddress(propertyId) }
+                  catch (_) { return #err(#Unavailable(Canisters.unavailable("property"))) };
+    let zip = switch (address) {
+      case null return #err(#NotFound);
+      case (?a) switch (LocalCosts.zipOfAddress(a)) {
+        case (?z) z;
+        case null return #err(#InvalidInput("This home's ZIP code isn't a 5-digit U.S. ZIP, so its costs can't be grouped by area."));
+      };
+    };
+    Index.put(costShares, shareIndexes, propertyId, { owner = msg.caller; zip; since = Time.now() });
+    #ok(())
+  };
+
+  /// The caller's homes that share their finished job costs.
+  public query(msg) func getMyCostSharing() : async [Text] {
+    Index.ids(sharesByOwner, msg.caller.toText()).toArray()
+  };
+
+  /// One sharing home's newest job of `svc` that counts toward the range:
+  /// finished in the window, recorded by the owner who shares it, signed by
+  /// the homeowner and by a contractor HomeGentic has verified (attestation
+  /// ?true), not DIY. (amount, contractor), or null.
+  private func newestSharedJob(propertyId : Text, owner : Principal, svc : ServiceType, cutoff : Int) : ?(Nat, Principal) {
+    var best : ?(Int, Nat, Principal) = null;
+    for (j in Index.records(jobsByProperty, propertyId, jobs)) {
+      switch (j.contractor) {
+        case (?c) {
+          let counts = j.serviceType == svc and j.homeowner == owner and not j.isDiy
+            and j.verified and j.homeownerSigned and j.contractorSigned and j.amount > 0
+            and j.completedDate >= cutoff and contractorAttest.get(j.id) == ?true;
+          let newer = switch (best) { case (?(t, _, _)) j.completedDate > t; case null true };
+          if (counts and newer) best := ?(j.completedDate, j.amount, c);
+        };
+        case null {};
+      };
+    };
+    switch (best) { case (?(_, amount, c)) ?(amount, c); case null null }
+  };
+
+  /// Anonymous price range for `serviceType` near `zip`, from the newest
+  /// qualifying job at each sharing home in that ZIP, widening to the ZIP's
+  /// first three digits when the ZIP alone has too few homes or contractors.
+  /// Null when neither has enough (LocalCosts.MIN_HOMES / MIN_CONTRACTORS).
+  public query func getVerifiedLocalCosts(serviceType : Text, zip : Text) : async ?VerifiedCosts {
+    let svc = switch (ServiceTypes.fromText(serviceType)) { case (?s) s; case null { return null } };
+    let z = switch (LocalCosts.zip5(zip)) { case (?z) z; case null { return null } };
+    let cutoff = Time.now() - LocalCosts.WINDOW_NS;
+    let tries : [(Index.Index, Text, Text)] = [
+      (sharesByZip,  z, z),
+      (sharesByZip3, Text.fromIter(z.chars().take(3)), Text.fromIter(z.chars().take(3)) # "xx"),
+    ];
+    for ((ix, key, area) in tries.values()) {
+      let amounts = List.empty<Nat>();
+      let contractors = Map.empty<Text, ()>();
+      for (propertyId in Index.ids(ix, key)) {
+        switch (costShares.get(propertyId)) {
+          case (?s) {
+            switch (newestSharedJob(propertyId, s.owner, svc, cutoff)) {
+              case (?(amount, c)) { amounts.add(amount); contractors.add(c.toText(), ()) };
+              case null {};
+            };
+          };
+          case null {};
+        };
+      };
+      switch (LocalCosts.stats(amounts.toArray(), contractors.size(), area)) {
+        case (?st) return ?st;
+        case null {};
+      };
+    };
+    null
+  };
+
+  private func forgetCostSharing(owner : Principal) {
+    for (id in Index.ids(sharesByOwner, owner.toText()).toArray().values()) {
+      Index.delete(costShares, shareIndexes, id);
+    };
+  };
+
   public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (msg.caller.isAnonymous()) return #err(#NotAuthorized);
@@ -2581,6 +2701,7 @@ persistent actor Job {
     for (seq in events.values()) { notifyLog.remove(seq) };
     forgetInbox(msg.caller);
     ignore forgetCalendarFeed(msg.caller);
+    forgetCostSharing(msg.caller);
 
     #ok(ids.size())
   };

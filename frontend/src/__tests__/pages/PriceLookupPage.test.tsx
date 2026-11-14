@@ -61,13 +61,20 @@ describe("PriceLookupPage — loading and results", () => {
   });
 
   it("shows the benchmark result once sufficient samples resolve", async () => {
-    mockGetPriceBenchmark.mockResolvedValue(makeResult({ sampleSize: 12, low: 25000, high: 60000, median: 40000 }));
+    mockGetPriceBenchmark.mockResolvedValue(makeResult({ sampleSize: 10, low: 25000, high: 60000, median: 40000, area: "32114" }));
     renderAt("/prices?service=HVAC&zip=32114");
 
     expect(await screen.findByText("HVAC in 32114")).toBeInTheDocument();
+    expect(screen.getByText("Verified costs near you")).toBeInTheDocument();
     expect(screen.getByText("$250")).toBeInTheDocument();
     expect(screen.getByText("$600")).toBeInTheDocument();
-    expect(screen.getByText("12 accepted quotes · 32114")).toBeInTheDocument();
+    expect(screen.getByText("10+ homes · 32114")).toBeInTheDocument();
+  });
+
+  it("explains where local prices come from on the search form", () => {
+    renderAt("/prices");
+    expect(screen.getByText(/finished jobs that nearby owners chose to share/)).toBeInTheDocument();
+    expect(screen.queryByText(/accepted quotes/)).not.toBeInTheDocument();
   });
 
   it("shows the not-enough-data panel when sampleSize is below the threshold", async () => {

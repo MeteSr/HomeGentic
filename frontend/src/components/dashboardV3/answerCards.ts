@@ -131,7 +131,7 @@ export function buildSystemAnswer(input: AnswerInput): SystemAnswer {
     facts.push({
       label: "Local prices",
       value: `${formatCents(b.low)}–${formatCents(b.high)}`,
-      detail: `${b.sampleSize} accepted ${serviceType} quotes near ${b.area ?? input.zipCode}, median ${formatCents(b.median)}`,
+      detail: `Finished ${serviceType} jobs at ${b.sampleSize}+ nearby homes in ${b.area ?? input.zipCode}, median ${formatCents(b.median)}`,
       tone: "neutral",
     });
     sources.push("Local prices");
