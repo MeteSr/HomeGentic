@@ -17,6 +17,11 @@ on:
         required: false
         default: false
         type: boolean
+      allow_candid_break:
+        description: 'Accept Candid interface breaks only (clients redeployed with it); stable-memory breaks still stop the deploy'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read   # canister-ID commits push with CI_PUSH_TOKEN, not GITHUB_TOKEN
@@ -62,7 +67,7 @@ jobs:
         env:
           # A planned reinstall or interface break: dispatch with this input.
           ALLOW_STABLE_BREAK: ${{ inputs.allow_upgrade_break && '1' || '' }}
-          ALLOW_CANDID_BREAK: ${{ inputs.allow_upgrade_break && '1' || '' }}
+          ALLOW_CANDID_BREAK: ${{ (inputs.allow_candid_break || inputs.allow_upgrade_break) && '1' || '' }}
 
   deploy:
     runs-on: ubuntu-latest

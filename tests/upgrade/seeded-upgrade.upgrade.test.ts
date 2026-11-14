@@ -115,7 +115,7 @@ describe("hand-seeded upgrades from the base build", () => {
     const read = async () =>
       norm({
         bills: await as("bills", owner).getBillsForProperty(pid),
-        batch: await as("bills", owner).getBillsForProperties([pid]),
+        batch: d.has("bills", "getBillsForProperties") ? await as("bills", owner).getBillsForProperties([pid]) : null,
         expenses: await as("bills", owner).getRecurringExpensesForProperty(pid),
       });
     const before = await read();

@@ -240,10 +240,13 @@ fi
 #               (sequential). Sequential builds avoid concurrent writes to local.ids.json.
 
 # Install order matters on upgrades: a canister is upgraded before the ones
-# that call its new methods. payment before property (claimTransfer calls
-# payment.grantHandoffYear), property before job (createInviteToken calls
-# property.getPropertyAddress), job and market before report.
-CANISTERS=(auth payment property job contractor quote photo market report maintenance sensor monitoring listing agent fee recurring bills ai_proxy audit referrals)
+# that call its new methods, so a caller on the new build never waits on a
+# callee still on the old one. The pairs (and how they were found) are in
+# scripts/ops/test/deploy-order.test.mjs: payment before property, property
+# before everything that checks access with it, fee before job and quote,
+# job and quote before contractor, sensor, job and market before report,
+# listing before agent.
+CANISTERS=(auth payment fee property job quote contractor photo market sensor report maintenance monitoring listing agent recurring bills ai_proxy audit referrals)
 LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
 BG_LOG_DIR=$(mktemp -d /tmp/icp-deploy-bg-XXXXXX)
 trap 'rm -rf "$LOG_DIR" "$BG_LOG_DIR"' EXIT
@@ -897,7 +900,8 @@ fi
 grant() {  # grant <canister> <method> <principal> <description>
   local out
   echo "  $4 on $1..."
-  if out=$(icp canister call "$1" "$2" "(principal \"$3\")" -e "$ENV" 2>&1) && [[ "$out" == *"variant { ok"* ]]; then
+  if out=$(icp canister call "$1" "$2" "(principal \"$3\")" -e "$ENV" 2>&1) \
+      && [[ "$(tr -s '[:space:]' ' ' <<<"$out")" == *"variant { ok"* ]]; then
     echo "    ✓ $1.$2"
   else
     echo "    ⚠️  $1.$2 failed: $out"
@@ -1166,7 +1170,9 @@ if [ "$ENV" = "ic" ]; then
   icp canister call report setAttestationKeyName '("key_1")' -e "$ENV" >/dev/null \
     || { echo "❌ could not set the signing key on report"; exit 1; }
 fi
-if out=$(icp canister call report refreshAttestationKey -e "$ENV" 2>&1) && [[ "$out" == *"variant { ok"* ]]; then
+# icp prints a result with a value over several lines; squeeze it to one.
+if out=$(icp canister call report refreshAttestationKey '()' -e "$ENV" 2>&1) \
+    && [[ "$(tr -s '[:space:]' ' ' <<<"$out")" == *"variant { ok"* ]]; then
   echo "  ✓ report signing key published"
 else
   echo "  ⚠️  report.refreshAttestationKey failed (records still get signed): $out"
