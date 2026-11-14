@@ -1355,12 +1355,8 @@ if [ "$ENV" != "local" ]; then
   fi
 fi
 
-if [ -n "${CYCLES_TOPUP_FAILED:-}" ]; then
-  echo ""
-  echo "❌ Deployed, but cycle top-up failed for:${CYCLES_TOPUP_FAILED}"
-  echo "   Fund the deploy identity's cycles ledger and run: ICP_ENV=$ENV bash scripts/top-up-canisters.sh"
-  exit 1
-fi
+# A failed top-up is a warning: everything above is deployed (see cycles.sh).
+cycles_report_topup_failures "$ENV" "${CYCLES_TOPUP_FAILED:-}"
 
 echo ""
 echo "✅ Deployment complete!"

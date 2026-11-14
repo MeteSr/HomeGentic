@@ -12,8 +12,8 @@
 # On any other network, every canister in $CANISTERS gets its live balance
 # read via `icp canister status` and topped up via `icp canister top-up` when
 # it's inside the top-up margin from scripts/lib/cycles.sh. A failed top-up
-# sets CYCLES_TOPUP_FAILED, which deploy.sh turns into a failed deploy at the
-# end (after the rest of the deploy has run).
+# sets CYCLES_TOPUP_FAILED, which deploy.sh reports as a warning at the end
+# (cycles_report_topup_failures in cycles.sh); the deploy itself still passes.
 
 source "$(dirname "${BASH_SOURCE[0]}")/cycles.sh"
 

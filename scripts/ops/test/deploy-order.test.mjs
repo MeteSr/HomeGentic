@@ -208,3 +208,51 @@ test("deploy.sh reads a multi-line ok from report.refreshAttestationKey as succe
   const res = spawnSync("bash", ["-c", script], { encoding: "utf8" });
   assert.match(res.stdout, /✓ report signing key published/, res.stdout + res.stderr);
 });
+
+// A deploy whose canisters all upgraded must not fail because a top-up did:
+// a failed run skips the smoke test and the testnet-*/mainnet-* tag (so the
+// next upgrade gate compares against an older build) and the relay deploy
+// that waits for a successful Deploy Testnet. The 2026-10-24 testnet run
+// upgraded everything, then failed here. The low canisters are still named,
+// as a GitHub warning and in the run summary.
+function reportTopups(failed, { githubActions = true } = {}) {
+  const dir = mkdtempSync(join(tmpdir(), "hg-topup-report-"));
+  const summary = join(dir, "summary.md");
+  writeFileSync(summary, "");
+  const r = spawnSync(
+    "bash",
+    ["-c", 'source "$1"; cycles_report_topup_failures testnet "$2"; echo "rc=$?"', "_", join(ROOT, "scripts/lib/cycles.sh"), failed],
+    {
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_ACTIONS: githubActions ? "true" : "", GITHUB_STEP_SUMMARY: githubActions ? summary : "" },
+    },
+  );
+  return { ...r, summary: readFileSync(summary, "utf8") };
+}
+
+test("a failed cycle top-up is reported as a warning naming the canisters, not an error", () => {
+  const r = reportTopups(" payment photo");
+  assert.match(r.stdout, /rc=0/);
+  assert.match(r.stdout, /::warning[^\n]*payment photo/);
+  assert.match(r.stdout, /ICP_ENV=testnet bash scripts\/top-up-canisters\.sh/);
+  assert.match(r.summary, /payment photo/);
+});
+
+test("no top-up failures prints nothing", () => {
+  const r = reportTopups("");
+  assert.equal(r.stdout.trim(), "rc=0");
+  assert.equal(r.summary, "");
+});
+
+test("outside GitHub Actions the top-up warning is plain text", () => {
+  const r = reportTopups(" fee", { githubActions: false });
+  assert.match(r.stdout, /rc=0/);
+  assert.doesNotMatch(r.stdout, /::warning/);
+  assert.match(r.stdout, /fee/);
+});
+
+test("deploy.sh reports top-up failures without failing the deploy", () => {
+  const sh = read("scripts/deploy.sh");
+  assert.match(sh, /cycles_report_topup_failures "\$ENV" "\$\{CYCLES_TOPUP_FAILED:-\}"/);
+  assert.doesNotMatch(sh, /CYCLES_TOPUP_FAILED[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*exit 1/);
+});
