@@ -310,6 +310,21 @@ describe("PROMPT.14 — query_home_records guidance", () => {
   });
 });
 
+// ── PROMPT.16 — get_home_checkup ─────────────────────────────────────────────
+
+describe("PROMPT.16 — get_home_checkup guidance", () => {
+  const prompt = buildSystemPrompt(base);
+  it("points saved-paperwork, inspection, set-aside and recall questions at the tool", () => {
+    expect(prompt).toMatch(/get_home_checkup/);
+    expect(prompt).toMatch(/get_home_checkup[^\n]*(paperwork|documents)/i);
+    expect(prompt).toMatch(/get_home_checkup[^\n]*recall/i);
+  });
+  it("never claims to have read a document or confirmed a recall", () => {
+    expect(prompt).toMatch(/never say what a (saved )?document says/i);
+    expect(prompt).toMatch(/possible recall/i);
+  });
+});
+
 // ── PROMPT.15 — multi-step tasks ─────────────────────────────────────────────
 
 describe("PROMPT.15 — multi-step tasks", () => {

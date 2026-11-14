@@ -141,6 +141,8 @@ export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
   "get_price_benchmark",
   // OQL reads over job, bills and property; the canisters scope the rows.
   "query_home_records",
+  // Document names, inspection readiness, reserve target, recall check; reads only.
+  "get_home_checkup",
   // Gathers one home's facts for a multi-step task; reads only.
   "prepare_home_task",
 ]);

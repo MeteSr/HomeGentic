@@ -9,6 +9,12 @@ const SERVICE_TYPES = [
   "Bathroom Remodel", "Other",
 ];
 
+/** Kinds of paper in the document vault — frontend/src/services/documentVault.ts (DOC_TYPES). */
+const DOC_TYPES = [
+  "Receipt", "Invoice", "Permit", "Inspection", "Warranty", "LienWaiver", "NOC", "Deed",
+  "Closing", "Title", "Survey", "Insurance", "Elevation", "HOA", "Manual", "Other",
+];
+
 /**
  * Tool schemas exposed to the AI agent for agentic HomeGentic interactions.
  *
@@ -54,6 +60,30 @@ OQL keys: start (required), where (eq, ne, lt, le, gt, ge, in, contains, icontai
         },
       },
       required: ["source"],
+    },
+  },
+  // ── Checks the app's own pages already work out (frontend/src/services/homeCheckups.ts) ──
+  {
+    name: "get_home_checkup",
+    description: `One of the app's own checks for one home. Read-only: it only reads and changes nothing.
+
+Checks:
+- documents: the papers saved in the home's document vault, as file names, kinds and dates, not their contents. Use it for "do I have the roof warranty / the permit / the survey saved?". Pass doc_type to narrow it.
+- inspection_readiness: Florida homes only. What a 4-point and a wind mitigation inspector look at, next to what the record shows. It doesn't predict whether a carrier will insure the home or what it will charge.
+- reserve: what to set aside each month for replacements the forecast puts within five years, and what was spent this year. An estimate, not a quote and not financial advice.
+- recalls: appliances with a brand and model checked against U.S. CPSC recall notices. A match is a possible recall, not a confirmed one; give the notice link so the owner can compare models.`,
+    parameters: {
+      type: "object" as const,
+      properties: {
+        check: { type: "string", enum: ["documents", "inspection_readiness", "reserve", "recalls"], description: "Which check" },
+        property_id: { type: "string", description: "The [ID: ...] of the home, from the property list" },
+        doc_type: {
+          type: "string",
+          enum: DOC_TYPES,
+          description: "documents only: one kind of paper",
+        },
+      },
+      required: ["check", "property_id"],
     },
   },
   // ── Multi-step tasks (frontend/src/services/assistantPlan.ts) ──────────────

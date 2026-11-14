@@ -288,3 +288,30 @@ describe("get_price_benchmark — service types", () => {
     expect(priced).toEqual(all);
   });
 });
+
+// ── get_home_checkup: what the app's own pages already work out ──────────────
+
+describe("get_home_checkup — read-only checks for one home", () => {
+  it("needs the check and the home", () => {
+    expect(getRequired("get_home_checkup")).toEqual(["check", "property_id"]);
+  });
+
+  it("offers documents, inspection readiness, reserve and recalls", () => {
+    expect(getProperties("get_home_checkup").check.enum).toEqual(["documents", "inspection_readiness", "reserve", "recalls"]);
+  });
+
+  it("can narrow documents to one kind of paper", () => {
+    const kinds = getProperties("get_home_checkup").doc_type.enum;
+    expect(kinds).toContain("Warranty");
+    expect(kinds).toContain("Permit");
+    expect(kinds).toHaveLength(16);
+  });
+
+  it("says it is read-only, lists names not contents, and keeps the pages' caveats", () => {
+    const desc = getTool("get_home_checkup").description;
+    expect(desc).toMatch(/read-only/i);
+    expect(desc).toMatch(/names.*not (their|the) contents/i);
+    expect(desc).toMatch(/possible recall/i);
+    expect(desc).toMatch(/Florida/);
+  });
+});
