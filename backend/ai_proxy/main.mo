@@ -155,8 +155,8 @@ persistent actor AiProxy {
 
   // ── Price benchmark seed data ──────────────────────────────────────────────
   // Fixed typical U.S. ranges (cents). They are not local and not bids: the
-  // frontend labels them as national and prefers quote.getLocalPriceStats
-  // once an area has enough accepted quotes.
+  // frontend labels them as national and prefers job.getVerifiedLocalCosts
+  // once an area has enough homes sharing their finished job costs.
 
   type BenchmarkSeed = { low: Nat; median: Nat; high: Nat };
 

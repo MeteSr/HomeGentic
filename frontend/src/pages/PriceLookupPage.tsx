@@ -3,7 +3,7 @@
  * Route: /prices?service=Roofing&zip=32114 (no login required)
  *
  * Shows benchmark range with confidence indicator.
- * §17.1.5 — "Not enough data" message when sampleSize < 5.
+ * §17.1.5 — "Not enough data" message when fewer than 5 homes share.
  */
 
 import { useEffect, useState } from "react";
@@ -55,7 +55,7 @@ function SearchForm({ defaultService = "", defaultZip = "" }: { defaultService?:
           Home repair cost lookup
         </h1>
         <p style={{ fontFamily: F.body, fontSize: "0.9375rem", color: C.muted, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
-          See what a job usually costs before you hire. Where enough homeowners near you have accepted quotes on HomeGentic, we show those prices; otherwise you get the typical U.S. range.
+          See what a job usually costs before you hire. Where enough homes near you share their costs, we show prices from finished jobs that nearby owners chose to share, each signed off by the owner and a HomeGentic-verified contractor. Otherwise you get the typical U.S. range.
         </p>
 
         <div style={{ background: C.white, border: `1.5px solid ${C.border}`, borderRadius: "24px", padding: "2rem", boxShadow: "0 4px 18px rgba(43,52,255,0.08)", display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -159,7 +159,7 @@ function BenchmarkResult({ result, service, zip }: { result: PriceBenchmarkResul
           {/* Price range */}
           <div style={{ padding: "2rem", background: C.blueFg, borderBottom: `1px solid ${C.border}` }}>
             <p style={{ fontFamily: F.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: "0.75rem" }}>
-              {result.source === "local" ? "Accepted quotes near you" : "Typical U.S. range"}
+              {result.source === "local" ? "Verified costs near you" : "Typical U.S. range"}
             </p>
             <div style={{ display: "flex", alignItems: "baseline", gap: "0.625rem" }}>
               <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.25rem", color: C.ink }}>{fmt(result.low)}</span>
@@ -176,7 +176,7 @@ function BenchmarkResult({ result, service, zip }: { result: PriceBenchmarkResul
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontFamily: F.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: C.muted }}>SOURCE</span>
               <span style={{ fontFamily: F.mono, fontSize: "0.75rem", color: C.muted }}>
-                {result.source === "local" ? `${result.sampleSize} accepted quotes · ${result.area ?? zip}` : "U.S. typical range"}
+                {result.source === "local" ? `${result.sampleSize}+ homes · ${result.area ?? zip}` : "U.S. typical range"}
               </span>
             </div>
             <p style={{ fontFamily: F.body, fontSize: "0.8rem", color: C.muted, lineHeight: 1.6, fontWeight: 300, margin: 0 }}>

@@ -1492,6 +1492,15 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "opt record {token:text; version:text; updatedAt:int; eventCount:nat}",
     ],
   },
+  "getMyCostSharing": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec text",
+    ],
+  },
   "getMyEmailDrafts": {
     "args": [],
     "mode": [
@@ -1542,6 +1551,18 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec text",
+    ],
+  },
+  "getVerifiedLocalCosts": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {low:nat; homes:nat; area:text; high:nat; median:nat}",
     ],
   },
   "linkContractor": {
@@ -1647,6 +1668,16 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "text",
+    ],
+  },
+  "setCostSharing": {
+    "args": [
+      "text",
+      "bool",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
     ],
   },
   "setFeeCanisterId": {

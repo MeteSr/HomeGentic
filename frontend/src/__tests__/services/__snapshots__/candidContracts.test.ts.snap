@@ -127,12 +127,14 @@ getJobSnapshotsForProperty(1) -> (1) [query]
 getJobsPendingMySignature(0) -> (1) [query]
 getMetrics(0) -> (1) [query]
 getMyCalendarFeed(0) -> (1) [query]
+getMyCostSharing(0) -> (1) [query]
 getMyEmailDrafts(0) -> (1) [query]
 getMyInboxToken(0) -> (1)
 getMyReferralJobs(0) -> (1) [query]
 getPendingProposals(0) -> (1) [query]
 getReferralJobs(0) -> (1)
 getUnattestedJobIds(1) -> (1) [query]
+getVerifiedLocalCosts(2) -> (1) [query]
 linkContractor(2) -> (1)
 publishMyCalendarEvents(2) -> (1)
 redeemInviteToken(5) -> (1)
@@ -144,6 +146,7 @@ removeJobPaper(2) -> (1)
 resetMyCalendarFeed(0) -> (1)
 resetMyInboxToken(0) -> (1)
 schema(0) -> (1) [query]
+setCostSharing(2) -> (1)
 setFeeCanisterId(1) -> (1)
 setJobCostCategory(2) -> (1)
 setPermitStatus(2) -> (1)

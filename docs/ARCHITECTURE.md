@@ -549,7 +549,7 @@ Kit calls the voice Worker's `/api/buyers-truth-kit`.
 | `/homes`, `/for-sale/:id`  | Public FSBO listings                                            |
 | `/home-systems`            | System Age Estimator — year built → urgency table for 9 systems |
 | `/instant-forecast`        | Instant Forecast — address + year built → 10-yr maintenance budget, per-system override inputs |
-| `/prices`                  | Price Intelligence — contractor cost benchmarks by service + zip |
+| `/prices`                  | Price Intelligence — verified local costs by service + zip (finished, dual-signed jobs owners chose to share; job canister), else the national range |
 
 `/neighborhood/:zipCode` (Neighborhood Health Index) is implemented but not
 routed at the moment.

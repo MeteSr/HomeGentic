@@ -236,12 +236,26 @@ export interface _SERVICE {
     }
   >;
   getMyCalendarFeed: ActorMethod<[], [] | [CalendarFeedStatus]>;
+  getMyCostSharing: ActorMethod<[], string[]>;
   getMyEmailDrafts: ActorMethod<[], EmailDraft[]>;
   getMyInboxToken: ActorMethod<[], TextResult>;
   getMyReferralJobs: ActorMethod<[], Job[]>;
   getPendingProposals: ActorMethod<[], Job[]>;
   getReferralJobs: ActorMethod<[], { ok: Job[] } | { err: Error }>;
   getUnattestedJobIds: ActorMethod<[string], string[]>;
+  getVerifiedLocalCosts: ActorMethod<
+    [string, string],
+    | []
+    | [
+        {
+          low: bigint;
+          homes: bigint;
+          area: string;
+          high: bigint;
+          median: bigint;
+        },
+      ]
+  >;
   linkContractor: ActorMethod<[string, Principal], { ok: Job } | { err: Error }>;
   publishMyCalendarEvents: ActorMethod<[string, CalendarEvent[]], { ok: bigint } | { err: Error }>;
   redeemInviteToken: ActorMethod<[string, string, string, string, [] | [string]], { ok: Job } | { err: Error }>;
@@ -253,6 +267,7 @@ export interface _SERVICE {
   resetMyCalendarFeed: ActorMethod<[], TextResult>;
   resetMyInboxToken: ActorMethod<[], TextResult>;
   schema: ActorMethod<[], string>;
+  setCostSharing: ActorMethod<[string, boolean], { ok: null } | { err: Error }>;
   setFeeCanisterId: ActorMethod<[string], { ok: null } | { err: Error }>;
   setJobCostCategory: ActorMethod<[string, [] | [CostCategory]], { ok: null } | { err: Error }>;
   setPermitStatus: ActorMethod<[string, [] | [PermitStatus]], { ok: null } | { err: Error }>;

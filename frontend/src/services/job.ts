@@ -85,6 +85,14 @@ function e2eCloseout(list: JobCloseout[], jobId: string): JobCloseout {
   return c;
 }
 
+/** E2E: window.__e2e_cost_sharing = propertyId[] stands in for the canister's sharing
+ *  switches; with no job canister (local mock mode) an in-memory list does. */
+const devCostSharing: string[] = [];
+function mockCostSharing(): string[] | undefined {
+  if (typeof window !== "undefined" && (window as any).__e2e_cost_sharing) return (window as any).__e2e_cost_sharing;
+  return JOB_CANISTER_ID ? undefined : devCostSharing;
+}
+
 /** E2E: window.__e2e_job_cost_categories = { [jobId]: CostCategory } stands in for the canister's marks. */
 function e2eCostCategories(): Record<string, CostCategory> | undefined {
   return typeof window !== "undefined" ? (window as any).__e2e_job_cost_categories : undefined;
@@ -293,6 +301,28 @@ function createJobService() {
       updates.isDiy,
     );
     return unwrapJob(result);
+  },
+
+  /** Verified local costs: ids of the caller's homes that share their finished job costs. */
+  async getMyCostSharing(): Promise<string[]> {
+    const mock = mockCostSharing();
+    if (mock) return [...mock];
+    const a = await getActor();
+    return a.getMyCostSharing();
+  },
+
+  /** Verified local costs: turn sharing of one home's finished job costs on or off (owner only). */
+  async setCostSharing(propertyId: string, share: boolean): Promise<void> {
+    const mock = mockCostSharing();
+    if (mock) {
+      const i = mock.indexOf(propertyId);
+      if (share && i < 0) mock.push(propertyId);
+      if (!share && i >= 0) mock.splice(i, 1);
+      return;
+    }
+    const a = await getActor();
+    const result = await a.setCostSharing(propertyId, share);
+    if ("err" in result) throw canisterError(result.err);
   },
 
   /** #713: improvement/repair marks for the jobs of these properties, by job id. Unmarked jobs are left out. */

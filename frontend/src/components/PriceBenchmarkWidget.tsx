@@ -1,6 +1,6 @@
 /**
  * §17.1.3 — Inline price benchmark widget for quote request page.
- * §17.1.5 — Hidden when a local range has fewer than 5 accepted quotes.
+ * §17.1.5 — Hidden when a local range has fewer than 5 sharing homes.
  */
 
 import { useEffect, useState } from "react";

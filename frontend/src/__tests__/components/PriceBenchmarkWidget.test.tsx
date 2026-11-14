@@ -57,22 +57,22 @@ describe("PriceBenchmarkWidget — insufficient samples", () => {
 
 describe("PriceBenchmarkWidget — sufficient samples", () => {
   it("shows the formatted range, median, sample size, and zip code", async () => {
-    mockGetPriceBenchmark.mockResolvedValue(makeResult({ low: 25000, median: 40000, high: 60000, sampleSize: 12, zipCode: "78701", area: "78701" }));
+    mockGetPriceBenchmark.mockResolvedValue(makeResult({ low: 25000, median: 40000, high: 60000, sampleSize: 10, zipCode: "78701", area: "78701" }));
     render(<PriceBenchmarkWidget serviceType="HVAC" zipCode="78701" />);
 
     expect(await screen.findByText("Typical cost in 78701")).toBeInTheDocument();
     expect(screen.getByText("$250")).toBeInTheDocument();
     expect(screen.getByText("$600")).toBeInTheDocument();
     expect(screen.getByText("median $400")).toBeInTheDocument();
-    expect(screen.getByText(/Based on 12 quotes homeowners accepted on HomeGentic in 78701/)).toBeInTheDocument();
+    expect(screen.getByText(/From finished jobs at 10\+ homes in 78701 in the last 2 years/)).toBeInTheDocument();
   });
 
-  it("labels a national range as national, not local bids", async () => {
+  it("labels a national range as national, not local prices", async () => {
     mockGetPriceBenchmark.mockResolvedValue(makeResult({ source: "national", sampleSize: 0 }));
     render(<PriceBenchmarkWidget serviceType="HVAC" zipCode="78701" />);
 
     expect(await screen.findByText("Typical U.S. cost")).toBeInTheDocument();
-    expect(screen.getByText(/not local bids/)).toBeInTheDocument();
+    expect(screen.getByText(/not local prices/)).toBeInTheDocument();
     expect(screen.queryByText(/78701/)).toBeNull();
   });
 });

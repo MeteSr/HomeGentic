@@ -65,14 +65,14 @@ describe("buildSystemAnswer", () => {
   it("composes local prices, the owner's bill trend and the pro count", () => {
     const a = buildSystemAnswer(answerInput({
       system: { ...WATER_HEATER, installYear: 2012 },
-      benchmark: { serviceType: "Plumbing", zipCode: "78701", low: 150_000, median: 240_000, high: 380_000, sampleSize: 12, source: "local" },
+      benchmark: { serviceType: "Plumbing", zipCode: "78701", low: 150_000, median: 240_000, high: 380_000, sampleSize: 10, source: "local" },
       billInsights: [{ type: "yoy", key: "utility:Gas", changePct: 18, recentCents: 1, priorCents: 1, months: 9 }],
       hasBills: true,
       proCount: 7,
     }));
     const byLabel = Object.fromEntries(a.facts.map((f) => [f.label, f]));
     expect(byLabel["Local prices"]).toMatchObject({ value: "$1,500–$3,800" });
-    expect(byLabel["Local prices"].detail).toBe("12 accepted Plumbing quotes near 78701, median $2,400");
+    expect(byLabel["Local prices"].detail).toBe("Finished Plumbing jobs at 10+ nearby homes in 78701, median $2,400");
     expect(byLabel["Your bills"]).toMatchObject({ value: "Gas up 18%", tone: "warn" });
     expect(byLabel["Pros"]).toMatchObject({ value: "7" });
     expect(a.installYearAssumed).toBe(false);

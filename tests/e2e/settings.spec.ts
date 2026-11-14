@@ -83,6 +83,22 @@ test.describe("SettingsPage — /settings", () => {
     await expect(page.getByRole("switch", { name: "Public HomeGentic Report" })).toHaveAttribute("aria-checked", "false");
   });
 
+  test("Share job costs has a switch per owned home that keeps its new value", async ({ page }) => {
+    await page.evaluate(() => { (window as any).__e2e_cost_sharing = []; });
+    await page.getByRole("button", { name: /privacy/i }).click();
+    await expect(page.getByText("Share job costs")).toBeVisible();
+    await expect(page.getByText(/at least 5 homes and 3 contractors nearby share/)).toBeVisible();
+    const sw = page.getByRole("switch", { name: /^Share costs: / }).first();
+    await expect(sw).toBeEnabled();
+    await expect(sw).toHaveAttribute("aria-checked", "false");
+    await sw.click();
+    await expect(sw).toHaveAttribute("aria-checked", "true");
+    // Leave the tab and come back: the value is re-read from the service.
+    await page.getByRole("button", { name: /account/i }).first().click();
+    await page.getByRole("button", { name: /privacy/i }).click();
+    await expect(page.getByRole("switch", { name: /^Share costs: / }).first()).toHaveAttribute("aria-checked", "true");
+  });
+
   test("Delete My Account needs the confirmation word before it can run", async ({ page }) => {
     await page.getByRole("button", { name: /privacy/i }).click();
     await page.getByRole("button", { name: /delete my account/i }).click();
