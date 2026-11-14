@@ -12,6 +12,18 @@ export type Error =
   | { RateLimited: null }
   | { Unavailable: string };
 
+export type OqlResult = {
+  hasMore: boolean;
+  rows: Array<OqlCell[]>;
+};
+
+export type OqlCell = {
+  value: OqlCellValue;
+  name: string;
+};
+
+export type OqlCellValue = { int: bigint } | { float: number } | { bool: boolean } | { null: null } | { text: string };
+
 export type SensorDevice = {
   id: string;
   externalDeviceId: string;
@@ -78,6 +90,7 @@ export type SensorEventType =
 export interface _SERVICE {
   deactivateDevice: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
+  execute: ActorMethod<[string], OqlResult>;
   getDevicesForProperty: ActorMethod<[string], SensorDevice[]>;
   getEventsForProperty: ActorMethod<[string, bigint], SensorEvent[]>;
   getPendingAlerts: ActorMethod<[string], SensorEvent[]>;
@@ -92,5 +105,6 @@ export interface _SERVICE {
     [Principal, string, string, DeviceSource, string, string],
     { ok: SensorDevice } | { err: Error }
   >;
+  schema: ActorMethod<[], string>;
   setVerifiedOnlySources: ActorMethod<[DeviceSource[]], { ok: null } | { err: Error }>;
 }

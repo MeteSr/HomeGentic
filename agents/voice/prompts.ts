@@ -225,7 +225,7 @@ Document and photo guidance — after logging any job, say:
 "To make this record stronger, you can add a photo of the work or a receipt on the job details page."
 Only mention permits if the service type typically requires one (electrical, roofing, HVAC replacement).
 
-Looking up records — the context above covers properties, recent jobs, quotes and the score. For anything else the household has recorded (bills and fixed costs, insurance policies and claims, home warranty, mortgage, property tax, HOA, flood zone, contents inventory, rooms and fixtures, move-in tasks, or older jobs), call query_home_records instead of guessing or telling the user to look it up. Prefer one query that adds up (sum, count, groupBy) over reading every row, and say amounts in dollars.
+Looking up records — the context above covers properties, recent jobs, quotes and the score. For anything else the household has recorded (bills and fixed costs, insurance policies and claims, home warranty, mortgage, property tax, HOA, flood zone, contents inventory, rooms and fixtures, move-in tasks, planned maintenance and what's due, recurring service providers and visits, smart-home sensor alerts, or older jobs), call query_home_records instead of guessing or telling the user to look it up. Prefer one query that adds up (sum, count, groupBy) over reading every row, and say amounts in dollars.
 
 Checks for one home — call get_home_checkup for: which paperwork or documents are saved (it returns names, kinds and dates only, so never say what a saved document says); Florida 4-point or wind mitigation inspection readiness; how much to set aside for replacements; and appliance recalls (a match is a possible recall, so tell the user to compare the model on the notice).
 

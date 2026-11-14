@@ -1,13 +1,14 @@
 /**
  * query_home_records: the in-app assistant's one generic read tool
  * (audits/icp-aiware-2026-11-10.md). It reads through OQL `schema()` and
- * `execute(oql)` on the job, bills and property canisters, so records added
+ * `execute(oql)` on the job, bills, property, maintenance, recurring and
+ * sensor canisters, so records added
  * to those catalogues reach the assistant without a hand-written tool each.
  *
  * It runs in the browser under the signed-in user's own identity, like every
  * agent tool, so the canisters' access checks decide which homes and rows come
  * back. This module only shapes the call and limits what reaches the model:
- *  - three sources only; anything else never reaches a canister
+ *  - the listed sources only; anything else never reaches a canister
  *  - at most MAX_ROWS rows a call, and at most MAX_RESULT_CHARS of JSON
  *  - every result carries a note that its text is data, not instructions
  *    (rows hold text other people wrote: contractor names, notes, adjusters)
@@ -21,8 +22,14 @@ import { idlFactory as propertyIdl } from "@homegentic/shared/declarations/prope
 import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
 import type { _SERVICE as BillsCanister } from "@homegentic/shared/types/bills";
 import type { _SERVICE as PropertyCanister } from "@homegentic/shared/types/property";
+import { idlFactory as maintenanceIdl } from "@homegentic/shared/declarations/maintenance";
+import { idlFactory as recurringIdl } from "@homegentic/shared/declarations/recurring";
+import { idlFactory as sensorIdl } from "@homegentic/shared/declarations/sensor";
+import type { _SERVICE as MaintenanceCanister } from "@homegentic/shared/types/maintenance";
+import type { _SERVICE as RecurringCanister } from "@homegentic/shared/types/recurring";
+import type { _SERVICE as SensorCanister } from "@homegentic/shared/types/sensor";
 
-export const HOME_RECORD_SOURCES = ["job", "bills", "property"] as const;
+export const HOME_RECORD_SOURCES = ["job", "bills", "property", "maintenance", "recurring", "sensor"] as const;
 export type HomeRecordSource = (typeof HOME_RECORD_SOURCES)[number];
 
 /** Most rows one call returns (the canisters allow 200). */
@@ -39,10 +46,16 @@ type OqlActor = Pick<JobCanister, "schema" | "execute">;
 const JOB_CANISTER_ID = (process.env as any).JOB_CANISTER_ID || "";
 const BILLS_CANISTER_ID = (process.env as any).BILLS_CANISTER_ID || "";
 const PROPERTY_CANISTER_ID = (process.env as any).PROPERTY_CANISTER_ID || "";
+const MAINTENANCE_CANISTER_ID = (process.env as any).MAINTENANCE_CANISTER_ID || "";
+const RECURRING_CANISTER_ID = (process.env as any).RECURRING_CANISTER_ID || "";
+const SENSOR_CANISTER_ID = (process.env as any).SENSOR_CANISTER_ID || "";
 const actors: Record<HomeRecordSource, () => Promise<OqlActor>> = {
   job: lazyActor<JobCanister>(jobIdl, JOB_CANISTER_ID),
   bills: lazyActor<BillsCanister>(billsIdl, BILLS_CANISTER_ID),
   property: lazyActor<PropertyCanister>(propertyIdl, PROPERTY_CANISTER_ID),
+  maintenance: lazyActor<MaintenanceCanister>(maintenanceIdl, MAINTENANCE_CANISTER_ID),
+  recurring: lazyActor<RecurringCanister>(recurringIdl, RECURRING_CANISTER_ID),
+  sensor: lazyActor<SensorCanister>(sensorIdl, SENSOR_CANISTER_ID),
 };
 
 export interface HomeRecordsInput {
@@ -107,7 +120,7 @@ function parseQuery(q: unknown): Record<string, unknown> | string {
 
 export async function queryHomeRecords(input: HomeRecordsInput): Promise<HomeRecordsResult> {
   const source = input.source as HomeRecordSource;
-  if (!HOME_RECORD_SOURCES.includes(source)) return fail("source must be job, bills or property");
+  if (!HOME_RECORD_SOURCES.includes(source)) return fail("source must be job, bills, property, maintenance, recurring or sensor");
 
   // ── Run a query ───────────────────────────────────────────────────────────
   if (input.query !== undefined && input.query !== null) {

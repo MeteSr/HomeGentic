@@ -56,6 +56,18 @@ export type Frequency =
   | { SemiAnnually: null }
   | { Annually: null };
 
+export type OqlResult = {
+  hasMore: boolean;
+  rows: Array<OqlCell[]>;
+};
+
+export type OqlCell = {
+  value: OqlCellValue;
+  name: string;
+};
+
+export type OqlCellValue = { int: bigint } | { float: number } | { bool: boolean } | { null: null } | { text: string };
+
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
   addVisitLog: ActorMethod<[string, string, [] | [string]], { ok: VisitLog } | { err: Error }>;
@@ -75,6 +87,7 @@ export interface _SERVICE {
     { ok: RecurringService } | { err: Error }
   >;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
+  execute: ActorMethod<[string], OqlResult>;
   getApiDoc: ActorMethod<[], string>;
   getByProperty: ActorMethod<[string], RecurringService[]>;
   getMetrics: ActorMethod<
@@ -96,5 +109,6 @@ export interface _SERVICE {
     }
   >;
   getVisitLogs: ActorMethod<[string], VisitLog[]>;
+  schema: ActorMethod<[], string>;
   updateStatus: ActorMethod<[string, ServiceStatus], { ok: RecurringService } | { err: Error }>;
 }

@@ -2450,6 +2450,17 @@ exports[`maintenance IDL factory > full signature snapshot 1`] = `
       "variant {ok:nat; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
     ],
   },
+  "execute": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "composite_query",
+    ],
+    "rets": [
+      "record {hasMore:bool; rows:vec vec record {value:variant {int:int; float:float64; bool:bool; null; text:text}; name:text}}",
+    ],
+  },
   "getApiDoc": {
     "args": [],
     "mode": [
@@ -2486,6 +2497,15 @@ exports[`maintenance IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; plannedYear:nat; isCompleted:bool; plannedMonth:opt nat; createdAt:int; createdBy:principal; taskDescription:text; propertyId:text; estimatedCostCents:opt nat; systemName:text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
+    ],
+  },
+  "schema": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
     ],
   },
 }
@@ -4820,6 +4840,17 @@ exports[`sensor IDL factory > full signature snapshot 1`] = `
       "variant {ok:nat; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimited; Unavailable:text}}",
     ],
   },
+  "execute": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "composite_query",
+    ],
+    "rets": [
+      "record {hasMore:bool; rows:vec vec record {value:variant {int:int; float:float64; bool:bool; null; text:text}; name:text}}",
+    ],
+  },
   "getDevicesForProperty": {
     "args": [
       "text",
@@ -4911,6 +4942,15 @@ exports[`sensor IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; externalDeviceId:text; source:variant {Sense; GESmartHQ; Nest; HomeAssistant; MoenFlo; SolarEdge; LGThinQ; TeslaPowerwall; HoneywellHome; SmartThings; EnphaseEnvoy; RheemEcoNet; RingAlarm; Ecobee; Rachio; Manual; EmporiaVue}; name:text; propertyId:text; isActive:bool; homeowner:principal; registeredAt:int}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimited; Unavailable:text}}",
+    ],
+  },
+  "schema": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "text",
     ],
   },
   "setVerifiedOnlySources": {

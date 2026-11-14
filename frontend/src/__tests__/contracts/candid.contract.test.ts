@@ -897,6 +897,7 @@ describe("sensor IDL factory", () => {
     expect(Object.keys(svc).sort()).toEqual([
       "deactivateDevice",
       "deleteMyData",
+      "execute",
       "getDevicesForProperty",
       "getEventsForProperty",
       "getPendingAlerts",
@@ -905,6 +906,7 @@ describe("sensor IDL factory", () => {
       "recordEventFor",
       "registerDevice",
       "registerVerifiedDevice",
+      "schema",
       "setVerifiedOnlySources",
     ]);
   });
@@ -918,7 +920,8 @@ describe("sensor IDL factory", () => {
     // getEventsForProperty and getPendingAlerts use msg.caller (M-07 ownership check)
     // so they are update calls, not queries. getDevicesForProperty is a
     // composite query (M9: live property-role check against the property canister).
-    expect(queries).toEqual(["getVerifiedOnlySources"]);
+    expect(queries).toEqual(["getVerifiedOnlySources", "schema"]);
+    expect(svc.execute.mode).toEqual(["composite_query"]);
     expect(svc.getDevicesForProperty.mode).toEqual(["composite_query"]);
   });
 
@@ -946,10 +949,12 @@ describe("maintenance IDL factory", () => {
     expect(Object.keys(svc).sort()).toEqual([
       "createScheduleEntry",
       "deleteMyData",
+      "execute",
       "getApiDoc",
       "getScheduleByProperty",
       "getScheduleForProperties",
       "markCompleted",
+      "schema",
     ]);
   });
 

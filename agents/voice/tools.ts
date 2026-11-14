@@ -22,7 +22,7 @@ const DOC_TYPES = [
  * converts these to the Anthropic wire format before sending to the API.
  *
  * Most reads come from context injection. query_home_records is the one
- * generic read tool (OQL over job, bills and property) for records the context
+ * generic read tool (OQL over job, bills, property, maintenance, recurring and sensor) for records the context
  * doesn't carry. Every tool executes in the browser under the authenticated
  * user's ICP identity; anything not read-only asks the user first
  * (READ_ONLY_TOOLS in frontend/src/hooks/useVoiceAgent.ts).
@@ -36,8 +36,11 @@ Sources:
 - job: the maintenance record (jobs: work done, cost, dates, permits, warranties, improvement or repair marks)
 - bills: utility bills (with usage and the >20% jump flag) and fixed recurring costs (mortgage payment, tax, HOA, insurance)
 - property: homes, rooms, fixtures, insurance policies and claims, contents inventory, home warranty plans and claims, mortgages, property tax years, HOA assessments and reviews, flood zones, move-in tasks
+- maintenance: planned maintenance tasks (what the household planned for which month, cost estimate, done or not)
+- recurring: recurring services (lawn, pest, pool: provider, frequency, last visit logged, next visit estimate) and their visit logs. The next visit is an estimate, not an appointment
+- sensor: smart-home devices and the alerts they reported (leaks, HVAC faults, humidity), newest 1,000 per home. A reading is what the device reported, not a diagnosis
 
-Use it for questions the context above doesn't answer (spend since a date, which bills jumped, when insurance renews, what the inventory is worth). Steps:
+Use it for questions the context above doesn't answer (spend since a date, which bills jumped, when insurance renews, what the inventory is worth, what's planned this month, when a service is next due, any leak alerts this week). Steps:
 1. Call with only source to list its entities and their field names.
 2. If a field's type or unit is unclear, call with source and entity for its fields' meanings.
 3. Call with source and query, an OQL object such as {"start":"jobs","where":{"and":[{"eq":{"field":"serviceType","value":"HVAC"}},{"ge":{"field":"completedDate","value":"2023-01-01"}}]},"aggregate":[{"fn":"sum","field":"amountCents","as":"spent"}]}.
@@ -47,7 +50,7 @@ OQL keys: start (required), where (eq, ne, lt, le, gt, ge, in, contains, icontai
       properties: {
         source: {
           type: "string",
-          enum: ["job", "bills", "property"],
+          enum: ["job", "bills", "property", "maintenance", "recurring", "sensor"],
           description: "Which records to read",
         },
         entity: {

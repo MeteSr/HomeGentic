@@ -22,6 +22,9 @@ const { actors, createActor } = vi.hoisted(() => {
   process.env.JOB_CANISTER_ID = "job-id";
   process.env.BILLS_CANISTER_ID = "bills-id";
   process.env.PROPERTY_CANISTER_ID = "property-id";
+  process.env.MAINTENANCE_CANISTER_ID = "maintenance-id";
+  process.env.RECURRING_CANISTER_ID = "recurring-id";
+  process.env.SENSOR_CANISTER_ID = "sensor-id";
   const actors: Record<string, { schema: any; execute: any }> = {};
   const createActor = (_idl: unknown, opts: { canisterId: string }) => actors[opts.canisterId];
   return { actors, createActor };
@@ -62,7 +65,7 @@ const BILLS_SCHEMA = JSON.stringify({
 const cell = (name: string, value: Record<string, unknown>) => ({ name, value });
 
 // The service caches each actor, so the same objects are reset between tests.
-for (const id of ["job-id", "bills-id", "property-id"]) actors[id] = { schema: vi.fn(), execute: vi.fn() };
+for (const id of ["job-id", "bills-id", "property-id", "maintenance-id", "recurring-id", "sensor-id"]) actors[id] = { schema: vi.fn(), execute: vi.fn() };
 beforeEach(() => {
   for (const a of Object.values(actors)) {
     a.schema.mockReset().mockResolvedValue(BILLS_SCHEMA);
@@ -86,7 +89,7 @@ describe("queryHomeRecords", () => {
     });
     expect(actors["bills-id"].schema).toHaveBeenCalledTimes(1);
     expect(actors["bills-id"].execute).not.toHaveBeenCalled();
-    expect(HOME_RECORD_SOURCES).toEqual(["job", "bills", "property"]);
+    expect(HOME_RECORD_SOURCES).toEqual(["job", "bills", "property", "maintenance", "recurring", "sensor"]);
   });
 
   it("HR.2 describes an entity's fields, and names the real entities for an unknown one", async () => {
@@ -106,7 +109,7 @@ describe("queryHomeRecords", () => {
 
   it("HR.3 refuses an unknown source or a query that isn't a JSON object, without calling a canister", async () => {
     expect((await queryHomeRecords({ source: "payment", query: { start: "x" } })).error).toMatch(
-      /job, bills or property/,
+      /job, bills, property, maintenance, recurring or sensor/,
     );
     expect((await queryHomeRecords({ source: "job", query: "not json" })).error).toMatch(/JSON object/);
     expect((await queryHomeRecords({ source: "job", query: [1, 2] })).error).toMatch(/JSON object/);
@@ -179,5 +182,27 @@ describe("queryHomeRecords", () => {
     const r2 = await queryHomeRecords({ source: "job", query: { start: "jobs" } });
     expect(r2.success).toBe(false);
     expect(r2.error).toMatch(/couldn't read/i);
+  });
+});
+
+describe("HR.7 planned tasks, recurring services and sensor alerts are sources too", () => {
+  it.each([
+    ["maintenance", "maintenance-id", "planned_tasks"],
+    ["recurring", "recurring-id", "services"],
+    ["sensor", "sensor-id", "events"],
+  ])("runs a %s query on its own canister", async (source, id, start) => {
+    actors[id].execute.mockResolvedValue({ hasMore: false, rows: [[cell("n", { int: 2n })]] });
+    const r = await queryHomeRecords({ source, query: { start, aggregate: [{ fn: "count", as: "n" }] } });
+    expect(r.success).toBe(true);
+    expect(actors[id].execute).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(actors[id].execute.mock.calls[0][0])).toMatchObject({ start, limit: MAX_ROWS });
+    expect((r.data as any).rows).toEqual([{ n: 2 }]);
+    for (const other of Object.keys(actors).filter((k) => k !== id)) expect(actors[other].execute).not.toHaveBeenCalled();
+  });
+
+  it("names every source when the source is unknown", async () => {
+    const r = await queryHomeRecords({ source: "payment" });
+    expect(r.success).toBe(false);
+    expect(r.error).toBe("source must be job, bills, property, maintenance, recurring or sensor");
   });
 });

@@ -26,6 +26,10 @@ import Admin "../shared/Admin";
 import Canisters "../shared/Canisters";
 import Inspect "../shared/Inspect";
 import Errors "../shared/Errors";
+import Runtime "mo:core/Runtime";
+import Oql "../shared/Oql";
+import Dates "../shared/Dates";
+import RecurringOql "RecurringOql";
 import ApiDoc "ApiDoc";
 
 persistent actor Recurring {
@@ -333,6 +337,127 @@ persistent actor Recurring {
         Text.compare(y.visitDate, x.visitDate)
       });
     }
+  };
+
+  // ─── OQL (schema + execute) for AI assistants ─────────────────────────────
+  // ICP MCP's query convention (shared/Oql.mo, service-discoverability skill
+  // Layer 4), and what the in-app assistant's query_home_records tool calls.
+  // Read-only. Rows follow getScheduleForProperties' rule: homes the caller
+  // has a role on; unwired (local dev), only services the caller added.
+
+  /// The OQL catalogue: entities "services" and "visits".
+  public query func schema() : async Text { Oql.schemaJson(RecurringOql.ENTITIES) };
+
+  private func optTextCell(t : ?Text) : Oql.CellValue = switch t { case (?x) #text(x); case null #null_ };
+
+  private func serviceTypeText(t : RecurringServiceType) : Text {
+    switch t {
+      case (#LawnCare) "LawnCare"; case (#PestControl) "PestControl"; case (#PoolMaintenance) "PoolMaintenance";
+      case (#GutterCleaning) "GutterCleaning"; case (#PressureWashing) "PressureWashing"; case (#Other) "Other";
+    }
+  };
+
+  /// `from` plus one interval of `f`: an estimate of the next visit.
+  private func nextAfter(from : Text, f : Frequency) : ?Text {
+    switch f {
+      case (#Weekly) Dates.addDays(from, 7);
+      case (#BiWeekly) Dates.addDays(from, 14);
+      case (#Monthly) Dates.addMonths(from, 1);
+      case (#Quarterly) Dates.addMonths(from, 3);
+      case (#SemiAnnually) Dates.addMonths(from, 6);
+      case (#Annually) Dates.addMonths(from, 12);
+    }
+  };
+
+  /// A service as a row of RecurringOql.SERVICES, in its field order.
+  private func serviceRow(s : RecurringService) : Oql.Row {
+    var count = 0;
+    var last : ?Text = null;
+    for (v in Index.records(visitsByService, s.id, visits)) {
+      count += 1;
+      switch last {
+        case (?d) { if (Text.compare(v.visitDate, d) == #greater) last := ?v.visitDate };
+        case null { last := ?v.visitDate };
+      };
+    };
+    let next : ?Text = switch (s.status) {
+      case (#Active) nextAfter(switch last { case (?d) d; case null s.startDate }, s.frequency);
+      case _ null;
+    };
+    [
+      #text(s.id),
+      #text(s.propertyId),
+      #text(serviceTypeText(s.serviceType)),
+      #text(s.providerName),
+      optTextCell(s.providerPhone),
+      #text(switch (s.frequency) {
+        case (#Weekly) "Weekly"; case (#BiWeekly) "BiWeekly"; case (#Monthly) "Monthly";
+        case (#Quarterly) "Quarterly"; case (#SemiAnnually) "SemiAnnually"; case (#Annually) "Annually";
+      }),
+      #text(s.startDate),
+      optTextCell(s.contractEndDate),
+      #text(switch (s.status) { case (#Active) "Active"; case (#Paused) "Paused"; case (#Cancelled) "Cancelled" }),
+      optTextCell(s.notes),
+      #bool(s.contractDocPhotoId != null),
+      #int(count),
+      optTextCell(last),
+      optTextCell(next),
+    ]
+  };
+
+  /// A visit as a row of RecurringOql.VISITS, in its field order.
+  private func visitRow(v : VisitLog, s : RecurringService) : Oql.Row {
+    [
+      #text(v.id),
+      #text(v.serviceId),
+      #text(v.propertyId),
+      #text(v.visitDate),
+      optTextCell(v.note),
+      #text(serviceTypeText(s.serviceType)),
+      #text(s.providerName),
+    ]
+  };
+
+  /// Runs one OQL query (a JSON object, see `schema()`) over the recurring
+  /// services or visit logs of the caller's homes. Homes come from a
+  /// propertyId eq/in condition when the query has one, otherwise from the
+  /// services the caller added; at most 20. A malformed query traps with a
+  /// message starting "OQL:", as the convention expects.
+  public composite query(msg) func execute(oql : Text) : async Oql.Result {
+    if (msg.caller.isAnonymous()) return { hasMore = false; rows = [] };
+    let q = switch (Oql.parse(oql, RecurringOql.ENTITIES)) {
+      case (#ok(q)) q;
+      case (#err(m)) Runtime.trap("OQL: " # m);
+    };
+    let wantServices = Oql.start(q) == RecurringOql.SERVICES.name;
+    let named = Oql.textHints(q, "propertyId");
+    let homes = List.empty<Text>();
+    func addHome(id : Text) { if (homes.find(func h = h == id) == null) homes.add(id) };
+    if (named.size() > 0) {
+      for (id in named.values()) addHome(id);
+    } else {
+      for (s in Index.records(servicesByHomeowner, msg.caller.toText(), services)) addHome(s.propertyId);
+    };
+    if (homes.size() > RecurringOql.MAX_HOMES)
+      Runtime.trap("OQL: at most " # RecurringOql.MAX_HOMES.toText() # " homes per query; this covers " # homes.size().toText() # ", so pin fewer with a propertyId condition");
+    let ids = homes.toArray();
+    let wired = propCanisterId != "";
+    let roles : [?Canisters.AccessRole] =
+      if (not wired or ids.size() == 0) [] else {
+        try { await Canisters.property(propCanisterId).getAccessRoles(ids, msg.caller) }
+        catch (_) { Runtime.trap("OQL: the property canister didn't answer, so access can't be checked; try again later") }
+      };
+    let rows = List.empty<Oql.Row>();
+    for (i in ids.keys()) {
+      let sees = wired and i < roles.size() and Canisters.hasRole(roles[i]);
+      for (s in Index.records(servicesByProperty, ids[i], services)) {
+        if (sees or (not wired and s.homeowner == msg.caller)) {
+          if (wantServices) rows.add(serviceRow(s))
+          else for (v in Index.records(visitsByService, s.id, visits)) rows.add(visitRow(v, s));
+        };
+      };
+    };
+    Oql.run(q, rows.values())
   };
 
   /// Update the status of a recurring service.

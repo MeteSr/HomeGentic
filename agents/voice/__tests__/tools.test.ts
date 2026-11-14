@@ -217,8 +217,16 @@ describe("query_home_records — generic OQL read tool", () => {
     expect(getRequired("query_home_records")).toEqual(["source"]);
   });
 
-  it("source is limited to the three canisters with OQL", () => {
-    expect(getProperties("query_home_records").source.enum).toEqual(["job", "bills", "property"]);
+  it("source is limited to the canisters with OQL", () => {
+    expect(getProperties("query_home_records").source.enum).toEqual(["job", "bills", "property", "maintenance", "recurring", "sensor"]);
+  });
+
+  it("says what the schedule, recurring service and sensor sources hold, and how far to trust them", () => {
+    const desc = getTool("query_home_records").description;
+    expect(desc).toMatch(/maintenance: .*planned/i);
+    expect(desc).toMatch(/recurring: .*(visit|provider)/i);
+    expect(desc).toMatch(/sensor: .*(alert|device)/i);
+    expect(desc).toMatch(/estimate, not an appointment/i);
   });
 
   it("takes an optional entity and an OQL query object", () => {
