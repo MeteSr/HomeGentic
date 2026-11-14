@@ -33,14 +33,37 @@ import { roomService } from "@/services/room";
 import { checkRecalls } from "@/services/recalls";
 import { systemAgesService } from "@/services/systemAges";
 
-const HOME = { id: "home-1", address: "12 Oak St", city: "Orlando", state: "FL", zipCode: "32801", yearBuilt: 1998n, squareFeet: 1600n };
+const HOME = {
+  id: "home-1",
+  address: "12 Oak St",
+  city: "Orlando",
+  state: "FL",
+  zipCode: "32801",
+  yearBuilt: 1998n,
+  squareFeet: 1600n,
+};
 const job = (over: Partial<Job>): Job =>
   ({
-    id: "j1", propertyId: "home-1", serviceType: "Roofing", description: "Full reroof", contractorName: "Top Roof",
-    amount: 1_500_000, date: "2020-05-01", status: "verified", isDiy: false, permitNumber: "BLD-1",
+    id: "j1",
+    propertyId: "home-1",
+    serviceType: "Roofing",
+    description: "Full reroof",
+    contractorName: "Top Roof",
+    amount: 1_500_000,
+    date: "2020-05-01",
+    status: "verified",
+    isDiy: false,
+    permitNumber: "BLD-1",
     ...over,
   }) as Job;
-const meta = (id: string, description: string, createdAt: number) => ({ id, description, createdAt, jobId: "docs_home-1", propertyId: "home-1", size: 10 });
+const meta = (id: string, description: string, createdAt: number) => ({
+  id,
+  description,
+  createdAt,
+  jobId: "docs_home-1",
+  propertyId: "home-1",
+  size: 10,
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -98,7 +121,9 @@ describe("HC.1 documents", () => {
   it("caps a long list and says so", async () => {
     vi.mocked(photoService.listByJob).mockImplementation(async (jobId: string) =>
       jobId === "docs_home-1"
-        ? (Array.from({ length: 80 }, (_, i) => meta(`d${i}`, `[Receipt] r${i}.pdf`, Date.UTC(2024, 0, 1) + i * 86_400_000)) as any)
+        ? (Array.from({ length: 80 }, (_, i) =>
+            meta(`d${i}`, `[Receipt] r${i}.pdf`, Date.UTC(2024, 0, 1) + i * 86_400_000),
+          ) as any)
         : [],
     );
     const d = (await getHomeCheckup({ check: "documents", property_id: "home-1" })).data as any;
@@ -150,19 +175,48 @@ describe("HC.3 reserve", () => {
 
 describe("HC.4 recalls", () => {
   const rooms = [
-    { id: "r1", name: "Kitchen", fixtures: [{ brand: "Acme", model: "DW-100" }, { brand: "", model: "X" }] },
+    {
+      id: "r1",
+      name: "Kitchen",
+      fixtures: [
+        { brand: "Acme", model: "DW-100" },
+        { brand: "", model: "X" },
+      ],
+    },
   ];
 
   it("returns possible matches with the CPSC link and the caveat", async () => {
     vi.mocked(roomService.getRoomsByProperty).mockResolvedValue(rooms as any);
     vi.mocked(checkRecalls).mockResolvedValue([
-      { brand: "Acme", model: "DW-100", recalls: [{ id: "1", number: "24-001", date: "2024-03-01", title: "Acme dishwashers", url: "https://www.cpsc.gov/Recalls/1", hazard: "Fire", remedy: "Repair" }] },
+      {
+        brand: "Acme",
+        model: "DW-100",
+        recalls: [
+          {
+            id: "1",
+            number: "24-001",
+            date: "2024-03-01",
+            title: "Acme dishwashers",
+            url: "https://www.cpsc.gov/Recalls/1",
+            hazard: "Fire",
+            remedy: "Repair",
+          },
+        ],
+      },
     ]);
     const d = (await getHomeCheckup({ check: "recalls", property_id: "home-1" })).data as any;
     expect(checkRecalls).toHaveBeenCalledWith([{ brand: "Acme", model: "DW-100" }]);
     expect(d.appliancesChecked).toBe(1);
     expect(d.possibleRecalls).toEqual([
-      { brand: "Acme", model: "DW-100", title: "Acme dishwashers", date: "2024-03-01", hazard: "Fire", remedy: "Repair", url: "https://www.cpsc.gov/Recalls/1" },
+      {
+        brand: "Acme",
+        model: "DW-100",
+        title: "Acme dishwashers",
+        date: "2024-03-01",
+        hazard: "Fire",
+        remedy: "Repair",
+        url: "https://www.cpsc.gov/Recalls/1",
+      },
     ]);
     expect(d.note).toMatch(/possible recall, not a confirmed one/);
   });

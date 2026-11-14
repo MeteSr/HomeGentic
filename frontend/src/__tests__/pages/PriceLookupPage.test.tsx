@@ -42,6 +42,13 @@ describe("PriceLookupPage — search form", () => {
     expect(mockGetPriceBenchmark).not.toHaveBeenCalled();
   });
 
+  it("offers every service type the app has, not a subset", () => {
+    renderAt("/prices");
+    const options = Array.from(document.querySelectorAll("select option")).map((o) => o.textContent);
+    expect(options).toHaveLength(21);
+    expect(options).toEqual(expect.arrayContaining(["Pest Control", "Gutters", "Pool", "Kitchen Remodel", "Roofing"]));
+  });
+
   it("disables the lookup link until a zip is entered, and links via buildPriceLookupUrl", () => {
     renderAt("/prices");
     const link = screen.getByText("Look Up Prices");

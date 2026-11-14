@@ -6,44 +6,8 @@
  */
 import type { AccessRole } from "@/services/property";
 
-export const DOC_TYPES = [
-  "Receipt",
-  "Invoice",
-  "Permit",
-  "Inspection",
-  "Warranty",
-  "LienWaiver",
-  "NOC",
-  "Deed",
-  "Closing",
-  "Title",
-  "Survey",
-  "Insurance",
-  "Elevation",
-  "HOA",
-  "Manual",
-  "Other",
-] as const;
-export type DocType = (typeof DOC_TYPES)[number];
-
-export const DOC_TYPE_LABELS: Record<DocType, string> = {
-  Receipt: "Receipt",
-  Invoice: "Invoice",
-  Permit: "Permit",
-  Inspection: "Inspection report",
-  Warranty: "Warranty",
-  LienWaiver: "Final lien waiver",
-  NOC: "Notice of Commencement",
-  Deed: "Deed",
-  Closing: "Closing papers",
-  Title: "Title policy",
-  Survey: "Survey",
-  Insurance: "Insurance policy",
-  Elevation: "Elevation certificate",
-  HOA: "HOA documents",
-  Manual: "Manual",
-  Other: "Other",
-};
+export { DOC_TYPES, DOC_TYPE_LABELS, parseDoc, type DocType, type ParsedDoc } from "@homegentic/shared/documentVault";
+import type { DocType } from "@homegentic/shared/documentVault";
 
 export interface DocGroup {
   key: string;
@@ -78,46 +42,6 @@ export function encodePermit(permitNumber: string, authority: string, status: st
 
 export function encodeInspection(inspector: string, status: string, filename: string): string {
   return `[Inspection] ${inspector}|${status}|${filename}`;
-}
-
-export interface ParsedDoc {
-  type: DocType;
-  filename: string;
-  permitNumber?: string;
-  authority?: string;
-  inspector?: string;
-  status?: string;
-  /** #716: the job a lien waiver or Notice of Commencement belongs to. */
-  jobId?: string;
-}
-
-export function parseDoc(description: string): ParsedDoc {
-  const m = description.match(/^\[(\w+)\] (.+)$/);
-  if (!m || !DOC_TYPES.includes(m[1] as DocType)) {
-    return { type: "Receipt", filename: description };
-  }
-  const type = m[1] as DocType;
-  const rest = m[2];
-  if (type === "Permit") {
-    const parts = rest.split("|");
-    if (parts.length >= 4)
-      return {
-        type,
-        permitNumber: parts[0],
-        authority: parts[1],
-        status: parts[2],
-        filename: parts.slice(3).join("|"),
-      };
-  }
-  if (type === "LienWaiver" || type === "NOC") {
-    const bar = rest.indexOf("|");
-    if (bar > 0) return { type, jobId: rest.slice(0, bar), filename: rest.slice(bar + 1) };
-  }
-  if (type === "Inspection") {
-    const parts = rest.split("|");
-    if (parts.length >= 3) return { type, inspector: parts[0], status: parts[1], filename: parts.slice(2).join("|") };
-  }
-  return { type, filename: rest };
 }
 
 /** The Add Property wizard's document picker uses its own labels. */

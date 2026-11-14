@@ -158,7 +158,9 @@ User speaks
   → useVoiceAgent hook fetches property + job context from ICP
   → POST /api/agent on the voice Worker (agents/voice/src/index.ts)  { message, context }
   → Worker builds a scoped system prompt, calls Claude (tool-use loop / streaming SSE)
-  → Claude can call read tools such as query_home_records (OQL over the job, bills and property canisters)
+  → Claude can call read tools such as query_home_records (OQL over the job, bills, property,
+    maintenance, recurring and sensor canisters) and get_home_checkup (saved documents, inspection
+    readiness, reserve target, recalls)
   → For multi-step tasks (storm prep, claim packet, closing check) Claude proposes one plan;
     the user approves its writes on one review card before anything is saved
   → Text streams back into the answer card

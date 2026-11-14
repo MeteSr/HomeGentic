@@ -91,13 +91,45 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
         tier: { Pro: null },
       }),
     ).id as string;
-  const plan = async (who: Identity, home: string, system: string, task: string, year: bigint, month: bigint | null, cents: bigint | null) =>
+  const plan = async (
+    who: Identity,
+    home: string,
+    system: string,
+    task: string,
+    year: bigint,
+    month: bigint | null,
+    cents: bigint | null,
+  ) =>
     ok<any>(
-      await as("maintenance", who).createScheduleEntry(home, system, task, year, month === null ? [] : [month], cents === null ? [] : [cents]),
+      await as("maintenance", who).createScheduleEntry(
+        home,
+        system,
+        task,
+        year,
+        month === null ? [] : [month],
+        cents === null ? [] : [cents],
+      ),
     ).id as string;
-  const service = async (who: Identity, home: string, type: object, provider: string, frequency: object, start: string) =>
+  const service = async (
+    who: Identity,
+    home: string,
+    type: object,
+    provider: string,
+    frequency: object,
+    start: string,
+  ) =>
     ok<any>(
-      await as("recurring", who).createRecurringService(home, type, provider, [], ["407-555-0100"], frequency, start, [], ["Gate code 1234"]),
+      await as("recurring", who).createRecurringService(
+        home,
+        type,
+        provider,
+        [],
+        ["407-555-0100"],
+        frequency,
+        start,
+        [],
+        ["Gate code 1234"],
+      ),
     ).id as string;
   const device = async (who: Identity, home: string, ext: string, name: string) =>
     ok<any>(await as("sensor", who).registerDevice(home, ext, { Manual: null }, name)).id as string;
@@ -111,7 +143,12 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
     for (const name of CANISTERS) {
       const { idlFactory, initArgs } = serviceFromWasm(wasmPath(name));
       svcs[name] = idlFactory({ IDL });
-      const arg = new Uint8Array(IDL.encode(initArgs, initArgs.map(() => admin.getPrincipal())));
+      const arg = new Uint8Array(
+        IDL.encode(
+          initArgs,
+          initArgs.map(() => admin.getPrincipal()),
+        ),
+      );
       ids[name] = (
         await pic.setupCanister({ idlFactory: (() => svcs[name]) as any, wasm: wasmPath(name), arg })
       ).canisterId;
@@ -169,26 +206,66 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
     const want: Record<(typeof OQL)[number], Record<string, Record<string, string>>> = {
       maintenance: {
         planned_tasks: {
-          id: "text", propertyId: "text", systemName: "text", task: "text", plannedYear: "int", plannedMonth: "int",
-          plannedPeriod: "text", estimatedCostCents: "int", completed: "bool", createdDate: "text",
+          id: "text",
+          propertyId: "text",
+          systemName: "text",
+          task: "text",
+          plannedYear: "int",
+          plannedMonth: "int",
+          plannedPeriod: "text",
+          estimatedCostCents: "int",
+          completed: "bool",
+          createdDate: "text",
         },
       },
       recurring: {
         services: {
-          id: "text", propertyId: "text", serviceType: "text", providerName: "text", providerPhone: "text",
-          frequency: "text", startDate: "text", contractEndDate: "text", status: "text", notes: "text",
-          hasContract: "bool", visitCount: "int", lastVisitDate: "text", nextVisitEstimate: "text",
+          id: "text",
+          propertyId: "text",
+          serviceType: "text",
+          providerName: "text",
+          providerPhone: "text",
+          frequency: "text",
+          startDate: "text",
+          contractEndDate: "text",
+          status: "text",
+          notes: "text",
+          hasContract: "bool",
+          visitCount: "int",
+          lastVisitDate: "text",
+          nextVisitEstimate: "text",
         },
         visits: {
-          id: "text", serviceId: "text", propertyId: "text", visitDate: "text", note: "text",
-          serviceType: "text", providerName: "text",
+          id: "text",
+          serviceId: "text",
+          propertyId: "text",
+          visitDate: "text",
+          note: "text",
+          serviceType: "text",
+          providerName: "text",
         },
       },
       sensor: {
-        devices: { id: "text", propertyId: "text", name: "text", source: "text", registeredDate: "text", active: "bool" },
+        devices: {
+          id: "text",
+          propertyId: "text",
+          name: "text",
+          source: "text",
+          registeredDate: "text",
+          active: "bool",
+        },
         events: {
-          id: "text", propertyId: "text", deviceId: "text", deviceName: "text", eventType: "text", severity: "text",
-          value: "float", unit: "text", date: "text", time: "text", jobId: "text",
+          id: "text",
+          propertyId: "text",
+          deviceId: "text",
+          deviceName: "text",
+          eventType: "text",
+          severity: "text",
+          value: "float",
+          unit: "text",
+          date: "text",
+          time: "text",
+          jobId: "text",
         },
       },
     };
@@ -215,7 +292,9 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
   it("SOQL.3 maintenance: what's due this month, and what open tasks add up to", async () => {
     const due = await rows("maintenance", owner, {
       start: "planned_tasks",
-      where: { and: [{ eq: { field: "plannedPeriod", value: "2026-11" } }, { eq: { field: "completed", value: false } }] },
+      where: {
+        and: [{ eq: { field: "plannedPeriod", value: "2026-11" } }, { eq: { field: "completed", value: false } }],
+      },
       select: ["systemName", "task", "estimatedCostCents"],
       orderBy: [{ field: "systemName", dir: "asc" }],
     });
@@ -227,7 +306,10 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
     const open = await rows("maintenance", owner, {
       start: "planned_tasks",
       where: { eq: { field: "completed", value: false } },
-      aggregate: [{ fn: "count", as: "n" }, { fn: "sum", field: "estimatedCostCents", as: "cents" }],
+      aggregate: [
+        { fn: "count", as: "n" },
+        { fn: "sum", field: "estimatedCostCents", as: "cents" },
+      ],
     });
     expect(open).toEqual([{ n: 3, cents: 27_000 }]);
 
@@ -237,23 +319,73 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
       select: ["plannedYear", "plannedMonth", "plannedPeriod", "estimatedCostCents", "createdDate"],
     });
     expect(yearOnly).toEqual([
-      { plannedYear: 2027, plannedMonth: null, plannedPeriod: "2027", estimatedCostCents: null, createdDate: "2026-11-14" },
+      {
+        plannedYear: 2027,
+        plannedMonth: null,
+        plannedPeriod: "2027",
+        estimatedCostCents: null,
+        createdDate: "2026-11-14",
+      },
     ]);
   });
 
   it("SOQL.4 recurring: services with last visit and an estimated next one; visits with the provider", async () => {
     const services = await rows("recurring", owner, {
       start: "services",
-      select: ["providerName", "serviceType", "frequency", "status", "visitCount", "lastVisitDate", "nextVisitEstimate", "hasContract", "providerPhone", "notes"],
+      select: [
+        "providerName",
+        "serviceType",
+        "frequency",
+        "status",
+        "visitCount",
+        "lastVisitDate",
+        "nextVisitEstimate",
+        "hasContract",
+        "providerPhone",
+        "notes",
+      ],
       orderBy: [{ field: "providerName", dir: "asc" }],
     });
     expect(services).toEqual([
       // Cancelled: no next visit
-      { providerName: "BluePool", serviceType: "PoolMaintenance", frequency: "Monthly", status: "Cancelled", visitCount: 0, lastVisitDate: null, nextVisitEstimate: null, hasContract: false, providerPhone: "407-555-0100", notes: "Gate code 1234" },
+      {
+        providerName: "BluePool",
+        serviceType: "PoolMaintenance",
+        frequency: "Monthly",
+        status: "Cancelled",
+        visitCount: 0,
+        lastVisitDate: null,
+        nextVisitEstimate: null,
+        hasContract: false,
+        providerPhone: "407-555-0100",
+        notes: "Gate code 1234",
+      },
       // Quarterly from the last visit, 2026-07-15
-      { providerName: "BugAway", serviceType: "PestControl", frequency: "Quarterly", status: "Active", visitCount: 2, lastVisitDate: "2026-07-15", nextVisitEstimate: "2026-10-15", hasContract: false, providerPhone: "407-555-0100", notes: "Gate code 1234" },
+      {
+        providerName: "BugAway",
+        serviceType: "PestControl",
+        frequency: "Quarterly",
+        status: "Active",
+        visitCount: 2,
+        lastVisitDate: "2026-07-15",
+        nextVisitEstimate: "2026-10-15",
+        hasContract: false,
+        providerPhone: "407-555-0100",
+        notes: "Gate code 1234",
+      },
       // No visit logged yet: counted from the start date; weekly = 7 days
-      { providerName: "GreenCo", serviceType: "LawnCare", frequency: "Weekly", status: "Active", visitCount: 0, lastVisitDate: null, nextVisitEstimate: "2026-11-17", hasContract: false, providerPhone: "407-555-0100", notes: "Gate code 1234" },
+      {
+        providerName: "GreenCo",
+        serviceType: "LawnCare",
+        frequency: "Weekly",
+        status: "Active",
+        visitCount: 0,
+        lastVisitDate: null,
+        nextVisitEstimate: "2026-11-17",
+        hasContract: false,
+        providerPhone: "407-555-0100",
+        notes: "Gate code 1234",
+      },
     ]);
 
     const active = await rows("recurring", owner, {
@@ -270,7 +402,13 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
     });
     expect(visits).toEqual([
       { serviceId: pest, visitDate: "2026-07-15", note: null, providerName: "BugAway", serviceType: "PestControl" },
-      { serviceId: pest, visitDate: "2026-04-12", note: "Treated perimeter", providerName: "BugAway", serviceType: "PestControl" },
+      {
+        serviceId: pest,
+        visitDate: "2026-04-12",
+        note: "Treated perimeter",
+        providerName: "BugAway",
+        serviceType: "PestControl",
+      },
     ]);
   });
 
@@ -298,11 +436,21 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
 
     const leaks = await rows("sensor", owner, {
       start: "events",
-      where: { and: [{ eq: { field: "severity", value: "Critical" } }, { ge: { field: "date", value: "2026-11-15" } }] },
+      where: {
+        and: [{ eq: { field: "severity", value: "Critical" } }, { ge: { field: "date", value: "2026-11-15" } }],
+      },
       select: ["deviceId", "deviceName", "eventType", "severity", "value", "unit", "date"],
     });
     expect(leaks).toEqual([
-      { deviceId: leakSensor, deviceName: "Kitchen leak sensor", eventType: "WaterLeak", severity: "Critical", value: 2.5, unit: "L/min", date: "2026-11-17" },
+      {
+        deviceId: leakSensor,
+        deviceName: "Kitchen leak sensor",
+        eventType: "WaterLeak",
+        severity: "Critical",
+        value: 2.5,
+        unit: "L/min",
+        date: "2026-11-17",
+      },
     ]);
 
     const all = await rows("sensor", owner, {
@@ -319,7 +467,10 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
       aggregate: [{ fn: "count", as: "n" }],
       orderBy: [{ field: "severity", dir: "asc" }],
     });
-    expect(bySeverity).toEqual([{ severity: "Critical", n: 1 }, { severity: "Warning", n: 1 }]);
+    expect(bySeverity).toEqual([
+      { severity: "Critical", n: 1 },
+      { severity: "Warning", n: 1 },
+    ]);
   });
 
   it("SOQL.6 strangers and anonymous callers see nothing of the home; a manager sees the home they name", async () => {
@@ -333,7 +484,11 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
       for (const start of starts[c]) {
         const tag = `${c}.${start}`;
         expect(await rows(c, stranger, { start, where: pinned }), tag).toEqual([]);
-        const theirs = await rows(c, stranger, { start, where: { in: { field: "propertyId", value: [homeA, homeB, otherHome] } }, select: ["propertyId"] });
+        const theirs = await rows(c, stranger, {
+          start,
+          where: { in: { field: "propertyId", value: [homeA, homeB, otherHome] } },
+          select: ["propertyId"],
+        });
         for (const r of theirs) expect(r.propertyId, tag).toBe(otherHome);
         const unpinned = await rows(c, stranger, { start, select: ["propertyId"] });
         for (const r of unpinned) expect(r.propertyId, tag).toBe(otherHome);
@@ -341,7 +496,9 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
 
         // The manager entered nothing, so an unpinned query is empty; naming the home shows it.
         expect(await rows(c, manager, { start }), tag).toEqual([]);
-        expect(await rows(c, manager, { start, where: { eq: { field: "propertyId", value: homeB } } }), tag).toEqual([]);
+        expect(await rows(c, manager, { start, where: { eq: { field: "propertyId", value: homeB } } }), tag).toEqual(
+          [],
+        );
       }
     }
     expect((await rows("maintenance", manager, { start: "planned_tasks", where: pinned })).length).toBe(3);
@@ -350,11 +507,15 @@ describe("maintenance, recurring and sensor OQL (schema + execute)", () => {
     expect((await rows("sensor", manager, { start: "devices", where: pinned })).length).toBe(2);
     expect((await rows("sensor", manager, { start: "events", where: pinned })).length).toBe(2);
     // The stranger's own records are theirs to read.
-    expect((await rows("sensor", stranger, { start: "events", select: ["value"] }))).toEqual([{ value: 9 }]);
+    expect(await rows("sensor", stranger, { start: "events", select: ["value"] })).toEqual([{ value: 9 }]);
   });
 
   it("SOQL.7 rejects malformed and too-many-homes queries with a message", async () => {
-    const first: Record<(typeof OQL)[number], string> = { maintenance: "planned_tasks", recurring: "services", sensor: "events" };
+    const first: Record<(typeof OQL)[number], string> = {
+      maintenance: "planned_tasks",
+      recurring: "services",
+      sensor: "events",
+    };
     const many = Array.from({ length: 21 }, (_, i) => `HOME_${i}`);
     for (const c of OQL) {
       await expect(exec(c, owner, "not json"), c).rejects.toThrow(/OQL/);

@@ -18,10 +18,27 @@ import { serviceFromWasm } from "./__helpers__/candid";
 
 // backend/shared/ServiceType.mo
 const TAGS = [
-  "Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows",
-  "Landscaping", "Gutters", "GeneralHandyman", "Pest", "Concrete", "Fencing",
-  "Insulation", "Solar", "Pool", "Foundation", "Drywall", "KitchenRemodel",
-  "BathroomRemodel", "Other",
+  "Roofing",
+  "HVAC",
+  "Plumbing",
+  "Electrical",
+  "Painting",
+  "Flooring",
+  "Windows",
+  "Landscaping",
+  "Gutters",
+  "GeneralHandyman",
+  "Pest",
+  "Concrete",
+  "Fencing",
+  "Insulation",
+  "Solar",
+  "Pool",
+  "Foundation",
+  "Drywall",
+  "KitchenRemodel",
+  "BathroomRemodel",
+  "Other",
 ];
 
 describe("ai_proxy national price ranges", () => {
@@ -33,10 +50,17 @@ describe("ai_proxy national price ranges", () => {
     pic = await createPic();
     const { idlFactory, initArgs } = serviceFromWasm(wasmPath("ai_proxy"));
     const svc = idlFactory({ IDL });
-    const arg = new Uint8Array(IDL.encode(initArgs, initArgs.map(() => admin.getPrincipal())));
+    const arg = new Uint8Array(
+      IDL.encode(
+        initArgs,
+        initArgs.map(() => admin.getPrincipal()),
+      ),
+    );
     actor = (await pic.setupCanister({ idlFactory: (() => svc) as any, wasm: wasmPath("ai_proxy"), arg })).actor;
   });
-  afterAll(async () => { await pic?.tearDown(); });
+  afterAll(async () => {
+    await pic?.tearDown();
+  });
 
   it("SEED.1 every service type has a national range", async () => {
     expect(TAGS).toHaveLength(21);
