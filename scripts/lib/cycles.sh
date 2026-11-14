@@ -61,3 +61,23 @@ cycles_policy() {
 
 # cycles_t <n> — 1234567890000 → "1.23T"
 cycles_t() { awk -v n="$1" 'BEGIN { printf "%.2fT", n / 1e12 }'; }
+
+# cycles_report_topup_failures <env> <canisters> — names the canisters whose
+# top-up failed. A warning, never a failed deploy: the canisters are already
+# upgraded, and a failed run would skip the smoke test, the testnet-*/mainnet-*
+# tag the next upgrade gate compares with, and the relay deploy. The Cycle
+# Watchdog workflow (check-cycle-health.sh), once enabled, keeps alerting
+# until they're topped up.
+cycles_report_topup_failures() {
+  local env="$1" failed="${2# }"
+  [ -z "$failed" ] && return 0
+  local msg="Deployed, but cycle top-up failed for: ${failed}. Fund the deploy identity's cycles ledger and run: ICP_ENV=${env} bash scripts/top-up-canisters.sh"
+  echo ""
+  if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+    echo "::warning title=Cycle top-up failed::${msg}"
+    [ -n "${GITHUB_STEP_SUMMARY:-}" ] && printf '### ⚠️ Cycle top-up failed\n\n%s\n' "$msg" >> "$GITHUB_STEP_SUMMARY"
+  else
+    echo "⚠️  ${msg}"
+  fi
+  return 0
+}
