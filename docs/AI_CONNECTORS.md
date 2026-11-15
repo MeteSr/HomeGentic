@@ -54,7 +54,7 @@ OQL on bills and property, and the in-app read tool (2026-11-10):
   links), Florida 4-point and wind mitigation readiness, the reserve target, and possible CPSC recalls. Each
   uses the page's own function and caveat.
 - The mobile assistant runs the read-only lookups only: `query_home_records`, `get_home_checkup` for documents,
-  and `get_price_benchmark` from verified local costs. Every other tool is answered as "not available from the
+  and `get_price_benchmark` (verified local costs, else the typical U.S. range labelled national). Every other tool is answered as "not available from the
   mobile app yet", so nothing that changes the record runs from the phone's assistant.
 - Multi-step tasks (storm prep, insurance claim packet, closing handoff check) use plan, review, run: the
   assistant reads with `prepare_home_task` (read-only, `frontend/src/services/assistantTasks.ts`), then calls

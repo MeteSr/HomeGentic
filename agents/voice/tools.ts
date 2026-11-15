@@ -9,6 +9,14 @@ const SERVICE_TYPES = [
   "Bathroom Remodel", "Other",
 ];
 
+/** What get_price_benchmark prices: every service type, plus the subtypes of Other
+ *  (packages/shared/src/serviceTypes.ts SERVICE_SUBTYPES), which have national ranges only. */
+const PRICED_SERVICES = [
+  ...SERVICE_TYPES,
+  "Inspection", "Appliance Repair", "Garage Door", "Septic", "Well & Water Treatment",
+  "Chimney", "Generator", "Tree Service", "Security & Alarm", "Mold & Radon",
+];
+
 /** Kinds of paper in the document vault — frontend/src/services/documentVault.ts (DOC_TYPES). */
 const DOC_TYPES = [
   "Receipt", "Invoice", "Permit", "Inspection", "Warranty", "LienWaiver", "NOC", "Deed",
@@ -973,13 +981,13 @@ IMPORTANT: If the system returns a limit error, tell the user their current tier
 
 Use this when the user asks "how much does roofing cost?", "what's a fair price for HVAC replacement in my area?", or "is this quote reasonable?".
 
-Returns low, median, and high estimates with a "source" field. "local" means the range comes from finished jobs, signed off by the homeowner and a HomeGentic-verified contractor in the last 2 years, at homes whose owners chose to share their costs, in that zip code or its 3-digit area (at least 5 homes and 3 contractors; prices rounded). "national" means it is a fixed typical U.S. range: say it is a national estimate, not local prices.`,
+Returns low, median, and high estimates with a "source" field. "local" means the range comes from finished jobs, signed off by the homeowner and a HomeGentic-verified contractor in the last 2 years, at homes whose owners chose to share their costs, in that zip code or its 3-digit area (at least 5 homes and 3 contractors; prices rounded). "national" means it is a fixed typical U.S. range: say it is a national estimate, not local prices. Subtypes of Other (Inspection, Garage Door, Septic, …) only have national ranges.`,
     parameters: {
       type: "object" as const,
       properties: {
         service_type: {
           type: "string",
-          enum: SERVICE_TYPES,
+          enum: PRICED_SERVICES,
           description: "The type of home service to benchmark",
         },
         zip_code: {

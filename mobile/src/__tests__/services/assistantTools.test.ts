@@ -7,7 +7,8 @@
 //  MT.1 query_home_records reads through OQL on the six record canisters
 //  MT.2 get_home_checkup lists the document vault's names, kinds and dates
 //       (the other checks stay on the website, and say so)
-//  MT.3 get_price_benchmark returns verified local costs, or says none yet
+//  MT.3 get_price_benchmark returns verified local costs, else the typical
+//       U.S. range labelled national (subtypes of Other too)
 //  MT.4 anything else (every tool that changes something) is not run
 const mockActors: Record<string, any> = {};
 const mockActorFor = jest.fn((_idl: unknown, id: string) => mockActors[id]);
@@ -133,12 +134,21 @@ describe("MT.3 get_price_benchmark", () => {
     expect((r!.data as any).summary).toMatch(/\$120.*\$350.*10\+ homes in 328xx/);
   });
 
-  it("says there are no verified local prices yet, without inventing a range", async () => {
+  it("falls back to the typical U.S. range, labelled national, when there are no verified local prices", async () => {
     const { runAssistantTool } = load();
     const r = await runAssistantTool("get_price_benchmark", { service_type: "Roofing", zip_code: "32801" });
-    expect(r).toMatchObject({ success: true, data: { found: false } });
-    expect((r!.data as any).summary).toMatch(/no verified local prices/i);
-    expect((r!.data as any).low).toBeUndefined();
+    expect(r).toMatchObject({
+      success: true,
+      data: { found: true, source: "national", low: 800_000, median: 1_400_000, high: 2_200_000, sampleSize: 0 },
+    });
+    expect((r!.data as any).summary).toMatch(/national range, not local prices/);
+  });
+
+  it("gives a subtype of Other (Septic) its national range without asking the canister", async () => {
+    const { runAssistantTool } = load();
+    const r = await runAssistantTool("get_price_benchmark", { service_type: "Septic", zip_code: "32801" });
+    expect(r).toMatchObject({ success: true, data: { found: true, source: "national", serviceType: "Septic" } });
+    expect(mockActors["job-id"].getVerifiedLocalCosts).not.toHaveBeenCalled();
   });
 
   it("refuses something that isn't a service type", async () => {

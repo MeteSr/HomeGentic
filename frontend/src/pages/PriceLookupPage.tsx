@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
+import { SERVICE_CHOICE_LABELS } from "@homegentic/shared/serviceTypes";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   getPriceBenchmark,
@@ -19,7 +19,7 @@ import {
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
 
-const SERVICE_TYPES = SERVICE_TYPE_LABELS;
+const SERVICE_TYPES = SERVICE_CHOICE_LABELS;
 
 const C = {
   blue:   "#2B34FF",

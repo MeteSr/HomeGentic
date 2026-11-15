@@ -23,19 +23,19 @@ describe("getPriceBenchmark", () => {
     expect(mockGetPriceBenchmark).not.toHaveBeenCalled();
   });
 
-  it("returns null when the canister returns no data", async () => {
+  it("falls back to the app's national table when the canister returns no data", async () => {
     mockGetPriceBenchmark.mockResolvedValue(null);
-    expect(await getPriceBenchmark("HVAC", "78701")).toBeNull();
+    expect(await getPriceBenchmark("HVAC", "78701")).toMatchObject({ source: "national", sampleSize: 0, low: 350000, median: 650000, high: 1200000 });
   });
 
-  it("returns null when the canister call throws", async () => {
+  it("falls back to the app's national table when the canister call throws", async () => {
     mockGetPriceBenchmark.mockRejectedValue(new Error("canister unavailable"));
-    expect(await getPriceBenchmark("HVAC", "78701")).toBeNull();
+    expect(await getPriceBenchmark("HVAC", "78701")).toMatchObject({ source: "national", sampleSize: 0, low: 350000, median: 650000, high: 1200000 });
   });
 
-  it("returns null on malformed JSON rather than throwing", async () => {
+  it("falls back to the app's national table on malformed JSON rather than throwing", async () => {
     mockGetPriceBenchmark.mockResolvedValue("not-json{{");
-    expect(await getPriceBenchmark("HVAC", "78701")).toBeNull();
+    expect(await getPriceBenchmark("HVAC", "78701")).toMatchObject({ source: "national", sampleSize: 0, low: 350000, median: 650000, high: 1200000 });
   });
 
   it("returns the national range, labelled national with no sample size, when no quote canister is wired", async () => {

@@ -65,16 +65,16 @@ describe("getPriceBenchmark", () => {
     expect(aiProxyService.getPriceBenchmark).toHaveBeenCalledWith("Roofing", "32114");
   });
 
-  it("returns null when canister returns empty string", async () => {
+  it("falls back to the app's national table when the canister returns an empty string", async () => {
     vi.mocked(aiProxyService.getPriceBenchmark).mockResolvedValueOnce("");
     const result = await getPriceBenchmark("Roofing", "00000");
-    expect(result).toBeNull();
+    expect(result).toMatchObject({ source: "national", low: 800000, median: 1400000, high: 2200000 });
   });
 
-  it("returns null when canister throws", async () => {
+  it("falls back to the app's national table when the canister throws", async () => {
     vi.mocked(aiProxyService.getPriceBenchmark).mockRejectedValueOnce(new Error("canister error"));
     const result = await getPriceBenchmark("Roofing", "32114");
-    expect(result).toBeNull();
+    expect(result).toMatchObject({ source: "national", low: 800000, median: 1400000, high: 2200000 });
   });
 
   it("returns null when zipCode is empty", async () => {
