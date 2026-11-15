@@ -1277,6 +1277,9 @@ Response headers: `X-Agent-Calls-Used`, `X-Agent-Calls-Limit` — used by the UI
 **`POST /api/stripe/create-credit-checkout`** — Agent credit pack purchase (25 or 100 credits)
 **`POST /api/stripe/verify-credit-purchase`** — Verifies credit purchase; calls `grantAgentCredits()` on payment canister
 
+**`POST /api/payments/payout-onboarding`** — Contractor: Stripe Connect Express account (made once, recorded with `quote.relaySetPayoutAccount`) and a hosted onboarding link
+**`POST /api/payments/start`** — Homeowner: Stripe Checkout for an accepted quote, by bank (the bid) or card (the card price); destination charge to the contractor, HomeGentic keeps the referral fee and card fee
+
 **`POST /api/stripe/webhook`** — Stripe lifecycle events (raw body; HMAC signature required)
 
 | Event | Action |
@@ -1285,6 +1288,10 @@ Response headers: `X-Agent-Calls-Used`, `X-Agent-Calls-Limit` — used by the UI
 | `customer.subscription.updated` | Revert if cancelled |
 | `invoice.payment_failed` | Revert to Free |
 | `invoice.payment_succeeded` | Activate tier |
+| `checkout.session.completed` (job payment) | Paid (card) or Processing (bank, until it clears) |
+| `checkout.session.async_payment_succeeded` / `_failed` | Job payment Paid / Failed; refund HomeGentic's fee share if the referral fee was already paid |
+| `checkout.session.expired` | Job payment Failed (the referral fee hold is released) |
+| `account.updated` | Record a contractor's payout account flags |
 
 #### Utility Endpoints
 

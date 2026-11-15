@@ -367,6 +367,28 @@ describe("WH.6 — in-app job payments", () => {
     expect(syncPayoutAccount).toHaveBeenCalledWith(acct, { payments: true });
   });
 
+  it("accepts events signed with the Connect endpoint's secret too", async () => {
+    const acct = { id: "acct_1", metadata: { icp_principal: "pro-aaa" } };
+    mockConstructEvent
+      .mockRejectedValueOnce(new Error("not the platform secret"))
+      .mockResolvedValueOnce({ id: `evt_${++n}`, type: "account.updated", account: "acct_1", data: { object: acct } });
+    const res = await worker.fetch(new Request("https://worker.test/api/stripe/webhook", {
+      method: "POST", headers: { "stripe-signature": "t=1,v1=x" }, body: "{}",
+    }), makeEnv({ STRIPE_CONNECT_WEBHOOK_SECRET: "whsec_connect" }), ctx);
+    expect(res.status).toBe(200);
+    expect(mockConstructEvent.mock.calls.map((c) => c[2])).toEqual(["whsec_x", "whsec_connect"]);
+    expect(syncPayoutAccount).toHaveBeenCalledWith(acct, { payments: true });
+  });
+
+  it("without a Connect secret, a signature the platform secret refuses is refused", async () => {
+    mockConstructEvent.mockRejectedValueOnce(new Error("bad sig"));
+    const res = await worker.fetch(new Request("https://worker.test/api/stripe/webhook", {
+      method: "POST", headers: { "stripe-signature": "t=1,v1=x" }, body: "{}",
+    }), makeEnv(), ctx);
+    expect(res.status).toBe(400);
+    expect(mockConstructEvent).toHaveBeenCalledTimes(1);
+  });
+
   it("a ledger failure makes Stripe retry", async () => {
     (handleJobPaymentEvent as jest.Mock<any>).mockRejectedValueOnce(new Error("canister down"));
     const res = await deliver({ type: "checkout.session.async_payment_succeeded", data: { object: jobSession } });

@@ -114,7 +114,7 @@ export function ReferralCardBox({ card, justSaved }: { card: ReferralCard | null
           <p style={{ fontFamily: F.body, fontSize: "0.8125rem", color: C.amberText, margin: "0.375rem 0 0", lineHeight: 1.55 }}>
             {justSaved
               ? "Stripe has your card. It can take a minute to show here; refresh if it doesn't."
-              : `Each bid a homeowner accepts carries a ${FEE_LABEL} fee (${FLOOR_LABEL} minimum). We charge it to this card once the job is verified, or ${REFERRAL_FALLBACK_DAYS} days after the homeowner accepts if it never is.`}
+              : `Each bid a homeowner accepts carries a ${FEE_LABEL} fee (${FLOOR_LABEL} minimum). We charge it to this card once the job is verified, or ${REFERRAL_FALLBACK_DAYS} days after the homeowner accepts if it never is. If the homeowner pays you in the app, it comes out of that payment instead.`}
           </p>
         </>
       )}

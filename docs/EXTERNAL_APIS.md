@@ -117,6 +117,14 @@ The Stripe webhook (`/api/stripe/webhook`) handles
 `customer.subscription.updated`, `customer.subscription.deleted` and
 `invoice.payment_failed`, reverting the tier when a subscription lapses.
 
+In-app job payments use Stripe Connect (Express accounts, destination
+charges). `POST /api/payments/payout-onboarding` opens a contractor's
+onboarding; `POST /api/payments/start` opens Checkout for the homeowner, by
+`us_bank_account` or `card`. The webhook moves the quote canister's payment
+on `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+`checkout.session.async_payment_failed` and `checkout.session.expired`, and
+records a contractor's account flags on `account.updated`.
+
 ---
 
 ### Content Security Policy

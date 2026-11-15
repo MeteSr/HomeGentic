@@ -127,6 +127,7 @@ deadline reminders.
 | `FRONTEND_ORIGIN` | Exact origin of the frontend canister (no trailing slash) |
 | `STRIPE_SECRET_KEY` | Stripe secret key (`sk_live_...`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_...`) |
+| `STRIPE_CONNECT_WEBHOOK_SECRET` | Signing secret of the second, **Connect** webhook endpoint (same URL, "events on connected accounts") that delivers `account.updated` for contractors' payout accounts |
 | `STRIPE_PRICE_PRO_YEARLY` | Stripe price ID — the $59/year homeowner plan |
 | `STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY` | Stripe price ID |
 | `STRIPE_PRICE_CONTRACTOR_PRO_YEARLY` | Stripe price ID |
@@ -739,6 +740,17 @@ returns `null` regardless of whether `STRIPE_PRICE_PRO_MONTHLY` is set.
    `customer.subscription.deleted` and `identity.verification_session.verified`
    (and enable Stripe Identity in the same mode). Activation itself still
    happens when the success page calls verify-subscription.
+   For in-app job payments also send `checkout.session.async_payment_succeeded`,
+   `checkout.session.async_payment_failed` and `checkout.session.expired`.
+   Add a second endpoint at the same URL that listens to events on
+   **connected accounts**, send it `account.updated`, and set its signing
+   secret as `STRIPE_CONNECT_WEBHOOK_SECRET`.
+3a. In-app job payments (Stripe Connect): enable Connect with **Express**
+   accounts and the `transfers` capability, and turn on **ACH Direct Debit**
+   (`us_bank_account`) as a payment method. HomeGentic pays the ACH fee
+   (0.8%, capped at $5) out of its share; the card price covers the card fee.
+   The Worker's identity must be added with `quote.addPaymentRelay`
+   (`scripts/deploy.sh` does it).
 4. Ensure `DFX_IDENTITY_PEM` is set as a Worker secret — the Worker calls the ICP
    payment canister directly via `@dfinity/agent` (no `dfx` binary required).
 

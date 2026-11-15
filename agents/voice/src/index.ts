@@ -156,6 +156,8 @@ export interface Env {
   BIDTOLIST_RESEND_FROM?:              string;
   BIDTOLIST_STRIPE_SECRET_KEY?:        string;
   BIDTOLIST_STRIPE_WEBHOOK_SECRET?:    string;
+  /** Signing secret of the Connect webhook endpoint (events from contractors' payout accounts). */
+  STRIPE_CONNECT_WEBHOOK_SECRET?:      string;
   BIDTOLIST_STRIPE_PRICE_PLATFORM_FEE?: string;
   BIDTOLIST_LISTING_CANISTER_ID?:      string;
   BIDTOLIST_AGENT_CANISTER_ID?:        string;
@@ -1794,9 +1796,18 @@ Rules:
       const Stripe = (await import("stripe")).default;
       stripe = new Stripe(env.STRIPE_SECRET_KEY);
       // F-7: the synchronous constructEvent can't use SubtleCrypto on workerd.
-      event = await stripe.webhooks.constructEventAsync(
-        rawBody, sig, webhookSecret, undefined, Stripe.createSubtleCryptoProvider(),
-      );
+      // The platform endpoint's secret, then the Connect endpoint's (events
+      // from contractors' connected accounts, such as account.updated).
+      const secrets = [webhookSecret, env.STRIPE_CONNECT_WEBHOOK_SECRET].filter((x): x is string => !!x);
+      for (const secret of secrets) {
+        try {
+          event = await stripe.webhooks.constructEventAsync(
+            rawBody, sig, secret, undefined, Stripe.createSubtleCryptoProvider(),
+          );
+          break;
+        } catch { /* try the next secret */ }
+      }
+      if (!event) throw new Error("no secret matched");
     } catch {
       return json({ error: "Webhook signature verification failed" }, 400, cors);
     }
