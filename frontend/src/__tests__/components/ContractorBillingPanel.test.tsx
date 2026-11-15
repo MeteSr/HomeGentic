@@ -97,6 +97,7 @@ describe("ContractorBillingPanel — Free tier card", () => {
     Object.defineProperty(window, "location", { value: { ...window.location, assign, origin: "https://app.test", search: "" }, writable: true });
     renderPanel();
     expect(await screen.findByText("Save a card before you bid")).toBeInTheDocument();
+    expect(screen.getByText(/if the homeowner pays you in the app, it comes out of that payment instead/i)).toBeInTheDocument();
     const button = screen.getByRole("button", { name: "Save card with Stripe" });
     expect(button).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox"));

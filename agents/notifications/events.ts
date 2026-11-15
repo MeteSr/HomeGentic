@@ -28,6 +28,10 @@
  * still booked for that time. Times aren't written out: the relay doesn't
  * know the recipient's time zone, so the message sends them to the app.
  *
+ * In-app job payments (quote canister): the contractor's kinds carry the
+ * quote as refId and link to their leads; the homeowner's carry the quote
+ * request and link to it. summary is the bid as "$1200".
+ *
  * The minReviews threshold isn't checked here: review counts aren't on the
  * contractor profile, and an extra alert to a contractor who then can't see
  * the lead is harmless.
@@ -73,6 +77,34 @@ export function visitPayload(kind: string, trade: string, route: string): PushPa
       return { title: "Visit cancelled", body: `The ${t} visit was cancelled.`, route };
     case "visit_reminder":
       return { title: "Visit tomorrow", body: `The ${t} visit is tomorrow. Open HomeGentic to see the time.`, route };
+    default:
+      return null;
+  }
+}
+
+/** The message for one in-app job payment notification, or null for another kind. */
+export function jobPaymentPayload(kind: string, amount: string, refId: string): PushPayload | null {
+  switch (kind) {
+    case "job_payment_processing":
+      return {
+        title: "Bank payment on its way",
+        body: `The homeowner paid ${amount} by bank. Stripe sends it to you once it clears, usually in about 4 business days.`,
+        route: "leads",
+      };
+    case "job_payment_paid":
+      return {
+        title: "You've been paid",
+        body: `The homeowner's ${amount} payment went through. Stripe is sending it to your bank account.`,
+        route: "leads",
+      };
+    case "job_payment_receipt":
+      return { title: "Payment complete", body: `Your ${amount} payment to your contractor went through.`, route: `quotes/${refId}` };
+    case "job_payment_failed":
+      return {
+        title: "Payment didn't go through",
+        body: `Your ${amount} payment to your contractor didn't go through. Open the job in HomeGentic to try again.`,
+        route: `quotes/${refId}`,
+      };
     default:
       return null;
   }
@@ -291,6 +323,12 @@ export async function notificationsFor(
       }
     }
     return out;
+  }
+
+  if (event.kind.startsWith("job_payment_")) {
+    const payload = jobPaymentPayload(event.kind, event.summary, event.refId);
+    if (!payload || !event.recipient) return [];
+    return [{ type: kind, principal: event.recipient, payload, pushOptIn: true }];
   }
 
   if (event.kind === "review_request") {

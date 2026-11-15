@@ -20,7 +20,7 @@ export type PushPrefKind =
   | "product_recall";
 
 /** One key per Settings email row (agents/notifications/channels.ts). */
-export type EmailPrefKey = "new_lead" | "bid_outcome" | "job_verified" | "quote_received" | "job_updates" | "weekly_pulse" | "showing_requests" | "visits";
+export type EmailPrefKey = "new_lead" | "bid_outcome" | "job_verified" | "quote_received" | "job_updates" | "weekly_pulse" | "showing_requests" | "visits" | "payments";
 
 export interface NotificationPrefs {
   push:  Record<PushPrefKind, boolean>;

@@ -88,6 +88,10 @@ export const idlFactory = ({ IDL }: any) => {
     takeDueReferralFees: IDL.Func([], [IDL.Variant({ ok: IDL.Vec(ChargeItem), err: Error })], []),
     relayMarkReferralFeePaid: IDL.Func([IDL.Text, IDL.Text], [IDL.Variant({ ok: ReferralFee, err: Error })], []),
     relayMarkReferralFeeFailed: IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Variant({ ok: ReferralFee, err: Error })], []),
+    // In-app payments (quote canister only)
+    holdReferralFeeInApp:    IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Opt(IDL.Nat), err: Error })], []),
+    settleReferralFeeInApp:  IDL.Func([IDL.Text, IDL.Text], [IDL.Variant({ ok: IDL.Bool, err: Error })], []),
+    releaseReferralFeeInApp: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     relaySetReferralCard: IDL.Func([IDL.Principal, ReferralCard], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     getMyReferralCard: IDL.Func([], [IDL.Opt(ReferralCard)], ["query"]),
     getMyReferralFees: IDL.Func([], [IDL.Vec(ReferralFee)], ["query"]),

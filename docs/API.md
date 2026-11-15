@@ -259,6 +259,27 @@ Stored in a side map keyed by quote id. Each call notifies the other side throug
 
 **VisitSlot:** `{ startsAt: Int; endsAt: Int }` (nanoseconds). **VisitBooking:** `{ quoteId; requestId; status: #TimesOffered | #Booked | #NewTimesRequested | #Cancelled; offered: [VisitSlot]; booked: ?VisitSlot; note; updatedAt }`
 
+### Paying a contractor in the app
+
+Stripe Connect destination charges, run by the voice Worker (`agents/voice/src/jobPayments.ts`); the quote canister keeps the record and the rules in side maps (`payoutAccounts`, `jobPayments`). The homeowner pays once, by bank (ACH, the accepted price) or card (`cardPriceFor(bid)`, the bid grossed up for 2.9% + 30¢). HomeGentic keeps the 3% referral fee of a Contractor Free bid (held in the fee canister while the payment runs, so the hourly card charge skips it) plus the card fee on a card payment; Stripe moves the rest to the contractor once the charge succeeds, which for a bank payment is when it clears (about 4 business days). Payment events notify through the outbox (`job_payment_*` kinds in `backend/shared/Notify.mo`).
+
+| Method | Type | Signature | Description |
+|---|---|---|---|
+| `cardPriceFor` | query | `(bidCents: Nat) -> Nat` | The card price for a bid |
+| `getMyPayoutAccount` | query | `() -> ?PayoutAccount` | The calling contractor's Stripe account flags |
+| `getPayoutReady` | query | `([Principal]) -> [(Principal, Bool)]` | Whether each of up to 100 contractors can be paid in the app |
+| `getJobPayments` | query | `(quoteIds: [Text]) -> [JobPayment]` | Payments on quotes the caller is the homeowner or contractor of (the relay and notifiers see all) |
+| `addPaymentRelay` / `removePaymentRelay` | update | `(Principal)` | Admin: the voice Worker's identity |
+| `relaySetPayoutAccount` | update | `(Principal, PayoutAccount)` | Relay: record a contractor's Stripe account (onboarding, `account.updated`) |
+| `relayGetPayoutAccount` | query | `(Principal) -> ?PayoutAccount` | Relay only: a contractor's account id (null for anyone else) |
+| `relayPrepareJobPayment` | update | `(quoteId: Text, payer: Principal) -> PaymentTerms` | Relay: checks the payer is the homeowner of an accepted quote that isn't paid or in progress, the contractor can be paid, and holds the referral fee. Returns the prices |
+| `relayRecordJobPayment` | update | `(quoteId, payer, method, referralFeeCents, checkoutRef)` | Relay: record the started Checkout session |
+| `relayUpdateJobPayment` | update | `(quoteId, checkoutRef, status, paymentRef) -> { payment; refundCents }` | Relay: move the payment to Processing, Paid or Failed (idempotent; a stale session changes nothing). Paid settles the referral fee; if it had already been paid another way, `refundCents` is the part of HomeGentic's fee the Worker refunds. Failed releases the hold |
+
+**JobPayment:** `{ quoteId; requestId; contractor; homeowner; method: #Bank | #Card; bidCents; amountCents; platformFeeCents; referralFeeCents; status: #Started | #Processing | #Paid | #Failed; checkoutRef; paymentRef; createdAt; updatedAt }`
+
+Fee canister methods the quote canister calls (quote canister or admin only): `holdReferralFeeInApp(quoteId) -> ?Nat`, `settleReferralFeeInApp(quoteId, paymentRef) -> Bool` (false when the fee was already settled another way) and `releaseReferralFeeInApp(quoteId)`. A hold lasts 14 days.
+
 ### Request management & usage sharing
 
 | Method | Type | Signature | Description |

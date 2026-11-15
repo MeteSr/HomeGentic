@@ -185,6 +185,56 @@ persistent actor Quote {
     updatedAt: Int;
   };
 
+  /// A contractor's Stripe Connect account for in-app payments.
+  public type PayoutAccount = {
+    accountId:       Text;
+    transfersActive: Bool;   // Stripe can send this account money
+    payoutsEnabled:  Bool;   // Stripe can pay it out to the contractor's bank
+    updatedAt:       Int;
+  };
+
+  public type JobPaymentMethod = { #Bank; #Card };
+  public type JobPaymentStatus = {
+    #Started;      // checkout opened, nothing paid yet
+    #Processing;   // bank payment submitted, waiting to clear
+    #Paid;         // the contractor is being paid
+    #Failed;       // the payment failed or the checkout expired
+  };
+
+  /// The homeowner paying an accepted quote in the app (side map by quote id).
+  public type JobPayment = {
+    quoteId:          Text;
+    requestId:        Text;
+    contractor:       Principal;
+    homeowner:        Principal;
+    method:           JobPaymentMethod;
+    bidCents:         Nat;    // the accepted price
+    amountCents:      Nat;    // what the homeowner pays (the card price by card)
+    platformFeeCents: Nat;    // HomeGentic's share: the referral fee plus, by card, the card fee
+    referralFeeCents: Nat;    // the 3% referral fee in it (0 on ContractorPro)
+    status:           JobPaymentStatus;
+    checkoutRef:      Text;   // Stripe Checkout session
+    paymentRef:       Text;   // Stripe PaymentIntent
+    createdAt:        Int;
+    updatedAt:        Int;
+  };
+
+  /// What an in-app payment of an accepted quote costs, by bank or card.
+  public type PaymentTerms = {
+    quoteId:          Text;
+    requestId:        Text;
+    contractor:       Principal;
+    homeowner:        Principal;
+    accountId:        Text;
+    bidCents:         Nat;
+    cardCents:        Nat;
+    referralFeeCents: Nat;
+  };
+
+  /// A payment update, and how much of HomeGentic's share to refund because
+  /// the referral fee had already been paid another way.
+  public type PaymentUpdate = { payment: JobPayment; refundCents: Nat };
+
   public type Metrics = {
     totalRequests: Nat;
     openRequests: Nat;
@@ -279,6 +329,12 @@ persistent actor Quote {
   private let notifyLog       = Map.empty<Nat, Notify.Event>();
   private var notifyLatestSeq : Nat         = 0;
   private var notifierEntries : [Principal] = [];
+
+  /// In-app payments: the voice Worker's identity (paymentRelayEntries) opens
+  /// checkouts and reports Stripe events.
+  private var paymentRelayEntries : [Principal] = [];
+  private let payoutAccounts = Map.empty<Principal, PayoutAccount>();
+  private let jobPayments    = Map.empty<Text, JobPayment>();
 
   // ─── vetKeys IBE (sealed-bid confidentiality) ─────────────────────────────────
   // Domain separator "hg-bid-v1" — must match the context used by @dfinity/vetkeys
@@ -1732,6 +1788,204 @@ persistent actor Quote {
     out.toArray()
   };
 
+  // ─── In-app payments (Stripe Connect) ────────────────────────────────────────
+
+  private transient let MAX_PAYMENT_LOOKUP = 100;
+  private transient let MAX_REF_CHARS = 255;
+
+  private func isPaymentRelay(p: Principal) : Bool {
+    isAdmin(p) or Admin.contains(paymentRelayEntries, p)
+  };
+
+  /// The card price: the bid grossed up so a 2.9% + 30¢ card fee leaves the
+  /// bid, rounded up to the cent.
+  public query func cardPriceFor(bidCents: Nat) : async Nat { cardPrice(bidCents) };
+  private func cardPrice(bidCents: Nat) : Nat {
+    ((bidCents + 30) * 1000 + 970) / 971
+  };
+
+  private func platformFee(method: JobPaymentMethod, bidCents: Nat, referralFeeCents: Nat) : Nat {
+    switch (method) {
+      case (#Bank) referralFeeCents;
+      case (#Card) referralFeeCents + (cardPrice(bidCents) - bidCents);
+    }
+  };
+
+  /// Admin: allow or revoke the Worker's identity for payments.
+  public shared(msg) func addPaymentRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    paymentRelayEntries := Admin.add(paymentRelayEntries, p);
+    #ok(())
+  };
+
+  public shared(msg) func removePaymentRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    paymentRelayEntries := Admin.remove(paymentRelayEntries, p);
+    #ok(())
+  };
+
+  /// Relay only: a contractor's Stripe Connect account, after onboarding and
+  /// on every account.updated event.
+  public shared(msg) func relaySetPayoutAccount(contractor: Principal, account: PayoutAccount) : async Result.Result<(), Error> {
+    if (not isPaymentRelay(msg.caller)) return #err(#NotAuthorized);
+    if (account.accountId.size() == 0 or account.accountId.size() > MAX_REF_CHARS)
+      return #err(#InvalidInput("accountId is invalid"));
+    payoutAccounts.add(contractor, { account with updatedAt = Time.now() });
+    #ok(())
+  };
+
+  /// The caller's own payout account, if they started setting one up.
+  public query(msg) func getMyPayoutAccount() : async ?PayoutAccount {
+    payoutAccounts.get(msg.caller)
+  };
+
+  /// Relay only: a contractor's payout account (null for anyone else).
+  public query(msg) func relayGetPayoutAccount(contractor: Principal) : async ?PayoutAccount {
+    if (not isPaymentRelay(msg.caller)) return null;
+    payoutAccounts.get(contractor)
+  };
+
+  /// Whether each contractor can be paid in the app, as (principal, ready)
+  /// pairs. Open to any caller, like a contractor's profile. At most 100.
+  public query func getPayoutReady(contractors: [Principal]) : async [(Principal, Bool)] {
+    let out = List.empty<(Principal, Bool)>();
+    for (c in contractors.sliceToArray(0, Nat.min(contractors.size(), MAX_PAYMENT_LOOKUP)).values()) {
+      out.add((c, switch (payoutAccounts.get(c)) { case (?a) a.transfersActive; case null false }));
+    };
+    out.toArray()
+  };
+
+  /// The accepted quote, its request and the contractor's ready account, or why
+  /// it can't be paid in the app by `payer`.
+  private func payable(quoteId: Text, payer: Principal) : Result.Result<(Quote, QuoteRequest, PayoutAccount), Error> {
+    let (q, r) = switch (acceptedQuote(quoteId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
+    if (r.homeowner != payer) return #err(#NotAuthorized);
+    switch (jobPayments.get(quoteId)) {
+      case (?p) {
+        if (p.status == #Paid) return #err(#InvalidInput("This job is already paid"));
+        if (p.status == #Processing) return #err(#InvalidInput("A bank payment for this job is already on its way"));
+      };
+      case null {};
+    };
+    let a = switch (payoutAccounts.get(q.contractor)) {
+      case (?a) a;
+      case null return #err(#InvalidInput("This contractor hasn't set up payments in HomeGentic yet"));
+    };
+    if (not a.transfersActive) return #err(#InvalidInput("This contractor's payment setup isn't finished yet"));
+    #ok((q, r, a))
+  };
+
+  /// Relay only: `payer` wants to pay `quoteId` in the app. Checks they are
+  /// the request's homeowner, the quote is accepted and the contractor can be
+  /// paid, holds any referral fee so the saved card isn't charged meanwhile,
+  /// and returns the prices.
+  public shared(msg) func relayPrepareJobPayment(quoteId: Text, payer: Principal) : async Result.Result<PaymentTerms, Error> {
+    if (not isPaymentRelay(msg.caller)) return #err(#NotAuthorized);
+    switch (payable(quoteId, payer)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
+    var referral = 0;
+    if (feeCanisterId != "") {
+      let held = try { await Canisters.fee(feeCanisterId).holdReferralFeeInApp(quoteId) } catch (_) {
+        return #err(#Unavailable("Payments are unavailable right now. Please try again."))
+      };
+      switch (held) {
+        case (#ok(?cents)) referral := cents;
+        case (#ok(null)) {};
+        case (#err(_)) return #err(#Unavailable("Payments are unavailable right now. Please try again."));
+      };
+    };
+    // Re-read after the await.
+    let (q, r, a) = switch (payable(quoteId, payer)) { case (#err(e)) return #err(e); case (#ok(x)) x };
+    #ok({
+      quoteId; requestId = r.id; contractor = q.contractor; homeowner = r.homeowner; accountId = a.accountId;
+      bidCents = q.amount; cardCents = cardPrice(q.amount); referralFeeCents = referral;
+    })
+  };
+
+  /// Relay only: a checkout was opened for the terms relayPrepareJobPayment
+  /// gave. Replaces an earlier Started or Failed attempt.
+  public shared(msg) func relayRecordJobPayment(
+    quoteId: Text, payer: Principal, method: JobPaymentMethod, referralFeeCents: Nat, checkoutRef: Text
+  ) : async Result.Result<JobPayment, Error> {
+    if (not isPaymentRelay(msg.caller)) return #err(#NotAuthorized);
+    if (checkoutRef.size() == 0 or checkoutRef.size() > MAX_REF_CHARS) return #err(#InvalidInput("checkoutRef is invalid"));
+    let (q, r, _) = switch (payable(quoteId, payer)) { case (#err(e)) return #err(e); case (#ok(x)) x };
+    if (referralFeeCents > q.amount) return #err(#InvalidInput("referralFeeCents is invalid"));
+    let now = Time.now();
+    let p : JobPayment = {
+      quoteId; requestId = r.id; contractor = q.contractor; homeowner = r.homeowner; method;
+      bidCents = q.amount;
+      amountCents = switch (method) { case (#Bank) q.amount; case (#Card) cardPrice(q.amount) };
+      platformFeeCents = platformFee(method, q.amount, referralFeeCents);
+      referralFeeCents; status = #Started; checkoutRef; paymentRef = "";
+      createdAt = now; updatedAt = now;
+    };
+    jobPayments.add(quoteId, p);
+    #ok(p)
+  };
+
+  /// Relay only: Stripe reported the payment's progress. #Paid settles the
+  /// referral fee on the fee canister; when it had already been paid another
+  /// way, refundCents says how much of HomeGentic's share to give back.
+  /// Repeating an update is harmless.
+  public shared(msg) func relayUpdateJobPayment(
+    quoteId: Text, checkoutRef: Text, status: JobPaymentStatus, paymentRef: Text
+  ) : async Result.Result<PaymentUpdate, Error> {
+    if (not isPaymentRelay(msg.caller)) return #err(#NotAuthorized);
+    if (paymentRef.size() > MAX_REF_CHARS) return #err(#InvalidInput("paymentRef is invalid"));
+    let p = switch (jobPayments.get(quoteId)) { case null return #err(#NotFound); case (?p) p };
+    // A late event for an older checkout of the same quote changes nothing.
+    if (p.checkoutRef != checkoutRef) return #ok({ payment = p; refundCents = 0 });
+    if (p.status == #Paid or p.status == status) return #ok({ payment = p; refundCents = 0 });
+    if (status == #Started) return #err(#InvalidInput("status is invalid"));
+    let updated = { p with status; paymentRef = if (paymentRef == "") p.paymentRef else paymentRef; updatedAt = Time.now() };
+    jobPayments.add(quoteId, updated);
+    let amountLabel = "$" # (p.bidCents / 100).toText();
+    switch (status) {
+      case (#Processing) { notify("job_payment_processing", ?p.contractor, quoteId, amountLabel) };
+      case (#Paid) {
+        notify("job_payment_paid", ?p.contractor, quoteId, amountLabel);
+        notify("job_payment_receipt", ?p.homeowner, p.requestId, amountLabel);
+      };
+      case (#Failed) { notify("job_payment_failed", ?p.homeowner, p.requestId, amountLabel) };
+      case (#Started) {};
+    };
+    if (feeCanisterId == "" or p.referralFeeCents == 0) return #ok({ payment = updated; refundCents = 0 });
+    let fee = Canisters.fee(feeCanisterId);
+    switch (status) {
+      case (#Paid) {
+        // The payment already went through; a fee-canister failure here is
+        // reported so the Worker retries the event (settling is idempotent).
+        let settled = try { await fee.settleReferralFeeInApp(quoteId, "inapp:" # updated.paymentRef) } catch (_) {
+          return #err(#Unavailable("Could not record the referral fee"))
+        };
+        switch (settled) {
+          case (#ok(true)) #ok({ payment = updated; refundCents = 0 });
+          case (#ok(false)) #ok({ payment = updated; refundCents = p.referralFeeCents });
+          case (#err(_)) #err(#Unavailable("Could not record the referral fee"));
+        }
+      };
+      case (#Failed) {
+        try { ignore await fee.releaseReferralFeeInApp(quoteId) } catch (_) {};
+        #ok({ payment = updated; refundCents = 0 })
+      };
+      case _ { #ok({ payment = updated; refundCents = 0 }) };
+    }
+  };
+
+  /// The in-app payments on these quotes the caller can see: the contractor,
+  /// the homeowner, admins and the payment relay. At most 100 ids.
+  public query(msg) func getJobPayments(quoteIds: [Text]) : async [JobPayment] {
+    let out = List.empty<JobPayment>();
+    let privileged = isPaymentRelay(msg.caller) or isNotifier(msg.caller);
+    for (id in quoteIds.sliceToArray(0, Nat.min(quoteIds.size(), MAX_PAYMENT_LOOKUP)).values()) {
+      switch (jobPayments.get(id)) {
+        case (?p) { if (privileged or p.contractor == msg.caller or p.homeowner == msg.caller) out.add(p) };
+        case null {};
+      };
+    };
+    out.toArray()
+  };
+
   // ─── Account Deletion ────────────────────────────────────────────────────────
 
   /// Removes one sealed bid and its by-request / by-contractor index entries.
@@ -1776,6 +2030,8 @@ persistent actor Quote {
     var removed = 0;
     let deletedRefs = Set.empty<Text>();
 
+    payoutAccounts.remove(caller);
+
     // 1. The caller's own requests and everything on them.
     let myRequestIds = Index.ids(requestsByHomeowner, caller.toText()).toArray();
     for (reqId in myRequestIds.values()) {
@@ -1783,6 +2039,7 @@ persistent actor Quote {
       for (qid in quoteIds.values()) {
         Index.delete(quotes, quoteIndexes, qid);
         visitBookings.remove(qid);
+        jobPayments.remove(qid);
         deletedRefs.add(qid);
         removed += 1;
       };

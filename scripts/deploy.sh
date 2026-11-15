@@ -925,6 +925,7 @@ if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
   grant job addInboxRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker file forwarded invoices as drafts"
   grant contractor addLicenseRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker record Florida DBPR licence lookups"
   grant fee addReferralRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker save referral-fee cards and record charges"
+  grant quote addPaymentRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker open in-app payments to contractors and record Stripe events"
   grant property addIdentityRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker record Stripe Identity results"
   grant listing addShowingRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker file buyers' FSBO showing requests"
 fi

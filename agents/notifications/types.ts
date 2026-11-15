@@ -44,7 +44,11 @@ export type NotificationKind =
   | "visit_confirmed"
   | "visit_new_times_requested"
   | "visit_cancelled"
-  | "visit_reminder";
+  | "visit_reminder"
+  | "job_payment_processing"
+  | "job_payment_paid"
+  | "job_payment_receipt"
+  | "job_payment_failed";
 
 export interface NotificationEvent {
   type:      NotificationKind;

@@ -68,6 +68,8 @@ crons = ["0 * * * *"]   # every hour — scheduledBidtolist (deadline reminders)
 #   FRONTEND_ORIGIN               e.g. https://homegentic.com
 #   STRIPE_SECRET_KEY
 #   STRIPE_WEBHOOK_SECRET
+#   STRIPE_CONNECT_WEBHOOK_SECRET signing secret of the Connect webhook endpoint (account.updated
+#                                 from contractors' payout accounts); optional until in-app payments
 #   DFX_IDENTITY_PEM              Ed25519 PEM for ICP canister admin calls
 #   CANISTER_ID_PAYMENT
 #   CANISTER_ID_AUTH              resolves x-agent-session tokens (401 without it)

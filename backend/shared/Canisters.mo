@@ -121,6 +121,9 @@ module {
     recordReferralBid        : shared ReferralBid -> async { #ok : (); #err : FeeError };
     recordReferralAccepted   : shared Text -> async { #ok : ?{ id : Text }; #err : FeeError };
     recordReferralJobVerified : shared (Text, Principal, Text, Text) -> async { #ok : ?{ id : Text }; #err : FeeError };
+    holdReferralFeeInApp     : shared Text -> async { #ok : ?Nat; #err : FeeError };
+    settleReferralFeeInApp   : shared (Text, Text) -> async { #ok : Bool; #err : FeeError };
+    releaseReferralFeeInApp  : shared Text -> async { #ok : (); #err : FeeError };
   };
 
   public func fee(id : Text) : Fee = actor (id);
