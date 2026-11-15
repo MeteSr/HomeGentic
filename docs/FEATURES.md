@@ -187,6 +187,7 @@ Multi-tab page — the main workspace for a property.
 - Room/space inventory with type, notes, photos
 - Add / edit / delete rooms (AddRoomModal)
 - Fixtures per room (add/edit/remove)
+- **Manual** and **Parts** links on each appliance with a model number (`packages/shared/src/applianceLinks.ts`): Manual opens a web search for that model's manual limited to the manufacturer's own site (about 36 known brands; an unknown brand gets a plain "<brand> <model> owner's manual" search), Parts opens a search for replacement parts. They are search links: HomeGentic doesn't fetch, check or store the manual, and nothing is sent anywhere until the owner clicks
 - "Scan the label" in the add-fixture form: a photo of the appliance's data plate fills brand, model and serial. When Claude can tell the year made (printed, or decoded from the serial) on a water heater or HVAC unit, the form offers to use it as that system's install year in the forecast (stored with the other system ages on this device)
 
 **Tab: Documents** (home document vault)

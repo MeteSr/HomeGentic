@@ -3,6 +3,7 @@ import { useDialog } from "@/hooks/useDialog";
 import { roomService, type Room as RoomRecord, type UpdateRoomArgs, type AddFixtureArgs } from "@/services/room";
 import { type Photo } from "@/services/photo";
 import { AddRoomModal } from "@/components/AddRoomModal";
+import { ApplianceLinks } from "@/components/ApplianceLinks";
 import { Panel, hudInputStyle } from "@/components/hud";
 import { extractDocument, fileToBase64 } from "@/services/documentOcr";
 import { systemAgesService, type SystemName } from "@/services/systemAges";
@@ -112,13 +113,14 @@ function RoomCard({
         {room.fixtures.length > 0 && (
           <div style={{ marginBottom: 10 }}>
             <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
-              APPLIANCE
+              {room.fixtures.length > 1 ? "APPLIANCES" : "APPLIANCE"}
             </div>
-            {room.fixtures.slice(0, 1).map(f => (
-              <div key={f.id}>
+            {room.fixtures.map(f => (
+              <div key={f.id} style={{ marginBottom: 6 }}>
                 <div style={{ fontFamily: BODY, fontSize: 13, fontWeight: 600, color: "var(--hg-ink)" }}>
                   {f.brand} {f.model}
                 </div>
+                <ApplianceLinks brand={f.brand} model={f.model} />
                 {f.notes && (
                   <div style={{ fontFamily: BODY, fontSize: 12, color: "var(--hg-blue-ink)" }}>
                     {f.notes}
