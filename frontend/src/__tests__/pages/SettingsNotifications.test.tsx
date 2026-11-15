@@ -131,7 +131,7 @@ type State = {
 function makeState(over: { sms?: State["prefs"]["sms"]; email?: Record<string, boolean>; channels?: Partial<State["channels"]> } = {}): State {
   return {
     prefs: {
-      push:  { job_awaiting_signature: true, job_awaiting_contractor_signature: true, bid_accepted: true, bid_declined: true },
+      push:  { job_awaiting_signature: true, job_awaiting_contractor_signature: true, bid_accepted: true, bid_declined: true, product_recall: true },
       email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true, showing_requests: true, ...over.email },
       sms:   over.sms ?? { enabled: false, phone: null },
     },
@@ -253,6 +253,14 @@ describe("homeowner preferences", () => {
     fireEvent.click(switchFor("Dashboard: Home Pulse tips"));
     expect(localStorage.getItem("homegentic_pulse_enabled")).toBe("false");
     expect(relay.setNotificationPrefs).not.toHaveBeenCalled();
+  });
+
+  it("saves the recall push row under product_recall", async () => {
+    relay.setNotificationPrefs.mockResolvedValue(makeState());
+    renderNotificationsTab();
+    await waitFor(() => screen.getByText("Push: Possible Product Recalls"));
+    fireEvent.click(switchFor("Push: Possible Product Recalls"));
+    await waitFor(() => expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ push: { product_recall: false } }));
   });
 
   it("shows no contractor rows", async () => {

@@ -802,6 +802,14 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: FloodZoneRecord, err: Error })],
       []
     ),
+    getPulseAppliances: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({
+        ok: IDL.Vec(IDL.Record({ propertyId: IDL.Text, room: IDL.Text, brand: IDL.Text, model: IDL.Text })),
+        err: Error,
+      })],
+      ["query"]
+    ),
     getPulseInsurance: IDL.Func(
       [IDL.Principal],
       [IDL.Variant({

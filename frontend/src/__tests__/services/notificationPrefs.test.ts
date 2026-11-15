@@ -13,7 +13,7 @@ const RELAY = "https://notify.example.com";
 
 const STATE = {
   prefs: {
-    push:  { job_awaiting_signature: true, job_awaiting_contractor_signature: true, bid_accepted: true, bid_declined: false },
+    push:  { job_awaiting_signature: true, job_awaiting_contractor_signature: true, bid_accepted: true, bid_declined: false, product_recall: true },
     email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false },
     sms:   { enabled: false, phone: null },
   },

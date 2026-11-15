@@ -33,6 +33,7 @@ export type NotificationKind =
   | "review_request"
   | "showing_request"
   | "weekly_pulse"
+  | "product_recall"
   | "succession_claim_opened"
   | "succession_claim_reminder"
   | "succession_claim_approved"
@@ -122,6 +123,14 @@ export interface PulseProperty {
 }
 
 /** #711: an insurance policy's renewal, for the reminder in the weekly email. */
+/** One appliance (room fixture with a brand and model) for the weekly recall check. */
+export interface PulseAppliance {
+  propertyId: string;
+  room:       string;
+  brand:      string;
+  model:      string;
+}
+
 export interface PulseInsurance {
   propertyId:  string;
   carrier:     string;

@@ -2,88 +2,28 @@
  * POST /api/recalls — CPSC recall check for the appliances a homeowner has
  * registered (fixtures with a brand and model).
  *
- * The CPSC Recalls API (saferproducts.gov/RestWebServices/Recall) has no
- * reliable model-number search, so we ask it for every recall naming the
- * brand as manufacturer (cached in KV for a day, shared by all callers) and
- * match the model here. A match means the model number appears in the recall
- * text, or a model number the recall lists is a prefix of it (recalls often
- * name a model family, e.g. "XE50T"). That can be wrong both ways, so the app
- * shows matches as "possible recall, check the model on the CPSC page", never
- * as confirmed. No model number → no match: a brand alone is too broad.
+ * Every recall naming each brand is fetched from CPSC (cached in KV for a
+ * day, shared by all callers) and matched with packages/shared/src/recalls.ts,
+ * which explains the matching rule and why a match is only a possible recall.
  *
  * Session required (the route is in OFFCHAIN_OUTCALL_ROUTES).
  */
 
-export const CPSC_RECALL_URL = "https://www.saferproducts.gov/RestWebServices/Recall";
+import {
+  CPSC_RECALL_URL, toRecall, recallMatches, type Recall, type RecallItem, type RecallMatch,
+} from "../../../packages/shared/src/recalls";
+
+export { CPSC_RECALL_URL, toRecall, recallMatches };
+export type { Recall, RecallItem, RecallMatch };
+
 export const RECALL_CACHE_TTL_S = 86_400;
 export const MAX_ITEMS  = 50;
 export const MAX_BRANDS = 10;
 const MAX_UPSTREAM_BYTES = 8 * 1024 * 1024;
-/** Shorter model numbers match too much text to mean anything. */
-const MIN_MODEL_CHARS = 4;
-/** Shortest recall-listed model we treat as a family prefix. */
-const MIN_PREFIX_CHARS = 5;
-
-export interface RecallItem { brand: string; model: string }
-
-/** The fields we keep from a CPSC recall (and cache). */
-export interface Recall {
-  id:      string;
-  number:  string;
-  date:    string;   // YYYY-MM-DD
-  title:   string;
-  url:     string;
-  hazard:  string;
-  remedy:  string;
-  /** Model numbers and product text, uppercased alphanumerics, for matching. */
-  models:  string[];
-  text:    string;
-}
-
-export interface RecallMatch {
-  brand:   string;
-  model:   string;
-  recalls: Array<Omit<Recall, "models" | "text">>;
-}
 
 interface RecallEnv { RATE_LIMIT: KVNamespace }
 
-const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 const s = (v: unknown, max = 500) => (typeof v === "string" ? v.trim().slice(0, max) : "");
-const names = (v: unknown) =>
-  Array.isArray(v) ? v.map((x) => s((x as any)?.Name)).filter(Boolean).join("; ") : "";
-
-/** One CPSC API record → the fields we keep. Tolerates missing fields. */
-export function toRecall(r: any): Recall {
-  const products: any[] = Array.isArray(r?.Products) ? r.Products : [];
-  const models = products
-    .flatMap((p) => s(p?.Model, 2000).split(/[,;/\n]| and | or /i))
-    .map(norm)
-    .filter((m) => m.length >= MIN_MODEL_CHARS);
-  const text = norm([
-    s(r?.Title), s(r?.Description, 4000),
-    ...products.flatMap((p) => [s(p?.Name), s(p?.Description, 2000), s(p?.Model, 2000)]),
-  ].join(" "));
-  return {
-    id:     String(r?.RecallID ?? ""),
-    number: s(r?.RecallNumber, 40),
-    date:   s(r?.RecallDate, 10),
-    title:  s(r?.Title, 300),
-    url:    /^https:\/\/(www\.)?cpsc\.gov\//.test(s(r?.URL)) ? s(r?.URL) : "",
-    hazard: names(r?.Hazards),
-    remedy: names(r?.Remedies),
-    models,
-    text,
-  };
-}
-
-/** Does this recall name this model? See the file comment for the rule. */
-export function recallMatches(recall: Recall, model: string): boolean {
-  const m = norm(model);
-  if (m.length < MIN_MODEL_CHARS) return false;
-  if (recall.text.includes(m)) return true;
-  return recall.models.some((rm) => rm.length >= MIN_PREFIX_CHARS && m.startsWith(rm));
-}
 
 /** Every recall naming this brand, from KV or CPSC. Throws on upstream failure. */
 export async function recallsForBrand(brand: string, env: RecallEnv, fetchImpl: typeof fetch = fetch): Promise<Recall[]> {
