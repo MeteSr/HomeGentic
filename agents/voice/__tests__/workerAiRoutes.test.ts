@@ -144,6 +144,10 @@ const ROUTES: Record<string, { body: unknown; spends: "complete" | "stream" | "c
   "/api/extract-bill": { body: upload, spends: "complete" },
   "/api/extract-document": { body: upload, spends: "complete" },
   "/api/inspection-findings": { body: upload, spends: "complete" },
+  "/api/problem-help": {
+    body: { description: "Water under the sink", mimeType: "image/png", base64Data: "aGk=" },
+    spends: "complete",
+  },
   "/api/efficiency-alert": {
     body: { usageTrend: [100, 100, 300, 300].map((usageAmount) => ({ usageAmount, usageUnit: "kWh" })) },
     spends: "complete",

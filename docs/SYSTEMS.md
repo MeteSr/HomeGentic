@@ -1256,6 +1256,10 @@ Response headers: `X-Agent-Calls-Used`, `X-Agent-Calls-Limit` — used by the UI
 - Season/climate-aware Monday-morning digest
 - Input: `propertyId, address, zipCode, yearBuilt, systemAges, userTopicWeights`
 
+**`POST /api/problem-help`** — "Show me the problem" AI suggestions
+- Input: `description` (up to 1,000 characters), optional `mimeType` + `base64Data` image (not stored)
+- Returns: `{ summary, likelyCauses, safeToTry, shutOff, danger, dangerAdvice, serviceType, urgency }`; danger forces urgency `emergency`
+
 **`POST /api/negotiate`** — Contractor quote benchmarking
 - Input: quote, request details, zip, benchmark (p25/median/p75)
 - Returns: `{ verdict, percentile, suggestedCounterCents?, rationale }`
