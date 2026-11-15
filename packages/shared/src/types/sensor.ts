@@ -91,6 +91,7 @@ export interface _SERVICE {
   deactivateDevice: ActorMethod<[string], { ok: null } | { err: Error }>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   execute: ActorMethod<[string], OqlResult>;
+  getApiDoc: ActorMethod<[], string>;
   getDevicesForProperty: ActorMethod<[string], SensorDevice[]>;
   getEventsForProperty: ActorMethod<[string, bigint], SensorEvent[]>;
   getPendingAlerts: ActorMethod<[string], SensorEvent[]>;

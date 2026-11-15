@@ -37,6 +37,7 @@ import List "mo:core/List";
 import Runtime "mo:core/Runtime";
 import Oql "../shared/Oql";
 import SensorOql "SensorOql";
+import ApiDoc "ApiDoc";
 
 persistent actor Sensor {
 
@@ -717,9 +718,15 @@ persistent actor Sensor {
     )
   };
 
-  // ─── OQL (schema + execute) for the in-app assistant ──────────────────────
+  /// What an AI assistant needs to know about this canister beyond its Candid
+  /// (service-discoverability skill, Layer 3; read through ICP MCP). Text in
+  /// ./ApiDoc.mo.
+  public query func getApiDoc() : async Text { ApiDoc.text() };
+
+  // ─── OQL (schema + execute) ───────────────────────────────────────────────
   // The query convention of shared/Oql.mo (service-discoverability skill
-  // Layer 4), called by the assistant's query_home_records tool. Read-only.
+  // Layer 4), called by the in-app assistant's query_home_records tool and by
+  // assistants connected through ICP MCP. Read-only.
   // Rows are those of homes the caller has a role on, as getDevicesForProperty
   // decides; unwired (local dev), only devices the caller registered and
   // their events. Vendor device ids and raw payloads are never returned.

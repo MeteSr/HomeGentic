@@ -37,8 +37,9 @@ OQL on bills and property, and the in-app read tool (2026-11-10):
   `lastVisitDate` and `nextVisitEstimate`: the last visit logged plus the frequency, an estimate and never an
   appointment) and `visits`. Provider licence numbers are left out.
 - `sensor.schema()` / `sensor.execute(oql)` (composite query, 2026-11-14): `devices` and `events` (newest 1,000 a
-  home). Vendor device ids and raw gateway payloads are left out. The sensor canister is not in the ICP MCP
-  manifest, so only the in-app assistant reaches this one.
+  home). Vendor device ids and raw gateway payloads are left out. The sensor canister joined the ICP MCP
+  manifest on 2026-11-15 (in place of report, to stay within the connector's eight), so connected assistants
+  reach it too; its `getApiDoc()` is `backend/sensor/ApiDoc.mo`.
 - Every one of these canisters: only homes the caller has a role on, at most 20 homes a query, no principals in any row,
   nothing writes.
 - The in-app assistant has one generic read tool, `query_home_records` (`agents/voice/tools.ts`, executed in
@@ -159,8 +160,8 @@ fallback link at the chat cap (5) before doing anything else.
 - The access-checked reads above are update calls with **no** per-minute limit on any canister, and each one
   makes a call to `property`. Moving them to composite queries (2) fixes the cost; counting them against the
   same per-minute limit is the fallback if traffic shows abuse.
-- Threshold-key calls reachable through the connector stay under their own caps (report signing 500/day,
-  quote reveals 500/day).
+- Threshold-key calls reachable through the connector stay under their own caps (quote reveals 500/day). Report
+  signing (500/day) is no longer reachable through it: report left the manifest on 2026-11-15.
 - The connector blocks transfers, and `payment` is not exposed, so a connector can't charge a user.
 - `getApiDoc` text must stay accurate and must never instruct the assistant (App Operator Terms).
 - OQL `execute` is a query on every canister, so it can't keep a per-minute counter (a query's state changes
