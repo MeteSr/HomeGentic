@@ -19,6 +19,8 @@
  *   visit_* (times offered, booked,   yes   Visit Times                —
  *     confirmed, new times asked,
  *     cancelled, day-before reminder)
+ *   job_payment_* (bank payment on   yes   Payments                   —
+ *     its way, paid, receipt, failed)
  *
  * * new-lead pushes follow the contractor profile's notifyPush instead of a
  *   relay preference.
@@ -47,9 +49,17 @@ export const VISIT_NOTIFICATION_KINDS = [
   "visit_reminder",
 ] as const satisfies readonly NotificationKind[];
 
+/** In-app job payments: no push setting, one email row. */
+export const PAYMENT_NOTIFICATION_KINDS = [
+  "job_payment_processing",
+  "job_payment_paid",
+  "job_payment_receipt",
+  "job_payment_failed",
+] as const satisfies readonly NotificationKind[];
+
 /** Kinds that are pushed at all (new_lead's opt-in lives on the contractor profile). */
 export const PUSH_KINDS: readonly NotificationKind[] = [
-  ...PUSH_PREF_KINDS, "new_lead", "showing_request", ...VISIT_NOTIFICATION_KINDS,
+  ...PUSH_PREF_KINDS, "new_lead", "showing_request", ...VISIT_NOTIFICATION_KINDS, ...PAYMENT_NOTIFICATION_KINDS,
 ];
 
 /** Email preference keys — one per Settings row — and the kinds each covers. */
@@ -62,6 +72,7 @@ export const EMAIL_GROUPS = {
   weekly_pulse:   ["weekly_pulse"],
   showing_requests: ["showing_request"],
   visits:         VISIT_NOTIFICATION_KINDS,
+  payments:       PAYMENT_NOTIFICATION_KINDS,
 } as const satisfies Record<string, readonly NotificationKind[]>;
 export type EmailPrefKey = keyof typeof EMAIL_GROUPS;
 export const EMAIL_PREF_KEYS = Object.keys(EMAIL_GROUPS) as EmailPrefKey[];
@@ -80,6 +91,7 @@ export const EMAIL_DEFAULTS: Record<EmailPrefKey, boolean> = {
   weekly_pulse:   true,
   showing_requests: true,
   visits:         true,
+  payments:       true,
 };
 
 /**

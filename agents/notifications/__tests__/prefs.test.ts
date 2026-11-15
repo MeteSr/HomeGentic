@@ -32,7 +32,7 @@ describe("defaults", () => {
         job_awaiting_signature: true, job_awaiting_contractor_signature: true,
         bid_accepted: true, bid_declined: true, product_recall: true,
       },
-      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true, showing_requests: true, visits: true },
+      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true, showing_requests: true, visits: true, payments: true },
       sms:   { enabled: false, phone: null },
     });
   });
@@ -114,6 +114,10 @@ describe("channel decisions", () => {
     ok(p.setPrefs("h-1", { email: { visits: false } }));
     expect(p.wantsEmail("h-1", "visit_booked")).toBe(false);
     expect(p.wantsPush("h-1", "visit_booked")).toBe(true);
+    expect(p.wantsEmail("h-1", "job_payment_receipt")).toBe(true);
+    ok(p.setPrefs("h-1", { email: { payments: false } }));
+    expect(p.wantsEmail("h-1", "job_payment_failed")).toBe(false);
+    expect(p.wantsPush("h-1", "job_payment_paid")).toBe(true);
   });
 
   it("SMS: only the time-sensitive kinds", () => {

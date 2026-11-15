@@ -255,3 +255,46 @@ describe("visit times", () => {
     expect(await notificationsFor({ ...visit("visit_booked", "x"), recipient: null }, visitLookups(booking()), NOW)).toEqual([]);
   });
 });
+
+describe("in-app job payments", () => {
+  const pay = (kind: string, recipient: string, refId: string): OutboxEvent => ({ seq: 4, kind, recipient, refId, summary: "$1200" });
+  const l = () => ({
+    getQuoteRequest: jest.fn(async () => null),
+    getContractors:  jest.fn(async () => []),
+    isPro:           jest.fn(async () => true),
+    getSuccessionNotice: jest.fn(async () => null),
+    getVisitBooking: jest.fn(async () => null),
+  });
+
+  it("tells the contractor a bank payment is on its way, and when it has cleared", async () => {
+    expect(await notificationsFor(pay("job_payment_processing", "pro", "Q_1"), l())).toEqual([{
+      type: "job_payment_processing", principal: "pro", pushOptIn: true,
+      payload: {
+        title: "Bank payment on its way",
+        body: "The homeowner paid $1200 by bank. Stripe sends it to you once it clears, usually in about 4 business days.",
+        route: "leads",
+      },
+    }]);
+    const paid = await notificationsFor(pay("job_payment_paid", "pro", "Q_1"), l());
+    expect(paid[0].payload).toEqual({
+      title: "You've been paid",
+      body: "The homeowner's $1200 payment went through. Stripe is sending it to your bank account.",
+      route: "leads",
+    });
+  });
+
+  it("sends the homeowner a receipt or a failure, linking to the request", async () => {
+    const receipt = await notificationsFor(pay("job_payment_receipt", "owner", "REQ_1"), l());
+    expect(receipt[0].payload).toEqual({
+      title: "Payment complete",
+      body: "Your $1200 payment to your contractor went through.",
+      route: "quotes/REQ_1",
+    });
+    const failed = await notificationsFor(pay("job_payment_failed", "owner", "REQ_1"), l());
+    expect(failed[0].payload).toEqual({
+      title: "Payment didn't go through",
+      body: "Your $1200 payment to your contractor didn't go through. Open the job in HomeGentic to try again.",
+      route: "quotes/REQ_1",
+    });
+  });
+});

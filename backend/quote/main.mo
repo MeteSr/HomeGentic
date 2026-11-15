@@ -1944,9 +1944,9 @@ persistent actor Quote {
       case (#Processing) { notify("job_payment_processing", ?p.contractor, quoteId, amountLabel) };
       case (#Paid) {
         notify("job_payment_paid", ?p.contractor, quoteId, amountLabel);
-        notify("job_payment_receipt", ?p.homeowner, quoteId, amountLabel);
+        notify("job_payment_receipt", ?p.homeowner, p.requestId, amountLabel);
       };
-      case (#Failed) { notify("job_payment_failed", ?p.homeowner, quoteId, amountLabel) };
+      case (#Failed) { notify("job_payment_failed", ?p.homeowner, p.requestId, amountLabel) };
       case (#Started) {};
     };
     if (feeCanisterId == "" or p.referralFeeCents == 0) return #ok({ payment = updated; refundCents = 0 });
