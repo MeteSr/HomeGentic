@@ -67,7 +67,14 @@
   ],
   "sensor": [],
   "listing": [],
-  "agent": [],
+  "agent": [
+    "countVerifiedAgentsForCities(bill)",
+    "countVerifiedAgentsForCities(entry)",
+    "countVerifiedAgentsForCities(job)",
+    "countVerifiedAgentsForCities(property)",
+    "countVerifiedAgentsForCities(request)",
+    "countVerifiedAgentsForCities(service)"
+  ],
   "fee": [],
   "bills": [],
   "recurring": [],
