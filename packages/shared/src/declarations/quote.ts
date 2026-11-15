@@ -97,6 +97,43 @@ export const idlFactory = ({ IDL }: any) => {
     updatedAt: IDL.Int,
   });
   const VisitResult = IDL.Variant({ ok: VisitBooking, err: Error });
+  const PayoutAccount = IDL.Record({
+    accountId:       IDL.Text,
+    transfersActive: IDL.Bool,
+    payoutsEnabled:  IDL.Bool,
+    updatedAt:       IDL.Int,
+  });
+  const JobPaymentMethod = IDL.Variant({ Bank: IDL.Null, Card: IDL.Null });
+  const JobPaymentStatus = IDL.Variant({
+    Started: IDL.Null, Processing: IDL.Null, Paid: IDL.Null, Failed: IDL.Null,
+  });
+  const JobPayment = IDL.Record({
+    quoteId:          IDL.Text,
+    requestId:        IDL.Text,
+    contractor:       IDL.Principal,
+    homeowner:        IDL.Principal,
+    method:           JobPaymentMethod,
+    bidCents:         IDL.Nat,
+    amountCents:      IDL.Nat,
+    platformFeeCents: IDL.Nat,
+    referralFeeCents: IDL.Nat,
+    status:           JobPaymentStatus,
+    checkoutRef:      IDL.Text,
+    paymentRef:       IDL.Text,
+    createdAt:        IDL.Int,
+    updatedAt:        IDL.Int,
+  });
+  const PaymentTerms = IDL.Record({
+    quoteId:          IDL.Text,
+    requestId:        IDL.Text,
+    contractor:       IDL.Principal,
+    homeowner:        IDL.Principal,
+    accountId:        IDL.Text,
+    bidCents:         IDL.Nat,
+    cardCents:        IDL.Nat,
+    referralFeeCents: IDL.Nat,
+  });
+  const PaymentUpdate = IDL.Record({ payment: JobPayment, refundCents: IDL.Nat });
 
   return IDL.Service({
     getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
@@ -112,6 +149,25 @@ export const idlFactory = ({ IDL }: any) => {
     askForNewVisitTimes: IDL.Func([IDL.Text], [VisitResult], []),
     cancelVisit:         IDL.Func([IDL.Text], [VisitResult], []),
     getVisitBookings:    IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(VisitBooking)], ["query"]),
+    // In-app payments (Stripe Connect)
+    cardPriceFor:           IDL.Func([IDL.Nat], [IDL.Nat], ["query"]),
+    getMyPayoutAccount:     IDL.Func([], [IDL.Opt(PayoutAccount)], ["query"]),
+    getPayoutReady:         IDL.Func([IDL.Vec(IDL.Principal)], [IDL.Vec(IDL.Tuple(IDL.Principal, IDL.Bool))], ["query"]),
+    getJobPayments:         IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(JobPayment)], ["query"]),
+    addPaymentRelay:        IDL.Func([IDL.Principal], [UnitResult], []),
+    removePaymentRelay:     IDL.Func([IDL.Principal], [UnitResult], []),
+    relaySetPayoutAccount:  IDL.Func([IDL.Principal, PayoutAccount], [UnitResult], []),
+    relayPrepareJobPayment: IDL.Func([IDL.Text, IDL.Principal], [IDL.Variant({ ok: PaymentTerms, err: Error })], []),
+    relayRecordJobPayment:  IDL.Func(
+      [IDL.Text, IDL.Principal, JobPaymentMethod, IDL.Nat, IDL.Text],
+      [IDL.Variant({ ok: JobPayment, err: Error })],
+      []
+    ),
+    relayUpdateJobPayment:  IDL.Func(
+      [IDL.Text, IDL.Text, JobPaymentStatus, IDL.Text],
+      [IDL.Variant({ ok: PaymentUpdate, err: Error })],
+      []
+    ),
     createQuoteRequest: IDL.Func(
       [IDL.Text, ServiceType, IDL.Text, UrgencyLevel, IDL.Opt(IDL.Text),
        IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],

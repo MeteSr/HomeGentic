@@ -24,6 +24,8 @@ export type Error =
   | { RateLimited: null }
   | { Unavailable: string };
 
+export type UnitResult = { ok: null } | { err: Error };
+
 export type VisitResult = { ok: VisitBooking } | { err: Error };
 
 export type VisitBooking = {
@@ -61,8 +63,6 @@ export type UsageMonth = {
   amountCents: bigint;
   usage: [] | [number];
 };
-
-export type UnitResult = { ok: null } | { err: Error };
 
 export type QuoteRequest = {
   id: string;
@@ -109,6 +109,27 @@ export type ServiceType =
 
 export type UrgencyLevel = { Low: null } | { High: null } | { Medium: null } | { Emergency: null };
 
+export type JobPayment = {
+  status: JobPaymentStatus;
+  method: JobPaymentMethod;
+  requestId: string;
+  platformFeeCents: bigint;
+  createdAt: bigint;
+  quoteId: string;
+  referralFeeCents: bigint;
+  amountCents: bigint;
+  updatedAt: bigint;
+  checkoutRef: string;
+  bidCents: bigint;
+  homeowner: Principal;
+  paymentRef: string;
+  contractor: Principal;
+};
+
+export type JobPaymentStatus = { Started: null } | { Failed: null } | { Paid: null } | { Processing: null };
+
+export type JobPaymentMethod = { Bank: null } | { Card: null };
+
 export type SealedBid = {
   id: string;
   requestId: string;
@@ -116,6 +137,13 @@ export type SealedBid = {
   timelineDays: bigint;
   submittedAt: bigint;
   contractor: Principal;
+};
+
+export type PayoutAccount = {
+  payoutsEnabled: boolean;
+  transfersActive: boolean;
+  accountId: string;
+  updatedAt: bigint;
 };
 
 export type RevealedBid = {
@@ -128,6 +156,22 @@ export type RevealedBid = {
   contractor: Principal;
 };
 
+export type PaymentTerms = {
+  requestId: string;
+  accountId: string;
+  quoteId: string;
+  referralFeeCents: bigint;
+  cardCents: bigint;
+  bidCents: bigint;
+  homeowner: Principal;
+  contractor: Principal;
+};
+
+export type PaymentUpdate = {
+  refundCents: bigint;
+  payment: JobPayment;
+};
+
 export type SealedBidReveal = {
   bids: SealedBid[];
   encryptedKey: Uint8Array | number[];
@@ -136,11 +180,13 @@ export type SealedBidReveal = {
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
   acceptQuote: ActorMethod<[string], { ok: Quote } | { err: Error }>;
+  addPaymentRelay: ActorMethod<[Principal], UnitResult>;
   askForNewVisitTimes: ActorMethod<[string], VisitResult>;
   attachUsageSummary: ActorMethod<[string, UsageSummary], UnitResult>;
   bookVisitTime: ActorMethod<[string, bigint], VisitResult>;
   cancelQuoteRequest: ActorMethod<[string], { ok: Principal[] } | { err: Error }>;
   cancelVisit: ActorMethod<[string], VisitResult>;
+  cardPriceFor: ActorMethod<[bigint], bigint>;
   closeQuoteRequest: ActorMethod<[string], { ok: QuoteRequest } | { err: Error }>;
   createQuoteRequest: ActorMethod<
     [
@@ -174,6 +220,7 @@ export interface _SERVICE {
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   getApiDoc: ActorMethod<[], string>;
   getIbePublicKey: ActorMethod<[], Uint8Array | number[]>;
+  getJobPayments: ActorMethod<[string[]], JobPayment[]>;
   getLocalPriceStats: ActorMethod<
     [string, string],
     | []
@@ -188,11 +235,13 @@ export interface _SERVICE {
       ]
   >;
   getMyBid: ActorMethod<[string], { ok: SealedBid } | { err: Error }>;
+  getMyPayoutAccount: ActorMethod<[], [] | [PayoutAccount]>;
   getMyQuoteRequests: ActorMethod<[], QuoteRequest[]>;
   getMyQuotes: ActorMethod<[], Quote[]>;
   getOpenRequests: ActorMethod<[], QuoteRequest[]>;
   getOpenRequestsForMe: ActorMethod<[], QuoteRequest[]>;
   getOpenRequestsPage: ActorMethod<[bigint, bigint], QuoteRequest[]>;
+  getPayoutReady: ActorMethod<[Principal[]], Array<[Principal, boolean]>>;
   getQuoteRequest: ActorMethod<[string], { ok: QuoteRequest } | { err: Error }>;
   getQuoteRequestSubtypes: ActorMethod<[string[]], Array<[string, string]>>;
   getQuotesForRequest: ActorMethod<[string], { ok: Quote[] } | { err: Error }>;
@@ -200,6 +249,17 @@ export interface _SERVICE {
   getUsageSummary: ActorMethod<[string], { ok: [] | [UsageSummary] } | { err: Error }>;
   getVisitBookings: ActorMethod<[string[]], VisitBooking[]>;
   offerVisitTimes: ActorMethod<[string, VisitSlot[], string], VisitResult>;
+  relayPrepareJobPayment: ActorMethod<[string, Principal], { ok: PaymentTerms } | { err: Error }>;
+  relayRecordJobPayment: ActorMethod<
+    [string, Principal, JobPaymentMethod, bigint, string],
+    { ok: JobPayment } | { err: Error }
+  >;
+  relaySetPayoutAccount: ActorMethod<[Principal, PayoutAccount], UnitResult>;
+  relayUpdateJobPayment: ActorMethod<
+    [string, string, JobPaymentStatus, string],
+    { ok: PaymentUpdate } | { err: Error }
+  >;
+  removePaymentRelay: ActorMethod<[Principal], UnitResult>;
   removeUsageSummary: ActorMethod<[string], UnitResult>;
   revealBids: ActorMethod<[string], { ok: RevealedBid[] } | { err: Error }>;
   revealBidsEncrypted: ActorMethod<[string, Uint8Array | number[]], { ok: SealedBidReveal } | { err: Error }>;

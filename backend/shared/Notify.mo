@@ -41,6 +41,11 @@ module {
   ///   "visit_new_times_requested"
   ///                            — recipient: the contractor; refId: quoteId
   ///   "visit_cancelled"        — recipient: the other side; refId: quoteId
+  ///   "job_payment_processing" — recipient: the contractor; refId: quoteId;
+  ///                              summary: the accepted price ("$1200")
+  ///   "job_payment_paid"       — recipient: the contractor; refId: quoteId
+  ///   "job_payment_receipt"    — recipient: the homeowner; refId: quoteId
+  ///   "job_payment_failed"     — recipient: the homeowner; refId: quoteId
   public type Event = {
     seq:       Nat;
     kind:      Text;

@@ -154,6 +154,10 @@ persistent actor Fee {
   /// jobId → feeId: one fee per verified job.
   private let referralFeeByJob   = Map.empty<Text, Text>();
   private let referralCards = Map.empty<Principal, ReferralCard>();
+  /// feeId → when an in-app payment (quote canister) last claimed it. A held
+  /// fee is not charged to the saved card while the payment is in progress;
+  /// the hold lapses after IN_APP_HOLD_NS (an abandoned checkout).
+  private let inAppHolds = Map.empty<Text, Int>();
 
   private transient let bidsByContractor = Index.empty();
   private transient let bidIndexes : [Index.Keyed<ReferralBid>] = Index.indexed(referralBids, [
@@ -172,6 +176,8 @@ persistent actor Fee {
   /// A fee unpaid this long after the card was declined pauses bidding.
   private transient let OVERDUE_NS : Int = 30 * DAY_NS;
   private transient let MIN_REFERRAL_FEE_CENTS : Nat = 2000;
+  /// A bank payment takes up to about a week to clear; two covers retries.
+  private transient let IN_APP_HOLD_NS : Int = 14 * DAY_NS;
 
   private let updateCallLimits = Map.empty<Text, (Nat, Int)>();
   private var maxUpdatesPerMin : Nat = 30;
@@ -453,7 +459,7 @@ persistent actor Fee {
       };
     };
     #ok(referralFees.values()
-      .filter(func(f: ReferralFee) : Bool { f.status == #Due })
+      .filter(func(f: ReferralFee) : Bool { f.status == #Due and not heldInApp(f.id, now) })
       .map(func(f: ReferralFee) : ChargeItem { { fee = f; card = referralCards.get(f.contractor) } })
       .toArray())
   };
@@ -486,6 +492,57 @@ persistent actor Fee {
         #ok(failed)
       };
     }
+  };
+
+  // ─── Referral fees taken by in-app payments ─────────────────────────────────
+
+  private func heldInApp(feeId: Text, now: Int) : Bool {
+    switch (inAppHolds.get(feeId)) { case (?t) now - t < IN_APP_HOLD_NS; case null false }
+  };
+
+  private func feeForQuote(quoteId: Text) : ?ReferralFee {
+    switch (referralFeeByQuote.get(quoteId)) { case (?id) referralFees.get(id); case null null }
+  };
+
+  /// Quote canister only: the homeowner is about to pay `quoteId` in the app.
+  /// Returns the referral fee to take from that payment (its cents), and
+  /// holds it so the saved card isn't charged meanwhile. Null when the bid
+  /// carries no fee, or it is already paid, waived or invoiced.
+  public shared(msg) func holdReferralFeeInApp(quoteId: Text) : async Result.Result<?Nat, Error> {
+    if (msg.caller.toText() != quoteCanisterId and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    switch (feeForQuote(quoteId)) {
+      case (?f) {
+        if (f.status != #Pending and f.status != #Due) return #ok(null);
+        inAppHolds.add(f.id, Time.now());
+        #ok(?f.feeCents)
+      };
+      case null { #ok(null) };
+    }
+  };
+
+  /// Quote canister only: the in-app payment that took the fee succeeded.
+  /// Marks it Paid. Returns false when it was already settled another way (the
+  /// saved card was charged first), so the caller can refund its share.
+  public shared(msg) func settleReferralFeeInApp(quoteId: Text, paymentRef: Text) : async Result.Result<Bool, Error> {
+    if (msg.caller.toText() != quoteCanisterId and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    switch (feeForQuote(quoteId)) {
+      case (?f) {
+        inAppHolds.remove(f.id);
+        if (f.status == #Pending or f.status == #Due) {
+          putReferralFee({ f with status = #Paid; paymentRef; dueAt = switch (f.dueAt) { case null ?Time.now(); case d d }; updatedAt = Time.now() });
+          #ok(true)
+        } else #ok(f.status == #Paid and f.paymentRef == paymentRef)
+      };
+      case null { #ok(false) };
+    }
+  };
+
+  /// Quote canister only: the in-app payment failed or was abandoned; the
+  /// fee goes back to the usual saved-card charge.
+  public shared(msg) func releaseReferralFeeInApp(quoteId: Text) : async Result.Result<(), Error> {
+    if (msg.caller.toText() != quoteCanisterId and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    switch (feeForQuote(quoteId)) { case (?f) inAppHolds.remove(f.id); case null {} };
+    #ok(())
   };
 
   /// Relay only: the contractor saved a card through Stripe Checkout and

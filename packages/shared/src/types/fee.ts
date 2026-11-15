@@ -89,6 +89,7 @@ export interface _SERVICE {
   getMyFees: ActorMethod<[], FeeRecord[]>;
   getMyReferralCard: ActorMethod<[], [] | [ReferralCard]>;
   getMyReferralFees: ActorMethod<[], ReferralFee[]>;
+  holdReferralFeeInApp: ActorMethod<[string], { ok: [] | [bigint] } | { err: Error }>;
   initAdmins: ActorMethod<[Principal[], string], { ok: null } | { err: Error }>;
   markFeeInvoiced: ActorMethod<[string], { ok: FeeRecord } | { err: Error }>;
   markFeePaid: ActorMethod<[string], { ok: FeeRecord } | { err: Error }>;
@@ -113,6 +114,7 @@ export interface _SERVICE {
   relayMarkReferralFeeFailed: ActorMethod<[string, string, string], { ok: ReferralFee } | { err: Error }>;
   relayMarkReferralFeePaid: ActorMethod<[string, string], { ok: ReferralFee } | { err: Error }>;
   relaySetReferralCard: ActorMethod<[Principal, ReferralCard], { ok: null } | { err: Error }>;
+  releaseReferralFeeInApp: ActorMethod<[string], { ok: null } | { err: Error }>;
   removeAdmin: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   removeReferralRelay: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   setBootstrapNonce: ActorMethod<[string], undefined>;
@@ -120,6 +122,7 @@ export interface _SERVICE {
   setListingCanisterId: ActorMethod<[string], { ok: null } | { err: Error }>;
   setQuoteCanisterId: ActorMethod<[string], { ok: null } | { err: Error }>;
   setUpdateRateLimit: ActorMethod<[bigint], { ok: null } | { err: Error }>;
+  settleReferralFeeInApp: ActorMethod<[string, string], { ok: boolean } | { err: Error }>;
   takeDueReferralFees: ActorMethod<[], { ok: ChargeItem[] } | { err: Error }>;
   unpause: ActorMethod<[], { ok: null } | { err: Error }>;
   waiveFee: ActorMethod<[string], { ok: FeeRecord } | { err: Error }>;

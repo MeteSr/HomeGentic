@@ -15,6 +15,10 @@ module {
     "- `getVisitBookings(quoteIds)` (query): the visit bookings on up to 100 quotes that the caller is the contractor or homeowner of. Times are in nanoseconds.\n" #
     "- `closeQuoteRequest(requestId)` stops new bids. `cancelQuoteRequest(requestId)` withdraws the request.\n" #
     "- Sealed-bid requests (`createSealedBidRequest`, `revealBids`) keep bids encrypted until the homeowner reveals them. Revealing can't be undone.\n\n" #
+    "## Paying a contractor in the app\n" #
+    "- Homeowners pay an accepted quote through HomeGentic's website, not through these methods: **payment moves real money and can't be undone here**. By bank (ACH) the homeowner pays the accepted price; by card they pay the higher card price `cardPriceFor(bidCents)` (query), which covers the card fee. The contractor receives the money once the payment clears (a bank payment takes about 4 business days). **For a contractor on the free plan, HomeGentic keeps its 3% referral fee (at least $20) from the payment.**\n" #
+    "- `getJobPayments(quoteIds)` (query): the in-app payments on up to 100 quotes the caller is the homeowner or contractor of. `getMyPayoutAccount()` (query): the caller's own payout setup. `getPayoutReady(contractors)` (query): whether each contractor (up to 100) can be paid in the app.\n" #
+    "- Operator methods, for HomeGentic's payment service only: `relaySetPayoutAccount(contractor, account)`, `relayPrepareJobPayment(quoteId, payer)`, `relayRecordJobPayment(quoteId, payer, method, referralFeeCents, checkoutRef)`, `relayUpdateJobPayment(quoteId, checkoutRef, status, paymentRef)`; admins add or remove that service with `addPaymentRelay(p)` and `removePaymentRelay(p)`.\n\n" #
     "## Contractors\n" #
     "- `getOpenRequestsForMe()` lists requests matching the caller's profile. It is an update call.\n" #
     "- `submitQuote(requestId, amount, timeline, validUntil)`: bids on a request. `amount` is in cents, `timeline` is days to complete, and `validUntil` is in nanoseconds. A bid from a contractor on the free plan carries the 3% referral fee described above, and the contractor needs a saved card first.\n" #

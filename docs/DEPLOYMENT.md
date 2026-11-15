@@ -632,7 +632,7 @@ idempotent; a failure is printed without stopping the deploy, so read the log.
 | Variable | Grant |
 |---|---|
 | `NOTIFIER_PRINCIPAL` | `addNotifier` on `auth`, `property`, `job`, `quote`, `listing` and `contractor` for the notification relay (its principal is logged at startup) |
-| `VOICE_WORKER_PRINCIPAL` | `payment.addStripeRelay`, `monitoring.addReporter`, `agent.addContactReader`, `photo.addPhotoRelay`, `job.addInboxRelay`, `contractor.addLicenseRelay`, `fee.addReferralRelay` and `property.addIdentityRelay` for the voice Worker (the principal of its `DFX_IDENTITY_PEM`, which must be **Ed25519**: `openssl genpkey -algorithm ed25519`) |
+| `VOICE_WORKER_PRINCIPAL` | `payment.addStripeRelay`, `monitoring.addReporter`, `agent.addContactReader`, `photo.addPhotoRelay`, `job.addInboxRelay`, `contractor.addLicenseRelay`, `fee.addReferralRelay`, `quote.addPaymentRelay` and `property.addIdentityRelay` for the voice Worker (the principal of its `DFX_IDENTITY_PEM`, which must be **Ed25519**: `openssl genpkey -algorithm ed25519`) |
 | `PHOTO_CRON_PRINCIPAL` | `photo.addCronRelay` for the voice Worker's photo cron (the principal of its separate `PHOTO_CRON_IDENTITY_PEM` secret). The migration and orphan sweep only run under this key, so a leaked request-path key can't empty or drop photos (security review 2026-11-11, X-1) |
 | `IOT_GATEWAY_PRINCIPAL` | `sensor.addGateway` for the IoT gateway. Without it, sensor accepts self-asserted device IDs |
 
