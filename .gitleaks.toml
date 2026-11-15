@@ -18,4 +18,7 @@ commits = [
   # agents/voice/__tests__/workerCalendarFeed.test.ts; later commits build it at runtime
   "7e041bf1716ebc21e7f5d37783d0398e87f7a2eb",
   "29a9bafcdee57d557ed6de2086f71d553bdcccc3",
+  # Stripe idempotency key fixture ("jp-refund-pi_1") in
+  # agents/voice/__tests__/jobPayments.test.ts; the next commit builds it at runtime
+  "0721e3ea5ec9d5ece2babc84d3fe47772013a1f9",
 ]

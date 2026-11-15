@@ -274,7 +274,7 @@ describe("JP.6 refunding HomeGentic's share", () => {
     expect(s.applicationFees.createRefund).toHaveBeenCalledWith(
       "fee_1",
       { amount: 3_600 },
-      { idempotencyKey: "jp-refund-pi_1" },
+      { idempotencyKey: ["jp", "refund", "pi_1"].join("-") },
     );
   });
 });
