@@ -795,6 +795,18 @@ export interface _SERVICE {
   getPropertyOwner: ActorMethod<[string], [] | [Principal]>;
   getPropertyTaxYears: ActorMethod<[string], { ok: PropertyTaxYear[] } | { err: Error }>;
   getPropertyYearBuilt: ActorMethod<[string], [] | [bigint]>;
+  getPulseAppliances: ActorMethod<
+    [Principal],
+    | {
+        ok: Array<{
+          model: string;
+          room: string;
+          propertyId: string;
+          brand: string;
+        }>;
+      }
+    | { err: Error }
+  >;
   getPulseHomeFinance: ActorMethod<[Principal], { ok: PulseHomeFinance[] } | { err: Error }>;
   getPulseInsurance: ActorMethod<
     [Principal],

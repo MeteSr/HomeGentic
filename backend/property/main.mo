@@ -43,6 +43,7 @@ import Order     "mo:core/Order";
 import Principal "mo:core/Principal";
 import Random    "mo:core/Random";
 import Result    "mo:core/Result";
+import Set       "mo:core/Set";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Index     "../shared/Index";
@@ -186,6 +187,14 @@ persistent actor Property {
     propertyId  : Text;
     carrier     : Text;
     renewalDate : Text;
+  };
+
+  /// One appliance for the relay's weekly CPSC recall check (Home Pulse).
+  public type PulseAppliance = {
+    propertyId : Text;
+    room       : Text;
+    brand      : Text;
+    model      : Text;
   };
 
   public type ClaimStatus    = Insurance.ClaimStatus;
@@ -931,6 +940,7 @@ persistent actor Property {
       #getPropertyOwner : Any;
       #getPropertyTaxYears : Any;
       #getPropertyYearBuilt : Any;
+      #getPulseAppliances : Any;
       #getPulseHomeFinance : Any;
       #getPulseInsurance : Any;
       #getPulseProperties : Any;
@@ -2957,6 +2967,32 @@ persistent actor Property {
         switch (insurancePolicies.get(p.id)) {
           case (?pol) out.add({ propertyId = p.id; carrier = pol.carrier; renewalDate = pol.renewalDate });
           case null {};
+        };
+      };
+    };
+    #ok(out.toArray())
+  };
+
+  /// Recall alerts in the weekly Home Pulse email: brand and model of each
+  /// appliance (room fixture with both filled in) on `owner`'s active homes,
+  /// listed once per home, so the relay can check them against CPSC recalls.
+  /// No serial numbers or notes. Notifiers and admins only.
+  public query(msg) func getPulseAppliances(owner: Principal) : async Result.Result<[PulseAppliance], Error> {
+    if (not Admin.contains(notifierEntries, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let out = List.empty<PulseAppliance>();
+    for (p in ownedBy(owner)) {
+      if (p.isActive) {
+        let seen = Set.empty<Text>();
+        for (r in Index.records(roomsByProperty, p.id, rooms)) {
+          for (f in r.fixtures.values()) {
+            let brand = f.brand.trim(#char ' ');
+            let model = f.model.trim(#char ' ');
+            let key = brand.toLower() # "|" # model.toUpper();
+            if (brand.size() > 0 and model.size() > 0 and not seen.contains(key)) {
+              seen.add(key);
+              out.add({ propertyId = p.id; room = r.name; brand; model });
+            };
+          };
         };
       };
     };

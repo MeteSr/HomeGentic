@@ -16,7 +16,7 @@
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
-import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, SuccessionNoticeInfo, PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseRecipient } from "./types";
+import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, SuccessionNoticeInfo, PulseHomeFinance, PulseAppliance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseRecipient } from "./types";
 import type { ScoreJob } from "../../packages/shared/src/score";
 import { rootKeyFor } from "../../packages/shared/src/rootKey";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
@@ -321,6 +321,16 @@ export async function getPulsePropertyTax(owner: string): Promise<PulsePropertyT
       petitionDeadline: y.petitionDeadline,
     })),
   }));
+}
+
+/** Recall alerts: brand and model of each appliance on `owner`'s homes (needs addNotifier on property). */
+export async function getPulseAppliances(owner: string): Promise<PulseAppliance[]> {
+  const property = Actor.createActor(propertyIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_PROPERTY"),
+  }) as any;
+  const res = await property.getPulseAppliances(Principal.fromText(owner));
+  if ("err" in res) throw new Error(`getPulseAppliances: ${Object.keys(res.err)[0]}`);
+  return res.ok.map((a: any) => ({ propertyId: a.propertyId, room: a.room, brand: a.brand, model: a.model }));
 }
 
 /** All of `owner`'s jobs (needs addNotifier on job). */

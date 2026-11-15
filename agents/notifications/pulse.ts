@@ -5,7 +5,9 @@
  * relay emails each homeowner who hasn't turned it off (the weekly_pulse email
  * preference, on by default) one digest built from their own record:
  *
- *   1. jobs waiting on their signature
+ *   1. jobs waiting on their signature, then possible product recalls on the
+ *      appliances they saved that they haven't been told about (recalls.ts;
+ *      also pushed, and pushed to owners who turned this email off)
  *   2. a home insurance renewal in the next 60 days (the policy they saved),
  *      a home warranty renewal in the next 60 days, and a PMI note when the
  *      loan's original schedule is within 60 days of 80% of the original value,
@@ -40,6 +42,10 @@ import type { PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulsePr
 import { floridaTaxReminders, type TaxReminder } from "../../packages/shared/src/propertyTax";
 import { pmiReminder } from "../../packages/shared/src/mortgage";
 import { reportFailure, errorCode } from "./opsReport";
+import { brandRecallFetcher, markRecallsNotified, newRecallMatches, recallItem, recallPush, type ApplianceRecall } from "./recalls";
+import { dispatchToUser } from "./dispatcher";
+import type { Recall } from "../../packages/shared/src/recalls";
+import type { PulseAppliance, PushPayload } from "./types";
 
 export const PULSE_PREF = "weekly_pulse";
 
@@ -94,7 +100,7 @@ function addMonths(ms: number, months: number): number {
 
 // ── Digest ────────────────────────────────────────────────────────────────────
 
-export type PulseTag = "SIGN OFF" | "INSURANCE" | "HOME WARRANTY" | "PMI" | "PROPERTY TAX" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL";
+export type PulseTag = "SIGN OFF" | "RECALL" | "INSURANCE" | "HOME WARRANTY" | "PMI" | "PROPERTY TAX" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL";
 
 export interface PulseItem {
   tag:   PulseTag;
@@ -238,6 +244,7 @@ export function buildSection(
   insurance: PulseInsurance | null = null,
   finance: PulseHomeFinance | null = null,
   tax: PulsePropertyTax | null = null,
+  recalls: ApplianceRecall[] = [],
 ): PulseSection {
   const currentYear = new Date(nowMs).getUTCFullYear();
   const zone   = climateService.getZone(property.zipCode);
@@ -255,6 +262,12 @@ export function buildSection(
   }
   if (waiting.length > 3) {
     items.push({ tag: "SIGN OFF", title: `${waiting.length - 3} more jobs waiting on you`, body: "They're in Awaiting on your dashboard." });
+  }
+
+  // Possible product recalls the owner hasn't heard about
+  for (const m of recalls.slice(0, 2)) items.push(recallItem(m));
+  if (recalls.length > 2) {
+    items.push({ tag: "RECALL", title: `${recalls.length - 2} more possible recalls`, body: "They're on your dashboard, with links to each CPSC notice." });
   }
 
   // Insurance renewal
@@ -344,6 +357,7 @@ export interface PulseLinks {
 
 const TAG_COLOR: Record<PulseTag, string> = {
   "SIGN OFF":           "#2B34FF",
+  "RECALL":             "#C94C2E",
   "INSURANCE":          "#8A6800",
   "HOME WARRANTY":      "#8A6800",
   "PMI":                "#2B34FF",
@@ -416,7 +430,14 @@ export interface PulseDeps {
   getHomeFinance: (owner: string) => Promise<PulseHomeFinance[]>;
   /** #714: the property-tax years the owner saved (exemption status and petition deadline). */
   getPropertyTax: (owner: string) => Promise<PulsePropertyTax[]>;
+  /** Appliances (brand + model) saved on the owner's homes, for the recall check. */
+  getAppliances: (owner: string) => Promise<PulseAppliance[]>;
+  /** CPSC recalls naming a brand. Throws when CPSC can't be read. */
+  recallsForBrand: (brand: string) => Promise<Recall[]>;
   wantsPulse:    (principal: string) => boolean;
+  /** The product_recall push setting. */
+  wantsRecallPush: (principal: string) => boolean;
+  push:          (principal: string, payload: PushPayload) => Promise<void>;
   send:          (to: string, msg: EmailMessage, idempotencyKey: string, headers: Record<string, string>) => Promise<void>;
   /** Pause between sends (Resend's default limit is a few requests a second). */
   pause:         () => Promise<void>;
@@ -434,7 +455,11 @@ const defaultDeps: PulseDeps = {
   getInsurance:  icp.getPulseInsurance,
   getHomeFinance: icp.getPulseHomeFinance,
   getPropertyTax: icp.getPulsePropertyTax,
+  getAppliances: icp.getPulseAppliances,
+  recallsForBrand: brandRecallFetcher(),
   wantsPulse:    (p) => getPrefs(p).email.weekly_pulse,
+  wantsRecallPush: (p) => getPrefs(p).push.product_recall,
+  push:          dispatchToUser,
   send:          sendRawEmail,
   pause:         () => new Promise((r) => setTimeout(r, sendGapMs())),
 };
@@ -468,7 +493,20 @@ export function unsubscribeUrl(base: string, principal: string): string {
 }
 
 /** Build and send one homeowner's email. Returns false when there was nothing to send (no properties). */
-export async function sendPulseTo(r: PulseRecipient, week: string, nowMs: number, deps: PulseDeps): Promise<boolean> {
+/** New possible recalls on the owner's appliances; [] when they can't be read (never holds up the email). */
+export async function recallsFor(owner: string, deps: PulseDeps): Promise<ApplianceRecall[]> {
+  try {
+    const appliances = await deps.getAppliances(owner);
+    return appliances.length ? await newRecallMatches(owner, appliances, deps.recallsForBrand) : [];
+  } catch (err) {
+    console.warn("[pulse] recall check unavailable:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+export async function sendPulseTo(
+  r: PulseRecipient, week: string, nowMs: number, deps: PulseDeps, recalls: ApplianceRecall[] = [],
+): Promise<boolean> {
   const base = deps.publicUrl();
   if (!base) return false;
   const properties = await deps.getProperties(r.principal);
@@ -501,7 +539,10 @@ export async function sendPulseTo(r: PulseRecipient, week: string, nowMs: number
     const policy = insurance.find((i) => i.propertyId === p.id) ?? null;
     const fin = finance.find((f) => f.propertyId === p.id) ?? null;
     const taxYears = tax.find((t) => t.propertyId === p.id) ?? null;
-    sections.push(buildSection(p, jobs.filter((j) => j.propertyId === p.id), snapshots, nowMs, policy, fin, taxYears));
+    sections.push(buildSection(
+      p, jobs.filter((j) => j.propertyId === p.id), snapshots, nowMs, policy, fin, taxYears,
+      recalls.filter((m) => m.propertyId === p.id),
+    ));
   }
   const unsubscribe = unsubscribeUrl(base, r.principal);
   const msg = renderPulse(sections, properties.length - shown.length, {
@@ -535,12 +576,22 @@ export async function runPulse(nowMs = Date.now(), deps: PulseDeps = defaultDeps
     for (;;) {
       const page = await deps.getRecipients(after, PAGE_SIZE);
       for (const r of page) {
-        if (deps.wantsPulse(r.principal)) {
+        const wantsPulse = deps.wantsPulse(r.principal);
+        const wantsPush = deps.wantsRecallPush(r.principal);
+        if (wantsPulse || wantsPush) {
           try {
-            if (await sendPulseTo(r, week, nowMs, deps)) {
+            const recalls = await recallsFor(r.principal, deps);
+            let told = false;
+            if (wantsPulse && await sendPulseTo(r, week, nowMs, deps, recalls)) {
               sent += 1;
+              told = recalls.length > 0;
               await deps.pause();
             }
+            if (wantsPush && recalls.length > 0) {
+              await deps.push(r.principal, recallPush(recalls));
+              told = true;
+            }
+            if (told) markRecallsNotified(r.principal, recalls);
           } catch (err) {
             console.error(`[pulse] ${r.principal.slice(0, 12)}…:`, err instanceof Error ? err.message : err);
             void reportFailure("pulse", `Home Pulse email failed: ${errorCode(err)}`);

@@ -3759,6 +3759,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "opt nat",
     ],
   },
+  "getPulseAppliances": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {model:text; room:text; propertyId:text; brand:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "getPulseHomeFinance": {
     "args": [
       "principal",

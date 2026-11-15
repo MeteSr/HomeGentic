@@ -16,7 +16,8 @@ export type PushPrefKind =
   | "job_awaiting_signature"
   | "job_awaiting_contractor_signature"
   | "bid_accepted"
-  | "bid_declined";
+  | "bid_declined"
+  | "product_recall";
 
 /** One key per Settings email row (agents/notifications/channels.ts). */
 export type EmailPrefKey = "new_lead" | "bid_outcome" | "job_verified" | "quote_received" | "job_updates" | "weekly_pulse" | "showing_requests";

@@ -14,6 +14,7 @@
  *   review_request                    —     Job Verified               —
  *   showing_request                   yes   Showing Requests           —
  *   weekly_pulse                      —     Weekly Home Pulse          —
+ *   product_recall                    yes   in the Weekly Home Pulse   —
  *   succession_claim_*                —     always (no row)            —
  *
  * * new-lead pushes follow the contractor profile's notifyPush instead of a
@@ -29,6 +30,7 @@ export const PUSH_PREF_KINDS = [
   "job_awaiting_contractor_signature",
   "bid_accepted",
   "bid_declined",
+  "product_recall",
 ] as const satisfies readonly NotificationKind[];
 export type PushPrefKind = (typeof PUSH_PREF_KINDS)[number];
 
