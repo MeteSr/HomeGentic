@@ -56,7 +56,7 @@ describe("ICP MCP discoverability files", () => {
   });
 
   it("lists the household's own records, sensor devices and alerts included (owner go-ahead 2026-11-15)", () => {
-    expect(names).toEqual(["property", "job", "maintenance", "recurring", "bills", "sensor", "report", "quote"]);
+    expect(names).toEqual(["property", "job", "maintenance", "recurring", "bills", "sensor", "contractor", "quote"]);
     const sensor = EXPOSED.find((c: { name: string }) => c.name === "sensor");
     expect(sensor.description).toMatch(/devices/i);
     expect(sensor.description).toMatch(/alerts/i);
