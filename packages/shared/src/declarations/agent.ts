@@ -69,6 +69,7 @@ export const idlFactory = ({ IDL }: any) => {
     setCardOnFile: IDL.Func([IDL.Bool], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     verifyAgent: IDL.Func([IDL.Principal], [IDL.Variant({ ok: AgentProfile, err: Error })], []),
     revokeAgent: IDL.Func([IDL.Principal], [IDL.Variant({ ok: AgentProfile, err: Error })], []),
+    countVerifiedAgentsForCities: IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(IDL.Nat)], ["query"]),
     isVerifiedAgent: IDL.Func([IDL.Principal], [IDL.Bool], ["query"]),
     recordListingClose: IDL.Func([IDL.Principal, IDL.Nat], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     addReview: IDL.Func([AddReviewArgs], [IDL.Variant({ ok: AgentReview, err: Error })], []),

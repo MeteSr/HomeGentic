@@ -32,6 +32,7 @@
  * (List-Unsubscribe + List-Unsubscribe-Post, RFC 8058).
  */
 import * as icp from "./icp";
+import { bidToListOpen, sellPromptInPulse } from "../../packages/shared/src/sellPrompt";
 import { appUrl, emailConfigured, escapeHtml, sendRawEmail, type EmailMessage } from "./email";
 import { getPrefs } from "./prefs";
 import { loadSection, saveSection } from "./persist";
@@ -100,7 +101,7 @@ function addMonths(ms: number, months: number): number {
 
 // ── Digest ────────────────────────────────────────────────────────────────────
 
-export type PulseTag = "SIGN OFF" | "RECALL" | "INSURANCE" | "HOME WARRANTY" | "PMI" | "PROPERTY TAX" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL";
+export type PulseTag = "SIGN OFF" | "RECALL" | "INSURANCE" | "HOME WARRANTY" | "PMI" | "PROPERTY TAX" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL" | "SELLING";
 
 export interface PulseItem {
   tag:   PulseTag;
@@ -245,6 +246,8 @@ export function buildSection(
   finance: PulseHomeFinance | null = null,
   tax: PulsePropertyTax | null = null,
   recalls: ApplianceRecall[] = [],
+  /** Verified agents serving the city, counted only in the home's selling-prompt week. */
+  sellingAgents: number | null = null,
 ): PulseSection {
   const currentYear = new Date(nowMs).getUTCFullYear();
   const zone   = climateService.getZone(property.zipCode);
@@ -325,8 +328,11 @@ export function buildSection(
 
   items.push(...near.slice(0, 1));
 
-  // 5. Seasonal priorities, with the last matching job on record
+  // 5. Once a year, where Bid to List has enough agents: thinking of selling?
   items.splice(MAX_ATTENTION);
+  if (sellingAgents !== null && bidToListOpen(sellingAgents)) items.push(sellingItem(property, sellingAgents));
+
+  // 6. Seasonal priorities, with the last matching job on record
   for (const task of climateService.getSeasonalPriorities(zone.zone, season)) {
     if (items.length >= MAX_ITEMS) break;
     const system = seasonalSystem(task);
@@ -345,6 +351,17 @@ export function buildSection(
 
   const score = snapshots.length > 0 ? scoreBreakdown(snapshots, property.yearBuilt, currentYear).total : null;
   return { property, score, zone: { zone: zone.zone, label: zone.label }, season, items: items.slice(0, MAX_ITEMS) };
+}
+
+/** The yearly Bid to List note. Never promises a commission level or a saving. */
+export function sellingItem(property: PulseProperty, agents: number): PulseItem {
+  return {
+    tag:   "SELLING",
+    title: "Thinking of selling this year?",
+    body:  `${agents} verified agents serve ${property.city}. With Bid to List they bid for your listing with their commission and ` +
+           "marketing plan, and you choose. Agents set their own terms, and HomeGentic charges the winning agent, not you.",
+    link:  { label: "How Bid to List works", url: `${appUrl()}/sell` },
+  };
 }
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
@@ -366,10 +383,11 @@ const TAG_COLOR: Record<PulseTag, string> = {
   "WARRANTY":           "#8A6800",
   "NEARING RATED LIFE": "#8A6800",
   "SEASONAL":           "#4A4D5C",
+  "SELLING":            "#2B34FF",
 };
 
 export function renderPulse(sections: PulseSection[], moreProperties: number, links: PulseLinks): EmailMessage {
-  const needs = sections.reduce((n, s) => n + s.items.filter((i) => i.tag !== "SEASONAL").length, 0);
+  const needs = sections.reduce((n, s) => n + s.items.filter((i) => i.tag !== "SEASONAL" && i.tag !== "SELLING").length, 0);
   const subject = needs > 0
     ? `Your Home Pulse: ${needs} thing${needs === 1 ? "" : "s"} need${needs === 1 ? "s" : ""} you this week`
     : "Your Home Pulse: nothing urgent this week";
@@ -434,6 +452,8 @@ export interface PulseDeps {
   getAppliances: (owner: string) => Promise<PulseAppliance[]>;
   /** CPSC recalls naming a brand. Throws when CPSC can't be read. */
   recallsForBrand: (brand: string) => Promise<Recall[]>;
+  /** Verified agents serving each city (agent.countVerifiedAgentsForCities), in order. */
+  countAgents:   (cities: string[]) => Promise<number[]>;
   wantsPulse:    (principal: string) => boolean;
   /** The product_recall push setting. */
   wantsRecallPush: (principal: string) => boolean;
@@ -457,6 +477,7 @@ const defaultDeps: PulseDeps = {
   getPropertyTax: icp.getPulsePropertyTax,
   getAppliances: icp.getPulseAppliances,
   recallsForBrand: brandRecallFetcher(),
+  countAgents:   icp.countVerifiedAgents,
   wantsPulse:    (p) => getPrefs(p).email.weekly_pulse,
   wantsRecallPush: (p) => getPrefs(p).push.product_recall,
   push:          dispatchToUser,
@@ -533,6 +554,17 @@ export async function sendPulseTo(
     console.warn("[pulse] property-tax years unavailable:", err instanceof Error ? err.message : err);
   }
   const shown = properties.slice(0, MAX_PROPERTIES);
+  // Thinking of selling? Only homes in their prompt week ask for an agent count.
+  const selling = new Map<string, number>();
+  const due = shown.filter((p) => sellPromptInPulse(p.id, nowMs));
+  if (due.length > 0) {
+    try {
+      const counts = await deps.countAgents(due.map((p) => p.city));
+      due.forEach((p, i) => selling.set(p.id, counts[i] ?? 0));
+    } catch (err) {
+      console.warn("[pulse] agent counts unavailable:", err instanceof Error ? err.message : err);
+    }
+  }
   const sections: PulseSection[] = [];
   for (const p of shown) {
     const snapshots = await deps.getSnapshots(p.id);
@@ -541,7 +573,7 @@ export async function sendPulseTo(
     const taxYears = tax.find((t) => t.propertyId === p.id) ?? null;
     sections.push(buildSection(
       p, jobs.filter((j) => j.propertyId === p.id), snapshots, nowMs, policy, fin, taxYears,
-      recalls.filter((m) => m.propertyId === p.id),
+      recalls.filter((m) => m.propertyId === p.id), selling.get(p.id) ?? null,
     ));
   }
   const unsubscribe = unsubscribeUrl(base, r.principal);

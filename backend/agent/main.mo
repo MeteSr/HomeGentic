@@ -340,6 +340,20 @@ persistent actor Agent {
     }
   };
 
+  /// How many verified agents serve each city (case-insensitive, at most 20
+  /// cities a call). Counts only, so anyone may ask: the "Thinking of
+  /// selling?" prompt and the public seller page offer Bid to List only where
+  /// enough agents would bid.
+  public query func countVerifiedAgentsForCities(cities: [Text]) : async [Nat] {
+    let norm = func(t: Text) : Text { t.trim(#char ' ').toLower() };
+    cities.values().take(20).map(func(city : Text) : Nat {
+      let c = norm(city);
+      profiles.values().filter(func(p: AgentProfile) : Bool {
+        p.isVerified and Option.isSome(p.serviceCities.find(func(s : Text) : Bool { norm(s) == c }))
+      }).size()
+    }).toArray()
+  };
+
   public query func isVerifiedAgent(principal: Principal) : async Bool {
     switch (profiles.get(principal)) {
       case null { false };

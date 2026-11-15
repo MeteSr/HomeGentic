@@ -28,6 +28,7 @@ import { idlFactory as jobIdl } from "../../packages/shared/src/declarations/job
 import { idlFactory as paymentIdl } from "../../packages/shared/src/declarations/payment";
 import { idlFactory as reportIdl } from "../../packages/shared/src/declarations/report";
 import { idlFactory as monitoringIdl } from "../../packages/shared/src/declarations/monitoring";
+import { idlFactory as agentIdl } from "../../packages/shared/src/declarations/agent";
 import { jobServiceLabel } from "../../packages/shared/src/serviceTypes";
 
 const IC_HOST = () => process.env.IC_HOST ?? "https://icp-api.io";
@@ -290,6 +291,15 @@ export async function getPulseProperties(owner: string): Promise<PulseProperty[]
   return res.ok.map((p: any) => ({
     id: p.id, address: p.address, city: p.city, state: p.state, zipCode: p.zipCode, yearBuilt: Number(p.yearBuilt),
   }));
+}
+
+/** Verified agents serving each city, for the yearly "Thinking of selling?" note (a public count). */
+export async function countVerifiedAgents(cities: string[]): Promise<number[]> {
+  const agent = Actor.createActor(agentIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_AGENT"),
+  }) as any;
+  const counts = (await agent.countVerifiedAgentsForCities(cities)) as bigint[];
+  return counts.map(Number);
 }
 
 /** #711: carrier and renewal date of `owner`'s saved insurance policies (needs addNotifier on property). */
