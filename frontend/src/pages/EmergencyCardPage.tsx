@@ -10,7 +10,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Phone, Printer, Siren } from "lucide-react";
+import { ArrowLeft, Camera, Phone, Printer, Siren } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Panel } from "@/components/hud";
 import { SHELL_PAGE_MIN_HEIGHT } from "@/components/dashboardV3/chrome";
@@ -235,6 +235,9 @@ export default function EmergencyCardPage() {
                 <button type="button" onClick={emergencyQuote} style={button(true)}>
                   <Siren size={15} aria-hidden /> Get emergency help
                 </button>
+                <button type="button" onClick={() => navigate(`/properties/${id}/problem`)} style={button(false)}>
+                  <Camera size={15} aria-hidden /> Show me the problem
+                </button>
                 <button type="button" onClick={() => window.print()} style={button(false)}>
                   <Printer size={15} aria-hidden /> Print
                 </button>
@@ -243,7 +246,8 @@ export default function EmergencyCardPage() {
                 className="no-print"
                 style={{ ...body, fontSize: "0.8rem", color: "var(--hg-muted)", marginBottom: "1rem" }}
               >
-                "Get emergency help" starts a quote request for this home with its urgency set to Emergency.
+                "Get emergency help" starts a quote request for this home with its urgency set to Emergency. "Show me
+                the problem" gives AI suggestions from a description and photo first.
               </p>
 
               {partial && (

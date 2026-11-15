@@ -35,6 +35,7 @@ import {
   SUPPORTED_MIME_TYPES,
 } from "../extractDocumentHelpers";
 import { buildInspectionPrompt, normalizeFindings } from "./inspectionFindings";
+import { buildProblemHelpPrompt, normalizeProblemHelp, problemHelpInputError } from "./problemHelp";
 import { lookupPermits, generateKit, geocodeAddress } from "../buyersTruthKit";
 import {
   parseInsightsPayload, describeFacts, parseNarrative, ruleBasedNarrative, NARRATIVE_SYSTEM_PROMPT,
@@ -1063,6 +1064,35 @@ Rules:
     }
   }
 
+  // ── POST /api/problem-help ────────────────────────────────────────────────
+  // "Show me the problem": an AI suggestion (likely causes, what's safe to try,
+  // what to shut off, which trade) from the owner's description and an
+  // optional photo. The photo is only sent to the model, never stored.
+  if (path === "/api/problem-help" && method === "POST") {
+    const body = await readJsonBody(request, MAX_UPLOAD_BYTES);
+    const bad = problemHelpInputError(body ?? {});
+    if (bad) return json({ error: bad }, 400, cors);
+    const description = String(body.description).trim();
+    const content: any[] = [];
+    if (typeof body.base64Data === "string") {
+      content.push({ type: "image", source: { type: "base64", media_type: body.mimeType, data: body.base64Data } });
+    }
+    content.push({ type: "text", text: `What the owner says is wrong:\n${description}` });
+    try {
+      const text = await provider.complete({
+        system:    buildProblemHelpPrompt(),
+        messages:  [{ role: "user", content }],
+        maxTokens: 1024,
+      });
+      const m = text.match(/\{[\s\S]*\}/);
+      if (!m) return json({ error: PROVIDER_JSON_ERROR }, 500, cors);
+      return json(normalizeProblemHelp(JSON.parse(m[0])), 200, cors);
+    } catch (err) {
+      logger.error("ai", "provider call failed", { path, error: (err as Error)?.message });
+      return json({ error: "AI request failed" }, 500, cors);
+    }
+  }
+
   // ── POST /api/pulse ───────────────────────────────────────────────────────
   if (path === "/api/pulse" && method === "POST") {
     const ctx = await readJsonBody(request);
@@ -1878,6 +1908,7 @@ Rules:
 const AUX_AI_ROUTES = new Set([
   "/api/maintenance/chat", "/api/classify", "/api/extract-bill", "/api/extract-document",
   "/api/inspection-findings",   // #712 purchase inspection → move-in tasks (src/inspectionFindings.ts)
+  "/api/problem-help",          // Show me the problem: photo + description → AI suggestion (src/problemHelp.ts)
   "/api/efficiency-alert", "/api/bills-insights", "/api/rebate-finder", "/api/telecom-negotiate", "/api/pulse",
   "/api/negotiate", "/api/insurer-discount", "/api/buyers-truth-kit", "/api/rentcast/properties",
 ]);

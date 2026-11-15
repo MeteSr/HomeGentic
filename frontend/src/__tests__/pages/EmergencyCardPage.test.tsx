@@ -143,6 +143,12 @@ describe("EmergencyCardPage", () => {
     });
   });
 
+  it("opens Show me the problem for this home", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Show me the problem" }));
+    expect(mockNavigate).toHaveBeenCalledWith("/properties/prop-1/problem");
+  });
+
   it("shows the storm checklist in a hurricane state and keeps ticks on this device", async () => {
     renderPage();
     const before = await screen.findByRole("region", { name: "Before a storm" });
