@@ -6,7 +6,7 @@
  * notification relay and the voice Worker accept.
  */
 
-const mockActor = { getProfile: jest.fn(), issueAgentSession: jest.fn() };
+const mockActor = { getProfile: jest.fn(), issueAgentSession: jest.fn(), issueServiceSession: jest.fn() };
 const mockActorFor = jest.fn(() => mockActor);
 jest.mock("../../services/canister", () => ({ actorFor: (...a: unknown[]) => (mockActorFor as any)(...a) }));
 
@@ -72,5 +72,20 @@ describe("with the auth canister", () => {
     const svc = load("auth-id");
     mockActor.issueAgentSession.mockResolvedValue({ err: { NotAuthorized: null } });
     expect(await svc.issueAgentSession(agent)).toBeNull();
+  });
+
+  it("issueServiceSession asks for a token for that one service", async () => {
+    const svc = load("auth-id");
+    mockActor.issueServiceSession.mockResolvedValue({ ok: { token: "svc", expiresAt: 9_000n * 1_000_000n } });
+    expect(await svc.issueServiceSession(agent, "notifications")).toEqual({ token: "svc", expiresAtMs: 9_000 });
+    expect(mockActor.issueServiceSession).toHaveBeenCalledWith({ notifications: null });
+  });
+
+  it("issueServiceSession returns null for an unregistered caller or with no canister", async () => {
+    mockActor.issueServiceSession.mockResolvedValue({ err: { NotFound: null } });
+    expect(await load("auth-id").issueServiceSession(agent, "notifications")).toBeNull();
+    mockActor.issueServiceSession.mockClear();
+    expect(await load(undefined).issueServiceSession(agent, "notifications")).toBeNull();
+    expect(mockActor.issueServiceSession).not.toHaveBeenCalled();
   });
 });

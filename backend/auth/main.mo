@@ -120,6 +120,17 @@ persistent actor class Auth(initDeployer : Principal) {
   private let agentSessionHashByOwner = Map.empty<Principal, Text>();
   private transient let AGENT_SESSION_TTL_NS : Int = 24 * 60 * 60 * 1_000_000_000;
 
+  /// The off-chain services other than the voice Worker that accept a sign-in
+  /// token. Each gets its own token (issueServiceSession), so a token taken
+  /// from one service can't be replayed at another (security review
+  /// 2026-11-11, X-7). Worker tokens stay in agentSessionsByHash above.
+  public type ServiceAudience = { #notifications; #iotGateway };
+  public type ServiceSession = { owner : Principal; expiresAt : Int; audience : ServiceAudience };
+  /// Token hash → session, and "<principal>|<audience>" → token hash (one live
+  /// token per principal and audience).
+  private let serviceSessionsByHash = Map.empty<Text, ServiceSession>();
+  private let serviceSessionHashByOwner = Map.empty<Text, Text>();
+
   /// Principals allowed to look up a user's email for notifications — the
   /// notification relay's identity (agents/notifications). Admin-managed.
   private var notifierEntries : [Principal] = [];
@@ -401,6 +412,32 @@ persistent actor class Auth(initDeployer : Principal) {
     agentSessionHashByOwner.remove(owner);
   };
 
+  private func audienceText(a : ServiceAudience) : Text {
+    switch a { case (#notifications) "notifications"; case (#iotGateway) "iotGateway" }
+  };
+
+  private func serviceOwnerKey(owner : Principal, a : ServiceAudience) : Text {
+    owner.toText() # "|" # audienceText(a)
+  };
+
+  private transient let ALL_AUDIENCES : [ServiceAudience] = [#notifications, #iotGateway];
+
+  /// Drop the owner's service tokens; returns how many were removed.
+  private func dropServiceSessions(owner : Principal) : Nat {
+    var removed = 0;
+    for (a in ALL_AUDIENCES.values()) {
+      let key = serviceOwnerKey(owner, a);
+      switch (serviceSessionHashByOwner.get(key)) {
+        case (?h) {
+          if (serviceSessionsByHash.get(h) != null) { serviceSessionsByHash.remove(h); removed += 1 };
+          serviceSessionHashByOwner.remove(key);
+        };
+        case null {};
+      };
+    };
+    removed
+  };
+
   /// Move sessions stored under the raw token into the hashed maps.
   /// Idempotent: the legacy maps are empty after the first run.
   private func hashLegacyAgentSessions() {
@@ -436,16 +473,39 @@ persistent actor class Auth(initDeployer : Principal) {
     #ok({ token; expiresAt })
   };
 
-  /// Revoke the caller's voice-agent session (e.g. on logout).
+  /// Issue a 24-hour token for one off-chain service (the notification relay
+  /// or the IoT gateway), replacing the caller's earlier token for that
+  /// service only. The service resolves it with resolveServiceSession; it is
+  /// refused by every other service, the voice Worker included.
+  public shared(msg) func issueServiceSession(audience : ServiceAudience) : async Result.Result<{ token : Text; expiresAt : Int }, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (users.get(msg.caller) == null) return #err(#NotFound);
+
+    let token     = "hgs_" # blobToHex(await Random.blob());   // 256 bits of IC randomness
+    let expiresAt = Time.now() + AGENT_SESSION_TTL_NS;
+    let key       = serviceOwnerKey(msg.caller, audience);
+    switch (serviceSessionHashByOwner.get(key)) {
+      case (?old) { serviceSessionsByHash.remove(old) };
+      case null {};
+    };
+    let tokenHash = Sha256.hexOfText(token);
+    serviceSessionsByHash.add(tokenHash, { owner = msg.caller; expiresAt; audience });
+    serviceSessionHashByOwner.add(key, tokenHash);
+    #ok({ token; expiresAt })
+  };
+
+  /// Revoke the caller's sign-in tokens (e.g. on logout): the voice Worker's
+  /// and every service token.
   public shared(msg) func revokeAgentSession() : async () {
     if (msg.caller.isAnonymous()) return;
     dropAgentSession(msg.caller);
+    ignore dropServiceSessions(msg.caller);
   };
 
   // ─── Account deletion ───────────────────────────────────────────────────────
 
   /// Account deletion: removes everything this canister holds for the caller —
-  /// the user profile, every voice-agent session token they own, and their
+  /// the user profile, every sign-in token they own (voice Worker and services), and their
   /// rate-limit counter. Admin / notifier lists are left alone.
   /// Returns how many records were removed.
   public shared(msg) func deleteMyData() : async Result.Result<Nat, Error> {
@@ -479,6 +539,7 @@ persistent actor class Auth(initDeployer : Principal) {
       };
       case null {};
     };
+    removed += dropServiceSessions(caller);
 
     updateCallLimits.remove(caller.toText());
     #ok(removed)
@@ -539,6 +600,16 @@ persistent actor class Auth(initDeployer : Principal) {
   public query func resolveAgentSession(token : Text) : async ?Principal {
     switch (agentSessionsByHash.get(Sha256.hexOfText(token))) {
       case (?s) { if (s.expiresAt > Time.now()) ?s.owner else null };
+      case null null;
+    }
+  };
+
+  /// The principal a live service token belongs to, or null if the token is
+  /// unknown, expired, or was issued for a different service. Public like
+  /// resolveAgentSession: the token itself is the secret.
+  public query func resolveServiceSession(token : Text, audience : ServiceAudience) : async ?Principal {
+    switch (serviceSessionsByHash.get(Sha256.hexOfText(token))) {
+      case (?s) { if (s.audience == audience and s.expiresAt > Time.now()) ?s.owner else null };
       case null null;
     }
   };

@@ -192,7 +192,11 @@ if (!internalKey || req.headers["x-internal-key"] !== internalKey) { ... }
 This pattern is used in `agents/notifications/server.ts` (`/api/push/send`) and
 `agents/iot-gateway/server.ts` (`/accounts/:platform`). The relay's registration
 endpoints (`/api/push/register`, `/api/push/vapid-subscribe`) authenticate the
-user instead, with an auth-canister session token in `x-agent-session`.
+user instead, with an auth-canister session token in `x-agent-session`. Each
+service takes only tokens issued for it: the voice Worker resolves
+`issueAgentSession` tokens, while the relay and gateway resolve tokens from
+`issueServiceSession(#notifications)` and `issueServiceSession(#iotGateway)`.
+A token that leaks from one service is no use at another.
 Any new auth-gated endpoint must use the `||` form.
 
 ### Startup key assertions

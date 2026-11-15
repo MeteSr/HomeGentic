@@ -7,8 +7,12 @@
  * — and sends it as `x-agent-session`; the Worker resolves it back to the
  * principal. The token is kept in memory only, reused until shortly before it
  * expires, and re-issued when the signed-in principal changes.
+ *
+ * The notification relay and the IoT gateway take a token of their own
+ * (issueServiceSession, fetchWithServiceSession), so a token that leaks from
+ * one service can't be used at another (security review 2026-11-11, X-7).
  */
-import { authService } from "./auth";
+import { authService, type ServiceAudience } from "./auth";
 import { useAuthStore } from "@/store/authStore";
 import { SESSION_HEADER, createSessionTokenCache } from "@homegentic/shared/agentSession";
 import { withAiChecks, aiRefusalMessage, HUMAN_VERIFY_PATH } from "@homegentic/shared/aiChecks";
@@ -22,6 +26,19 @@ const sessions = createSessionTokenCache({
   onError: (err) => console.warn("[agentSession] could not issue a voice-agent session:", err),
 });
 
+const serviceSessions: Record<ServiceAudience, ReturnType<typeof createSessionTokenCache>> = {
+  notifications: serviceCache("notifications"),
+  iotGateway: serviceCache("iotGateway"),
+};
+
+function serviceCache(audience: ServiceAudience) {
+  return createSessionTokenCache({
+    issue: () => authService.issueServiceSession(audience),
+    owner: () => useAuthStore.getState().principal ?? null,
+    onError: (err) => console.warn(`[agentSession] could not issue a ${audience} session:`, err),
+  });
+}
+
 /** A live session token for the signed-in user, or null (not signed in, no auth canister, or issue failed). */
 export async function getAgentSessionToken(): Promise<string | null> {
   if (!(process.env as any).AUTH_CANISTER_ID) return null;   // mock/dev mode: no canister to issue from
@@ -29,9 +46,36 @@ export async function getAgentSessionToken(): Promise<string | null> {
   return sessions.get();
 }
 
-/** Forget the cached token (on logout, or after the Worker rejects it). */
+/** A live token for one service (notification relay or IoT gateway), or null like getAgentSessionToken. */
+export async function getServiceSessionToken(audience: ServiceAudience): Promise<string | null> {
+  if (!(process.env as any).AUTH_CANISTER_ID) return null;
+  if (!useAuthStore.getState().principal) return null;
+  return serviceSessions[audience].get();
+}
+
+/** Forget every cached token (on logout, or after the Worker rejects it). */
 export function clearAgentSession(): void {
   sessions.clear();
+  for (const cache of Object.values(serviceSessions)) cache.clear();
+}
+
+/**
+ * fetch() to the notification relay or IoT gateway with a token issued for
+ * that service. On 401 (token unknown or expired) it gets a fresh token and
+ * retries once. These services run no AI, so there are no abuse checks.
+ */
+export async function fetchWithServiceSession(audience: ServiceAudience, url: string, init: RequestInit): Promise<Response> {
+  const send = async () => {
+    const token = await getServiceSessionToken(audience);
+    return fetch(url, {
+      ...init,
+      headers: { ...(init.headers as Record<string, string>), ...(token ? { [AGENT_SESSION_HEADER]: token } : {}) },
+    });
+  };
+  const res = await send();
+  if (res.status !== 401) return res;
+  serviceSessions[audience].clear();
+  return send();
 }
 
 /**

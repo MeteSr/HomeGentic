@@ -88,9 +88,11 @@ describe("auth IDL factory", () => {
       "hasRole",
       "isAdminPrincipal",
       "issueAgentSession",
+      "issueServiceSession",
       "recordLogin",
       "register",
       "resolveAgentSession",
+      "resolveServiceSession",
       "revokeAgentSession",
       "updateProfile",
     ]);
@@ -102,7 +104,7 @@ describe("auth IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getMetrics", "getNotificationContact", "getProfile", "getPulseRecipients", "getUserStats", "hasRole", "isAdminPrincipal", "resolveAgentSession"]);
+    expect(queries).toEqual(["getMetrics", "getNotificationContact", "getProfile", "getPulseRecipients", "getUserStats", "hasRole", "isAdminPrincipal", "resolveAgentSession", "resolveServiceSession"]);
   });
 
   it("UserRole variant includes Builder", () => {

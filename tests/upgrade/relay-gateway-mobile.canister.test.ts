@@ -173,10 +173,15 @@ describe("relay, gateway and mobile clients on real canisters", () => {
       expect(await relay.findPublicReport("40 Heron Way")).toBeNull();
     });
 
-    it("resolves only sessions the auth canister issued", async () => {
-      const { token } = ok<any>(await as("auth", homeowner).issueAgentSession());
-      expect(await relay.resolveAgentSession(token)).toBe(homeowner.toText());
-      expect(await relay.resolveAgentSession("hgs_" + "0".repeat(64))).toBeNull();
+    it("resolves only sessions the auth canister issued for the relay", async () => {
+      const { token } = ok<any>(await as("auth", homeowner).issueServiceSession({ notifications: null }));
+      expect(await relay.resolveServiceSession(token)).toBe(homeowner.toText());
+      expect(await relay.resolveServiceSession("hgs_" + "0".repeat(64))).toBeNull();
+      // X-7: the voice Worker's token and the gateway's token are no use here.
+      const worker = ok<any>(await as("auth", homeowner).issueAgentSession());
+      const iot = ok<any>(await as("auth", homeowner).issueServiceSession({ iotGateway: null }));
+      expect(await relay.resolveServiceSession(worker.token)).toBeNull();
+      expect(await relay.resolveServiceSession(iot.token)).toBeNull();
     });
   });
 
@@ -194,9 +199,13 @@ describe("relay, gateway and mobile clients on real canisters", () => {
       expect((await gateway.registerVerifiedDevice(contractor.toText(), propertyId, "therm-88", "Ecobee", "acct-9", "x")).success).toBe(false);
     });
 
-    it("resolves sessions with the gateway's own client", async () => {
-      const { token } = ok<any>(await as("auth", homeowner).issueAgentSession());
-      expect(await gateway.resolveAgentSession(token)).toBe(homeowner.toText());
+    it("resolves sessions issued for the gateway, with its own client", async () => {
+      const { token } = ok<any>(await as("auth", homeowner).issueServiceSession({ iotGateway: null }));
+      expect(await gateway.resolveServiceSession(token)).toBe(homeowner.toText());
+      const notif = ok<any>(await as("auth", homeowner).issueServiceSession({ notifications: null }));
+      const worker = ok<any>(await as("auth", homeowner).issueAgentSession());
+      expect(await gateway.resolveServiceSession(notif.token)).toBeNull();
+      expect(await gateway.resolveServiceSession(worker.token)).toBeNull();
     });
   });
 
@@ -207,6 +216,8 @@ describe("relay, gateway and mobile clients on real canisters", () => {
       const property = await import("../../mobile/src/services/propertyService");
       expect((await auth.getProfile(agent))?.email).toBe("home@example.com");
       expect((await auth.issueAgentSession(agent))?.token).toMatch(/^hgs_/);
+      const push = await auth.issueServiceSession(agent, "notifications");
+      expect(await relay.resolveServiceSession(push!.token)).toBe(homeowner.toText());
       expect((await property.getProperties(agent)).map((p: any) => [p.id, p.street, p.zipCode])).toEqual([[propertyId, "40 Heron Way", "32801"]]);
       expect(await property.getRooms(propertyId, agent)).toEqual([]);
     });

@@ -7,7 +7,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const fetchWithSession = vi.fn();
 vi.mock("@/services/agentSession", () => ({
-  fetchWithAgentSession: (...a: unknown[]) => fetchWithSession(...a),
+  // X-7: relay requests carry a token issued for the relay, never the voice Worker's.
+  fetchWithServiceSession: (audience: string, ...a: unknown[]) =>
+    audience === "notifications" ? fetchWithSession(...a) : Promise.reject(new Error(`wrong audience ${audience}`)),
 }));
 
 const RELAY = "https://notify.example.com";

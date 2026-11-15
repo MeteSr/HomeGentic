@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { fetchWithAgentSession } from "@/services/agentSession";
+import { fetchWithServiceSession } from "@/services/agentSession";
 import { useAuthStore } from "@/store/authStore";
 import type { DeviceSource, SensorDevice } from "@/services/sensor";
 
@@ -83,7 +83,7 @@ export function useOAuthDevicePicker() {
 
     let ticket: string;
     try {
-      const res = await fetchWithAgentSession(`${GATEWAY_URL}/oauth/device/link`, {
+      const res = await fetchWithServiceSession("iotGateway", `${GATEWAY_URL}/oauth/device/link`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         // `principal` is only read by a gateway running without an auth
@@ -138,7 +138,7 @@ export function useOAuthDevicePicker() {
   async function register(deviceId: string, name: string): Promise<SensorDevice> {
     const pickToken = pickTokenRef.current;
     if (!pickToken) throw new Error("Connect the account again to choose a device");
-    const res = await fetchWithAgentSession(`${GATEWAY_URL}/oauth/device/register`, {
+    const res = await fetchWithServiceSession("iotGateway", `${GATEWAY_URL}/oauth/device/register`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pickToken, deviceId, name, principal: useAuthStore.getState().principal ?? undefined }),

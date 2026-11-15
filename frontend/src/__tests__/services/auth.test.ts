@@ -18,6 +18,7 @@ const mockActor: Record<string, ReturnType<typeof vi.fn>> = {
   issueAgentSession:   vi.fn(),
   revokeAgentSession:  vi.fn(),
   resolveAgentSession: vi.fn(),
+  issueServiceSession: vi.fn(),
 };
 
 vi.mock("@icp-sdk/core/agent", () => ({
@@ -210,6 +211,21 @@ describe("issueAgentSession", () => {
   it("throws the error variant name (e.g. NotFound for an unregistered caller)", async () => {
     mockActor.issueAgentSession.mockResolvedValue({ err: { NotFound: null } });
     await expect(authService.issueAgentSession()).rejects.toMatchObject({ code: "NotFound" });
+  });
+});
+
+describe("issueServiceSession", () => {
+  it("asks for a token for that one service and converts expiresAt to ms", async () => {
+    mockActor.issueServiceSession.mockResolvedValue({
+      ok: { token: "hgs_svc", expiresAt: 1_700_000_000_000_000_000n },
+    });
+    expect(await authService.issueServiceSession("iotGateway")).toEqual({ token: "hgs_svc", expiresAtMs: 1_700_000_000_000 });
+    expect(mockActor.issueServiceSession).toHaveBeenCalledWith({ iotGateway: null });
+  });
+
+  it("throws the canister error", async () => {
+    mockActor.issueServiceSession.mockResolvedValue({ err: { NotFound: null } });
+    await expect(authService.issueServiceSession("notifications")).rejects.toMatchObject({ code: "NotFound" });
   });
 });
 

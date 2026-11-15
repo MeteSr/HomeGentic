@@ -15,7 +15,7 @@ import {
   registerPushToken,
   unregisterPushToken,
 } from "../services/notificationService";
-import { issueAgentSession } from "../services/authService";
+import { issueServiceSession } from "../services/authService";
 
 // Show alerts + play sounds while the app is foregrounded
 Notifications.setNotificationHandler({
@@ -59,7 +59,7 @@ export function useNotifications(): void {
       const deviceToken = String(tokenData.data);
       tokenRef.current  = deviceToken;
 
-      const sessionToken = await issueAgentSession(agent).then((s) => s?.token ?? null).catch(() => null);
+      const sessionToken = await issueServiceSession(agent, "notifications").then((s) => s?.token ?? null).catch(() => null);
       sessionRef.current = sessionToken;
       if (cancelled) return;
 

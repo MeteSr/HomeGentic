@@ -33,6 +33,7 @@ export const idlFactory = ({ IDL }: any) => {
     Unavailable: IDL.Text,
   });
   const Result    = IDL.Variant({ ok: UserProfile, err: Error });
+  const ServiceAudience = IDL.Variant({ notifications: IDL.Null, iotGateway: IDL.Null });
   const UserStats = IDL.Record({
     total:          IDL.Nat,
     newToday:       IDL.Nat,
@@ -54,9 +55,15 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Record({ token: IDL.Text, expiresAt: IDL.Int }), err: Error })],
       [],
     ),
+    issueServiceSession: IDL.Func(
+      [ServiceAudience],
+      [IDL.Variant({ ok: IDL.Record({ token: IDL.Text, expiresAt: IDL.Int }), err: Error })],
+      [],
+    ),
     revokeAgentSession:  IDL.Func([], [], []),
     deleteMyData:        IDL.Func([], [IDL.Variant({ ok: IDL.Nat, err: Error })], []),
     resolveAgentSession: IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
+    resolveServiceSession: IDL.Func([IDL.Text, ServiceAudience], [IDL.Opt(IDL.Principal)], ["query"]),
     hasRole:       IDL.Func([UserRole], [IDL.Bool], ["query"]),
     getUserStats:  IDL.Func([], [UserStats], ["query"]),
     isAdminPrincipal: IDL.Func([IDL.Principal], [IDL.Bool], ["query"]),

@@ -1,5 +1,5 @@
 /**
- * Interface for resolving an agent-session token with a replicated call.
+ * Interface for resolving a session token with a replicated call.
  *
  * `auth.resolveAgentSession` is a query, and a plain query is answered by a
  * single replica. The Worker, notification relay and IoT gateway act for the
@@ -15,4 +15,11 @@
 export const sessionLookupIdl = ({ IDL }: any) =>
   IDL.Service({
     resolveAgentSession: IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], []),
+    // The notification relay and IoT gateway accept only tokens issued for
+    // them (auth.issueServiceSession), never the voice Worker's.
+    resolveServiceSession: IDL.Func(
+      [IDL.Text, IDL.Variant({ notifications: IDL.Null, iotGateway: IDL.Null })],
+      [IDL.Opt(IDL.Principal)],
+      [],
+    ),
   });

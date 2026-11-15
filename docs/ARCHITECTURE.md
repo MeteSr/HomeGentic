@@ -451,8 +451,9 @@ rows for a channel that's off.
 ### Endpoints
 
 User endpoints identify the caller from the `x-agent-session` header: the session token the
-auth canister issues (`issueAgentSession`) and the relay resolves (`resolveAgentSession`), as the
-voice Worker does. A principal in the body is ignored.
+auth canister issues for the relay (`issueServiceSession(#notifications)`) and the relay resolves
+(`resolveServiceSession`). The voice Worker's and the IoT gateway's tokens are refused there, and
+the relay's token is refused by them. A principal in the body is ignored.
 
 | Endpoint | Description |
 |---|---|

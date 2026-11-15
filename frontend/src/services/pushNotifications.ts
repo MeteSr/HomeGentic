@@ -3,13 +3,13 @@
  *
  * enable() asks for permission, registers /push-sw.js, subscribes with the
  * notification relay's VAPID key, and registers that subscription with the
- * relay. The relay learns who the subscriber is from the agent session token
- * (fetchWithAgentSession), never from the request body.
+ * relay. The relay learns who the subscriber is from a session token issued for it
+ * (fetchWithServiceSession), never from the request body.
  *
  * Everything is a no-op returning "unavailable" when the browser has no Push
  * API or VITE_NOTIFICATIONS_URL isn't configured.
  */
-import { fetchWithAgentSession } from "./agentSession";
+import { fetchWithServiceSession } from "./agentSession";
 
 const RELAY_URL: string = (import.meta.env?.VITE_NOTIFICATIONS_URL ?? "").replace(/\/$/, "");
 const SW_URL = "/push-sw.js";
@@ -65,7 +65,7 @@ export async function enablePush(): Promise<PushStatus> {
     });
   }
 
-  const res = await fetchWithAgentSession(`${RELAY_URL}/api/push/vapid-subscribe`, {
+  const res = await fetchWithServiceSession("notifications", `${RELAY_URL}/api/push/vapid-subscribe`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ subscription: sub.toJSON() }),
