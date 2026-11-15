@@ -9,6 +9,7 @@ import { mortgageLoanService, validateLoan, EMPTY_LOAN } from "@/services/mortga
 import { mortgageSummary, type MortgageLoan } from "@homegentic/shared/mortgage";
 import { formatIsoDate } from "@/utils/format";
 import { DateInput, Problem } from "./HoaTab";
+import { HomeValueEstimate } from "./HomeValueEstimate";
 
 const BODY = "'Hanken Grotesk',sans-serif";
 const labelText: React.CSSProperties = {
@@ -175,7 +176,7 @@ function Summary({ loan }: { loan: MortgageLoan }) {
  * #722: the owner's mortgage numbers and what they work out to. Shown only to
  * the owner and co-owners (the canister enforces it too).
  */
-export function MortgageSection({ propertyId }: { propertyId: string }) {
+export function MortgageSection({ propertyId, homeState = "" }: { propertyId: string; homeState?: string }) {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [loan, setLoan] = useState<MortgageLoan | null>(null);
   const [form, setForm] = useState<Form | null>(null);
@@ -235,6 +236,13 @@ export function MortgageSection({ propertyId }: { propertyId: string }) {
       {state === "ready" && !f && (
         <>
           {loan ? <Summary loan={loan} /> : <p style={muted}>No loan details yet.</p>}
+          {loan && (
+            <HomeValueEstimate
+              loan={loan}
+              homeState={homeState}
+              onUse={(value) => void save({ ...loan, currentValue: value })}
+            />
+          )}
           <div style={{ marginTop: "1rem" }}>
             <Button onClick={open} style={hudButtonStyle(loan ? "outline" : "primary")}>
               {loan ? "Edit loan" : "Add your loan"}

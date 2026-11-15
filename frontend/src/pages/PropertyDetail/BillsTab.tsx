@@ -208,7 +208,7 @@ export function BillsTab({ propertyId, state, zipCode }: { propertyId: string; s
       {permissions.canAddMortgage && <PropertyTaxSection propertyId={propertyId} state={state} />}
 
       {/* #722: owner and co-owners only, like the mortgage expense. */}
-      {permissions.canAddMortgage && <MortgageSection propertyId={propertyId} />}
+      {permissions.canAddMortgage && <MortgageSection propertyId={propertyId} homeState={state} />}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div>

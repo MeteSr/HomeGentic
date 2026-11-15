@@ -52,6 +52,7 @@ import { canisterLedger, startCardSetup, saveCardFromSession, markInvoicePaid, m
 import { handleInbound, addDraftInCanister, checkTokenInCanister, MAX_RAW_BYTES } from "./inbox";
 import { checkLicense } from "./dbpr";
 import { findRecalls } from "./recalls";
+import { hpiForState } from "./homeValueIndex";
 import { lookupFloodZone } from "./floodZone";
 import { suggestAddresses, placeAddress } from "./addressSuggest";
 import { lookupPropertyDetails, importPermits, sendContractorInvite, sendBrokerLead, sendGiftEmail } from "./offchainOutcalls";
@@ -94,6 +95,8 @@ import {
 // ── Environment bindings ──────────────────────────────────────────────────────
 
 export interface Env {
+  /** Optional: FHFA state house price index file, if it moves (src/homeValueIndex.ts). */
+  HPI_STATE_CSV_URL?: string;
   // AI
   ANTHROPIC_API_KEY:   string;
   AI_MODEL?:           string;
@@ -1367,6 +1370,7 @@ Rules:
     const p    = sessionPrincipal!;
     const r =
       path === "/api/recalls"                 ? await findRecalls(body, env) :
+      path === "/api/home-value-index"        ? await hpiForState(body, env) :
       path === "/api/risk/flood"              ? await lookupFloodZone(body, p, env, { target: floodTarget, save: saveFloodZone, fetch }) :
       path === "/api/license/check"           ? await checkLicense(p, env) :
       path === "/api/property/details"        ? await lookupPropertyDetails(body, p, env, fetch, sessionTier) :
@@ -1918,6 +1922,7 @@ const OFFCHAIN_OUTCALL_ROUTES = new Set([
   "/api/property/details", "/api/permits/import",
   "/api/email/contractor-invite", "/api/email/broker-lead",
   "/api/recalls",   // CPSC recall check (src/recalls.ts); free API, cached per brand
+  "/api/home-value-index", // FHFA state house price index (src/homeValueIndex.ts); free public file, cached a week
   "/api/license/check",   // Florida DBPR licence lookup (src/dbpr.ts); public file, throttled per caller
   "/api/risk/flood",      // #718 FEMA flood zone (src/floodZone.ts); free Census + FEMA APIs, cached per property
 ]);
