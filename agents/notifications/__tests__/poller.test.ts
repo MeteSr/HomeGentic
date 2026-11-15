@@ -38,6 +38,7 @@ function deps(over: Partial<PollerDeps> = {}): PollerDeps {
     getContractors:  jest.fn(async () => []),
     isPro:           jest.fn(async () => true),
     getSuccessionNotice: jest.fn(async () => null),
+    getVisitBooking: jest.fn(async () => null),
     dispatch:        jest.fn(async () => undefined),
     wantsPush:       jest.fn(() => true),
     emailEnabled:    jest.fn(() => false),
@@ -327,6 +328,54 @@ describe("held lead alerts (Contractor Free)", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
     const d = deps({ getQuoteRequest: jest.fn(async () => { throw new Error("down"); }) });
     expect(await p.flushHeld(d, Date.now() + 31 * 60_000)).toBe(0);
+    expect(p.heldNotifications()).toHaveLength(1);
+  });
+});
+
+describe("held visit reminders", () => {
+  const HOUR = 60 * 60 * 1000;
+  const startsAtMs = Date.now() + 72 * HOUR;
+  const due = startsAtMs - 24 * HOUR + 1;
+  const REQ = jest.fn(async (id: string) => ({
+    id, homeowner: "h", serviceType: "HVAC", status: "Accepted", zipCode: null, minTrustScore: null, minJobsCompleted: null,
+  }));
+  const booking = (over: object = {}) => jest.fn(async (quoteId: string) => ({
+    quoteId, requestId: "REQ_1", status: "Booked" as const, startsAtMs, ...over,
+  }));
+
+  async function holdReminder(p: typeof import("../poller"), events = [ev(1, { kind: "visit_booked", recipient: "pro", refId: "Q_1", summary: "HVAC" })]) {
+    await p.pollCanister("quote-id", deps({ readOutbox: outbox([]) }));
+    const d = deps({ readOutbox: outbox(events), getQuoteRequest: REQ, getVisitBooking: booking() });
+    await p.pollCanister("quote-id", d);
+    expect(d.dispatch).toHaveBeenCalledTimes(events.length);
+  }
+
+  it("sends the reminder the day before while the visit is still booked for that time", async () => {
+    const p = freshPoller();
+    await holdReminder(p);
+    expect(p.heldNotifications().map((h) => [h.n.type, h.requestId])).toEqual([["visit_reminder", "Q_1"]]);
+    const d = deps({ getVisitBooking: booking() });
+    expect(await p.flushHeld(d, due - 2)).toBe(0);
+    expect(await p.flushHeld(d, due)).toBe(1);
+    expect(d.dispatch).toHaveBeenCalledWith("pro", expect.objectContaining({ title: "Visit tomorrow" }));
+    expect(p.heldNotifications()).toEqual([]);
+  });
+
+  it("drops the reminder when the visit was cancelled or moved", async () => {
+    for (const over of [{ status: "Cancelled", startsAtMs: null }, { startsAtMs: startsAtMs + HOUR }]) {
+      const p = freshPoller();
+      await holdReminder(p);
+      const d = deps({ getVisitBooking: booking(over) });
+      expect(await p.flushHeld(d, due)).toBe(0);
+      expect(d.dispatch).not.toHaveBeenCalled();
+      expect(p.heldNotifications()).toEqual([]);
+    }
+  });
+
+  it("holds one reminder when the same time is booked twice", async () => {
+    const p = freshPoller();
+    const e = { kind: "visit_booked", recipient: "pro", refId: "Q_1", summary: "HVAC" };
+    await holdReminder(p, [ev(1, e), ev(2, e)]);
     expect(p.heldNotifications()).toHaveLength(1);
   });
 });

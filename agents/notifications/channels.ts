@@ -16,6 +16,9 @@
  *   weekly_pulse                      —     Weekly Home Pulse          —
  *   product_recall                    yes   in the Weekly Home Pulse   —
  *   succession_claim_*                —     always (no row)            —
+ *   visit_* (times offered, booked,   yes   Visit Times                —
+ *     confirmed, new times asked,
+ *     cancelled, day-before reminder)
  *
  * * new-lead pushes follow the contractor profile's notifyPush instead of a
  *   relay preference.
@@ -34,8 +37,20 @@ export const PUSH_PREF_KINDS = [
 ] as const satisfies readonly NotificationKind[];
 export type PushPrefKind = (typeof PUSH_PREF_KINDS)[number];
 
+/** Visit times on an accepted quote: no push setting, one email row. */
+export const VISIT_NOTIFICATION_KINDS = [
+  "visit_times_offered",
+  "visit_booked",
+  "visit_confirmed",
+  "visit_new_times_requested",
+  "visit_cancelled",
+  "visit_reminder",
+] as const satisfies readonly NotificationKind[];
+
 /** Kinds that are pushed at all (new_lead's opt-in lives on the contractor profile). */
-export const PUSH_KINDS: readonly NotificationKind[] = [...PUSH_PREF_KINDS, "new_lead", "showing_request"];
+export const PUSH_KINDS: readonly NotificationKind[] = [
+  ...PUSH_PREF_KINDS, "new_lead", "showing_request", ...VISIT_NOTIFICATION_KINDS,
+];
 
 /** Email preference keys — one per Settings row — and the kinds each covers. */
 export const EMAIL_GROUPS = {
@@ -46,6 +61,7 @@ export const EMAIL_GROUPS = {
   job_updates:    ["job_awaiting_signature", "sensor_alert"],
   weekly_pulse:   ["weekly_pulse"],
   showing_requests: ["showing_request"],
+  visits:         VISIT_NOTIFICATION_KINDS,
 } as const satisfies Record<string, readonly NotificationKind[]>;
 export type EmailPrefKey = keyof typeof EMAIL_GROUPS;
 export const EMAIL_PREF_KEYS = Object.keys(EMAIL_GROUPS) as EmailPrefKey[];
@@ -63,6 +79,7 @@ export const EMAIL_DEFAULTS: Record<EmailPrefKey, boolean> = {
   job_updates:    false,
   weekly_pulse:   true,
   showing_requests: true,
+  visits:         true,
 };
 
 /**

@@ -245,6 +245,20 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 
 **UrgencyLevel:** `#Low | #Medium | #High | #Emergency`
 
+### Visit times on an accepted quote
+
+Stored in a side map keyed by quote id. Each call notifies the other side through the outbox (`visit_*` kinds in `backend/shared/Notify.mo`); the relay adds a reminder the day before a booked visit.
+
+| Method | Type | Signature | Description |
+|---|---|---|---|
+| `offerVisitTimes` | update | `(quoteId: Text, slots: [VisitSlot], note: Text)` | The accepted quote's contractor offers 1 to 5 times (future, at most 12 hours each, within 180 days) and a note of up to 300 characters. Replaces any earlier offer or booked time |
+| `bookVisitTime` | update | `(quoteId: Text, slotIndex: Nat)` | The homeowner (or a manager with write access) books one offered time |
+| `askForNewVisitTimes` | update | `(quoteId: Text)` | The homeowner releases any booked time and asks for others |
+| `cancelVisit` | update | `(quoteId: Text)` | The contractor or the homeowner cancels |
+| `getVisitBookings` | query | `(quoteIds: [Text])` | Bookings on up to 100 quotes the caller is the contractor or homeowner of (admins and the relay see all) |
+
+**VisitSlot:** `{ startsAt: Int; endsAt: Int }` (nanoseconds). **VisitBooking:** `{ quoteId; requestId; status: #TimesOffered | #Booked | #NewTimesRequested | #Cancelled; offered: [VisitSlot]; booked: ?VisitSlot; note; updatedAt }`
+
 ### Request management & usage sharing
 
 | Method | Type | Signature | Description |

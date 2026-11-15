@@ -38,7 +38,13 @@ export type NotificationKind =
   | "succession_claim_reminder"
   | "succession_claim_approved"
   | "succession_claim_rejected"
-  | "succession_claim_cancelled";
+  | "succession_claim_cancelled"
+  | "visit_times_offered"
+  | "visit_booked"
+  | "visit_confirmed"
+  | "visit_new_times_requested"
+  | "visit_cancelled"
+  | "visit_reminder";
 
 export interface NotificationEvent {
   type:      NotificationKind;
@@ -51,7 +57,8 @@ export interface NotificationEvent {
   pushOptIn: boolean;
   /**
    * Don't send before this time (ms). Set on new-lead alerts for contractors
-   * without ContractorPro, who get them FREE_LEAD_DELAY_MS after Pro.
+   * without ContractorPro, who get them FREE_LEAD_DELAY_MS after Pro, and on
+   * reminders (successor claims, booked visits).
    */
   notBefore?: number;
 }
@@ -81,6 +88,15 @@ export interface SuccessionNoticeInfo {
   address:      string;
   /** The home's owner and co-owners now. */
   household:    string[];
+}
+
+/** The visit booked on an accepted quote (quote.getVisitBookings). */
+export interface VisitBookingInfo {
+  quoteId:    string;
+  requestId:  string;
+  status:     "TimesOffered" | "Booked" | "NewTimesRequested" | "Cancelled";
+  /** When the booked visit starts, or null when nothing is booked. */
+  startsAtMs: number | null;
 }
 
 /** The fields of a quote request that new-lead matching needs. */

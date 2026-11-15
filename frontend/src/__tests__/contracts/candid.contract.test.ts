@@ -635,8 +635,11 @@ describe("quote IDL factory", () => {
     const svc = extractService(quoteIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
       "acceptQuote",
+      "askForNewVisitTimes",
       "attachUsageSummary",
+      "bookVisitTime",
       "cancelQuoteRequest",
+      "cancelVisit",
       "closeQuoteRequest",
       "createQuoteRequest",
       "createSealedBidRequest",
@@ -655,6 +658,8 @@ describe("quote IDL factory", () => {
       "getQuotesForRequest",
       "getRevealedBids",
       "getUsageSummary",
+      "getVisitBookings",
+      "offerVisitTimes",
       "removeUsageSummary",
       "revealBids",
       "revealBidsEncrypted",
@@ -684,6 +689,7 @@ describe("quote IDL factory", () => {
       "getQuoteRequestSubtypes",
       "getQuotesForRequest",
       "getRevealedBids",
+      "getVisitBookings",
     ]);
   });
 

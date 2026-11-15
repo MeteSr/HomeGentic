@@ -2,8 +2,10 @@
  * @jest-environment node
  */
 // Outbox event → push mapping and new-lead contractor matching.
-import { FREE_LEAD_DELAY_MS, contractorWantsLead, notificationsFor, payloadFor, tradeLabel } from "../events";
-import type { ContractorInfo, OutboxEvent, QuoteRequestInfo } from "../types";
+import {
+  FREE_LEAD_DELAY_MS, VISIT_REMINDER_BEFORE_MS, contractorWantsLead, notificationsFor, payloadFor, tradeLabel,
+} from "../events";
+import type { ContractorInfo, OutboxEvent, QuoteRequestInfo, VisitBookingInfo } from "../types";
 
 const REQ: QuoteRequestInfo = {
   id: "REQ_1", homeowner: "homeowner", serviceType: "HVAC", status: "Open",
@@ -109,6 +111,7 @@ describe("notificationsFor", () => {
     getContractors:  jest.fn(async () => contractors),
     isPro:           jest.fn(pro),
     getSuccessionNotice: jest.fn(async () => null),
+    getVisitBooking: jest.fn(async () => null),
   });
 
   it("sends a recipient event to its recipient", async () => {
@@ -178,5 +181,77 @@ describe("notificationsFor", () => {
   it("drops a recipient event with no recipient", async () => {
     const out = await notificationsFor({ seq: 3, kind: "bid_declined", recipient: null, refId: "Q", summary: "HVAC" }, lookups(null, []));
     expect(out).toEqual([]);
+  });
+});
+
+describe("visit times", () => {
+  const HOUR = 60 * 60 * 1000;
+  const NOW = Date.UTC(2026, 10, 15, 12);
+  const booking = (over: Partial<VisitBookingInfo> = {}): VisitBookingInfo => ({
+    quoteId: "Q_1", requestId: "REQ_1", status: "Booked", startsAtMs: NOW + 72 * HOUR, ...over,
+  });
+  const visitLookups = (b: VisitBookingInfo | null, req: QuoteRequestInfo | null = REQ) => ({
+    getQuoteRequest: jest.fn(async () => req),
+    getContractors:  jest.fn(async () => []),
+    isPro:           jest.fn(async () => true),
+    getSuccessionNotice: jest.fn(async () => null),
+    getVisitBooking: jest.fn(async () => b),
+  });
+  const visit = (kind: string, recipient: string): OutboxEvent => ({ seq: 9, kind, recipient, refId: "Q_1", summary: "HVAC" });
+
+  it("tells the homeowner to pick a time, linking to their quote request", async () => {
+    const out = await notificationsFor(visit("visit_times_offered", "homeowner"), visitLookups(booking({ status: "TimesOffered", startsAtMs: null })), NOW);
+    expect(out).toEqual([{
+      type: "visit_times_offered", principal: "homeowner", pushOptIn: true,
+      payload: { title: "Pick a visit time", body: "Your HVAC contractor offered times for a visit. Pick the one that suits you.", route: "quotes/REQ_1" },
+    }]);
+  });
+
+  it("links the contractor to their leads", async () => {
+    const out = await notificationsFor(visit("visit_new_times_requested", "hvac-pro"), visitLookups(booking({ status: "NewTimesRequested", startsAtMs: null })), NOW);
+    expect(out).toEqual([{
+      type: "visit_new_times_requested", principal: "hvac-pro", pushOptIn: true,
+      payload: { title: "New visit times requested", body: "The homeowner asked for other times for the HVAC visit. Offer new ones in HomeGentic.", route: "leads" },
+    }]);
+  });
+
+  it("sends a cancellation to whichever side is the recipient", async () => {
+    const b = booking({ status: "Cancelled", startsAtMs: null });
+    const toOwner = await notificationsFor(visit("visit_cancelled", "homeowner"), visitLookups(b), NOW);
+    expect(toOwner[0].payload).toEqual({ title: "Visit cancelled", body: "The HVAC visit was cancelled.", route: "quotes/REQ_1" });
+    const toPro = await notificationsFor(visit("visit_cancelled", "hvac-pro"), visitLookups(b), NOW);
+    expect(toPro[0].payload.route).toBe("leads");
+  });
+
+  it("confirms a booking and holds a reminder for the day before, without the time (no time zone)", async () => {
+    const out = await notificationsFor(visit("visit_booked", "hvac-pro"), visitLookups(booking()), NOW);
+    expect(out).toEqual([
+      {
+        type: "visit_booked", principal: "hvac-pro", pushOptIn: true,
+        payload: { title: "Visit booked", body: "The homeowner picked a time for the HVAC visit. Open HomeGentic to see it.", route: "leads" },
+      },
+      {
+        type: "visit_reminder", principal: "hvac-pro", pushOptIn: true,
+        notBefore: NOW + 72 * HOUR - VISIT_REMINDER_BEFORE_MS,
+        payload: {
+          title: "Visit tomorrow", body: "The HVAC visit is tomorrow. Open HomeGentic to see the time.", route: "leads",
+          data: { startsAtMs: String(NOW + 72 * HOUR) },
+        },
+      },
+    ]);
+    const owner = await notificationsFor(visit("visit_confirmed", "homeowner"), visitLookups(booking()), NOW);
+    expect(owner.map((n) => [n.type, n.payload.route])).toEqual([["visit_confirmed", "quotes/REQ_1"], ["visit_reminder", "quotes/REQ_1"]]);
+    expect(owner[0].payload.body).toBe("Your HVAC visit is booked. Open HomeGentic to see the time.");
+  });
+
+  it("holds no reminder for a visit less than a day away", async () => {
+    const out = await notificationsFor(visit("visit_booked", "hvac-pro"), visitLookups(booking({ startsAtMs: NOW + 20 * HOUR })), NOW);
+    expect(out.map((n) => n.type)).toEqual(["visit_booked"]);
+  });
+
+  it("drops a visit event whose booking or request is gone", async () => {
+    expect(await notificationsFor(visit("visit_booked", "hvac-pro"), visitLookups(null), NOW)).toEqual([]);
+    expect(await notificationsFor(visit("visit_booked", "hvac-pro"), visitLookups(booking(), null), NOW)).toEqual([]);
+    expect(await notificationsFor({ ...visit("visit_booked", "x"), recipient: null }, visitLookups(booking()), NOW)).toEqual([]);
   });
 });

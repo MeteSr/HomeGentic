@@ -161,6 +161,30 @@ persistent actor Quote {
     area:       Text;  // the ZIP, or its first three digits ("327xx")
   };
 
+  /// One visit time a contractor offers on an accepted quote. Nanoseconds.
+  public type VisitSlot = {
+    startsAt: Int;
+    endsAt:   Int;
+  };
+
+  public type VisitStatus = {
+    #TimesOffered;       // the contractor offered times; the homeowner picks one
+    #Booked;             // the homeowner picked a time
+    #NewTimesRequested;  // the homeowner asked for other times
+    #Cancelled;          // either side cancelled the visit
+  };
+
+  /// The visit scheduled on an accepted quote (side map keyed by quote id).
+  public type VisitBooking = {
+    quoteId:   Text;
+    requestId: Text;
+    status:    VisitStatus;
+    offered:   [VisitSlot];
+    booked:    ?VisitSlot;
+    note:      Text;     // the contractor's note, e.g. "I'll call 30 minutes ahead"
+    updatedAt: Int;
+  };
+
   public type Metrics = {
     totalRequests: Nat;
     openRequests: Nat;
@@ -215,6 +239,10 @@ persistent actor Quote {
   /// stable-compatible and a new ServiceType tag would break installed
   /// clients' Candid. Entries go with the requester's account (deleteMyData).
   private let requestSubtypes        = Map.empty<Text, Text>();
+  /// Visit times on accepted quotes: quoteId → booking. A side map, so the
+  /// Quote record keeps its stable type. Entries go with the homeowner's
+  /// request (deleteMyData).
+  private let visitBookings          = Map.empty<Text, VisitBooking>();
 
   // Secondary indexes (transient, rebuilt on every upgrade). Writes to
   // `requests` / `quotes` go through putRequest / putQuote.
@@ -1580,6 +1608,130 @@ persistent actor Quote {
     out.toArray()
   };
 
+  // ─── Visit times on accepted quotes ───────────────────────────────────────────
+
+  private transient let MAX_VISIT_SLOTS = 5;
+  private transient let MAX_VISIT_NOTE_CHARS = 300;
+  /// A slot is at most 12 hours long and starts within 180 days.
+  private transient let MAX_VISIT_LENGTH_NS : Int = 12 * 3_600_000_000_000;
+  private transient let MAX_VISIT_AHEAD_NS : Int = 180 * 86_400_000_000_000;
+  private transient let MAX_VISIT_LOOKUP = 100;
+
+  /// The accepted quote and its request, or why there isn't one.
+  private func acceptedQuote(quoteId: Text) : Result.Result<(Quote, QuoteRequest), Error> {
+    let q = switch (quotes.get(quoteId)) { case null { return #err(#NotFound) }; case (?q) q };
+    let r = switch (requests.get(q.requestId)) { case null { return #err(#NotFound) }; case (?r) r };
+    if (q.status != #Accepted) return #err(#InvalidInput("Visit times can only be set on an accepted quote"));
+    #ok((q, r))
+  };
+
+  private func validSlots(slots: [VisitSlot], now: Int) : Result.Result<(), Error> {
+    if (slots.size() == 0) return #err(#InvalidInput("Offer at least one time"));
+    if (slots.size() > MAX_VISIT_SLOTS) return #err(#InvalidInput("Offer at most 5 times"));
+    for (slot in slots.values()) {
+      if (slot.startsAt <= now) return #err(#InvalidInput("Each time must be in the future"));
+      if (slot.endsAt <= slot.startsAt) return #err(#InvalidInput("Each time must end after it starts"));
+      if (slot.endsAt - slot.startsAt > MAX_VISIT_LENGTH_NS) return #err(#InvalidInput("A visit can be at most 12 hours"));
+      if (slot.startsAt - now > MAX_VISIT_AHEAD_NS) return #err(#InvalidInput("Offer times within the next 180 days"));
+    };
+    #ok(())
+  };
+
+  private func bookingSummary(r: QuoteRequest) : Text { ServiceTypes.toText(r.serviceType) };
+
+  /// The contractor of an accepted quote offers up to 5 visit times (and a
+  /// short note). Replaces any earlier offer; on a booked visit it is a
+  /// reschedule, and the homeowner picks again. The homeowner is notified.
+  public shared(msg) func offerVisitTimes(quoteId: Text, slots: [VisitSlot], note: Text) : async Result.Result<VisitBooking, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let (q, r) = switch (acceptedQuote(quoteId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
+    if (q.contractor != msg.caller) return #err(#NotAuthorized);
+    let now = Time.now();
+    switch (validSlots(slots, now)) { case (#err(e)) return #err(e); case _ {} };
+    if (note.size() > MAX_VISIT_NOTE_CHARS) return #err(#InvalidInput("Keep the note under 300 characters"));
+    let booking : VisitBooking = {
+      quoteId; requestId = q.requestId; status = #TimesOffered; offered = slots; booked = null; note; updatedAt = now;
+    };
+    visitBookings.add(quoteId, booking);
+    notify("visit_times_offered", ?r.homeowner, quoteId, bookingSummary(r));
+    #ok(booking)
+  };
+
+  /// The homeowner (or a manager with write access) books one of the offered
+  /// times, by its position in the offer. The contractor is notified, and
+  /// both sides get a reminder the day before.
+  public shared(msg) func bookVisitTime(quoteId: Text, slotIndex: Nat) : async Result.Result<VisitBooking, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let (_, r0) = switch (acceptedQuote(quoteId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
+    switch (await* authorize(r0.propertyId, r0.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
+    // Re-read after the await: the contractor may have changed the offer.
+    let (q, r) = switch (acceptedQuote(quoteId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
+    let b = switch (visitBookings.get(quoteId)) { case null { return #err(#NotFound) }; case (?b) b };
+    if (b.status != #TimesOffered) return #err(#InvalidInput("There are no offered times to pick from"));
+    if (slotIndex >= b.offered.size()) return #err(#InvalidInput("Pick one of the offered times"));
+    let slot = b.offered[slotIndex];
+    let now = Time.now();
+    if (slot.startsAt <= now) return #err(#InvalidInput("That time has passed; ask for other times"));
+    let booking : VisitBooking = { b with status = #Booked; booked = ?slot; updatedAt = now };
+    visitBookings.add(quoteId, booking);
+    notify("visit_booked", ?q.contractor, quoteId, bookingSummary(r));
+    notify("visit_confirmed", ?r.homeowner, quoteId, bookingSummary(r));
+    #ok(booking)
+  };
+
+  /// The homeowner asks the contractor for other times (before or after
+  /// booking). Any booked time is released.
+  public shared(msg) func askForNewVisitTimes(quoteId: Text) : async Result.Result<VisitBooking, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let (_, r0) = switch (acceptedQuote(quoteId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
+    switch (await* authorize(r0.propertyId, r0.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
+    let (q, r) = switch (acceptedQuote(quoteId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
+    let b = switch (visitBookings.get(quoteId)) { case null { return #err(#NotFound) }; case (?b) b };
+    if (b.status != #TimesOffered and b.status != #Booked)
+      return #err(#InvalidInput("There are no times to change"));
+    let booking : VisitBooking = { b with status = #NewTimesRequested; booked = null; updatedAt = Time.now() };
+    visitBookings.add(quoteId, booking);
+    notify("visit_new_times_requested", ?q.contractor, quoteId, bookingSummary(r));
+    #ok(booking)
+  };
+
+  /// Either side cancels the visit. The other side is notified. The contractor
+  /// can offer new times afterwards.
+  public shared(msg) func cancelVisit(quoteId: Text) : async Result.Result<VisitBooking, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let (q0, r0) = switch (acceptedQuote(quoteId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
+    let byContractor = q0.contractor == msg.caller;
+    if (not byContractor) {
+      switch (await* authorize(r0.propertyId, r0.homeowner, msg.caller, true)) { case (#err(e)) return #err(e); case (#ok(_)) {} };
+    };
+    let (q, r) = switch (acceptedQuote(quoteId)) { case (#err(e)) return #err(e); case (#ok(x)) x };
+    let b = switch (visitBookings.get(quoteId)) { case null { return #err(#NotFound) }; case (?b) b };
+    if (b.status == #Cancelled) return #err(#InvalidInput("The visit is already cancelled"));
+    let booking : VisitBooking = { b with status = #Cancelled; booked = null; updatedAt = Time.now() };
+    visitBookings.add(quoteId, booking);
+    notify("visit_cancelled", if (byContractor) ?r.homeowner else ?q.contractor, quoteId, bookingSummary(r));
+    #ok(booking)
+  };
+
+  /// The visit bookings on these quotes the caller can see: the quote's
+  /// contractor, the request's homeowner, admins and the notification relay.
+  /// Quotes with no booking, and ones the caller can't see, are left out.
+  /// At most 100 ids.
+  public query(msg) func getVisitBookings(quoteIds: [Text]) : async [VisitBooking] {
+    let out = List.empty<VisitBooking>();
+    let privileged = isAdmin(msg.caller) or isNotifier(msg.caller);
+    for (id in quoteIds.sliceToArray(0, Nat.min(quoteIds.size(), MAX_VISIT_LOOKUP)).values()) {
+      switch (visitBookings.get(id), quotes.get(id)) {
+        case (?b, ?q) {
+          let homeowner = switch (requests.get(q.requestId)) { case (?r) r.homeowner == msg.caller; case null false };
+          if (privileged or q.contractor == msg.caller or homeowner) out.add(b);
+        };
+        case _ {};
+      };
+    };
+    out.toArray()
+  };
+
   // ─── Account Deletion ────────────────────────────────────────────────────────
 
   /// Removes one sealed bid and its by-request / by-contractor index entries.
@@ -1630,6 +1782,7 @@ persistent actor Quote {
       let quoteIds = quotesFor(reqId).map(func(q) { q.id }).toArray();
       for (qid in quoteIds.values()) {
         Index.delete(quotes, quoteIndexes, qid);
+        visitBookings.remove(qid);
         deletedRefs.add(qid);
         removed += 1;
       };

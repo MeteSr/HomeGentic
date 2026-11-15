@@ -34,6 +34,13 @@ module {
   ///                              relay sends it only for ContractorPro)
   ///   "new_lead"               — recipient: null (the relay picks matching
   ///                              contractors); refId: quote requestId
+  ///   "visit_times_offered"    — recipient: the homeowner; refId: quoteId;
+  ///                              summary: the service type
+  ///   "visit_booked"           — recipient: the contractor; refId: quoteId
+  ///   "visit_confirmed"        — recipient: the homeowner; refId: quoteId
+  ///   "visit_new_times_requested"
+  ///                            — recipient: the contractor; refId: quoteId
+  ///   "visit_cancelled"        — recipient: the other side; refId: quoteId
   public type Event = {
     seq:       Nat;
     kind:      Text;

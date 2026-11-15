@@ -9,6 +9,7 @@ import { Badge } from "@/components/Badge";
 import { contractorService, ContractorProfile } from "@/services/contractor";
 import { quoteService, QuoteRequest, Quote } from "@/services/quote";
 import { UsageHistory } from "@/components/UsageHistory";
+import { VisitTimesPanel } from "@/components/VisitTimesPanel";
 import type { UsageSummary } from "@/services/quoteUsage";
 import { jobService, Job } from "@/services/job";
 import { useAuthStore } from "@/store/authStore";
@@ -659,6 +660,22 @@ export default function ContractorDashboardPage() {
                 ))}
               </div>
             )}
+          {/* Visit times on won jobs */}
+          {wonBids.length > 0 && (
+            <div style={{ marginTop: "2rem" }}>
+              <h2 style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, fontWeight: 600, borderBottom: `1px solid ${UI.rule}`, padding: "0.625rem 0", margin: "0 0 0.25rem" }}>
+                Schedule visits ({wonBids.length})
+              </h2>
+              {[...wonBids].sort((a, b) => b.createdAt - a.createdAt).map((bid) => (
+                <div key={bid.id} style={{ marginBottom: "1rem" }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.ink, margin: "0.75rem 0 0" }}>
+                    Request {bid.requestId} · ${(bid.amount / 100).toLocaleString()}
+                  </p>
+                  <VisitTimesPanel quoteId={bid.id} role="contractor" />
+                </div>
+              ))}
+            </div>
+          )}
           {/* Bid History */}
           {myBids.length > 0 && (
             <div style={{ marginTop: "2rem" }}>

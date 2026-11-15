@@ -80,6 +80,23 @@ export const idlFactory = ({ IDL }: any) => {
   });
   const UsageSummary = IDL.Record({ series: IDL.Vec(UsageSeries), asOf: IDL.Text });
   const UnitResult = IDL.Variant({ ok: IDL.Null, err: Error });
+  const VisitSlot = IDL.Record({ startsAt: IDL.Int, endsAt: IDL.Int });
+  const VisitStatus = IDL.Variant({
+    TimesOffered:      IDL.Null,
+    Booked:            IDL.Null,
+    NewTimesRequested: IDL.Null,
+    Cancelled:         IDL.Null,
+  });
+  const VisitBooking = IDL.Record({
+    quoteId:   IDL.Text,
+    requestId: IDL.Text,
+    status:    VisitStatus,
+    offered:   IDL.Vec(VisitSlot),
+    booked:    IDL.Opt(VisitSlot),
+    note:      IDL.Text,
+    updatedAt: IDL.Int,
+  });
+  const VisitResult = IDL.Variant({ ok: VisitBooking, err: Error });
 
   return IDL.Service({
     getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
@@ -89,6 +106,12 @@ export const idlFactory = ({ IDL }: any) => {
     // #721: subtype of an Other request (key from serviceTypes.ts SERVICE_SUBTYPES)
     setQuoteRequestSubtype:  IDL.Func([IDL.Text, IDL.Opt(IDL.Text)], [UnitResult], []),
     getQuoteRequestSubtypes: IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))], ["query"]),
+    // Visit times on an accepted quote
+    offerVisitTimes:     IDL.Func([IDL.Text, IDL.Vec(VisitSlot), IDL.Text], [VisitResult], []),
+    bookVisitTime:       IDL.Func([IDL.Text, IDL.Nat], [VisitResult], []),
+    askForNewVisitTimes: IDL.Func([IDL.Text], [VisitResult], []),
+    cancelVisit:         IDL.Func([IDL.Text], [VisitResult], []),
+    getVisitBookings:    IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(VisitBooking)], ["query"]),
     createQuoteRequest: IDL.Func(
       [IDL.Text, ServiceType, IDL.Text, UrgencyLevel, IDL.Opt(IDL.Text),
        IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],

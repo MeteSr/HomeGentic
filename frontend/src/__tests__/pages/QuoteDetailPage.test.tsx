@@ -62,6 +62,12 @@ vi.mock("@/components/NegotiationPanel", () => ({
   NegotiationPanel: () => null,
 }));
 
+vi.mock("@/components/VisitTimesPanel", () => ({
+  VisitTimesPanel: ({ quoteId, role, otherName }: any) => (
+    <div data-testid="visit-panel">{`${role}:${quoteId}:${otherName ?? ""}`}</div>
+  ),
+}));
+
 const { mockToastSuccess, mockToastError } = vi.hoisted(() => ({
   mockToastSuccess: vi.fn(),
   mockToastError:   vi.fn(),
@@ -239,5 +245,28 @@ describe("QuoteDetailPage — load failure", () => {
     mockGetQuotesForRequest.mockResolvedValue([]);
     renderPage();
     await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("Quotes are unavailable right now."));
+  });
+});
+
+describe("QuoteDetailPage — visit times", () => {
+  it("shows the homeowner the visit panel on the accepted quote only", async () => {
+    mockGetRequest.mockResolvedValue({ ...REQUEST, status: "accepted" });
+    mockGetQuotesForRequest.mockResolvedValue([
+      makeQuote({ id: "q1", contractor: "c1", status: "accepted" }),
+      makeQuote({ id: "q2", contractor: "c2", status: "rejected" }),
+    ]);
+    mockGetContractor.mockImplementation((p: string) => Promise.resolve(p === "c1" ? { name: "Cool Air Co", trustScore: 80, isVerified: true } : null));
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("visit-panel")).toHaveTextContent("homeowner:q1:Cool Air Co"));
+    expect(screen.getAllByTestId("visit-panel")).toHaveLength(1);
+    expect(screen.getByText("Not selected")).toBeInTheDocument();
+  });
+
+  it("shows no visit panel to someone who isn't the homeowner", async () => {
+    mockGetRequest.mockResolvedValue({ ...REQUEST, homeowner: "someone-else", status: "accepted" });
+    mockGetQuotesForRequest.mockResolvedValue([makeQuote({ status: "accepted" })]);
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Accepted")).toBeInTheDocument());
+    expect(screen.queryByTestId("visit-panel")).toBeNull();
   });
 });

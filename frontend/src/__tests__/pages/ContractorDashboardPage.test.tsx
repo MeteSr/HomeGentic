@@ -54,6 +54,9 @@ vi.mock("@/services/payment", () => ({
 vi.mock("@/components/LienWaiverUpload", () => ({
   LienWaiverUpload: ({ jobId }: { jobId: string }) => <div data-testid="waiver-upload">{jobId}</div>,
 }));
+vi.mock("@/components/VisitTimesPanel", () => ({
+  VisitTimesPanel: ({ quoteId, role }: any) => <div data-testid="visit-panel">{`${role}:${quoteId}`}</div>,
+}));
 vi.mock("@/store/authStore", () => ({ useAuthStore: mockUseAuthStore }));
 vi.mock("@/hooks/useBreakpoint", () => ({ useBreakpoint: mockUseBreakpoint }));
 vi.mock("@/components/Layout", () => ({ Layout: ({ children }: any) => <div data-testid="layout">{children}</div> }));
@@ -248,5 +251,24 @@ describe("ContractorDashboardPage — final lien waiver after signing (#716)", (
     fireEvent.click(await screen.findByText("Sign Job"));
     await waitFor(() => expect(mockVerifyJob).toHaveBeenCalled());
     expect(screen.queryByTestId("waiver-upload")).not.toBeInTheDocument();
+  });
+});
+
+describe("ContractorDashboardPage — visit times", () => {
+  it("lists won bids for scheduling a visit", async () => {
+    mockGetMyBids.mockResolvedValue([
+      makeQuote({ id: "won", status: "accepted", amount: 100000 }),
+      makeQuote({ id: "lost", status: "rejected" }),
+    ]);
+    renderPage();
+    expect(await screen.findByText("Schedule visits (1)")).toBeInTheDocument();
+    expect(screen.getAllByTestId("visit-panel").map((e) => e.textContent)).toEqual(["contractor:won"]);
+  });
+
+  it("shows no schedule section without a won bid", async () => {
+    mockGetMyBids.mockResolvedValue([makeQuote({ status: "pending" })]);
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText("Win Rate").length).toBeGreaterThan(0));
+    expect(screen.queryByText(/schedule visits/i)).toBeNull();
   });
 });
