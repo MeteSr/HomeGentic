@@ -9,6 +9,8 @@
  *      invoice downgrades only once Stripe has no retry left
  * WH.3 checkout.session.completed: credit packs, gifts, referral cards
  * WH.4 referral-fee invoice and payment intent go to the fee ledger
+ * WH.6 in-app job payments: Checkout events and account.updated go to
+ *      src/jobPayments.ts
  * WH.5 delivery: a redelivered event does nothing, an event still being
  *      processed is refused (409) so Stripe retries, and a handler error
  *      releases the event so the retry runs it again
@@ -63,6 +65,15 @@ jest.mock("../src/referralFees", () => {
     saveCardFromSession:   jest.fn().mockResolvedValue(undefined),
   };
 });
+jest.mock("../src/jobPayments", () => {
+  const actual = jest.requireActual("../src/jobPayments");
+  return {
+    ...actual,
+    canisterPaymentLedger: jest.fn(() => ({ payments: true })),
+    handleJobPaymentEvent: jest.fn(async (_t: string, s: any) => s?.metadata?.type === "job_payment"),
+    syncPayoutAccount:     jest.fn().mockResolvedValue(true),
+  };
+});
 jest.mock("../src/offchainOutcalls", () => {
   const actual = jest.requireActual("../src/offchainOutcalls");
   return { ...actual, sendGiftEmail: jest.fn().mockResolvedValue(true) };
@@ -76,6 +87,7 @@ import {
 } from "../paymentCanister";
 import { markInvoicePaid, markPaymentIntentPaid, saveCardFromSession } from "../src/referralFees";
 import { sendGiftEmail } from "../src/offchainOutcalls";
+import { handleJobPaymentEvent, syncPayoutAccount } from "../src/jobPayments";
 
 function fakeKV() {
   const store = new Map<string, string>();
@@ -324,5 +336,40 @@ describe("WH.5 — delivery", () => {
     expect(reported).toEqual(expect.arrayContaining([
       expect.objectContaining({ errorType: "stripe-webhook", message: `handler error on ${event.type}` }),
     ]));
+  });
+});
+
+describe("WH.6 — in-app job payments", () => {
+  const jobSession = { id: "cs_1", payment_status: "unpaid", metadata: { type: "job_payment", quote_id: "Q_1" } };
+
+  it.each([
+    "checkout.session.completed",
+    "checkout.session.async_payment_succeeded",
+    "checkout.session.async_payment_failed",
+    "checkout.session.expired",
+  ])("%s for a job payment goes to the payments ledger", async (type) => {
+    const res = await deliver({ type, data: { object: jobSession } });
+    expect(res.status).toBe(200);
+    expect(handleJobPaymentEvent).toHaveBeenCalledWith(type, jobSession, expect.anything(), { payments: true });
+    expect(saveCardFromSession).not.toHaveBeenCalled();
+  });
+
+  it("other completed sessions still take their own paths", async () => {
+    const res = await deliver({ type: "checkout.session.completed", data: { object: { metadata: { type: "referral_card" } } } });
+    expect(res.status).toBe(200);
+    expect(saveCardFromSession).toHaveBeenCalled();
+  });
+
+  it("account.updated refreshes the contractor's payout account", async () => {
+    const acct = { id: "acct_1", metadata: { icp_principal: "pro-aaa" } };
+    const res = await deliver({ type: "account.updated", data: { object: acct } });
+    expect(res.status).toBe(200);
+    expect(syncPayoutAccount).toHaveBeenCalledWith(acct, { payments: true });
+  });
+
+  it("a ledger failure makes Stripe retry", async () => {
+    (handleJobPaymentEvent as jest.Mock<any>).mockRejectedValueOnce(new Error("canister down"));
+    const res = await deliver({ type: "checkout.session.async_payment_succeeded", data: { object: jobSession } });
+    expect(res.status).toBe(500);
   });
 });

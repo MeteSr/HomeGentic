@@ -249,6 +249,7 @@ export interface _SERVICE {
   getUsageSummary: ActorMethod<[string], { ok: [] | [UsageSummary] } | { err: Error }>;
   getVisitBookings: ActorMethod<[string[]], VisitBooking[]>;
   offerVisitTimes: ActorMethod<[string, VisitSlot[], string], VisitResult>;
+  relayGetPayoutAccount: ActorMethod<[Principal], [] | [PayoutAccount]>;
   relayPrepareJobPayment: ActorMethod<[string, Principal], { ok: PaymentTerms } | { err: Error }>;
   relayRecordJobPayment: ActorMethod<
     [string, Principal, JobPaymentMethod, bigint, string],

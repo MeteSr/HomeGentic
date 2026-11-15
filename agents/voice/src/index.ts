@@ -49,6 +49,9 @@ import { resolveTier } from "./tier";
 import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
 import { canisterLedger, startCardSetup, saveCardFromSession, markInvoicePaid, markPaymentIntentPaid, chargeDueFees } from "./referralFees";
+import {
+  canisterPaymentLedger, handleJobPaymentEvent, startJobPayment, startPayoutOnboarding, syncPayoutAccount,
+} from "./jobPayments";
 import { handleInbound, addDraftInCanister, checkTokenInCanister, MAX_RAW_BYTES } from "./inbox";
 import { checkLicense } from "./dbpr";
 import { findRecalls } from "./recalls";
@@ -1576,6 +1579,48 @@ Rules:
     }
   }
 
+  // ── POST /api/payments/payout-onboarding ─────────────────────────────────
+  // A contractor sets up getting paid in the app: a Stripe Connect Express
+  // account (made once, recorded on the quote canister) and Stripe's hosted
+  // onboarding. account.updated keeps the canister's flags current.
+  if (path === "/api/payments/payout-onboarding" && method === "POST") {
+    const sk = env.STRIPE_SECRET_KEY;
+    if (!sk) return json({ error: "Payments are not configured" }, 500, cors);
+    const { returnUrl } = await readJsonBody<{ returnUrl?: string }>(request);
+    if (!isAllowedRedirectUrl(returnUrl, allowedOrigins(env))) {
+      return json({ error: "returnUrl must be on the frontend origin" }, 400, cors);
+    }
+    try {
+      const out = await startPayoutOnboarding(sessionPrincipal!, returnUrl as string, await stripeClient(sk), canisterPaymentLedger());
+      return json(out.body, out.status, cors);
+    } catch (err) {
+      return stripeFailure("payout-onboarding", err, cors);
+    }
+  }
+
+  // ── POST /api/payments/start ─────────────────────────────────────────────
+  // The homeowner pays an accepted quote: Stripe Checkout by bank (the
+  // accepted price) or card (the card price). The quote canister checks who
+  // may pay and sets the prices; see src/jobPayments.ts.
+  if (path === "/api/payments/start" && method === "POST") {
+    const sk = env.STRIPE_SECRET_KEY;
+    if (!sk) return json({ error: "Payments are not configured" }, 500, cors);
+    const { quoteId, method: payBy, returnUrl } =
+      await readJsonBody<{ quoteId?: string; method?: string; returnUrl?: string }>(request);
+    if (!isAllowedRedirectUrl(returnUrl, allowedOrigins(env))) {
+      return json({ error: "returnUrl must be on the frontend origin" }, 400, cors);
+    }
+    try {
+      const out = await startJobPayment(
+        sessionPrincipal!, String(quoteId ?? ""), payBy as "bank" | "card", returnUrl as string,
+        await stripeClient(sk), canisterPaymentLedger(),
+      );
+      return json(out.body, out.status, cors);
+    } catch (err) {
+      return stripeFailure("payments-start", err, cors);
+    }
+  }
+
   // ── POST /api/stripe/verify-session ──────────────────────────────────────
   // Legacy Stripe-hosted checkout. Only the session's own principal can
   // verify it, and activation is idempotent with Stripe's period end (F-3).
@@ -1834,9 +1879,21 @@ Rules:
           await markIdentityCleared(propertyId, owner, vs.id, name);
           break;
         }
+        case "checkout.session.async_payment_succeeded":
+        case "checkout.session.async_payment_failed":
+        case "checkout.session.expired": {
+          await handleJobPaymentEvent(event.type, event.data.object, stripe, canisterPaymentLedger());
+          break;
+        }
+        case "account.updated": {
+          await syncPayoutAccount(event.data.object, canisterPaymentLedger());
+          break;
+        }
         case "checkout.session.completed": {
           const session = event.data.object;
-          if (session.metadata?.type === "agent_credits" && session.payment_status === "paid") {
+          if (session.metadata?.type === "job_payment") {
+            await handleJobPaymentEvent(event.type, session, stripe, canisterPaymentLedger());
+          } else if (session.metadata?.type === "agent_credits" && session.payment_status === "paid") {
             const p    = (session.metadata?.principal ?? "") as string;
             const size = Number(session.metadata?.pack_size ?? 0);
             if (p && CREDIT_PACKS[size]) await grantCreditPack(session.id, p, size);
@@ -1936,6 +1993,7 @@ const STRIPE_SESSION_ROUTES = new Set([
   "/api/stripe/identity-session", "/api/stripe/referral-card",
   "/api/stripe/verify-session", "/api/stripe/verify-subscription",
   "/api/stripe/create-credit-checkout", "/api/stripe/verify-credit-purchase",
+  "/api/payments/payout-onboarding", "/api/payments/start",
 ]);
 
 function allowedOrigins(env: Env): Array<string | undefined> {

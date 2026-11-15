@@ -157,6 +157,7 @@ export const idlFactory = ({ IDL }: any) => {
     addPaymentRelay:        IDL.Func([IDL.Principal], [UnitResult], []),
     removePaymentRelay:     IDL.Func([IDL.Principal], [UnitResult], []),
     relaySetPayoutAccount:  IDL.Func([IDL.Principal, PayoutAccount], [UnitResult], []),
+    relayGetPayoutAccount:  IDL.Func([IDL.Principal], [IDL.Opt(PayoutAccount)], ["query"]),
     relayPrepareJobPayment: IDL.Func([IDL.Text, IDL.Principal], [IDL.Variant({ ok: PaymentTerms, err: Error })], []),
     relayRecordJobPayment:  IDL.Func(
       [IDL.Text, IDL.Principal, JobPaymentMethod, IDL.Nat, IDL.Text],

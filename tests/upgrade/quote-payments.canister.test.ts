@@ -291,6 +291,8 @@ describe("quote: paying a contractor in the app", () => {
     expect(await as("quote", other).getJobPayments([q])).toEqual([]);
 
     expect(((await as("quote", pro).getMyPayoutAccount()) as any[])[0].accountId).toBe("acct_123");
+    expect(((await as("quote", relay).relayGetPayoutAccount(pro.getPrincipal())) as any[])[0].accountId).toBe("acct_123");
+    expect(await as("quote", stranger).relayGetPayoutAccount(pro.getPrincipal())).toEqual([]);
     expect(await as("quote", other).getMyPayoutAccount()).toEqual([]);
     const ready = (await as("quote", stranger).getPayoutReady([pro.getPrincipal(), other.getPrincipal()])) as any[];
     expect(ready.map(([p, r]) => [p.toText(), r])).toEqual([

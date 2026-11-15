@@ -1839,6 +1839,12 @@ persistent actor Quote {
     payoutAccounts.get(msg.caller)
   };
 
+  /// Relay only: a contractor's payout account (null for anyone else).
+  public query(msg) func relayGetPayoutAccount(contractor: Principal) : async ?PayoutAccount {
+    if (not isPaymentRelay(msg.caller)) return null;
+    payoutAccounts.get(contractor)
+  };
+
   /// Whether each contractor can be paid in the app, as (principal, ready)
   /// pairs. Open to any caller, like a contractor's profile. At most 100.
   public query func getPayoutReady(contractors: [Principal]) : async [(Principal, Bool)] {
