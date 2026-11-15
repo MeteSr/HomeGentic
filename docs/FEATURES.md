@@ -202,6 +202,7 @@ Multi-tab page — the main workspace for a property.
 - Monthly utility bills (Electric, Gas, Water, Internet, Telecom) if uploaded
 - 3-month rolling anomaly detection: bills >20% above baseline are flagged
 - "Rebates to look into" (electric bills): AI suggestions for the property's own state and zip (`/api/rebate-finder`), labelled as unchecked; the prompt leaves out federal tax credits and programs the model isn't sure are still offered
+- **Mortgage and equity** (owners and co-owners): a calculator from the owner's own loan numbers. Under it, an **index estimate** of the home value: the value when the loan was made, moved by the change in the FHFA House Price Index (all transactions) for the home's state from the quarter before the first payment to the latest quarter (`packages/shared/src/homeValueIndex.ts`; the state series comes from the voice Worker's `/api/home-value-index`, which fetches FHFA's public state file at most once a week). Labelled as following state prices, not the home, so an estimate and not an appraisal; "Use $X as my home value" saves it as the loan's current value, which drives the equity and loan-to-value lines, and the owner can still type their own
 
 **Tab: Settings**
 - Edit property details (type, year built, sq ft)

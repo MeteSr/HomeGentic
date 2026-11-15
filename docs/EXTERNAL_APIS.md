@@ -24,6 +24,7 @@ and where in the codebase each integration lives.
 | [Volusia County ArcGIS](#10-volusia-county-arcgis) | Building permits (Volusia County, FL) | None | Free (public) | No |
 | [City of Orlando Socrata](#10a-city-of-orlando-socrata) | Building permits (City of Orlando, FL) | None | Free (public) | No |
 | [OpenPermit](#11-openpermit) | Building permits (20+ US cities) | `OPEN_PERMIT_API_KEY` | Paid | No |
+| [FHFA House Price Index](#12-fhfa-house-price-index) | Index-based home value estimate | `HPI_STATE_CSV_URL` (optional override) | Free (public) | No — the estimate is hidden without it |
 
 ---
 
@@ -415,6 +416,19 @@ the import uses.
 **Supported cities include:** Austin, Atlanta, Chicago, Dallas, Denver, Houston,
 Jacksonville, Las Vegas, Los Angeles, Miami, Minneapolis, Nashville, New York,
 Philadelphia, Phoenix, San Antonio, San Diego, San Jose, Seattle, Tampa.
+
+---
+
+## 12. FHFA House Price Index
+
+**Purpose:** the index-based home value under the mortgage card. The voice
+Worker (`agents/voice/src/homeValueIndex.ts`, `POST /api/home-value-index`,
+session required) fetches FHFA's quarterly all-transactions index by state
+(`https://www.fhfa.gov/hpi/download/quarterly_datasets/hpi_at_state.csv`:
+rows of state, year, quarter, index) at most once a week, caches it in KV
+and returns one state's series. If FHFA moves the file, set
+`HPI_STATE_CSV_URL` on the Worker. If the file can't be fetched or read, the
+route answers 502 and the app shows no estimate.
 
 ---
 

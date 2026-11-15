@@ -132,3 +132,19 @@ describe("MortgageSection", () => {
     await waitFor(() => expect(mockToast.error).toHaveBeenCalled());
   });
 });
+
+describe("MortgageSection index estimate", () => {
+  it("saves the index estimate as the home value when the owner taps Use", async () => {
+    (window as any).__e2e_hpi = {
+      FL: [
+        [2024, 1, 400],
+        [2024, 4, 420],
+      ],
+    };
+    mockGet.mockResolvedValue(LOAN);
+    render(<MortgageSection propertyId="p1" homeState="FL" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Use $368,000 as my home value" }));
+    await waitFor(() => expect(mockSave).toHaveBeenCalledWith("p1", { ...LOAN, currentValue: 368_000 }));
+    delete (window as any).__e2e_hpi;
+  });
+});

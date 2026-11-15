@@ -16,6 +16,7 @@ async function openProperty(page: import("@playwright/test").Page, data: Record<
     (window as any).__e2e_mortgage_loans = d.loans ?? {};
     (window as any).__e2e_flood_zones = d.flood ?? {};
     (window as any).__e2e_insurance_policies = {};
+    if (d.hpi) (window as any).__e2e_hpi = d.hpi;
   }, data as any);
   await page.goto("/properties/1");
   await expect(page.getByText(/123 maple street/i).first()).toBeVisible();
@@ -69,6 +70,38 @@ test.describe("Mortgage calculator", () => {
     await expect(page.getByText("$1,896.20")).toBeVisible();
     await expect(page.getByText(/80% of the original value on Apr 1, 2029/)).toBeVisible();
     await expect(page.getByText(/your lender decides/i)).toBeVisible();
+  });
+
+  test("offers an index estimate of the home value and saves it when used", async ({ page }) => {
+    await openProperty(page, {
+      hpi: {
+        TX: [
+          [2024, 1, 400],
+          [2025, 4, 420],
+        ],
+      },
+      loans: {
+        "1": {
+          lender: "Sunshine Bank",
+          originalAmount: 300000,
+          annualRatePct: 6.5,
+          termMonths: 360,
+          firstPaymentDate: "2024-02-01",
+          originalValue: 350000,
+          currentValue: null,
+          monthlyPmi: null,
+          monthlyEscrow: null,
+          statementBalance: null,
+          statementDate: "",
+        },
+      },
+    });
+    await page.getByRole("button", { name: "Bills", exact: true }).click();
+    const estimate = page.getByRole("region", { name: "Index estimate" });
+    await expect(estimate).toContainText("$368,000");
+    await expect(estimate).toContainText("not an appraisal");
+    await estimate.getByRole("button", { name: "Use $368,000 as my home value" }).click();
+    await expect(estimate.getByRole("button")).toHaveCount(0);
   });
 });
 
