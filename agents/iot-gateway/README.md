@@ -451,7 +451,7 @@ The gateway also prints its principal on startup via `GET /health`.
 
 Ecobee, Honeywell Home, LG ThinQ and GE SmartHQ devices are bound to a
 property only through the gateway: the browser sends its `x-agent-session`
-token (from `auth.issueAgentSession()`) to `POST /oauth/device/link`, completes
+token issued for the gateway (`auth.issueServiceSession({ iotGateway })`) to `POST /oauth/device/link`, completes
 the vendor OAuth in a popup, picks one of the devices the vendor API lists for
 that account, and `POST /oauth/device/register` makes the gateway call
 `sensor.registerVerifiedDevice(owner, …)`. Once any gateway is registered with

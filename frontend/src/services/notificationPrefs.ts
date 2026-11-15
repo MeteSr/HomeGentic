@@ -3,11 +3,11 @@
  * (agents/notifications/prefs.ts): push kinds, email rows and SMS alerts.
  * They apply to every device the user signs in on.
  *
- * Requests carry the agent session token (fetchWithAgentSession); the relay
+ * Requests carry a session token issued for the relay (fetchWithServiceSession); the relay
  * works out whose preferences they are from it. SMS only goes to a number the
  * user confirmed with a texted code (startSmsVerification → confirmSms).
  */
-import { fetchWithAgentSession } from "./agentSession";
+import { fetchWithServiceSession } from "./agentSession";
 
 const RELAY_URL: string = (import.meta.env?.VITE_NOTIFICATIONS_URL ?? "").replace(/\/$/, "");
 
@@ -63,7 +63,7 @@ const ERRORS: Record<string, string> = {
 
 async function call<T>(path: string, init: RequestInit, fallback: string): Promise<T> {
   if (!RELAY_URL) throw new Error("Notifications aren't configured");
-  const res = await fetchWithAgentSession(`${RELAY_URL}${path}`, init);
+  const res = await fetchWithServiceSession("notifications", `${RELAY_URL}${path}`, init);
   const body = (await res.json().catch(() => ({}))) as { error?: string } & T;
   if (!res.ok) {
     if (res.status === 401) throw new Error(ERRORS.session_required);

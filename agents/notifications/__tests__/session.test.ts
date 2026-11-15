@@ -2,10 +2,11 @@
  * @jest-environment node
  */
 // Registration callers come from auth-canister session tokens, not the body.
-jest.mock("../icp", () => ({ resolveAgentSession: jest.fn() }));
+jest.mock("../icp", () => ({ resolveServiceSession: jest.fn() }));
 
 import type { Request } from "express";
 import { clearSessionCache, requestPrincipal, SESSION_HEADER } from "../session";
+import { resolveServiceSession } from "../icp";
 
 const TOKEN = "hgs_" + "a".repeat(64);
 
@@ -96,5 +97,13 @@ describe("X-7: short cache, token kept out of logs", () => {
     expect(logged).toContain("failed");
     expect(logged).not.toContain(TOKEN);
     spy.mockRestore();
+  });
+});
+
+describe("X-7: only this service's own tokens", () => {
+  it("checks the token with auth.resolveServiceSession, not the voice Worker's lookup", async () => {
+    (resolveServiceSession as jest.Mock).mockResolvedValue("user-9");
+    expect(await requestPrincipal(req(TOKEN))).toBe("user-9");
+    expect(resolveServiceSession).toHaveBeenCalledWith(TOKEN);
   });
 });

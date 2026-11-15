@@ -15,7 +15,7 @@ export function buildTokenPayload(token: string, platform: PushPlatform): TokenP
   return { token, platform };
 }
 
-/** Header carrying the auth canister's agent session token (see authService.issueAgentSession). */
+/** Header carrying the session token issued for the relay (see authService.issueServiceSession). */
 export { SESSION_HEADER };
 
 /** Pure — extracts the deep-link route from a notification data object */

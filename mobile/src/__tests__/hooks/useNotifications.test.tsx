@@ -21,7 +21,7 @@ jest.mock("../../services/notificationService", () => ({
   unregisterPushToken: (...a: unknown[]) => mockUnregister(...a),
 }));
 const mockIssue = jest.fn();
-jest.mock("../../services/authService", () => ({ issueAgentSession: (...a: unknown[]) => mockIssue(...a) }));
+jest.mock("../../services/authService", () => ({ issueServiceSession: (...a: unknown[]) => mockIssue(...a) }));
 let mockAuth: any = { status: "idle" };
 jest.mock("../../auth/AuthContext", () => ({ useAuthContext: () => ({ authState: mockAuth }) }));
 
@@ -63,7 +63,8 @@ it("registers the native device token with the session token once signed in", as
   mockAuth = signedIn();
   await render(<Probe />);
   await flush();
-  expect(mockIssue).toHaveBeenCalledWith(agent);
+  // X-7: a token for the notification relay only, not the voice Worker's.
+  expect(mockIssue).toHaveBeenCalledWith(agent, "notifications");
   expect(mockRegister).toHaveBeenCalledWith(expect.objectContaining({ token: "device-tok" }), "sess-tok");
 });
 

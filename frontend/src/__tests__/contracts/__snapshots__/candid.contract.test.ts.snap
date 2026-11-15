@@ -361,6 +361,15 @@ exports[`auth IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {token:text; expiresAt:int}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimited; Unavailable:text}}",
     ],
   },
+  "issueServiceSession": {
+    "args": [
+      "variant {notifications; iotGateway}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {token:text; expiresAt:int}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimited; Unavailable:text}}",
+    ],
+  },
   "recordLogin": {
     "args": [],
     "mode": [],
@@ -378,6 +387,18 @@ exports[`auth IDL factory > full signature snapshot 1`] = `
   "resolveAgentSession": {
     "args": [
       "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt principal",
+    ],
+  },
+  "resolveServiceSession": {
+    "args": [
+      "text",
+      "variant {notifications; iotGateway}",
     ],
     "mode": [
       "query",

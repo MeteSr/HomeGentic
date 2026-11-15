@@ -9,6 +9,9 @@ function getCanisterId() { return (process.env as any).AUTH_CANISTER_ID || ""; }
 
 export type UserRole = "Homeowner" | "Contractor" | "Realtor" | "Builder";
 
+/** The off-chain services, besides the voice Worker, that take a sign-in token of their own. */
+export type ServiceAudience = "notifications" | "iotGateway";
+
 export interface UserProfile {
   principal:          string;
   role:               UserRole;
@@ -106,6 +109,16 @@ export const authService = {
   async issueAgentSession(): Promise<{ token: string; expiresAtMs: number }> {
     const a = await getActor();
     const result = await a.issueAgentSession();
+    if ("ok" in result) {
+      return { token: result.ok.token, expiresAtMs: Number(result.ok.expiresAt / 1_000_000n) };
+    }
+    throw canisterError(result.err);
+  },
+
+  /** A token for one off-chain service (notification relay or IoT gateway), refused everywhere else. */
+  async issueServiceSession(audience: ServiceAudience): Promise<{ token: string; expiresAtMs: number }> {
+    const a = await getActor();
+    const result = await a.issueServiceSession(variant<AuthTypes.ServiceAudience>(audience));
     if ("ok" in result) {
       return { token: result.ok.token, expiresAtMs: Number(result.ok.expiresAt / 1_000_000n) };
     }

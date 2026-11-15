@@ -5,11 +5,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const issue = vi.fn();
-vi.mock("@/services/auth", () => ({ authService: { issueAgentSession: (...a: unknown[]) => issue(...a) } }));
+const issueService = vi.fn();
+vi.mock("@/services/auth", () => ({
+  authService: {
+    issueAgentSession: (...a: unknown[]) => issue(...a),
+    issueServiceSession: (...a: unknown[]) => issueService(...a),
+  },
+}));
 const ensureHuman = vi.fn();
 vi.mock("@/services/humanCheck", () => ({ ensureHuman: (...a: unknown[]) => ensureHuman(...a) }));
 
-import { getAgentSessionToken, clearAgentSession, fetchWithAgentSession, aiRefusalMessage, AGENT_SESSION_HEADER } from "@/services/agentSession";
+import { getAgentSessionToken, clearAgentSession, fetchWithAgentSession, fetchWithServiceSession, getServiceSessionToken, aiRefusalMessage, AGENT_SESSION_HEADER } from "@/services/agentSession";
 import { useAuthStore } from "@/store/authStore";
 
 const HOUR = 3_600_000;
@@ -20,6 +26,7 @@ beforeEach(() => {
   setPrincipal("user-a");
   clearAgentSession();
   issue.mockReset();
+  issueService.mockReset();
   ensureHuman.mockReset();
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -160,5 +167,51 @@ describe("aiRefusalMessage", () => {
     expect(await aiRefusalMessage(res(429, "free_ai_budget_reached"))).toMatch(/tomorrow/);
     expect(await aiRefusalMessage(res(429, "daily_chat_limit_reached"))).toBeNull();
     expect(await aiRefusalMessage(res(500, "x"))).toBeNull();
+  });
+});
+
+// X-7 follow-up: the notification relay and IoT gateway each get their own token.
+describe("service sessions", () => {
+  const day = () => Date.now() + 24 * HOUR;
+
+  it("issues one token per service, separate from the voice Worker's", async () => {
+    issue.mockResolvedValue({ token: "hgs_worker", expiresAtMs: day() });
+    issueService.mockImplementation(async (aud: string) => ({ token: `hgs_${aud}`, expiresAtMs: day() }));
+    expect(await getServiceSessionToken("notifications")).toBe("hgs_notifications");
+    expect(await getServiceSessionToken("iotGateway")).toBe("hgs_iotGateway");
+    expect(await getServiceSessionToken("notifications")).toBe("hgs_notifications");
+    expect(await getAgentSessionToken()).toBe("hgs_worker");
+    expect(issueService.mock.calls).toEqual([["notifications"], ["iotGateway"]]);
+  });
+
+  it("returns null when signed out or without an auth canister", async () => {
+    setPrincipal(null);
+    expect(await getServiceSessionToken("notifications")).toBeNull();
+    setPrincipal("user-a");
+    delete (process.env as any).AUTH_CANISTER_ID;
+    expect(await getServiceSessionToken("notifications")).toBeNull();
+    expect(issueService).not.toHaveBeenCalled();
+  });
+
+  it("fetchWithServiceSession sends that service's token and retries once on 401", async () => {
+    issueService.mockResolvedValueOnce({ token: "hgs_old", expiresAtMs: day() })
+                .mockResolvedValueOnce({ token: "hgs_new", expiresAtMs: day() });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("", { status: 401 }))
+      .mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await fetchWithServiceSession("notifications", "https://relay/api/prefs", { method: "GET", headers: { a: "1" } });
+    expect(res.status).toBe(200);
+    expect(fetchMock.mock.calls.map(([, init]) => init.headers[AGENT_SESSION_HEADER])).toEqual(["hgs_old", "hgs_new"]);
+    expect(fetchMock.mock.calls[0][1].headers.a).toBe("1");
+    expect(issue).not.toHaveBeenCalled();
+  });
+
+  it("clearAgentSession (sign-out) forgets the service tokens too", async () => {
+    issueService.mockResolvedValueOnce({ token: "hgs_1", expiresAtMs: day() })
+                .mockResolvedValueOnce({ token: "hgs_2", expiresAtMs: day() });
+    expect(await getServiceSessionToken("iotGateway")).toBe("hgs_1");
+    clearAgentSession();
+    expect(await getServiceSessionToken("iotGateway")).toBe("hgs_2");
   });
 });

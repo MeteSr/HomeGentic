@@ -1,13 +1,13 @@
 /**
  * @jest-environment node
  */
-// X-7 (security review 2026-11-11): the gateway accepts the same session token
-// as the voice Worker and the notification relay, so its cache is short and
-// the token never reaches a log.
-jest.mock("../icp", () => ({ resolveAgentSession: jest.fn() }));
+// X-7 (security review 2026-11-11): the gateway accepts only tokens issued for
+// it, keeps its cache short, and never logs a token.
+jest.mock("../icp", () => ({ resolveServiceSession: jest.fn() }));
 
 import type { Request } from "express";
 import { clearSessionCache, requestPrincipal, SESSION_HEADER } from "../session";
+import { resolveServiceSession } from "../icp";
 
 const TOKEN = "hgs_" + "c".repeat(64);
 
@@ -51,4 +51,12 @@ it("never logs the token, and fails closed, when the lookup fails", async () => 
   expect(logged).toContain("failed");
   expect(logged).not.toContain(TOKEN);
   spies.forEach((s) => s.mockRestore());
+});
+
+describe("X-7: only this service's own tokens", () => {
+  it("checks the token with auth.resolveServiceSession, not the voice Worker's lookup", async () => {
+    (resolveServiceSession as jest.Mock).mockResolvedValue("user-9");
+    expect(await requestPrincipal(req(TOKEN))).toBe("user-9");
+    expect(resolveServiceSession).toHaveBeenCalledWith(TOKEN);
+  });
 });

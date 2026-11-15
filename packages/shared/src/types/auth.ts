@@ -39,6 +39,8 @@ export type UserStats = {
   homeowners: bigint;
 };
 
+export type ServiceAudience = { notifications: null } | { iotGateway: null };
+
 export type RegisterArgs = {
   role: UserRole;
   email: string;
@@ -102,9 +104,20 @@ export interface _SERVICE {
       }
     | { err: Error }
   >;
+  issueServiceSession: ActorMethod<
+    [ServiceAudience],
+    | {
+        ok: {
+          token: string;
+          expiresAt: bigint;
+        };
+      }
+    | { err: Error }
+  >;
   recordLogin: ActorMethod<[], undefined>;
   register: ActorMethod<[RegisterArgs], Result>;
   resolveAgentSession: ActorMethod<[string], [] | [Principal]>;
+  resolveServiceSession: ActorMethod<[string, ServiceAudience], [] | [Principal]>;
   revokeAgentSession: ActorMethod<[], undefined>;
   updateProfile: ActorMethod<[UpdateArgs], Result>;
 }

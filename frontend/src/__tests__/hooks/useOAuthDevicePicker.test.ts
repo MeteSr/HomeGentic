@@ -14,7 +14,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 const { mockFetchWithSession } = vi.hoisted(() => ({ mockFetchWithSession: vi.fn() }));
-vi.mock("@/services/agentSession", () => ({ fetchWithAgentSession: mockFetchWithSession }));
+// X-7: gateway requests carry a token issued for the gateway, never the voice Worker's.
+vi.mock("@/services/agentSession", () => ({
+  fetchWithServiceSession: (audience: string, ...a: unknown[]) =>
+    audience === "iotGateway" ? mockFetchWithSession(...a) : Promise.reject(new Error(`wrong audience ${audience}`)),
+}));
 
 import { useOAuthDevicePicker } from "@/hooks/useOAuthDevicePicker";
 

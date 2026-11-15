@@ -27,7 +27,7 @@ jest.mock("../icp", () => ({
   getGatewayPrincipal: jest.fn(() => "gateway-principal"),
   registerVerifiedDevice: jest.fn(),
   isDryRun: jest.fn(() => false),
-  resolveAgentSession: jest.fn(),
+  resolveServiceSession: jest.fn(),
 }));
 jest.mock("../session", () => ({
   SESSION_HEADER: "x-agent-session",

@@ -211,13 +211,17 @@ export async function registerVerifiedDevice(
 
 // ── Auth canister: agent-session resolution ──────────────────────────────────
 
-let _authActor: ActorSubclass<{ resolveAgentSession(t: string): Promise<[] | [Principal]> }> | null = null;
+let _authActor: ActorSubclass<{
+  resolveServiceSession(t: string, audience: { iotGateway: null }): Promise<[] | [Principal]>;
+}> | null = null;
 
 /**
- * Resolve an `x-agent-session` token (issued by auth.issueAgentSession() to the
- * signed-in caller) to its HomeGentic principal, or null. Needs CANISTER_ID_AUTH.
+ * Resolve an `x-agent-session` token issued for this gateway
+ * (auth.issueServiceSession({ iotGateway }) by the signed-in caller) to its
+ * HomeGentic principal, or null. Tokens issued for the voice Worker or the
+ * notification relay are refused (X-7). Needs CANISTER_ID_AUTH.
  */
-export async function resolveAgentSession(token: string): Promise<string | null> {
+export async function resolveServiceSession(token: string): Promise<string | null> {
   if (!_authActor) {
     const canisterId = process.env.CANISTER_ID_AUTH;
     if (!canisterId) throw new Error("CANISTER_ID_AUTH environment variable is not set");
@@ -230,6 +234,6 @@ export async function resolveAgentSession(token: string): Promise<string | null>
     });
     _authActor = Actor.createActor(sessionLookupIdl, { agent, canisterId });
   }
-  const res = await _authActor.resolveAgentSession(token);
+  const res = await _authActor.resolveServiceSession(token, { iotGateway: null });
   return res[0] ? res[0].toText() : null;
 }

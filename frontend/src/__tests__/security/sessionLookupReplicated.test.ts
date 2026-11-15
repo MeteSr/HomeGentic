@@ -18,6 +18,13 @@ describe("agent-session lookup is replicated", () => {
     expect(fn.annotations).toEqual([]);
   });
 
+  it("declares resolveServiceSession(token, audience) without the query annotation", () => {
+    const service = sessionLookupIdl({ IDL }) as IDL.ServiceClass;
+    const [, fn] = service._fields.find(([name]) => name === "resolveServiceSession")!;
+    expect(fn.annotations).toEqual([]);
+    expect(fn.argTypes.map((t) => t.display())).toEqual(["text", "variant {notifications; iotGateway}"]);
+  });
+
   it.each(["agents/voice/authCanister.ts", "agents/notifications/icp.ts", "agents/iot-gateway/icp.ts"])(
     "%s resolves sessions through sessionLookupIdl",
     (file) => {
@@ -25,4 +32,16 @@ describe("agent-session lookup is replicated", () => {
       expect(src).toMatch(/Actor\.createActor\(sessionLookupIdl,/);
     },
   );
+});
+
+// X-7 follow-up: each relay checks tokens issued for it, never the Worker's.
+describe("each service resolves only its own tokens", () => {
+  it.each([
+    ["agents/notifications/icp.ts", "notifications"],
+    ["agents/iot-gateway/icp.ts", "iotGateway"],
+  ])("%s asks auth.resolveServiceSession for the %s audience", (file, audience) => {
+    const src = read(file);
+    expect(src).toMatch(new RegExp(`\\.resolveServiceSession\\(token, \\{ ${audience}: null \\}\\)`));
+    expect(src).not.toMatch(/\.resolveAgentSession\(/);
+  });
 });

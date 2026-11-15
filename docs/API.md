@@ -35,8 +35,10 @@ Signatures and query/update types in this file are generated from the Motoko sou
 | `getUserStats` | query | `()` | Aggregate user stats (counts by tier/role) |
 | `completeOnboarding` | update | `()` | Mark the caller's onboarding as complete so they are not redirected to the wizard on subsequent logins. |
 | `issueAgentSession` | update | `()` | Issue a 24-hour voice-agent session token (`hgs_…`) for the caller, replacing any earlier one. Registered users only (`#NotFound` otherwise). |
-| `revokeAgentSession` | update | `()` | Revoke the caller's voice-agent session. |
-| `resolveAgentSession` | query | `(token: Text)` | Principal owning a live session token, or null. Called by the voice Worker. |
+| `issueServiceSession` | update | `(audience: ServiceAudience)` | Issue a 24-hour token for one off-chain service (`#notifications` = notification relay, `#iotGateway` = IoT gateway), replacing the caller's earlier token for that service only. Registered users only (`#NotFound` otherwise). Every other service, the voice Worker included, refuses it. |
+| `revokeAgentSession` | update | `()` | Revoke all of the caller's tokens (voice Worker and every service), e.g. on sign-out. |
+| `resolveAgentSession` | query | `(token: Text)` | Principal owning a live voice Worker token, or null. Called by the voice Worker; service tokens resolve to null. |
+| `resolveServiceSession` | query | `(token: Text, audience: ServiceAudience)` | Principal owning a live token issued for `audience`, or null (also null for a token issued for another service or for the voice Worker). Called by the notification relay and IoT gateway. |
 | `getNotificationContact` | query | `(p: Principal)` | Notifier/admin: `?{ email }` for an active user with an email on file, else null — read by the notification relay to send notification email |
 | `getPulseRecipients` | query | `(after: ?Principal, limit: Nat)` | Notifier/admin: `{ principal; email }` for active homeowners with an email, in principal order after `after` (max 200 per page) — the weekly Home Pulse email's recipient list |
 | `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) calling `getNotificationContact` and `getPulseRecipients` |

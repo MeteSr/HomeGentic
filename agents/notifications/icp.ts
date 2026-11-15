@@ -212,7 +212,12 @@ export async function isContractorPro(principal: string): Promise<boolean> {
 let _lookupAgent: Promise<HttpAgent> | undefined;
 
 /** The principal an agent session token belongs to, or null if it's unknown or expired. */
-export async function resolveAgentSession(token: string): Promise<string | null> {
+/**
+ * Resolve an `x-agent-session` token issued for this relay
+ * (auth.issueServiceSession({ notifications })) to its principal, or null.
+ * Tokens issued for the voice Worker or the IoT gateway are refused (X-7).
+ */
+export async function resolveServiceSession(token: string): Promise<string | null> {
   // Replicated, certified call, not a single-replica query (sessionLookup.ts).
   // auth's inspect refuses anonymous ingress (cycle-drain CD-5), so the
   // update call is signed with a throwaway identity; the method is public.
@@ -220,7 +225,7 @@ export async function resolveAgentSession(token: string): Promise<string | null>
   const actor = Actor.createActor(sessionLookupIdl, {
     agent: await _lookupAgent, canisterId: requireId("CANISTER_ID_AUTH"),
   }) as any;
-  const res: [] | [Principal] = await actor.resolveAgentSession(token);
+  const res: [] | [Principal] = await actor.resolveServiceSession(token, { notifications: null });
   return res[0] ? res[0].toText() : null;
 }
 
