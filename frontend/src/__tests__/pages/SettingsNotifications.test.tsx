@@ -132,7 +132,7 @@ function makeState(over: { sms?: State["prefs"]["sms"]; email?: Record<string, b
   return {
     prefs: {
       push:  { job_awaiting_signature: true, job_awaiting_contractor_signature: true, bid_accepted: true, bid_declined: true, product_recall: true },
-      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true, showing_requests: true, ...over.email },
+      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true, showing_requests: true, visits: true, ...over.email },
       sms:   over.sms ?? { enabled: false, phone: null },
     },
     channels: { email: true, sms: true, ...over.channels },
@@ -221,6 +221,15 @@ describe("contractor email preferences", () => {
     expect(switchFor("Email: Bid Outcome")).toHaveAttribute("aria-checked", "true");
   });
 
+  it("has a visit-times email row", async () => {
+    relay.setNotificationPrefs.mockResolvedValue(makeState({ email: { visits: false } }));
+    renderNotificationsTab();
+    await waitFor(() => screen.getByText("Email: Visit Times"));
+    expect(switchFor("Email: Visit Times")).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(switchFor("Email: Visit Times"));
+    await waitFor(() => expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { visits: false } }));
+  });
+
   it("hides email rows when the relay can't send email", async () => {
     relay.getNotificationPrefs.mockResolvedValue(makeState({ channels: { email: false } }));
     renderNotificationsTab();
@@ -240,7 +249,9 @@ describe("homeowner preferences", () => {
     fireEvent.click(switchFor("Email: Quote Received"));
     fireEvent.click(switchFor("Email: Job Updates"));
     fireEvent.click(switchFor("Email: Weekly Home Pulse"));
-    await waitFor(() => expect(relay.setNotificationPrefs).toHaveBeenCalledTimes(4));
+    fireEvent.click(switchFor("Email: Visit Times"));
+    await waitFor(() => expect(relay.setNotificationPrefs).toHaveBeenCalledTimes(5));
+    expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { visits: false } });
     expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { job_verified: false } });
     expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { quote_received: false } });
     expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { job_updates: true } });

@@ -699,6 +699,7 @@ function ContractorNotificationsTab() {
     ...emailRows(relay, [
       { key: "new_lead",    label: "Email: New Lead",    desc: "Email when a matching quote request is posted" },
       { key: "bid_outcome", label: "Email: Bid Outcome", desc: "Email when a bid is accepted or closed" },
+      { key: "visits",      label: "Email: Visit Times", desc: "When a homeowner books, cancels or asks for other times, and a reminder the day before" },
     ]),
   ];
   const hasSms = !!relay.state?.channels.sms;
@@ -742,6 +743,7 @@ function NotificationsTab() {
       { key: "job_updates",    label: "Email: Job Updates",    desc: "When a job needs your signature or a sensor opens one" },
       { key: "weekly_pulse",   label: "Email: Weekly Home Pulse", desc: "Mondays: jobs to sign, possible recalls, warranties ending, aging systems and the season's jobs" },
       { key: "showing_requests", label: "Email: Showing Requests", desc: "When a buyer asks to see a home you're selling yourself" },
+      { key: "visits",         label: "Email: Visit Times",    desc: "When a contractor offers visit times or cancels, and a reminder the day before" },
     ]),
   ];
   const hasSms = !!relay.state?.channels.sms;

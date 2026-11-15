@@ -297,6 +297,7 @@ Multi-tab page — the main workspace for a property.
 - Contractor quotes (price, timeline, validity), sortable
 - Accept a quote → converts to a job
 - Messaging with contractors
+- Visit time on the accepted quote: the contractor offers up to 5 times (each at most 12 hours, within 180 days) and a short note; the homeowner books one, asks for other times, or cancels. Either side can cancel, and a new offer from the contractor replaces a booked time. Each step notifies the other side (push and the "Visit Times" email row in Settings), and both get a reminder the day before a booked visit. Reminders don't name the time because the relay doesn't know the recipient's time zone; the app shows it in the viewer's own.
 
 ---
 
@@ -510,6 +511,7 @@ Multi-tab page — the main workspace for a property.
 - Leads list (filter by trade, urgency, location)
 - Quote request detail + submit quote modal
 - Active quotes (pending homeowner decision)
+- Schedule visits: each won bid offers the homeowner visit times (see Quote Requests)
 - Completed jobs with homeowner reviews
 - Earnings total ("Earnings via HG": accepted bid values) + trust score tracker
 - ContractorPro: earnings view, accepted bids by month for the last 12 months (by the month the bid was sent), average accepted bid, CSV of every accepted bid
@@ -667,7 +669,7 @@ Floating mic button on every authenticated page (mounted in `Layout`).
 Property selected → Job form submitted → Written to ICP `job` canister → Score recomputed → Activity feed updated → If sensor-triggered: alert acknowledged
 
 ### Quote accepted
-Homeowner accepts bid → Quote marked accepted → Job created from quote → Contractor notified → Job appears in contractor dashboard
+Homeowner accepts bid → Quote marked accepted → Job created from quote → Contractor notified → Job appears in contractor dashboard → Contractor offers visit times (`quote.offerVisitTimes`) → Homeowner books one (`bookVisitTime`) → Both notified, reminder the day before
 
 ### Agent proposal accepted
 Homeowner accepts proposal → Agent selected → Transaction milestones created (Listed → Pending → Closed) → Transaction close form → Final sale price logged → Agent performance recorded

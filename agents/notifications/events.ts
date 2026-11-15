@@ -22,12 +22,18 @@
  * everyone else (notBefore); the poller holds the late ones. The lead itself
  * is visible in the app to every matching contractor straight away.
  *
+ * Visit events (quote canister, refId the quote) link the homeowner to their
+ * quote request and the contractor to their leads. A booked visit also gets a
+ * reminder the day before, held by the poller and sent only if the visit is
+ * still booked for that time. Times aren't written out: the relay doesn't
+ * know the recipient's time zone, so the message sends them to the app.
+ *
  * The minReviews threshold isn't checked here: review counts aren't on the
  * contractor profile, and an extra alert to a contractor who then can't see
  * the lead is harmless.
  */
 import type {
-  ContractorInfo, NotificationEvent, OutboxEvent, PushPayload, QuoteRequestInfo, SuccessionNoticeInfo,
+  ContractorInfo, NotificationEvent, OutboxEvent, PushPayload, QuoteRequestInfo, SuccessionNoticeInfo, VisitBookingInfo,
 } from "./types";
 
 /** How much later contractors without ContractorPro get new-lead alerts. */
@@ -40,6 +46,36 @@ export interface LeadLookups {
   isPro:           (principal: string) => Promise<boolean>;
   /** #724: the successor claim behind a succession_* event, or null when it's gone. */
   getSuccessionNotice: (claimId: string) => Promise<SuccessionNoticeInfo | null>;
+  /** The visit booking on a quote, or null when it's gone. */
+  getVisitBooking: (quoteId: string) => Promise<VisitBookingInfo | null>;
+}
+
+/** How long before a booked visit both sides get a reminder. */
+export const VISIT_REMINDER_BEFORE_MS = 24 * 60 * 60 * 1000;
+
+const VISIT_KINDS = [
+  "visit_times_offered", "visit_booked", "visit_confirmed", "visit_new_times_requested", "visit_cancelled",
+];
+
+/** The message for one visit notification, or null for an unknown kind. */
+export function visitPayload(kind: string, trade: string, route: string): PushPayload | null {
+  const t = tradeLabel(trade);
+  switch (kind) {
+    case "visit_times_offered":
+      return { title: "Pick a visit time", body: `Your ${t} contractor offered times for a visit. Pick the one that suits you.`, route };
+    case "visit_booked":
+      return { title: "Visit booked", body: `The homeowner picked a time for the ${t} visit. Open HomeGentic to see it.`, route };
+    case "visit_confirmed":
+      return { title: "Visit booked", body: `Your ${t} visit is booked. Open HomeGentic to see the time.`, route };
+    case "visit_new_times_requested":
+      return { title: "New visit times requested", body: `The homeowner asked for other times for the ${t} visit. Offer new ones in HomeGentic.`, route };
+    case "visit_cancelled":
+      return { title: "Visit cancelled", body: `The ${t} visit was cancelled.`, route };
+    case "visit_reminder":
+      return { title: "Visit tomorrow", body: `The ${t} visit is tomorrow. Open HomeGentic to see the time.`, route };
+    default:
+      return null;
+  }
 }
 
 /**
@@ -230,6 +266,27 @@ export async function notificationsFor(
         out.push({
           type: "succession_claim_reminder", principal: event.recipient, payload: reminder, pushOptIn: false,
           notBefore: notice.openedAtMs + after,
+        });
+      }
+    }
+    return out;
+  }
+
+  if (VISIT_KINDS.includes(event.kind)) {
+    if (!event.recipient) return [];
+    const booking = await lookups.getVisitBooking(event.refId);
+    const req = booking ? await lookups.getQuoteRequest(booking.requestId) : null;
+    if (!booking || !req) return [];
+    const route = event.recipient === req.homeowner ? `quotes/${booking.requestId}` : "leads";
+    const payload = visitPayload(event.kind, event.summary, route)!;
+    const out: NotificationEvent[] = [{ type: kind, principal: event.recipient, payload, pushOptIn: true }];
+    const booked = event.kind === "visit_booked" || event.kind === "visit_confirmed";
+    if (booked && booking.status === "Booked" && booking.startsAtMs !== null) {
+      const remindAt = booking.startsAtMs - VISIT_REMINDER_BEFORE_MS;
+      if (remindAt > now) {
+        out.push({
+          type: "visit_reminder", principal: event.recipient, pushOptIn: true, notBefore: remindAt,
+          payload: { ...visitPayload("visit_reminder", event.summary, route)!, data: { startsAtMs: String(booking.startsAtMs) } },
         });
       }
     }

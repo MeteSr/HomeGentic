@@ -23,7 +23,9 @@ import { smsPhoneFor, wantsEmail, wantsPush } from "./prefs";
 import { emailConfigured, sendEmail } from "./email";
 import { sendSms, smsConfigured } from "./sms";
 import { PUSH_KINDS } from "./channels";
-import type { ContractorInfo, NotificationEvent, OutboxPage, PushPayload, QuoteRequestInfo, SuccessionNoticeInfo } from "./types";
+import type {
+  ContractorInfo, NotificationEvent, OutboxPage, PushPayload, QuoteRequestInfo, SuccessionNoticeInfo, VisitBookingInfo,
+} from "./types";
 import { reportFailure, errorCode } from "./opsReport";
 
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 30_000;
@@ -38,6 +40,7 @@ export interface PollerDeps {
   getContractors:  () => Promise<ContractorInfo[]>;
   isPro:           (principal: string) => Promise<boolean>;
   getSuccessionNotice: (claimId: string) => Promise<SuccessionNoticeInfo | null>;
+  getVisitBooking: (quoteId: string) => Promise<VisitBookingInfo | null>;
   dispatch:        (principal: string, payload: PushPayload) => Promise<void>;
   wantsPush:       (principal: string, kind: string) => boolean;
   // Email and SMS (optional channels — off when not configured)
@@ -56,6 +59,7 @@ const defaultDeps: PollerDeps = {
   getContractors:  icp.getContractors,
   isPro:           icp.isContractorPro,
   getSuccessionNotice: icp.getSuccessionNotice,
+  getVisitBooking: icp.getVisitBooking,
   dispatch:        dispatchToUser,
   wantsPush,
   emailEnabled:    emailConfigured,
@@ -80,7 +84,8 @@ export function getCursor(canisterId: string): number | undefined {
 
 /**
  * A notification held until its notBefore time. requestId is the lead's quote
- * request, or for a #724 successor-claim reminder the claim id.
+ * request, for a #724 successor-claim reminder the claim id, and for a visit
+ * reminder the quote id.
  */
 interface Held { key: string; requestId: string; n: NotificationEvent }
 
@@ -168,6 +173,12 @@ export async function flushHeld(deps: PollerDeps = defaultDeps, now: number = Da
         const notice = await notices.get(h.requestId)!;
         const open = notice && (notice.status === "AwaitingReview" || notice.status === "Approved");
         if (open && notice.household.includes(h.n.principal)) sent += await deliver(deps, emailFor, h.n, `${h.key}:${h.n.notBefore}`);
+      } else if (h.n.type === "visit_reminder") {
+        // Only while the visit is still booked for the time the reminder is about.
+        const b = await deps.getVisitBooking(h.requestId);
+        if (b && b.status === "Booked" && String(b.startsAtMs) === h.n.payload.data?.startsAtMs) {
+          sent += await deliver(deps, emailFor, h.n, `${h.key}:reminder`);
+        }
       } else {
         if (!requests.has(h.requestId)) requests.set(h.requestId, deps.getQuoteRequest(h.requestId));
         const req = await requests.get(h.requestId)!;
@@ -204,6 +215,7 @@ export async function pollCanister(canisterId: string, deps: PollerDeps = defaul
     getContractors:  () => (contractors ??= deps.getContractors()),
     isPro:           deps.isPro,
     getSuccessionNotice: deps.getSuccessionNotice,
+    getVisitBooking: deps.getVisitBooking,
   };
   const emailFor = emailCache(deps);
 
@@ -216,7 +228,11 @@ export async function pollCanister(canisterId: string, deps: PollerDeps = defaul
       for (const n of notifications) {
         if (n.notBefore !== undefined && n.notBefore > now) {
           // A crash before the cursor moved replays the event; don't hold it twice.
-          if (!held.some((h) => h.key === key && h.n.principal === n.principal && h.n.notBefore === n.notBefore)) held.push({ key, requestId: event.refId, n });
+          // A visit booked again for the same time keeps the one reminder.
+          const dup = held.some((h) =>
+            h.n.principal === n.principal && h.n.notBefore === n.notBefore &&
+            (h.key === key || (n.type === "visit_reminder" && h.n.type === n.type && h.requestId === event.refId)));
+          if (!dup) held.push({ key, requestId: event.refId, n });
         }
         else sent += await deliver(deps, emailFor, n, key);
       }

@@ -24,6 +24,25 @@ export type Error =
   | { RateLimited: null }
   | { Unavailable: string };
 
+export type VisitResult = { ok: VisitBooking } | { err: Error };
+
+export type VisitBooking = {
+  status: VisitStatus;
+  requestId: string;
+  note: string;
+  quoteId: string;
+  booked: [] | [VisitSlot];
+  updatedAt: bigint;
+  offered: VisitSlot[];
+};
+
+export type VisitStatus = { NewTimesRequested: null } | { Booked: null } | { Cancelled: null } | { TimesOffered: null };
+
+export type VisitSlot = {
+  startsAt: bigint;
+  endsAt: bigint;
+};
+
 export type UsageSummary = {
   asOf: string;
   series: UsageSeries[];
@@ -117,8 +136,11 @@ export type SealedBidReveal = {
 /** The methods this declaration lists, for `lazyActor<_SERVICE>(idlFactory, canisterId)`. */
 export interface _SERVICE {
   acceptQuote: ActorMethod<[string], { ok: Quote } | { err: Error }>;
+  askForNewVisitTimes: ActorMethod<[string], VisitResult>;
   attachUsageSummary: ActorMethod<[string, UsageSummary], UnitResult>;
+  bookVisitTime: ActorMethod<[string, bigint], VisitResult>;
   cancelQuoteRequest: ActorMethod<[string], { ok: Principal[] } | { err: Error }>;
+  cancelVisit: ActorMethod<[string], VisitResult>;
   closeQuoteRequest: ActorMethod<[string], { ok: QuoteRequest } | { err: Error }>;
   createQuoteRequest: ActorMethod<
     [
@@ -176,6 +198,8 @@ export interface _SERVICE {
   getQuotesForRequest: ActorMethod<[string], { ok: Quote[] } | { err: Error }>;
   getRevealedBids: ActorMethod<[string], RevealedBid[]>;
   getUsageSummary: ActorMethod<[string], { ok: [] | [UsageSummary] } | { err: Error }>;
+  getVisitBookings: ActorMethod<[string[]], VisitBooking[]>;
+  offerVisitTimes: ActorMethod<[string, VisitSlot[], string], VisitResult>;
   removeUsageSummary: ActorMethod<[string], UnitResult>;
   revealBids: ActorMethod<[string], { ok: RevealedBid[] } | { err: Error }>;
   revealBidsEncrypted: ActorMethod<[string, Uint8Array | number[]], { ok: SealedBidReveal } | { err: Error }>;

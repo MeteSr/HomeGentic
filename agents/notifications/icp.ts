@@ -16,7 +16,7 @@
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
-import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, SuccessionNoticeInfo, PulseHomeFinance, PulseAppliance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseRecipient } from "./types";
+import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, SuccessionNoticeInfo, VisitBookingInfo, PulseHomeFinance, PulseAppliance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseRecipient } from "./types";
 import type { ScoreJob } from "../../packages/shared/src/score";
 import { rootKeyFor } from "../../packages/shared/src/rootKey";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
@@ -161,6 +161,21 @@ export async function getSuccessionNotice(claimId: string): Promise<SuccessionNo
     waitEndsAtMs: Number(BigInt(n.claim.waitEndsAt) / 1_000_000n),
     address:      n.address,
     household:    (n.household as Principal[]).map((p) => p.toText()),
+  };
+}
+
+/** The visit booking on a quote (quote.getVisitBookings; the relay is a notifier). */
+export async function getVisitBooking(quoteId: string): Promise<VisitBookingInfo | null> {
+  const actor = Actor.createActor(quoteIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_QUOTE"),
+  }) as any;
+  const [b] = await actor.getVisitBookings([quoteId]);
+  if (!b) return null;
+  return {
+    quoteId:    b.quoteId,
+    requestId:  b.requestId,
+    status:     Object.keys(b.status)[0] as VisitBookingInfo["status"],
+    startsAtMs: b.booked[0] ? Number(BigInt(b.booked[0].startsAt) / 1_000_000n) : null,
   };
 }
 

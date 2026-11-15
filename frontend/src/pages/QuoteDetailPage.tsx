@@ -9,6 +9,7 @@ import { contractorService, type LicenseCheck } from "@/services/contractor";
 import { LicenseCheckBadge } from "@/components/LicenseCheck";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
 import { UsageHistory } from "@/components/UsageHistory";
+import { VisitTimesPanel } from "@/components/VisitTimesPanel";
 import type { UsageSummary } from "@/services/quoteUsage";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
@@ -375,7 +376,11 @@ export default function QuoteDetailPage() {
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", padding: "0.625rem", border: `1px solid ${UI.sage}`, color: UI.sage, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                         <CheckCircle size={13} /> Accepted
                       </div>
-                    ) : quote.status === "rejected" ? (
+                    ) : null}
+                    {quote.status === "accepted" && isOwner && (
+                      <VisitTimesPanel quoteId={quote.id} role="homeowner" otherName={contractorNames[quote.contractor]} />
+                    )}
+                    {quote.status === "accepted" ? null : quote.status === "rejected" ? (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.625rem", color: UI.inkLight, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.5 }}>
                         Not selected
                       </div>

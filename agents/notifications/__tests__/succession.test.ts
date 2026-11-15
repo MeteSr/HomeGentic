@@ -30,6 +30,7 @@ const lookups = (notice: SuccessionNoticeInfo | null) => ({
   getContractors: jest.fn(async () => []),
   isPro: jest.fn(async () => true),
   getSuccessionNotice: jest.fn(async () => notice),
+  getVisitBooking: jest.fn(async () => null),
 });
 const ev = (kind: string, recipient: string | null): OutboxEvent => ({
   seq: 1,
@@ -133,6 +134,7 @@ describe("waiting-period reminders in the poller", () => {
     getContractors: jest.fn(async () => []),
     isPro: jest.fn(async () => true),
     getSuccessionNotice: jest.fn(async () => NOTICE),
+    getVisitBooking: jest.fn(async () => null),
     dispatch: jest.fn(async () => undefined),
     wantsPush: jest.fn(() => false),
     emailEnabled: jest.fn(() => true),

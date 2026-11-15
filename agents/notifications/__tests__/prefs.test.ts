@@ -32,7 +32,7 @@ describe("defaults", () => {
         job_awaiting_signature: true, job_awaiting_contractor_signature: true,
         bid_accepted: true, bid_declined: true, product_recall: true,
       },
-      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true, showing_requests: true },
+      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true, showing_requests: true, visits: true },
       sms:   { enabled: false, phone: null },
     });
   });
@@ -110,6 +110,10 @@ describe("channel decisions", () => {
     expect(p.wantsEmail("h-1", "showing_request")).toBe(true);
     ok(p.setPrefs("h-1", { email: { showing_requests: false } }));
     expect(p.wantsEmail("h-1", "showing_request")).toBe(false);
+    expect(p.wantsEmail("h-1", "visit_reminder")).toBe(true);
+    ok(p.setPrefs("h-1", { email: { visits: false } }));
+    expect(p.wantsEmail("h-1", "visit_booked")).toBe(false);
+    expect(p.wantsPush("h-1", "visit_booked")).toBe(true);
   });
 
   it("SMS: only the time-sensitive kinds", () => {
