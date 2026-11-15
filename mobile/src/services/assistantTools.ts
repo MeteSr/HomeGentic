@@ -9,7 +9,8 @@
  */
 import { queryHomeRecords, type HomeRecordSource, type OqlActor } from "@homegentic/shared/homeRecords";
 import { listDocuments } from "@homegentic/shared/documentVault";
-import { serviceTypeKey } from "@homegentic/shared/serviceTypes";
+import { serviceTypeKey, serviceSubtypeKey } from "@homegentic/shared/serviceTypes";
+import { nationalPriceRange } from "@homegentic/shared/nationalPrices";
 import { idlFactory as jobIdl } from "@homegentic/shared/declarations/job";
 import { idlFactory as billsIdl } from "@homegentic/shared/declarations/bills";
 import { idlFactory as propertyIdl } from "@homegentic/shared/declarations/property";
@@ -75,22 +76,31 @@ async function priceBenchmark(input: Record<string, unknown>): Promise<Assistant
   const serviceType = String(input.service_type ?? "");
   const zipCode = String(input.zip_code ?? "");
   const tag = serviceTypeKey(serviceType);
-  if (!tag || !zipCode) return fail("service_type must be one of the app's service types, with a 5-digit zip_code.");
-  const none: AssistantToolResult = {
+  const national = nationalPriceRange(serviceType);
+  if (!national || !zipCode) return fail("service_type must be one of the app's service types, with a 5-digit zip_code.");
+  // The typical U.S. range, when no verified local costs are available.
+  const nationalResult: AssistantToolResult = {
     success: true,
     data: {
-      found: false,
-      summary: `There are no verified local prices for ${serviceType} near ${zipCode} yet. Typical U.S. ranges are on homegentic.app/prices; don't state a range as local.`,
+      found: true,
+      serviceType,
+      zipCode,
+      source: "national",
+      ...national,
+      sampleSize: 0,
+      summary: `Typical U.S. ${serviceType} cost: ${dollars(national.low)}–${dollars(national.high)} (median ${dollars(national.median)}). This is a national range, not local prices; say so if you quote it.`,
     },
   };
-  if (!JOB_CANISTER_ID) return none;
+  // Subtypes travel as #Other, so there are no local costs for them on their own.
+  if (!tag || serviceSubtypeKey(serviceType)) return nationalResult;
+  if (!JOB_CANISTER_ID) return nationalResult;
   let s;
   try {
     s = (await actorFor<JobCanister>(jobIdl, JOB_CANISTER_ID).getVerifiedLocalCosts(tag, zipCode))[0];
   } catch {
     return fail("Couldn't look up local prices just now. Try again shortly.");
   }
-  if (!s || Number(s.homes) < 5) return none;
+  if (!s || Number(s.homes) < 5) return nationalResult;
   const [low, median, high, homes] = [Number(s.low), Number(s.median), Number(s.high), Number(s.homes)];
   return {
     success: true,

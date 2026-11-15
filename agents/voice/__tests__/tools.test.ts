@@ -10,6 +10,7 @@
  */
 
 import { HOMEGENTIC_TOOLS } from "../tools";
+import { SERVICE_SUBTYPES } from "../../../packages/shared/src/serviceTypes";
 import type { ToolDefinition } from "../provider";
 
 function getTool(name: string): ToolDefinition {
@@ -289,11 +290,13 @@ describe("multi-step task tools", () => {
 // ── get_price_benchmark covers every service type ────────────────────────────
 
 describe("get_price_benchmark — service types", () => {
-  it("offers every service type the app has, not a subset", () => {
+  it("offers every service type and every subtype of Other the app has, not a subset", () => {
     const priced = getProperties("get_price_benchmark").service_type.enum;
     const all = getProperties("create_maintenance_job").service_type.enum;
     expect(all).toHaveLength(21);
-    expect(priced).toEqual(all);
+    expect(priced).toEqual(expect.arrayContaining(all));
+    expect(priced).toEqual(expect.arrayContaining(SERVICE_SUBTYPES.map((s) => s.label)));
+    expect(priced).toHaveLength(all.length + SERVICE_SUBTYPES.length);
   });
 });
 

@@ -6,14 +6,17 @@
  *          a HomeGentic-verified contractor at homes whose owners share their
  *          costs, needing 5+ homes and 3+ contractors in the ZIP or its first
  *          three digits. National: the ai_proxy canister's fixed U.S. ranges,
- *          used when an area has too few sharing homes.
+ *          used when an area has too few sharing homes; the same table in
+ *          packages/shared/src/nationalPrices.ts answers when ai_proxy can't,
+ *          and is the only source for subtypes of Other (Garage Door, Septic…).
  * 17.1.2 — getPriceBenchmark → used by the get_price_benchmark agent tool.
  * 17.1.5 — hasSufficientSamples: hide local figures built on fewer than 5 homes.
  */
 
 import { aiProxyService } from "./aiProxy";
 import { lazyActor } from "./lazyActor";
-import { serviceTypeKey } from "@homegentic/shared/serviceTypes";
+import { serviceTypeKey, serviceSubtypeKey } from "@homegentic/shared/serviceTypes";
+import { nationalPriceRange } from "@homegentic/shared/nationalPrices";
 import { idlFactory as jobIdl } from "@homegentic/shared/declarations/job";
 import type { _SERVICE as JobCanister } from "@homegentic/shared/types/job";
 
@@ -60,21 +63,23 @@ export async function getPriceBenchmark(
   zipCode: string
 ): Promise<PriceBenchmarkResult | null> {
   if (!serviceType || !zipCode) return null;
+  const national = (r: { low: number; median: number; high: number }): PriceBenchmarkResult => ({
+    serviceType, zipCode, source: "national", sampleSize: 0,
+    low: Number(r.low), median: Number(r.median), high: Number(r.high),
+  });
+  // Subtypes travel as #Other, so no canister has prices for them on their own.
+  if (serviceSubtypeKey(serviceType)) return national(nationalPriceRange(serviceType)!);
   const tag = serviceTypeKey(serviceType);
   if (!tag) return null;
   const local = await getLocalBenchmark(serviceType, tag, zipCode);
   if (local) return local;
   try {
     const json = await aiProxyService.getPriceBenchmark(tag, zipCode);
-    if (!json) return null;
-    const n = JSON.parse(json);
-    return {
-      serviceType, zipCode, source: "national", sampleSize: 0,
-      low: Number(n.low), median: Number(n.median), high: Number(n.high),
-    };
+    if (json) return national(JSON.parse(json));
   } catch {
-    return null;
+    // fall through to the app's own copy of the same table
   }
+  return national(nationalPriceRange(tag)!);
 }
 
 /** §17.1.5 — confidence gate: national ranges always show; local ones need 5+ homes */

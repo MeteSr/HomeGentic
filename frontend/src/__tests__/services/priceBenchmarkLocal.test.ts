@@ -63,4 +63,18 @@ describe("getPriceBenchmark — verified local costs", () => {
     expect(mockLocalCosts).not.toHaveBeenCalled();
     expect(mockNational).not.toHaveBeenCalled();
   });
+
+  it("gives a subtype of Other (Garage Door) its own national range, without calling a canister", async () => {
+    const r = await getPriceBenchmark("Garage Door", "32114");
+    expect(r).toMatchObject({ serviceType: "Garage Door", source: "national", sampleSize: 0 });
+    expect(r!.low).toBeGreaterThan(0);
+    expect(mockLocalCosts).not.toHaveBeenCalled();
+    expect(mockNational).not.toHaveBeenCalled();
+  });
+
+  it("uses the app's own national table when ai_proxy can't answer", async () => {
+    mockLocalCosts.mockResolvedValue([]);
+    mockNational.mockRejectedValue(new Error("down"));
+    expect(await getPriceBenchmark("Roofing", "32114")).toMatchObject({ source: "national", low: 800_000, median: 1_400_000, high: 2_200_000 });
+  });
 });
