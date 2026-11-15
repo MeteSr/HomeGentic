@@ -898,6 +898,7 @@ describe("sensor IDL factory", () => {
       "deactivateDevice",
       "deleteMyData",
       "execute",
+      "getApiDoc",
       "getDevicesForProperty",
       "getEventsForProperty",
       "getPendingAlerts",
@@ -920,7 +921,7 @@ describe("sensor IDL factory", () => {
     // getEventsForProperty and getPendingAlerts use msg.caller (M-07 ownership check)
     // so they are update calls, not queries. getDevicesForProperty is a
     // composite query (M9: live property-role check against the property canister).
-    expect(queries).toEqual(["getVerifiedOnlySources", "schema"]);
+    expect(queries).toEqual(["getApiDoc", "getVerifiedOnlySources", "schema"]);
     expect(svc.execute.mode).toEqual(["composite_query"]);
     expect(svc.getDevicesForProperty.mode).toEqual(["composite_query"]);
   });

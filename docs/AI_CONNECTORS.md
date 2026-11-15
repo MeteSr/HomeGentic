@@ -37,8 +37,9 @@ OQL on bills and property, and the in-app read tool (2026-11-10):
   `lastVisitDate` and `nextVisitEstimate`: the last visit logged plus the frequency, an estimate and never an
   appointment) and `visits`. Provider licence numbers are left out.
 - `sensor.schema()` / `sensor.execute(oql)` (composite query, 2026-11-14): `devices` and `events` (newest 1,000 a
-  home). Vendor device ids and raw gateway payloads are left out. The sensor canister is not in the ICP MCP
-  manifest, so only the in-app assistant reaches this one.
+  home). Vendor device ids and raw gateway payloads are left out. The sensor canister joined the ICP MCP
+  manifest on 2026-11-15 (in place of contractor, to stay within the connector's eight), so connected assistants
+  reach it too; its `getApiDoc()` is `backend/sensor/ApiDoc.mo`.
 - Every one of these canisters: only homes the caller has a role on, at most 20 homes a query, no principals in any row,
   nothing writes.
 - The in-app assistant has one generic read tool, `query_home_records` (`agents/voice/tools.ts`, executed in

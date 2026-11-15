@@ -72,6 +72,7 @@ export const idlFactory = ({ IDL }: any) => {
   const OqlResult = IDL.Record({ hasMore: IDL.Bool, rows: IDL.Vec(IDL.Vec(OqlCell)) });
   return IDL.Service({
     // OQL for AI assistants: a JSON catalogue, and one JSON query -> paged rows.
+    getApiDoc: IDL.Func([], [IDL.Text], ["query"]),
     schema:  IDL.Func([], [IDL.Text], ["query"]),
     execute: IDL.Func([IDL.Text], [OqlResult], ["composite_query"]),
     registerDevice: IDL.Func(

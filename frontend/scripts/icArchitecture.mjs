@@ -17,8 +17,12 @@
  *
  * Deliberately left out: payment, fee and listing (money: payment.subscribe
  * charges ICP and isn't caught by the connector's keyword filter), auth
- * (sessions, account deletion), photo, sensor, agent, market, and the
- * operations canisters. ICP MCP probes at most eight canisters per app.
+ * (sessions, account deletion), photo, agent, market, and the operations
+ * canisters. ICP MCP probes at most eight canisters per app, so sensor (added
+ * 2026-11-15 on Mete's go-ahead: a home's devices and readings, returned only
+ * to people with a role on that home) took the place of contractor, the one
+ * listed canister that held a public directory, not the household's records.
+ * contractor keeps its getApiDoc() and can come back by listing it here.
  *
  * Canister IDs come from CANISTER_ID_* in .env (scripts/deploy.sh writes them
  * before the frontend build), so the manifest always matches the environment
@@ -57,15 +61,16 @@ export const EXPOSED = [
       "Utility bills and recurring home expenses, with usage trends and spike detection. Call getApiDoc() first.",
   },
   {
+    name: "sensor",
+    role: "smart-home devices",
+    description:
+      "Smart-home devices linked to a home and the readings and alerts they reported (leaks, HVAC, humidity, solar). Call getApiDoc() first.",
+  },
+  {
     name: "report",
     role: "shareable reports",
     description:
       "Signed snapshots of a home's record with share links for buyers and insurers. Call getApiDoc() first.",
-  },
-  {
-    name: "contractor",
-    role: "contractor directory",
-    description: "Contractor profiles, trust scores and reviews. Call getApiDoc() first.",
   },
   {
     name: "quote",

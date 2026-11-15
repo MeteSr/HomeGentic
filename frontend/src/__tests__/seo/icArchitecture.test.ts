@@ -55,6 +55,13 @@ describe("ICP MCP discoverability files", () => {
     expect(() => discoveryFiles({ ...deployedEnv(), II_DERIVATION_ORIGIN: "" })).toThrow(/II_DERIVATION_ORIGIN/);
   });
 
+  it("lists the household's own records, sensor devices and alerts included (owner go-ahead 2026-11-15)", () => {
+    expect(names).toEqual(["property", "job", "maintenance", "recurring", "bills", "sensor", "report", "quote"]);
+    const sensor = EXPOSED.find((c: { name: string }) => c.name === "sensor");
+    expect(sensor.description).toMatch(/devices/i);
+    expect(sensor.description).toMatch(/alerts/i);
+  });
+
   it("keeps money and account canisters out, within ICP MCP's eight-canister probe", () => {
     for (const n of ["payment", "fee", "listing", "auth"]) expect(names).not.toContain(n);
     expect(names.length).toBeLessThanOrEqual(8);
