@@ -10,12 +10,16 @@ import { LicenseCheckBadge } from "@/components/LicenseCheck";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
 import { UsageHistory } from "@/components/UsageHistory";
 import { VisitTimesPanel } from "@/components/VisitTimesPanel";
+import { PayJobPanel } from "@/components/JobPaymentPanels";
 import type { UsageSummary } from "@/services/quoteUsage";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
 import { errorMessage } from "@/services/candid";
+
+/** Bids are stored in cents; show whole dollars. */
+const usdWhole = (cents: number) => "$" + Math.round(cents / 100).toLocaleString("en-US");
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -246,7 +250,7 @@ export default function QuoteDetailPage() {
                   </p>
                 </div>
                 <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, lineHeight: 1.5 }}>
-                  {contractorNames[acceptedQuote.contractor] ?? "Contractor"} · ${acceptedQuote.amount.toLocaleString()} · {acceptedQuote.timeline}d timeline
+                  {contractorNames[acceptedQuote.contractor] ?? "Contractor"} · {usdWhole(acceptedQuote.amount)} · {acceptedQuote.timeline}d timeline
                 </p>
               </div>
               <Button
@@ -302,8 +306,8 @@ export default function QuoteDetailPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", borderTop: `1px solid ${UI.rule}`, borderLeft: `1px solid ${UI.rule}` }}>
               {[
                 { label: "Bids Received",  value: String(quotes.length) },
-                { label: "Bid Range",      value: lowestAmount === highestAmount ? `$${lowestAmount.toLocaleString()}` : `$${lowestAmount.toLocaleString()} – $${highestAmount.toLocaleString()}` },
-                { label: "Spread",         value: lowestAmount === highestAmount ? "—" : `$${(highestAmount - lowestAmount).toLocaleString()}` },
+                { label: "Bid Range",      value: lowestAmount === highestAmount ? usdWhole(lowestAmount) : `${usdWhole(lowestAmount)} – ${usdWhole(highestAmount)}` },
+                { label: "Spread",         value: lowestAmount === highestAmount ? "—" : usdWhole(highestAmount - lowestAmount) },
               ].map((s) => (
                 <div key={s.label} style={{ padding: "0.875rem 1rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
                   <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.375rem" }}>{s.label}</div>
@@ -368,7 +372,7 @@ export default function QuoteDetailPage() {
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: isBestValue ? V2_COLORS.ink : isLowest ? UI.sage : UI.ink }}>
-                          ${quote.amount.toLocaleString()}
+                          {usdWhole(quote.amount)}
                         </p>
                       </div>
                     </div>
@@ -378,7 +382,16 @@ export default function QuoteDetailPage() {
                       </div>
                     ) : null}
                     {quote.status === "accepted" && isOwner && (
-                      <VisitTimesPanel quoteId={quote.id} role="homeowner" otherName={contractorNames[quote.contractor]} />
+                      <>
+                        <VisitTimesPanel quoteId={quote.id} role="homeowner" otherName={contractorNames[quote.contractor]} />
+                        <PayJobPanel
+                          quoteId={quote.id}
+                          requestId={quote.requestId}
+                          contractor={quote.contractor}
+                          bidCents={quote.amount}
+                          contractorName={contractorNames[quote.contractor]}
+                        />
+                      </>
                     )}
                     {quote.status === "accepted" ? null : quote.status === "rejected" ? (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.625rem", color: UI.inkLight, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.5 }}>
@@ -471,7 +484,7 @@ export default function QuoteDetailPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: `1px solid ${UI.rule}`, borderLeft: `1px solid ${UI.rule}` }}>
                 {[
                   { label: "Contractor",  value: contractorNames[pendingAccept.contractor] ?? "—" },
-                  { label: "Amount",      value: `$${pendingAccept.amount.toLocaleString()}` },
+                  { label: "Amount",      value: usdWhole(pendingAccept.amount) },
                   { label: "Timeline",    value: `${pendingAccept.timeline}d` },
                 ].map((r) => (
                   <div key={r.label} style={{ padding: "0.75rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}` }}>

@@ -145,10 +145,10 @@ test.describe("QF — /quotes/:id bid display", () => {
   // QF.3 — bid amounts are rendered
   test("shows both injected bid amounts", async ({ page }) => {
     await page.goto(`/quotes/${ANCHOR_REQUEST.id}`);
-    // amounts stored as cents-like integers: 125000 → "$125,000"
+    // amounts are cents: 125000 → "$1,250"
     // Use exact match to avoid strict-mode collision with the bid-range summary
-    await expect(page.getByText("$125,000", { exact: true })).toBeVisible();
-    await expect(page.getByText("$98,000", { exact: true })).toBeVisible();
+    await expect(page.getByText("$1,250", { exact: true })).toBeVisible();
+    await expect(page.getByText("$980", { exact: true })).toBeVisible();
   });
 
   // QF.4 — with equal trust scores the cheapest bid always wins "Best Value"

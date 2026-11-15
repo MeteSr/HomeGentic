@@ -443,24 +443,29 @@ verifyProperty(3) -> (1)"
 
 exports[`Candid contract snapshots — method arity > quote 1`] = `
 "acceptQuote(1) -> (1)
+addPaymentRelay(1) -> (1)
 askForNewVisitTimes(1) -> (1)
 attachUsageSummary(2) -> (1)
 bookVisitTime(2) -> (1)
 cancelQuoteRequest(1) -> (1)
 cancelVisit(1) -> (1)
+cardPriceFor(1) -> (1) [query]
 closeQuoteRequest(1) -> (1)
 createQuoteRequest(9) -> (1)
 createSealedBidRequest(10) -> (1)
 deleteMyData(0) -> (1)
 getApiDoc(0) -> (1) [query]
 getIbePublicKey(0) -> (1)
+getJobPayments(1) -> (1) [query]
 getLocalPriceStats(2) -> (1) [query]
 getMyBid(1) -> (1) [query]
+getMyPayoutAccount(0) -> (1) [query]
 getMyQuoteRequests(0) -> (1) [query]
 getMyQuotes(0) -> (1) [query]
 getOpenRequests(0) -> (1) [query]
 getOpenRequestsForMe(0) -> (1)
 getOpenRequestsPage(2) -> (1) [query]
+getPayoutReady(1) -> (1) [query]
 getQuoteRequest(1) -> (1) [query]
 getQuoteRequestSubtypes(1) -> (1) [query]
 getQuotesForRequest(1) -> (1) [query]
@@ -468,6 +473,12 @@ getRevealedBids(1) -> (1) [query]
 getUsageSummary(1) -> (1)
 getVisitBookings(1) -> (1) [query]
 offerVisitTimes(3) -> (1)
+relayGetPayoutAccount(1) -> (1) [query]
+relayPrepareJobPayment(2) -> (1)
+relayRecordJobPayment(5) -> (1)
+relaySetPayoutAccount(2) -> (1)
+relayUpdateJobPayment(4) -> (1)
+removePaymentRelay(1) -> (1)
 removeUsageSummary(1) -> (1)
 revealBids(1) -> (1)
 revealBidsEncrypted(2) -> (1)

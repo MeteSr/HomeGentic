@@ -4343,6 +4343,15 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; status:variant {Rejected; Accepted; Expired; Pending}; requestId:text; createdAt:int; amount:nat; contractor:principal; validUntil:int; timeline:nat}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
     ],
   },
+  "addPaymentRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
+    ],
+  },
   "askForNewVisitTimes": {
     "args": [
       "text",
@@ -4388,6 +4397,17 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {status:variant {NewTimesRequested; Booked; Cancelled; TimesOffered}; requestId:text; note:text; quoteId:text; booked:opt record {startsAt:int; endsAt:int}; updatedAt:int; offered:vec record {startsAt:int; endsAt:int}}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
+    ],
+  },
+  "cardPriceFor": {
+    "args": [
+      "nat",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "nat",
     ],
   },
   "closeQuoteRequest": {
@@ -4457,6 +4477,17 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "vec nat8",
     ],
   },
+  "getJobPayments": {
+    "args": [
+      "vec text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {status:variant {Started; Failed; Paid; Processing}; method:variant {Bank; Card}; requestId:text; platformFeeCents:nat; createdAt:int; quoteId:text; referralFeeCents:nat; amountCents:nat; updatedAt:int; checkoutRef:text; bidCents:nat; homeowner:principal; paymentRef:text; contractor:principal}",
+    ],
+  },
   "getLocalPriceStats": {
     "args": [
       "text",
@@ -4478,6 +4509,15 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:record {id:text; requestId:text; ciphertext:vec nat8; timelineDays:nat; submittedAt:int; contractor:principal}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
+    ],
+  },
+  "getMyPayoutAccount": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {payoutsEnabled:bool; transfersActive:bool; accountId:text; updatedAt:int}",
     ],
   },
   "getMyQuoteRequests": {
@@ -4524,6 +4564,17 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {Solar; HVAC; Foundation; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Drywall; Windows; Electrical; Flooring; Other; BathroomRemodel; Roofing; KitchenRemodel; GeneralHandyman}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; minTrustScore:opt nat; description:text; propertyId:text; zipCode:opt text; closeAt:opt int; maxBids:opt nat; homeowner:principal; minReviews:opt nat; minJobsCompleted:opt nat}",
+    ],
+  },
+  "getPayoutReady": {
+    "args": [
+      "vec principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {principal; bool}",
     ],
   },
   "getQuoteRequest": {
@@ -4599,6 +4650,71 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {status:variant {NewTimesRequested; Booked; Cancelled; TimesOffered}; requestId:text; note:text; quoteId:text; booked:opt record {startsAt:int; endsAt:int}; updatedAt:int; offered:vec record {startsAt:int; endsAt:int}}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
+    ],
+  },
+  "relayGetPayoutAccount": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {payoutsEnabled:bool; transfersActive:bool; accountId:text; updatedAt:int}",
+    ],
+  },
+  "relayPrepareJobPayment": {
+    "args": [
+      "text",
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {requestId:text; accountId:text; quoteId:text; referralFeeCents:nat; cardCents:nat; bidCents:nat; homeowner:principal; contractor:principal}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
+    ],
+  },
+  "relayRecordJobPayment": {
+    "args": [
+      "text",
+      "principal",
+      "variant {Bank; Card}",
+      "nat",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {status:variant {Started; Failed; Paid; Processing}; method:variant {Bank; Card}; requestId:text; platformFeeCents:nat; createdAt:int; quoteId:text; referralFeeCents:nat; amountCents:nat; updatedAt:int; checkoutRef:text; bidCents:nat; homeowner:principal; paymentRef:text; contractor:principal}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
+    ],
+  },
+  "relaySetPayoutAccount": {
+    "args": [
+      "principal",
+      "record {payoutsEnabled:bool; transfersActive:bool; accountId:text; updatedAt:int}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
+    ],
+  },
+  "relayUpdateJobPayment": {
+    "args": [
+      "text",
+      "text",
+      "variant {Started; Failed; Paid; Processing}",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {refundCents:nat; payment:record {status:variant {Started; Failed; Paid; Processing}; method:variant {Bank; Card}; requestId:text; platformFeeCents:nat; createdAt:int; quoteId:text; referralFeeCents:nat; amountCents:nat; updatedAt:int; checkoutRef:text; bidCents:nat; homeowner:principal; paymentRef:text; contractor:principal}}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
+    ],
+  },
+  "removePaymentRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; Unavailable:text}}",
     ],
   },
   "removeUsageSummary": {

@@ -24,6 +24,7 @@ import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import UpgradeModal from "@/components/UpgradeModal";
 import ContractorBillingPanel from "@/components/ContractorBillingPanel";
+import { PayoutSetupBox } from "@/components/JobPaymentPanels";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { isValidEmail, isValidPhone } from "@/utils/validators";
@@ -243,12 +244,15 @@ function SubscriptionTab({ profile }: { profile: any }) {
       <SectionHeading>Current Plan</SectionHeading>
 
       {profile?.role === "Contractor" ? (
-        <ContractorBillingPanel
-          tier={tier === "ContractorPro" ? "ContractorPro" : "ContractorFree"}
-          renewDate={expiresAt ? new Date(expiresAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : null}
-          onUpgradeClick={() => setShowUpgradeModal(true)}
-          onCancelClick={() => setCancelStep("confirm")}
-        />
+        <>
+          <ContractorBillingPanel
+            tier={tier === "ContractorPro" ? "ContractorPro" : "ContractorFree"}
+            renewDate={expiresAt ? new Date(expiresAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : null}
+            onUpgradeClick={() => setShowUpgradeModal(true)}
+            onCancelClick={() => setCancelStep("confirm")}
+          />
+          <PayoutSetupBox />
+        </>
       ) : !isPaid ? (
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
@@ -700,6 +704,7 @@ function ContractorNotificationsTab() {
       { key: "new_lead",    label: "Email: New Lead",    desc: "Email when a matching quote request is posted" },
       { key: "bid_outcome", label: "Email: Bid Outcome", desc: "Email when a bid is accepted or closed" },
       { key: "visits",      label: "Email: Visit Times", desc: "When a homeowner books, cancels or asks for other times, and a reminder the day before" },
+      { key: "payments",    label: "Email: Payments",    desc: "When a homeowner pays you in the app, and when the money is on its way to your bank" },
     ]),
   ];
   const hasSms = !!relay.state?.channels.sms;
@@ -744,6 +749,7 @@ function NotificationsTab() {
       { key: "weekly_pulse",   label: "Email: Weekly Home Pulse", desc: "Mondays: jobs to sign, possible recalls, warranties ending, aging systems and the season's jobs" },
       { key: "showing_requests", label: "Email: Showing Requests", desc: "When a buyer asks to see a home you're selling yourself" },
       { key: "visits",         label: "Email: Visit Times",    desc: "When a contractor offers visit times or cancels, and a reminder the day before" },
+      { key: "payments",       label: "Email: Payments",       desc: "A receipt when you pay a contractor in the app, or a note if the payment fails" },
     ]),
   ];
   const hasSms = !!relay.state?.channels.sms;
