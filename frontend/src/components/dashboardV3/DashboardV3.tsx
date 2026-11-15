@@ -65,6 +65,7 @@ import { ChaseSignatureModal } from "./ChaseSignatureModal";
 import { HG_EASE } from "./theme";
 import { BUTTON_RESET } from "@/theme";
 import { BrandMark, HeaderDivider, RailChipCount, railChipStyle, RAIL_WIDTH } from "./chrome";
+import { SellPromptCard } from "@/components/SellPromptCard";
 import { buildPanels, CTA_FLOW, PANEL_ORDER, type PanelCtx } from "./panelData";
 import { buildHomeBrief, type BriefTone } from "./homeBrief";
 import { roomService } from "@/services/room";
@@ -667,6 +668,10 @@ export function DashboardV3() {
                     </button>
                   ))}
                 </div>
+
+                {activeProperty && activePropertyId && (
+                  <SellPromptCard propertyId={activePropertyId} city={activeProperty.city ?? ""} />
+                )}
               </div>
             )}
 

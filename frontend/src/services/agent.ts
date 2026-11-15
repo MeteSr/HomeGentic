@@ -134,6 +134,18 @@ function createAgentService() {
       return fromRawProfile(result.ok);
     },
 
+    /**
+     * Verified agents serving each city (public counts, no profiles). E2E:
+     * window.__e2e_agent_counts = { [lowercased city]: n }.
+     */
+    async countVerifiedAgents(cities: string[]): Promise<number[]> {
+      const e2e = typeof window !== "undefined" ? (window as any).__e2e_agent_counts : undefined;
+      if (e2e) return cities.map((c) => Number(e2e[c.trim().toLowerCase()] ?? 0));
+      if (cities.length === 0) return [];
+      const actor = await getActor();
+      return (await actor.countVerifiedAgentsForCities(cities)).map(Number);
+    },
+
     async isVerifiedAgent(principal: string): Promise<boolean> {
       const { Principal } = await import("@icp-sdk/core/principal");
       const actor = await getActor();

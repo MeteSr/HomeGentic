@@ -41,6 +41,10 @@ describe("SSG_ROUTES manifest", () => {
     expect(SSG_ROUTES).toContain("/check");
   });
 
+  it("includes /sell (Bid to List for sellers)", () => {
+    expect(SSG_ROUTES).toContain("/sell");
+  });
+
   it("includes /instant-forecast", () => {
     expect(SSG_ROUTES).toContain("/instant-forecast");
   });

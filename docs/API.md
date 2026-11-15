@@ -537,6 +537,7 @@ Realtor profiles and performance tracking.
 | `getAgentsForCity` | query | `(city: Text, limit: Nat)` | Cities are matched lowercase; caller passes an already-lowercased city. |
 | `getProfilesByCounty` | query | `(county: Text)` | Agent profiles serving a county |
 | `isVerifiedAgent` | query | `(principal: Principal)` | Whether a principal is a verified agent |
+| `countVerifiedAgentsForCities` | query | `(cities: [Text])` | Verified agents serving each city (trimmed, case-insensitive), in order; at most 20 cities. Open to anonymous callers (counts only). Used by `/sell`, the dashboard card and Home Pulse |
 | `revokeAgent` | update | `(agentId: Principal)` | Withdraw a lapsed/failed licence (admin). |
 | `setCardOnFile` | update | `(onFile: Bool)` | Mark the caller's card on file as authorized (A1 step 3). |
 
