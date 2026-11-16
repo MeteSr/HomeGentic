@@ -1400,6 +1400,17 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "record {verifiedKeySystems:vec text; meetsStructural:bool; verifiedJobCount:nat}",
     ],
   },
+  "getInboxActivity": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:record {forwarded:bool; openDrafts:nat}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
   "getJob": {
     "args": [
       "text",
