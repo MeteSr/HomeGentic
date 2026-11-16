@@ -15,7 +15,9 @@ import {
   runPulse, seasonalSystem, unsubscribeUrl, type PulseDeps,
 } from "../pulse";
 import { getPrefs } from "../prefs";
+import { appUrl } from "../email";
 import { scoreBreakdown } from "../../../packages/shared/src/score";
+import { sellPromptWeek } from "../../../packages/shared/src/sellPrompt";
 import { buildApp } from "../server";
 import type { PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax } from "../types";
 
@@ -219,6 +221,30 @@ describe("buildSection", () => {
   });
 });
 
+describe("Thinking of selling?", () => {
+  it("adds a yearly Bid to List note when enough verified agents serve the city", () => {
+    const s = buildSection(HOUSE, [], [], MONDAY, null, null, null, [], 4);
+    const item = s.items.find((i) => i.tag === "SELLING");
+    expect(item).toEqual({
+      tag: "SELLING",
+      title: "Thinking of selling this year?",
+      body:
+        "4 verified agents serve Raleigh. With Bid to List they bid for your listing with their commission and " +
+        "marketing plan, and you choose. Agents set their own terms, and HomeGentic charges the winning agent, not you.",
+      link: { label: "How Bid to List works", url: `${appUrl()}/sell` },
+    });
+  });
+
+  it("leaves it out with too few agents or none counted, and it doesn't count as something that needs you", () => {
+    expect(buildSection(HOUSE, [], [], MONDAY, null, null, null, [], 2).items.some((i) => i.tag === "SELLING")).toBe(false);
+    expect(buildSection(HOUSE, [], [], MONDAY).items.some((i) => i.tag === "SELLING")).toBe(false);
+    const s = buildSection(HOUSE, [], [], MONDAY, null, null, null, [], 5);
+    expect(renderPulse([{ ...s, items: s.items.filter((i) => i.tag === "SELLING") }], 0, {
+      dashboard: "d", settings: "s", unsubscribe: "u",
+    }).subject).toBe("Your Home Pulse: nothing urgent this week");
+  });
+});
+
 describe("renderPulse", () => {
   const links = { dashboard: "https://app/dashboard", settings: "https://app/settings", unsubscribe: "https://relay/unsub?x=1&y=2" };
 
@@ -260,6 +286,7 @@ describe("runPulse", () => {
       getPropertyTax: jest.fn(async () => []),
       getAppliances: jest.fn(async () => []),
       recallsForBrand: jest.fn(async () => []),
+      countAgents:   jest.fn(async (cities: string[]) => cities.map(() => 0)),
       wantsPulse:    () => true,
       wantsRecallPush: () => true,
       push:          jest.fn(async () => undefined),
@@ -285,6 +312,33 @@ describe("runPulse", () => {
     expect(await runPulse(MONDAY + 3_600_000, d)).toBe(0);
     expect(await runPulse(MONDAY + 86_400_000, d)).toBe(0);
     expect(getPulseState()).toMatchObject({ week: "2026-W43", done: true });
+  });
+
+  it("asks about selling in the home's own week of the year, counting agents in its city", async () => {
+    let id = "S0";
+    for (let i = 0; sellPromptWeek(id) !== 43; i++) id = `S${i}`;
+    const countAgents = jest.fn(async (cities: string[]) => cities.map(() => 3));
+    const d = deps({ getProperties: jest.fn(async () => [{ ...HOUSE, id }, HOUSE]), countAgents });
+    await runPulse(MONDAY, d);
+    expect(countAgents).toHaveBeenCalledWith(["Raleigh"]);
+    expect(d.send.mock.calls[0][1].text).toContain("[SELLING] Thinking of selling this year?");
+    expect(d.send.mock.calls[0][1].text.match(/\[SELLING\]/g)).toHaveLength(1);
+
+    // Not that home's week: no count asked for, no note.
+    resetPulseState();
+    const later = deps({ getProperties: jest.fn(async () => [{ ...HOUSE, id }]), countAgents: jest.fn(async () => [9]) });
+    await runPulse(MONDAY + 7 * 86_400_000, later);
+    expect(later.countAgents).not.toHaveBeenCalled();
+    expect(later.send.mock.calls[0][1].text).not.toContain("[SELLING]");
+
+    // An agent count that can't be read never holds up the email.
+    resetPulseState();
+    const broken = deps({
+      getProperties: jest.fn(async () => [{ ...HOUSE, id }]),
+      countAgents: jest.fn(async () => { throw new Error("agent canister down"); }),
+    });
+    expect(await runPulse(MONDAY, broken)).toBe(3);
+    expect(broken.send.mock.calls[0][1].text).not.toContain("[SELLING]");
   });
 
   it("adds each property's insurance renewal, and still sends when the renewals can't be read", async () => {

@@ -31,7 +31,7 @@ const LANDMARK_RULES = [
   "bypass",
 ];
 
-const PUBLIC_ROUTES = ["/", "/pricing", "/faq", "/support", "/check", "/prices", "/home-systems", "/sample-report", "/login"];
+const PUBLIC_ROUTES = ["/", "/pricing", "/faq", "/support", "/check", "/sell", "/prices", "/home-systems", "/sample-report", "/login"];
 
 for (const route of PUBLIC_ROUTES) {
   test(`AS.1 — ${route} has one main landmark`, async ({ page }) => {

@@ -17,7 +17,7 @@ vi.mock("@icp-sdk/core/principal", () => ({
 const mockActor = {
   register: vi.fn(), getMyProfile: vi.fn(), getProfile: vi.fn(),
   updateProfile: vi.fn(), setCardOnFile: vi.fn(), verifyAgent: vi.fn(),
-  isVerifiedAgent: vi.fn(), addReview: vi.fn(), getReviews: vi.fn(),
+  isVerifiedAgent: vi.fn(), addReview: vi.fn(), getReviews: vi.fn(), countVerifiedAgentsForCities: vi.fn(),
 };
 const { mockCreateActor } = vi.hoisted(() => ({ mockCreateActor: vi.fn() }));
 vi.mock("@icp-sdk/core/agent", () => ({
@@ -154,5 +154,24 @@ describe("agentService errors and the remaining calls", () => {
   it("getProfile returns null for an unknown agent", async () => {
     mockActor.getProfile.mockResolvedValue([]);
     expect(await agentService.getProfile("nobody")).toBeNull();
+  });
+});
+
+describe("agentService.countVerifiedAgents", () => {
+  it("returns a count per city, as numbers", async () => {
+    mockActor.countVerifiedAgentsForCities.mockResolvedValue([BigInt(4), BigInt(0)]);
+    expect(await agentService.countVerifiedAgents(["Orlando", "Tampa"])).toEqual([4, 0]);
+    expect(mockActor.countVerifiedAgentsForCities).toHaveBeenCalledWith(["Orlando", "Tampa"]);
+  });
+
+  it("asks nothing for no cities, and uses window.__e2e_agent_counts in e2e mode", async () => {
+    expect(await agentService.countVerifiedAgents([])).toEqual([]);
+    (window as any).__e2e_agent_counts = { orlando: 5 };
+    try {
+      expect(await agentService.countVerifiedAgents(["Orlando", "Tampa"])).toEqual([5, 0]);
+    } finally {
+      delete (window as any).__e2e_agent_counts;
+    }
+    expect(mockActor.countVerifiedAgentsForCities).not.toHaveBeenCalled();
   });
 });

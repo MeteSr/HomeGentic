@@ -90,6 +90,7 @@ const FsboSearchPage             = React.lazy(() => import("@/pages/FsboSearchPa
 const FsboListingManagerPage     = React.lazy(() => import("@/pages/FsboListingManagerPage"));
 const HomeSystemsEstimatorPage   = React.lazy(() => import("@/pages/HomeSystemsEstimatorPage"));
 const CheckAddressPage           = React.lazy(() => import("@/pages/CheckAddressPage"));
+const SellPage                   = React.lazy(() => import("@/pages/SellPage"));
 const PriceLookupPage            = React.lazy(() => import("@/pages/PriceLookupPage"));
 const InstantForecastPage        = React.lazy(() => import("@/pages/InstantForecastPage"));
 const CheckoutPage               = React.lazy(() => import("@/pages/CheckoutPage"));
@@ -278,6 +279,7 @@ export default function App() {
           {/* Public — no auth required */}
           <Route path="/home-systems"          element={<HomeSystemsEstimatorPage />} />
           <Route path="/check"                 element={<CheckAddressPage />} />
+          <Route path="/sell"                  element={<SellPage />} />
           <Route path="/prices"                element={<PriceLookupPage />} />
           <Route path="/instant-forecast"     element={<InstantForecastPage />} />
           <Route path="/verify/:token"          element={<ContractorVerifyPage />} />

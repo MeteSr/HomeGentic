@@ -66,6 +66,7 @@ export type RegisterArgs = {
 export interface _SERVICE {
   addAdmin: ActorMethod<[Principal], { ok: null } | { err: Error }>;
   addReview: ActorMethod<[AddReviewArgs], { ok: AgentReview } | { err: Error }>;
+  countVerifiedAgentsForCities: ActorMethod<[string[]], bigint[]>;
   deleteMyData: ActorMethod<[], { ok: bigint } | { err: Error }>;
   getAgentsForCity: ActorMethod<[string, bigint], AgentProfile[]>;
   getAllProfiles: ActorMethod<[], AgentProfile[]>;

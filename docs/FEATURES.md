@@ -54,6 +54,7 @@ rewiring screens.
 | Route | Page | What it does |
 |---|---|---|
 | `/check` | CheckAddressPage | Look up any address — shows if a HomeGentic report exists; lets buyers submit a request |
+| `/sell` | SellPage | Public Bid to List page for sellers: checks verified agents in a city, then sign-up or a new listing |
 | `/prices` | PriceLookupPage | Verified local costs by service type + zip code (finished jobs signed by the owner and a verified contractor, from homes whose owners share them in Settings → Privacy; 5+ homes and 3+ contractors, rounded); otherwise the typical U.S. range. Every picker choice has one, including the subtypes of Other (Inspection, Garage Door, Septic…), which only have national ranges (`packages/shared/src/nationalPrices.ts`) |
 | `/instant-forecast` | InstantForecastPage | 10-year maintenance cost forecast from address + year built; system-age overrides inline |
 | `/home-systems` | HomeSystemsEstimatorPage | Urgency table for 9 home systems from year built; shareable URL |
@@ -489,6 +490,12 @@ Multi-tab page — the main workspace for a property.
 ---
 
 ### Agent-Assisted Sale (Listing Intent)
+
+**"Thinking of selling?" prompts**
+- Public page `/sell`: explains Bid to List, checks how many verified agents serve the visitor's city (`agent.countVerifiedAgentsForCities`), and sends them to sign up (or straight to `/listing/new` when signed in)
+- Dashboard card: four weeks a year per home (each home's own weeks, from a hash of its id), only when at least 3 verified agents serve the home's city; "Not now" hides it until next year
+- Home Pulse: the same note once a year, in the home's prompt week, under the same agent threshold
+- Copy never promises a commission level or a saving: agents set their own terms and the seller chooses
 
 **Post listing intent (`/listing/new`)**
 - Desired list price, target sale price, preferred commission range, notes

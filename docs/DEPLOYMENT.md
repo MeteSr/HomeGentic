@@ -273,6 +273,7 @@ Each channel is off until its variables are set; Settings hides its rows while i
 | `APP_URL` | Web app origin used for links in emails and texts (default `https://homegentic.app`) |
 | `NOTIFICATIONS_PUBLIC_URL` | This relay's public HTTPS origin (e.g. `https://notify.homegentic.app`). Needed for the weekly Home Pulse email: each one carries a one-click unsubscribe link to `/api/email/unsubscribe`. Without it the weekly email is off |
 | `CANISTER_ID_PROPERTY` | Property canister — the weekly Home Pulse email reads each homeowner's properties, and its outbox carries successor-claim emails (#724) |
+| `CANISTER_ID_AGENT` | Agent canister — the weekly Home Pulse counts verified agents in a home's city for its yearly "Thinking of selling?" note (shown only where at least 3 serve it). Without it the note is left out |
 | `PULSE_HOUR_UTC` | Hour (UTC) on Mondays the weekly Home Pulse starts sending (default `13`) |
 | `PULSE_SEND_INTERVAL_MS` | Pause between weekly emails, to stay under Resend's rate limit (default `600`) |
 | `CANISTER_ID_REPORT` | Report canister — buyer report alerts from the public `/check` page ("notify me"). The relay checks each saved address hourly and emails the buyer once a public report exists. Needs `RESEND_API_KEY` too; without either the page says the request couldn't be saved |
@@ -405,7 +406,7 @@ fly secrets set --app homegentic-notifications-testnet --stage \
   VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… VAPID_SUBJECT=… \
   CANISTER_ID_AUTH=… CANISTER_ID_JOB=… CANISTER_ID_QUOTE=… CANISTER_ID_LISTING=… \
   CANISTER_ID_PROPERTY=… CANISTER_ID_REPORT=… CANISTER_ID_CONTRACTOR=… CANISTER_ID_PAYMENT=… \
-  CANISTER_ID_MONITORING=… \
+  CANISTER_ID_MONITORING=… CANISTER_ID_AGENT=… \
   RESEND_API_KEY=… NOTIFICATIONS_PUBLIC_URL=https://homegentic-notifications-testnet.fly.dev
 # Gateway:
 fly secrets set --app homegentic-iot-gateway-testnet --stage \
