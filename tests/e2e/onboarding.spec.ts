@@ -190,6 +190,18 @@ test.describe("OnboardingWizard — modal auto-opens on /dashboard", () => {
     await expect(page.getByText(/step 1 of 2/i)).toBeVisible();
   });
 
+  test("asks whether the home was bought in the last 12 months", async ({ page }) => {
+    await page.getByLabel(/street address/i).fill("100 Onboarding Lane");
+    await page.getByLabel(/city/i).fill("Austin");
+    await page.getByLabel(/state/i).fill("TX");
+    await page.getByLabel(/zip code/i).fill("78701");
+    await page.getByRole("button", { name: /continue/i }).click();
+    const group = page.getByRole("radiogroup", { name: /buy this home in the last 12 months/i });
+    await expect(group).toBeVisible();
+    await group.getByRole("radio", { name: "Yes" }).check();
+    await expect(page.getByText(/start a move-in plan/i)).toBeVisible();
+  });
+
   test("Back from details preserves address values", async ({ page }) => {
     await fillAddressStep(page);
     await page.getByRole("button", { name: /back/i }).click();
@@ -218,11 +230,20 @@ test.describe("OnboardingWizard — modal auto-opens on /dashboard", () => {
       await expect(page.getByText(/setup progress/i).first()).toBeVisible();
     });
 
-    test("shows 4 optional task card CTAs", async ({ page }) => {
+    test("shows 5 optional task card CTAs", async ({ page }) => {
       await expect(page.getByRole("button", { name: /start verification/i })).toBeVisible();
       await expect(page.getByRole("button", { name: /open camera guide/i })).toBeVisible();
       await expect(page.getByRole("button", { name: /import files/i })).toBeVisible();
       await expect(page.getByRole("button", { name: /fill in ages/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /set up capture/i })).toBeVisible();
+    });
+
+    test("paperwork step points to the label scan", async ({ page }) => {
+      await page.getByRole("button", { name: /set up capture/i }).click();
+      await expect(page.getByRole("heading", { name: /turn paperwork into records/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /scan a label/i })).toBeVisible();
+      await page.getByRole("button", { name: /back to setup/i }).click();
+      await expect(page.getByRole("heading", { name: /your property is saved/i })).toBeVisible();
     });
 
     test("View property record button is visible", async ({ page }) => {
@@ -317,10 +338,19 @@ test.describe("OnboardingWizard — modal auto-opens on /dashboard", () => {
         await expect(page.getByRole("heading", { name: /how old are your systems/i })).toBeVisible();
       });
 
-      test("shows system age inputs", async ({ page }) => {
-        await expect(page.getByLabel(/hvac/i)).toBeVisible();
-        await expect(page.getByLabel(/^roof$/i)).toBeVisible();
-        await expect(page.getByLabel(/water heater/i)).toBeVisible();
+      test("asks whether each system is original or replaced", async ({ page }) => {
+        await expect(page.getByRole("radiogroup", { name: /hvac/i })).toBeVisible();
+        await expect(page.getByRole("radiogroup", { name: /^roof$/i })).toBeVisible();
+        await expect(page.getByRole("radiogroup", { name: /water heater/i })).toBeVisible();
+        await expect(page.getByText(/pre-filled/i)).toHaveCount(0);
+      });
+
+      test("a replaced system asks for its year, and saving returns to the hub", async ({ page }) => {
+        await page.getByRole("radiogroup", { name: /hvac/i }).getByRole("radio", { name: /replaced/i }).check();
+        await page.getByLabel(/year the hvac \/ ac was replaced/i).fill("2015");
+        await page.getByRole("radiogroup", { name: /^roof$/i }).getByRole("radio", { name: /original/i }).check();
+        await page.getByRole("button", { name: /save & continue/i }).click();
+        await expect(page.getByRole("heading", { name: /your property is saved/i })).toBeVisible();
       });
 
       test("solar checkbox is unchecked by default", async ({ page }) => {

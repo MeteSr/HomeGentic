@@ -15,16 +15,16 @@ test.describe("RegisterPage — /register", () => {
     await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
   });
 
-  test("shows 3-step indicator: Role, Details, Confirm", async ({ page }) => {
+  test("shows 2-step indicator: Role, Details", async ({ page }) => {
     await expect(page.getByText("Role", { exact: true })).toBeVisible();
     await expect(page.getByText("Details", { exact: true })).toBeVisible();
-    await expect(page.getByText("Confirm", { exact: true })).toBeVisible();
+    await expect(page.getByText("Confirm", { exact: true })).toHaveCount(0);
   });
 
   // ── Step 1 — Role ─────────────────────────────────────────────────────────
 
-  test("shows Step 1 of 3 badge on load", async ({ page }) => {
-    await expect(page.getByText("Step 1 of 3")).toBeVisible();
+  test("shows Step 1 of 2 badge on load", async ({ page }) => {
+    await expect(page.getByText("Step 1 of 2")).toBeVisible();
   });
 
   test("shows 'I am a…' heading on step 1", async ({ page }) => {
@@ -42,95 +42,57 @@ test.describe("RegisterPage — /register", () => {
   });
 
   test("selecting a role enables the Continue button", async ({ page }) => {
-    await page.getByText("Homeowner").click();
+    await page.getByRole("radio", { name: /Homeowner/ }).check();
     await expect(page.getByRole("button", { name: /continue/i })).toBeEnabled();
   });
 
   test("selecting Contractor role enables Continue", async ({ page }) => {
-    await page.getByText("Contractor").click();
+    await page.getByRole("radio", { name: /Contractor/ }).check();
     await expect(page.getByRole("button", { name: /continue/i })).toBeEnabled();
   });
 
   // ── Step 2 — Details ──────────────────────────────────────────────────────
 
   test("clicking Continue advances to step 2", async ({ page }) => {
-    await page.getByText("Homeowner").click();
+    await page.getByRole("radio", { name: /Homeowner/ }).check();
     await page.getByRole("button", { name: /continue/i }).click();
-    await expect(page.getByText("Step 2 of 3")).toBeVisible();
+    await expect(page.getByText("Step 2 of 2")).toBeVisible();
   });
 
   test("step 2 shows email and phone fields", async ({ page }) => {
-    await page.getByText("Homeowner").click();
+    await page.getByRole("radio", { name: /Homeowner/ }).check();
     await page.getByRole("button", { name: /continue/i }).click();
     await expect(page.getByPlaceholder(/you@example.com/i)).toBeVisible();
     await expect(page.getByPlaceholder(/\+1 \(555\)/i)).toBeVisible();
   });
 
   test("step 2 shows 'Your details' heading", async ({ page }) => {
-    await page.getByText("Homeowner").click();
+    await page.getByRole("radio", { name: /Homeowner/ }).check();
     await page.getByRole("button", { name: /continue/i }).click();
     await expect(page.getByRole("heading", { name: /your details/i })).toBeVisible();
   });
 
   test("step 2 Back button returns to step 1", async ({ page }) => {
-    await page.getByText("Homeowner").click();
+    await page.getByRole("radio", { name: /Homeowner/ }).check();
     await page.getByRole("button", { name: /continue/i }).click();
     await page.getByRole("button", { name: /back/i }).click();
-    await expect(page.getByText("Step 1 of 3")).toBeVisible();
+    await expect(page.getByText("Step 1 of 2")).toBeVisible();
   });
 
-  test("step 2 Review button advances to step 3", async ({ page }) => {
-    await page.getByText("Homeowner").click();
+  test("step 2 Create Account needs a valid email and the terms", async ({ page }) => {
+    await page.getByRole("radio", { name: /Homeowner/ }).check();
     await page.getByRole("button", { name: /continue/i }).click();
-    // Review button requires a valid email — it is disabled when email is empty
+    const create = page.getByRole("button", { name: /create account/i });
+    await expect(create).toBeDisabled();
     await page.getByPlaceholder(/you@example.com/i).fill("test@example.com");
-    await page.getByRole("button", { name: /review/i }).click();
-    await expect(page.getByText("Step 3 of 3")).toBeVisible();
+    await expect(create).toBeDisabled();
+    await page.getByRole("checkbox").check();
+    await expect(create).toBeEnabled();
   });
 
-  // ── Step 3 — Confirm ──────────────────────────────────────────────────────
-
-  test("step 3 shows Confirm heading", async ({ page }) => {
-    await page.getByText("Homeowner").click();
-    await page.getByRole("button", { name: /continue/i }).click();
-    await page.getByPlaceholder(/you@example.com/i).fill("test@example.com");
-    await page.getByRole("button", { name: /review/i }).click();
-    await expect(page.getByRole("heading", { name: /confirm/i })).toBeVisible();
-  });
-
-  test("step 3 shows role value in review table", async ({ page }) => {
-    await page.getByText("Homeowner").click();
-    await page.getByRole("button", { name: /continue/i }).click();
-    await page.getByPlaceholder(/you@example.com/i).fill("test@example.com");
-    await page.getByRole("button", { name: /review/i }).click();
-    // "Homeowner" appears in the review table as the role value
-    const rows = page.getByText("Homeowner");
-    await expect(rows.first()).toBeVisible();
-  });
-
-  test("step 3 shows 'Not provided' when phone blank", async ({ page }) => {
-    // Email is required to enable Review; phone is optional — shows 'Not provided'
-    await page.getByText("Homeowner").click();
-    await page.getByRole("button", { name: /continue/i }).click();
-    await page.getByPlaceholder(/you@example.com/i).fill("test@example.com");
-    await page.getByRole("button", { name: /review/i }).click();
-    const notProvided = page.getByText("Not provided");
-    await expect(notProvided.first()).toBeVisible();
-  });
-
-  test("step 3 shows Create Account button", async ({ page }) => {
-    await page.getByText("Homeowner").click();
-    await page.getByRole("button", { name: /continue/i }).click();
-    await page.getByPlaceholder(/you@example.com/i).fill("test@example.com");
-    await page.getByRole("button", { name: /review/i }).click();
-    await expect(page.getByRole("button", { name: /create account/i })).toBeVisible();
-  });
-
-  test("step 3 email is shown in review table when entered", async ({ page }) => {
-    await page.getByText("Homeowner").click();
-    await page.getByRole("button", { name: /continue/i }).click();
-    await page.getByPlaceholder(/you@example.com/i).fill("test@example.com");
-    await page.getByRole("button", { name: /review/i }).click();
-    await expect(page.getByText("test@example.com")).toBeVisible();
+  test("roles can be chosen from the keyboard", async ({ page }) => {
+    await page.getByRole("radio", { name: /Homeowner/ }).focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("radio", { name: /Contractor/ })).toBeChecked();
   });
 });

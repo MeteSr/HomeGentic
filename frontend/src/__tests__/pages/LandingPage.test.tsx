@@ -80,6 +80,13 @@ describe("LandingPage — navigation", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/login");
   });
 
+  it("chooses the Homeowner role for the register page when a sign-up button is clicked", () => {
+    sessionStorage.clear();
+    renderPage();
+    fireEvent.click(screen.getByText("Start free"));
+    expect(sessionStorage.getItem("signupRole")).toBe("Homeowner");
+  });
+
   it("navigates to /for-pros when the Contractors nav link is clicked", () => {
     renderPage();
     fireEvent.click(screen.getByText("Contractors"));

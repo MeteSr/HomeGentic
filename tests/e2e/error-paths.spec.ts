@@ -89,13 +89,13 @@ test.describe("EP.2 — Register: duplicate/taken username error", () => {
     // Fill valid-looking email and submit
     await page.getByPlaceholder(/you@example\.com/i).fill("test@example.com");
 
-    // Advance to step 3 (confirm/submit) — the step 2 → 3 button reads "Review"
+    // Older builds had a "Review" step; the current form submits from step 2
     const nextBtn = page.getByRole("button", { name: /continue|review/i });
     if (await nextBtn.isVisible()) {
       await nextBtn.click();
     }
 
-    // Agree to terms — the checkbox only exists on step 3
+    // Agree to terms — the checkbox sits with the details on step 2
     const termsCheckbox = page.getByLabel(/terms/i);
     if (await termsCheckbox.isVisible()) {
       await termsCheckbox.check();
