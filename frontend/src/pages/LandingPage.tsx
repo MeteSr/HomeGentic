@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { rememberSignupRole } from "@/utils/signupRole";
 import { useNavigate } from "react-router-dom";
 import { PageHead } from "@/components/PageHead";
 import { scrollBehavior } from "@/utils/motion";
@@ -487,6 +488,8 @@ function PillBtn({
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const navigate = useNavigate();
+  // Sign-up buttons choose the Homeowner role for the register page.
+  const startSignup = () => { rememberSignupRole("Homeowner"); navigate("/login"); };
 
   const scrollTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior() });
@@ -533,10 +536,10 @@ export default function LandingPage() {
               <NavLink label="Contractors" onClick={() => navigate("/for-pros")} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <button onClick={() => navigate("/login")} style={{ cursor: "pointer", font: `600 14px/1 ${BODY}`, color: PAPER, background: "none", border: "none", padding: "12px 6px" }}>
+              <button onClick={() => startSignup()} style={{ cursor: "pointer", font: `600 14px/1 ${BODY}`, color: PAPER, background: "none", border: "none", padding: "12px 6px" }}>
                 Log in
               </button>
-              <PillBtn label="Start free" onClick={() => navigate("/login")} variant="yellow" />
+              <PillBtn label="Start free" onClick={() => startSignup()} variant="yellow" />
             </div>
           </div>
         </div>
@@ -555,7 +558,7 @@ export default function LandingPage() {
                   The roof, the rewire, the furnace you replaced in a cold snap. HomeGentic keeps every job in one record, signed by the contractor who did the work and stored where nobody can edit it.
                 </p>
                 <div style={{ display: "flex", gap: 12, marginTop: 38, flexWrap: "wrap", alignItems: "center" }}>
-                  <PillBtn label="Start your record" onClick={() => navigate("/login")} variant="yellow" size="lg" />
+                  <PillBtn label="Start your record" onClick={() => startSignup()} variant="yellow" size="lg" />
                   <PillBtn label="See a sample report" onClick={() => navigate("/sample-report")} variant="glass" size="lg" />
                 </div>
               </div>
@@ -704,7 +707,7 @@ export default function LandingPage() {
           </div>
           <div className="hg-grid-plans" style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 20, maxWidth: 860, margin: "48px auto 0", alignItems: "stretch" }}>
             {PLANS.map((pl) => (
-              <PlanCard key={pl.tier} plan={pl} onStart={() => navigate("/login")} />
+              <PlanCard key={pl.tier} plan={pl} onStart={() => startSignup()} />
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 28, font: `500 13.5px/1 ${BODY}`, color: MUTED }}>
@@ -728,7 +731,7 @@ export default function LandingPage() {
                 </p>
               </div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <PillBtn label="Get started" onClick={() => navigate("/login")} variant="yellow" size="lg" />
+                <PillBtn label="Get started" onClick={() => startSignup()} variant="yellow" size="lg" />
                 <PillBtn label="Talk to us" onClick={() => navigate("/support")} variant="glass" size="lg" />
               </div>
             </div>

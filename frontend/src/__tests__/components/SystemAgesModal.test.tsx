@@ -11,18 +11,20 @@
  *   - backdrop click closes; clicking the dialog itself does not
  */
 
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import SystemAgesModal from "@/components/SystemAgesModal";
 
-const { mockGet, mockSet } = vi.hoisted(() => ({ mockGet: vi.fn(), mockSet: vi.fn() }));
+// The modal saves to the home record (systemAgesService.save) and reads it
+// when it opens (load); get() is this browser's copy, shown straight away.
+const { mockGet, mockSet, mockLoad } = vi.hoisted(() => ({ mockGet: vi.fn(), mockSet: vi.fn(), mockLoad: vi.fn() }));
 vi.mock("@/services/systemAges", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/systemAges")>();
-  return { ...actual, systemAgesService: { get: mockGet, set: mockSet } };
+  return { ...actual, systemAgesService: { get: mockGet, save: mockSet, load: mockLoad } };
 });
 
-const { mockToastSuccess } = vi.hoisted(() => ({ mockToastSuccess: vi.fn() }));
-vi.mock("react-hot-toast", () => ({ default: { success: mockToastSuccess } }));
+const { mockToastSuccess, mockToastError } = vi.hoisted(() => ({ mockToastSuccess: vi.fn(), mockToastError: vi.fn() }));
+vi.mock("react-hot-toast", () => ({ default: { success: mockToastSuccess, error: mockToastError } }));
 
 function renderModal(props: Partial<React.ComponentProps<typeof SystemAgesModal>> = {}) {
   const onClose = vi.fn();
@@ -36,6 +38,8 @@ function renderModal(props: Partial<React.ComponentProps<typeof SystemAgesModal>
 beforeEach(() => {
   vi.clearAllMocks();
   mockGet.mockReturnValue({});
+  mockLoad.mockImplementation(async () => mockGet());
+  mockSet.mockImplementation(async (_pid: string, ages: unknown) => ages);
 });
 
 describe("SystemAgesModal — visibility", () => {
@@ -112,10 +116,37 @@ describe("SystemAgesModal — standard systems", () => {
     expect(result).not.toHaveProperty("HVAC");
   });
 
-  it("calls onSuccess and onClose after saving", () => {
+  it("does not save a year before the house was built", () => {
+    renderModal();
+    const hvacInput = screen.getAllByDisplayValue("1998")[0];
+    fireEvent.change(hvacInput, { target: { value: "1990" } });
+
+    fireEvent.click(screen.getByText("Save System Ages"));
+
+    const [, result] = mockSet.mock.calls[0];
+    expect(result).not.toHaveProperty("HVAC");
+  });
+
+  it("keeps the dialog open and shows why when the record refuses the years", async () => {
+    mockSet.mockRejectedValueOnce(new Error("The HVAC year is in the future"));
+    const { onClose } = renderModal();
+    fireEvent.click(screen.getByText("Save System Ages"));
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalled());
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("shows the years on the home record once they load", async () => {
+    mockLoad.mockResolvedValueOnce({ HVAC: 2016 });
+    renderModal();
+    expect(await screen.findByDisplayValue("2016")).toBeInTheDocument();
+  });
+
+  it("calls onSuccess and onClose after saving", async () => {
     const { onSuccess, onClose } = renderModal();
     fireEvent.click(screen.getByText("Save System Ages"));
 
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(mockToastSuccess).toHaveBeenCalledWith("System ages saved — maintenance predictions updated.");
     expect(onSuccess).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();

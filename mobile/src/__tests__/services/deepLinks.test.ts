@@ -2,7 +2,7 @@
  * Every route the notification relay sends must open something in the app.
  */
 import { getStateFromPath } from "@react-navigation/native";
-import { payloadFor } from "../../../../agents/notifications/events";
+import { firstWeekPayloads, payloadFor, verificationPayload } from "../../../../agents/notifications/events";
 import { linkingConfig } from "../../navigation/linking";
 import { isAuthCallback, targetForRoute } from "../../services/deepLinks";
 
@@ -27,6 +27,22 @@ describe("notification routes", () => {
       const state = getStateFromPath(target!.url.replace("homegentic://", ""), linkingConfig as any);
       expect(state).toBeTruthy();
     }
+  });
+
+  it("opens the first-week tips and the ownership review outcome in the app", () => {
+    const tips = firstWeekPayloads("PROP_1", "12 Elm St");
+    expect(leafRoute(getStateFromPath((targetForRoute(tips.setup_tip_shutoffs.route) as any).url.replace("homegentic://", ""), linkingConfig as any)))
+      .toMatchObject({ name: "GuideLink", params: { propertyId: "PROP_1" } });
+    expect(leafRoute(getStateFromPath((targetForRoute(tips.setup_tip_paperwork.route) as any).url.replace("homegentic://", ""), linkingConfig as any)).name)
+      .toBe("JobLink");
+    for (const kind of ["verification_approved", "verification_rejected"]) {
+      const t = targetForRoute(verificationPayload(kind, "12 Elm St")!.route) as any;
+      expect(leafRoute(getStateFromPath(t.url.replace("homegentic://", ""), linkingConfig as any)).name).toBe("Property");
+    }
+  });
+
+  it("opens the welcome email's system years page on the web", () => {
+    expect(targetForRoute(firstWeekPayloads("PROP_1", "").welcome.route)).toEqual({ kind: "web", path: "/properties/PROP_1/systems" });
   });
 
   it("sends a showing request to My Listing for that property, over the tabs", () => {

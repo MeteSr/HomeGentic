@@ -84,3 +84,13 @@ describe("ForProsPage — mobile menu", () => {
     expect(screen.getByLabelText("Close menu")).toHaveAttribute("aria-expanded", "true");
   });
 });
+
+describe("ForProsPage — sign-up role", () => {
+  it("chooses the Contractor role for the register page from Join Now", () => {
+    sessionStorage.clear();
+    renderPage();
+    fireEvent.click(screen.getAllByText("Join Now")[0]);
+    expect(mockNavigate).toHaveBeenCalledWith("/login");
+    expect(sessionStorage.getItem("signupRole")).toBe("Contractor");
+  });
+});

@@ -15,7 +15,9 @@ export function usePropertyMaintenance(propertyId: string | undefined): Property
 
   useEffect(() => {
     if (!propertyId) return;
+    let cancelled = false;
     setSystemAges(systemAgesService.get(propertyId));
+    systemAgesService.load(propertyId).then((a) => { if (!cancelled) setSystemAges(a); }).catch(() => {});
     recurringService.getByProperty(propertyId).then(async (svcs) => {
       setRecurringServices(svcs);
       const logEntries = await Promise.all(
@@ -26,6 +28,7 @@ export function usePropertyMaintenance(propertyId: string | undefined): Property
       );
       setVisitLogMap(Object.fromEntries(logEntries));
     }).catch((e) => console.error("[usePropertyMaintenance] load failed:", e));
+    return () => { cancelled = true; };
   }, [propertyId]);
 
   return { recurringServices, visitLogMap, systemAges };

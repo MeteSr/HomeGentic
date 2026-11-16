@@ -48,7 +48,24 @@ export type NotificationKind =
   | "job_payment_processing"
   | "job_payment_paid"
   | "job_payment_receipt"
-  | "job_payment_failed";
+  | "job_payment_failed"
+  | "welcome"
+  | "setup_tip_shutoffs"
+  | "setup_tip_paperwork"
+  | "verification_approved"
+  | "verification_rejected";
+
+/**
+ * What a held setup tip checks before it goes out: whether the home is still
+ * the owner's, whether its house guide says where the water shutoff is, and
+ * whether any paperwork is on record: a job logged on it, an invoice ever
+ * forwarded to the owner's inbox address, or an appliance label saved on it.
+ */
+export interface SetupStatus {
+  exists:       boolean;
+  hasShutoffs:  boolean;
+  hasPaperwork: boolean;
+}
 
 export interface NotificationEvent {
   type:      NotificationKind;
@@ -131,6 +148,15 @@ export interface ContractorInfo {
 export interface PulseRecipient {
   principal: string;
   email:     string;
+}
+
+/** First week and the Home Pulse: when a home was added and what the owner set up. */
+export interface PulseSetup {
+  propertyId:  string;
+  addedAtMs:   number;
+  /** System name ("HVAC", "Roofing", …) → install year the owner entered. */
+  systemYears: Record<string, number>;
+  hasShutoffs: boolean;
 }
 
 export interface PulseProperty {

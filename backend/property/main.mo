@@ -60,6 +60,7 @@ import Hoa "Hoa";
 import HomeFinance "HomeFinance";
 import FloodZone "FloodZone";
 import MoveIn "MoveIn";
+import SystemYears "SystemYears";
 import PropertyTax "PropertyTax";
 import Succession "Succession";
 import Notify "../shared/Notify";
@@ -235,6 +236,8 @@ persistent actor Property {
   public type MoveInTaskInput        = MoveIn.TaskInput;
   public type MoveInTask             = MoveIn.Task;
   public type MoveInPlan             = MoveIn.Plan;
+  public type SystemYear             = SystemYears.SystemYear;
+  public type PulseSetup             = SystemYears.PulseSetup;
   public type SuccessorInput         = Succession.SuccessorInput;
   public type Successor              = Succession.Successor;
   public type SuccessionProofKind    = Succession.ProofKind;
@@ -669,6 +672,11 @@ persistent actor Property {
   /// Next move-in task id ("mt-<n>").
   private var moveInTaskCounter : Nat = 0;
 
+  /// propertyId → the year each main system was installed, as the household
+  /// says. These are facts about the house, so they stay with it when it is
+  /// sold; deleteMyData drops them with the home.
+  private let systemYears = Map.empty<Text, [SystemYears.SystemYear]>();
+
   /// #724: propertyId → the successor the owner named, and the successor
   /// link's token → propertyId. Owner only. Dropped when the home changes
   /// hands (a new owner names their own) and on deleteMyData.
@@ -945,6 +953,7 @@ persistent actor Property {
       #getPulseInsurance : Any;
       #getPulseProperties : Any;
       #getPulsePropertyTax : Any;
+      #getPulseSetup : Any;
       #getRoom : Any;
       #getRoomMetrics : Any;
       #getRoomsByProperty : Any;
@@ -954,6 +963,7 @@ persistent actor Property {
       #getSuccessionNotice : Any;
       #getSuccessionProof : Any;
       #getSuccessor : Any;
+      #getSystemYears : Any;
       #getTrustedCanisters : Any;
       #getVerificationLevel : Any;
       #getVerifyStatus : Any;
@@ -1000,6 +1010,7 @@ persistent actor Property {
       #setPhotoCanisterId : Any;
       #setPropertyTaxYear : Any;
       #setSuccessor : Any;
+      #setSystemYears : Any;
       #setUpdateRateLimit : Any;
       #startMoveInPlan : Any;
       #submitVerification : Any;
@@ -1366,6 +1377,8 @@ persistent actor Property {
     };
     if (not indexedVerified) { addressIdx.add(key, id) };
     addressClaimSince.add(key, since);
+    // First-week emails (welcome, setup tips) start from an owner's first home.
+    if (countOwnerProperties(caller) == 1) notify("first_home_added", caller, id, prop.address);
     #ok(prop)
   };
 
@@ -1476,6 +1489,13 @@ persistent actor Property {
         };
         putProperty(updated);
         if (isVerified(level)) { addressIdx.add(key, id) };
+        // Tell the owner how the review went: approved, or a submitted
+        // document sent back to Unverified.
+        if (isVerified(level) and not isVerified(existing.verificationLevel)) {
+          notify("verification_approved", existing.owner, id, existing.address);
+        } else if (level == #Unverified and existing.verificationLevel == #PendingReview) {
+          notify("verification_rejected", existing.owner, id, existing.address);
+        };
         try { await auditLog("PropertyVerified", ?existing.owner, "propertyId=" # id # " caller=" # msg.caller.toText()) } catch _ { Debug.print("[property] fire-and-forget call failed") };
         #ok(updated)
       };
@@ -4092,6 +4112,48 @@ persistent actor Property {
     }
   };
 
+  // ─── System install years ─────────────────────────────────────────────────
+
+  private func currentYear() : Nat = Int.abs(Time.now()) / 1_000_000_000 / 31_536_000 + 1970;
+
+  /// Replace the year each main system was installed (an empty list clears
+  /// them). Needs write access. Each year must fall between the year the
+  /// house was built and this year; a system appears at most once.
+  public shared(msg) func setSystemYears(propertyId: Text, years: [SystemYear]) : async Result.Result<[SystemYear], Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let p = switch (properties.get(propertyId)) { case null return #err(#NotFound); case (?p) p };
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    switch (SystemYears.validate(years, p.yearBuilt, currentYear())) {
+      case (?why) return #err(#InvalidInput(why));
+      case null {};
+    };
+    if (years.size() == 0) systemYears.remove(propertyId) else systemYears.add(propertyId, years);
+    #ok(years)
+  };
+
+  /// The system install years saved on the home ([] when none). Anyone with
+  /// a role on the home and admins.
+  public query(msg) func getSystemYears(propertyId: Text) : async Result.Result<[SystemYear], Error> {
+    if (properties.get(propertyId) == null) return #err(#NotFound);
+    if (not checkAuthorized(propertyId, msg.caller, false) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(systemYears.get(propertyId) ?? [])
+  };
+
+  /// First-week emails and the Home Pulse: when each of `owner`'s active
+  /// homes was added, its system install years, and whether the house guide
+  /// says where the water shutoff is (not what it says). Notifiers and admins only.
+  public query(msg) func getPulseSetup(owner: Principal) : async Result.Result<[PulseSetup], Error> {
+    if (not Admin.contains(notifierEntries, msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(ownedBy(owner).filter(func(p: Property) : Bool { p.isActive }).map(func(p: Property) : PulseSetup {
+      {
+        propertyId  = p.id;
+        addedAt     = p.createdAt;
+        systemYears = systemYears.get(p.id) ?? [];
+        hasShutoffs = switch (houseGuides.get(p.id)) { case (?g) g.waterShutoff != ""; case null false };
+      }
+    }).toArray())
+  };
+
   /// #712: the home's move-in plan, or null. Anyone with a role on the home and admins.
   public query(msg) func getMoveInPlan(propertyId: Text) : async Result.Result<?MoveInPlan, Error> {
     if (properties.get(propertyId) == null) return #err(#NotFound);
@@ -4249,6 +4311,7 @@ persistent actor Property {
       };
       // #712 move-in plan.
       if (moveInPlans.get(pid) != null) { moveInPlans.remove(pid); removed += 1 };
+      if (systemYears.get(pid) != null) { systemYears.remove(pid); removed += 1 };
       // #724 successor, its link, and the claims on this home (with proofs).
       if (successors.get(pid) != null) { dropSuccessor(pid); removed += 1 };
       removed += dropSuccessionClaims(func(c : SuccessionClaim) : Bool { c.propertyId == pid });

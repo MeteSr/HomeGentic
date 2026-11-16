@@ -404,6 +404,10 @@ export default function PredictiveMaintenancePage() {
     if (!property) return;
     const systemAges = systemAgesService.get(selectedId);
     setReport(maintenanceService.predict(Number(property.yearBuilt), propJobs, systemAges, String(property.state)));
+    // The home record may have years this browser hasn't seen yet.
+    systemAgesService.load(selectedId, Number(property.yearBuilt)).then((ages) => {
+      setReport(maintenanceService.predict(Number(property.yearBuilt), propJobs, ages, String(property.state)));
+    }).catch(() => {});
     maintenanceService.getScheduleByProperty(String(property.id)).then(setScheduleEntries);
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 

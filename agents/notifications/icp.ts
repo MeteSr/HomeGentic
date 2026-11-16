@@ -16,7 +16,7 @@
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
-import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, SuccessionNoticeInfo, VisitBookingInfo, PulseHomeFinance, PulseAppliance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseRecipient } from "./types";
+import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, SuccessionNoticeInfo, VisitBookingInfo, PulseHomeFinance, PulseAppliance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseRecipient, PulseSetup, SetupStatus } from "./types";
 import type { ScoreJob } from "../../packages/shared/src/score";
 import { rootKeyFor } from "../../packages/shared/src/rootKey";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
@@ -361,6 +361,53 @@ export async function getPulseAppliances(owner: string): Promise<PulseAppliance[
   const res = await property.getPulseAppliances(Principal.fromText(owner));
   if ("err" in res) throw new Error(`getPulseAppliances: ${Object.keys(res.err)[0]}`);
   return res.ok.map((a: any) => ({ propertyId: a.propertyId, room: a.room, brand: a.brand, model: a.model }));
+}
+
+/** When each of `owner`'s homes was added, its system install years, and whether its shutoff is written down (needs addNotifier on property). */
+export async function getPulseSetup(owner: string): Promise<PulseSetup[]> {
+  const property = Actor.createActor(propertyIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_PROPERTY"),
+  }) as any;
+  const res = await property.getPulseSetup(Principal.fromText(owner));
+  if ("err" in res) throw new Error(`getPulseSetup: ${Object.keys(res.err)[0]}`);
+  return res.ok.map((p: any) => ({
+    propertyId:  p.propertyId,
+    addedAtMs:   Number(BigInt(p.addedAt) / 1_000_000n),
+    systemYears: Object.fromEntries((p.systemYears as any[]).map((y) => [y.name, Number(y.installYear)])),
+    hasShutoffs: p.hasShutoffs,
+  }));
+}
+
+/** Whether `owner` ever had an invoice filed from their forwarding address (needs addNotifier on job). */
+export async function getInboxActivity(owner: string): Promise<{ forwarded: boolean; openDrafts: number }> {
+  const job = Actor.createActor(jobIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_JOB"),
+  }) as any;
+  const res = await job.getInboxActivity(Principal.fromText(owner));
+  if ("err" in res) throw new Error(`getInboxActivity: ${Object.keys(res.err)[0]}`);
+  return { forwarded: res.ok.forwarded, openDrafts: Number(res.ok.openDrafts) };
+}
+
+/**
+ * A held first-week tip's check: is the home still theirs, is the shutoff
+ * written down, is any paperwork on record (a job on the home, a forwarded
+ * invoice, a scanned appliance label). Null when anything can't be read, so
+ * the tip waits for the next pass rather than guessing.
+ */
+export async function getSetupStatus(owner: string, propertyId: string): Promise<SetupStatus | null> {
+  try {
+    const home = (await getPulseSetup(owner)).find((p) => p.propertyId === propertyId);
+    if (!home) return { exists: false, hasShutoffs: false, hasPaperwork: false };
+    const [jobs, inbox, appliances] = await Promise.all([
+      getJobsByOwner(owner), getInboxActivity(owner), getPulseAppliances(owner),
+    ]);
+    const hasPaperwork = jobs.some((j) => j.propertyId === propertyId)
+      || inbox.forwarded || inbox.openDrafts > 0
+      || appliances.some((a) => a.propertyId === propertyId);
+    return { exists: true, hasShutoffs: home.hasShutoffs, hasPaperwork };
+  } catch {
+    return null;
+  }
 }
 
 /** All of `owner`'s jobs (needs addNotifier on job). */

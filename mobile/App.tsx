@@ -19,6 +19,7 @@ import { AuthProvider, useAuthContext } from "./src/auth/AuthContext";
 import { AppDataProvider } from "./src/context/AppData";
 import RootStack from "./src/navigation/RootNavigator";
 import LoginScreen  from "./src/screens/LoginScreen";
+import RegisterScreen from "./src/screens/RegisterScreen";
 import OfflineBanner from "./src/screens/OfflineBanner";
 import { useNotifications } from "./src/hooks/useNotifications";
 import { useIsOnline } from "./src/hooks/useOfflineQueue";
@@ -92,7 +93,9 @@ function Root() {
 
   return (
     <View style={styles.root}>
-      {authState.status === "authenticated" ? (
+      {authState.status === "authenticated" && authState.needsRegistration ? (
+        <RegisterScreen />
+      ) : authState.status === "authenticated" ? (
         <AppDataProvider key={authState.principal}>
           <NavigationContainer linking={linking} theme={navTheme}>
             <RootStack />

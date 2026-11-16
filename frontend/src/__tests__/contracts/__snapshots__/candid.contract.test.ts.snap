@@ -1400,6 +1400,17 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "record {verifiedKeySystems:vec text; meetsStructural:bool; verifiedJobCount:nat}",
     ],
   },
+  "getInboxActivity": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:record {forwarded:bool; openDrafts:nat}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyVerified; RateLimited; TierLimitReached:text; Unavailable:text}}",
+    ],
+  },
   "getJob": {
     "args": [
       "text",
@@ -3835,6 +3846,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok:vec record {propertyId:text; years:vec record {year:nat; petitionDeadline:text; exemption:variant {Applied; NotApplying; Granted; Denied; Unknown}}}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
+  "getPulseSetup": {
+    "args": [
+      "principal",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {hasShutoffs:bool; propertyId:text; addedAt:int; systemYears:vec record {name:text; installYear:nat}}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
   "getRoomsByProperty": {
     "args": [
       "text",
@@ -3910,6 +3932,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:opt record {token:text; relationship:text; name:text; email:text; namedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "getSystemYears": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {name:text; installYear:nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "getVerificationLevel": {
@@ -4233,6 +4266,16 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {token:text; relationship:text; name:text; email:text; namedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
+    ],
+  },
+  "setSystemYears": {
+    "args": [
+      "text",
+      "vec record {name:text; installYear:nat}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:vec record {name:text; installYear:nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; RateLimited; DuplicateAddress; Unavailable:text}}",
     ],
   },
   "startMoveInPlan": {

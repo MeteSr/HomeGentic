@@ -14,6 +14,7 @@ import type { RecurringService, VisitLog } from "@/services/recurringService";
 const mockGetByProperty  = vi.fn();
 const mockGetVisitLogs   = vi.fn();
 const mockSystemAgesGet  = vi.fn();
+const mockSystemAgesLoad = vi.fn();
 
 vi.mock("@/services/recurringService", () => ({
   recurringService: {
@@ -23,7 +24,10 @@ vi.mock("@/services/recurringService", () => ({
 }));
 
 vi.mock("@/services/systemAges", () => ({
-  systemAgesService: { get: (...a: any[]) => mockSystemAgesGet(...a) },
+  systemAgesService: {
+    get:  (...a: any[]) => mockSystemAgesGet(...a),
+    load: (...a: any[]) => mockSystemAgesLoad(...a),
+  },
 }));
 
 import { usePropertyMaintenance } from "@/hooks/usePropertyMaintenance";
@@ -41,6 +45,7 @@ beforeEach(() => {
   mockGetByProperty.mockResolvedValue([SVC]);
   mockGetVisitLogs.mockResolvedValue([LOG]);
   mockSystemAgesGet.mockReturnValue({ HVAC: 5 });
+  mockSystemAgesLoad.mockImplementation(async () => mockSystemAgesGet());
 });
 
 // ── PM.1 ─────────────────────────────────────────────────────────────────────
@@ -86,5 +91,14 @@ describe("PM.4 — systemAges comes from systemAgesService.get", () => {
     await waitFor(() => {
       expect(result.current.systemAges).toEqual({ HVAC: 5 });
     });
+  });
+});
+
+describe("PM.5 — then the years saved on the home record", () => {
+  it("replaces this browser's copy with what load() reads from the record", async () => {
+    mockSystemAgesLoad.mockResolvedValue({ HVAC: 2019, Roofing: 2012 });
+    const { result } = renderHook(() => usePropertyMaintenance("p1"));
+    await waitFor(() => expect(result.current.systemAges).toEqual({ HVAC: 2019, Roofing: 2012 }));
+    expect(mockSystemAgesLoad).toHaveBeenCalledWith("p1");
   });
 });

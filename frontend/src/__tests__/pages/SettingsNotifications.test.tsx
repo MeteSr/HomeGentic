@@ -132,7 +132,7 @@ function makeState(over: { sms?: State["prefs"]["sms"]; email?: Record<string, b
   return {
     prefs: {
       push:  { job_awaiting_signature: true, job_awaiting_contractor_signature: true, bid_accepted: true, bid_declined: true, product_recall: true },
-      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true, showing_requests: true, visits: true, payments: true, ...over.email },
+      email: { new_lead: true, bid_outcome: false, job_verified: true, quote_received: true, job_updates: false, weekly_pulse: true, showing_requests: true, visits: true, payments: true, getting_started: true, verification: true, ...over.email },
       sms:   over.sms ?? { enabled: false, phone: null },
     },
     channels: { email: true, sms: true, ...over.channels },
@@ -267,6 +267,17 @@ describe("homeowner preferences", () => {
     expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { quote_received: false } });
     expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { job_updates: true } });
     expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { weekly_pulse: false } });
+  });
+
+  it("saves the first-week and ownership-verification email rows", async () => {
+    relay.setNotificationPrefs.mockResolvedValue(makeState());
+    renderNotificationsTab();
+    await waitFor(() => screen.getByText("Email: Getting Started"));
+    fireEvent.click(switchFor("Email: Getting Started"));
+    fireEvent.click(switchFor("Email: Ownership Verification"));
+    await waitFor(() => expect(relay.setNotificationPrefs).toHaveBeenCalledTimes(2));
+    expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { getting_started: false } });
+    expect(relay.setNotificationPrefs).toHaveBeenCalledWith({ email: { verification: false } });
   });
 
   it("keeps the dashboard toggles in this browser, saved as they change", async () => {

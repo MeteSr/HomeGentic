@@ -11,6 +11,7 @@ module {
     "- `getJob(jobId)` (query): one job.\n" #
     "- `getJobsPendingMySignature()` (query): jobs waiting for the caller to sign. `getPendingProposals()` (query): jobs a contractor proposed for the caller's homes.\n" #
     "- `getJobCostCategories(propertyIds)` (composite query): the owner's improvement-or-repair marks, as (jobId, #Improvement or #Repair) pairs, for the given properties the caller may see. Jobs the owner hasn't marked are left out.\n" #
+    "- `getInboxActivity(owner)` (query): for HomeGentic's notification relay and admins only; anyone else gets `#NotAuthorized`. Whether the owner has ever had an invoice filed from their forwarding address, and how many drafts are open.\n" #
     "- `getJobCloseouts(propertyIds)` (composite query): for each job with any, its permit status (`#Open`, `#Closed` or `#Expired`, as the household recorded it) and its close-out papers: a final lien waiver or a Notice of Commencement, each a document id in the home's document vault, with who filed it. A recorded status is the household's own note, not a check with the permit office, and a waiver on file doesn't show that the home is free of liens: only a title search does.\n\n" #
     "## Verified local costs\n" #
     "Owners can choose, home by home, to share what their finished jobs cost. Anyone, signed in or not, can then read an anonymous price range for a kind of work near a ZIP code. Sharing is free and can be turned off at any time.\n" #

@@ -198,12 +198,23 @@ export function getWeeklyPulse(properties: Property[], jobs: Job[]): PulseTip | 
   const month = new Date().getMonth() + 1; // 1–12
   const now   = Date.now();
 
-  // Detect overdue service types (no matching job in last 12 months)
+  // A brand-new record: nothing is known about past service, so nothing is
+  // called overdue. Point the owner at the first steps instead.
+  if (jobs.length === 0) {
+    return {
+      headline: "Start your home record",
+      detail:   "Nothing is on record for this home yet. The steps in your brief take a minute each and fill it in.",
+      category: "Getting started",
+    };
+  }
+
+  // Service types with no matching job in the last 12 months. With no job of
+  // that type at all, say it isn't on record rather than that it didn't happen.
   const ANNUAL_SERVICES = [
-    { type: "HVAC",            tip: "Your HVAC hasn't been serviced in over a year. A tune-up prevents costly breakdowns.",                          headline: "HVAC service overdue" },
-    { type: "Plumbing",        tip: "A plumbing inspection can catch slow leaks that cause mold. Schedule one annually.",                            headline: "Plumbing check overdue" },
-    { type: "Electrical",      tip: "Electrical panels should be inspected every 3–5 years. Overloaded circuits are a fire risk.",                   headline: "Electrical inspection due" },
-    { type: "Roof",            tip: "Roof inspections every 1–3 years catch flashing issues before they become leaks.",                             headline: "Roof inspection due" },
+    { type: "HVAC",       tip: "Your HVAC hasn't been serviced in over a year. A tune-up prevents costly breakdowns.",        headline: "HVAC service overdue",      why: "A yearly tune-up prevents costly breakdowns." },
+    { type: "Plumbing",   tip: "A plumbing inspection can catch slow leaks that cause mold. Schedule one annually.",          headline: "Plumbing check overdue",    why: "A yearly plumbing check catches slow leaks that cause mold." },
+    { type: "Electrical", tip: "Electrical panels should be inspected every 3–5 years. Overloaded circuits are a fire risk.", headline: "Electrical inspection due", why: "Panels should be inspected every 3–5 years; overloaded circuits are a fire risk." },
+    { type: "Roof",       tip: "Roof inspections every 1–3 years catch flashing issues before they become leaks.",           headline: "Roof inspection due",       why: "An inspection every 1–3 years catches flashing issues before they leak." },
   ];
 
   for (const svc of ANNUAL_SERVICES) {
@@ -211,10 +222,16 @@ export function getWeeklyPulse(properties: Property[], jobs: Job[]): PulseTip | 
       .filter((j) => j.serviceType.toLowerCase().includes(svc.type.toLowerCase()))
       .sort((a, b) => b.date.localeCompare(a.date))[0];
 
-    const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
-    const overdue   = !lastJob || (now - new Date(lastJob.date).getTime()) > msPerYear;
+    if (!lastJob) {
+      return {
+        headline: `No ${svc.type} service on record`,
+        detail:   `If it's been done, log the job so the record shows it. ${svc.why}`,
+        category: "Not on record",
+      };
+    }
 
-    if (overdue) {
+    const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
+    if (now - new Date(lastJob.date).getTime() > msPerYear) {
       return { headline: svc.headline, detail: svc.tip, category: "Overdue" };
     }
   }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -6,6 +6,7 @@ import { Button } from "@/components/Button";
 import { usePropertyStore } from "@/store/propertyStore";
 import { systemAgesService, TRACKED_SYSTEMS, SystemName, SystemAges } from "@/services/systemAges";
 import toast from "react-hot-toast";
+import { errorMessage } from "@/services/candid";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
@@ -59,6 +60,23 @@ export default function SystemAgesPage() {
     return t;
   });
 
+  // The home record may hold years this browser hasn't seen.
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    systemAgesService.load(id, yearBuilt).then((fromRecord) => {
+      if (cancelled) return;
+      setAges(() => {
+        const next: Record<string, string> = {};
+        for (const sys of TRACKED_SYSTEMS) next[sys] = fromRecord[sys] !== undefined ? String(fromRecord[sys]) : String(yearBuilt);
+        return next as Record<SystemName, string>;
+      });
+      setTouched(new Set(TRACKED_SYSTEMS.filter((sys) => fromRecord[sys] !== undefined)));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [id, yearBuilt]);
+
   const handleChange = (sys: SystemName, value: string) => {
     setAges((prev) => ({ ...prev, [sys]: value }));
     setTouched((prev) => new Set(prev).add(sys));
@@ -69,18 +87,26 @@ export default function SystemAgesPage() {
     setTouched((prev) => { const next = new Set(prev); next.delete(sys); return next; });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!id) return;
     const result: SystemAges = {};
     for (const sys of TRACKED_SYSTEMS) {
       if (touched.has(sys)) {
         const yr = parseInt(ages[sys], 10);
-        if (!isNaN(yr) && yr >= 1900 && yr <= CURRENT_YEAR) {
+        if (!isNaN(yr) && yr >= Math.max(1900, yearBuilt) && yr <= CURRENT_YEAR) {
           result[sys] = yr;
         }
       }
     }
-    systemAgesService.set(id, result);
+    setSaving(true);
+    try {
+      await systemAgesService.save(id, result);
+    } catch (err) {
+      toast.error(errorMessage(err, "Couldn't save the system ages"));
+      return;
+    } finally {
+      setSaving(false);
+    }
     toast.success("System ages saved — maintenance predictions updated.");
     navigate(-1);
   };
@@ -175,7 +201,7 @@ export default function SystemAgesPage() {
         </div>
 
         <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "flex-end" }}>
-          <Button onClick={handleSave} icon={<Save size={14} />} size="lg">
+          <Button onClick={handleSave} icon={<Save size={14} />} size="lg" disabled={saving}>
             Save System Ages
           </Button>
         </div>

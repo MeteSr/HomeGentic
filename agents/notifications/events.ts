@@ -172,6 +172,64 @@ export function successionPayload(kind: string, notice: SuccessionNoticeInfo, re
   }
 }
 
+/**
+ * First week (property canister): first_home_added (an owner's first home;
+ * refId the property, summary its address) brings a welcome email at once and
+ * two tips, held until their day and skipped by the poller if the step is
+ * done by then. The welcome is email only; the tips are pushed too.
+ */
+const DAY_MS = 24 * 60 * 60 * 1000;
+export const SETUP_TIP_AFTER_MS = { setup_tip_shutoffs: 1 * DAY_MS, setup_tip_paperwork: 3 * DAY_MS } as const;
+
+export function firstWeekPayloads(propertyId: string, address: string): Record<"welcome" | keyof typeof SETUP_TIP_AFTER_MS, PushPayload> {
+  const home = address || "your home";
+  const data = { propertyId };
+  return {
+    welcome: {
+      title: "Welcome to HomeGentic",
+      body:  `Your record for ${home} is started. Two things fill it in fastest: confirm when your main systems ` +
+             "were installed, so forecasts start from real years, and log one past job to get your first HomeGentic Score. " +
+             "Unless you turn it off in Settings, a Home Pulse email comes each Monday with what's due on your home.",
+      route: `systems/${propertyId}`, data,
+    },
+    setup_tip_shutoffs: {
+      title: "Do you know where your water shutoff is?",
+      body:  `If a pipe bursts at ${home}, the main water shutoff is the first thing you'll need. Find it, then note ` +
+             "where it is in your house guide so anyone at the house can find it too.",
+      route: `guide/${propertyId}`, data,
+    },
+    setup_tip_paperwork: {
+      title: "Turn one receipt into a record",
+      body:  "Forward a contractor's invoice to your HomeGentic forwarding address (it's on the Jobs page) and we'll " +
+             "turn it into a draft job for you to check, or scan an appliance's label to save its brand and model. " +
+             `Either one starts the paperwork side of ${home}'s record.`,
+      route: "jobs", data,
+    },
+  };
+}
+
+/** The email and push for an ownership review's outcome; summary is the address. */
+export function verificationPayload(kind: string, address: string): PushPayload | null {
+  const home = address || "your home";
+  switch (kind) {
+    case "verification_approved":
+      return {
+        title: "Your home is verified",
+        body:  `HomeGentic checked your ownership document for ${home} and verified you as the owner.`,
+        route: "property",
+      };
+    case "verification_rejected":
+      return {
+        title: "We couldn't verify your home yet",
+        body:  `HomeGentic couldn't verify your ownership from the document you sent for ${home}. ` +
+               "You can send another from the home's page.",
+        route: "property",
+      };
+    default:
+      return null;
+  }
+}
+
 /** "GeneralHandyman" → "General Handyman"; "HVAC" stays "HVAC". */
 export function tradeLabel(tag: string): string {
   return tag.replace(/([a-z])([A-Z])/g, "$1 $2");
@@ -323,6 +381,23 @@ export async function notificationsFor(
       }
     }
     return out;
+  }
+
+  if (event.kind === "first_home_added") {
+    if (!event.recipient) return [];
+    const p = firstWeekPayloads(event.refId, event.summary);
+    return [
+      { type: "welcome", principal: event.recipient, payload: p.welcome, pushOptIn: false },
+      ...(Object.keys(SETUP_TIP_AFTER_MS) as (keyof typeof SETUP_TIP_AFTER_MS)[]).map((tip) => ({
+        type: tip, principal: event.recipient!, payload: p[tip], pushOptIn: true, notBefore: now + SETUP_TIP_AFTER_MS[tip],
+      })),
+    ];
+  }
+
+  if (event.kind === "verification_approved" || event.kind === "verification_rejected") {
+    const payload = verificationPayload(event.kind, event.summary);
+    if (!payload || !event.recipient) return [];
+    return [{ type: event.kind, principal: event.recipient, payload, pushOptIn: true }];
   }
 
   if (event.kind.startsWith("job_payment_")) {

@@ -2,7 +2,8 @@
  * Where an incoming link or notification tap should go.
  *
  * Routes come from the notification relay (agents/notifications/events.ts):
- * jobs/<id>, quotes/<id>, leads, leads/<id>, my-listing/<propertyId> and
+ * jobs/<id>, quotes/<id>, leads, leads/<id>, my-listing/<propertyId>,
+ * property, guide/<propertyId>, systems/<propertyId> and
  * review/<contractor>/<jobId>. Most open a screen in the app (App.tsx maps the
  * paths); a contractor review is written on the web, so that one opens the
  * web page. Keep in step with agents/notifications/links.ts.
@@ -27,7 +28,7 @@ export type LinkTarget =
   | { kind: "app"; url: string }
   | { kind: "web"; path: string };
 
-const APP_ROUTES = [/^jobs(\/[^/]+)?$/, /^quotes\/[^/]+$/, /^leads(\/[^/]+)?$/, /^my-listing\/[^/]+$/, /^report(\/[^/]+)?$/, /^plan$/, /^people$/, /^dashboard$/];
+const APP_ROUTES = [/^jobs(\/[^/]+)?$/, /^quotes\/[^/]+$/, /^leads(\/[^/]+)?$/, /^my-listing\/[^/]+$/, /^report(\/[^/]+)?$/, /^plan$/, /^people$/, /^dashboard$/, /^property$/, /^guide\/[^/]+$/];
 
 /** Maps a notification route to an app URL or a web path; null when there's nothing to open. */
 export function targetForRoute(route: string | null | undefined): LinkTarget | null {
@@ -38,6 +39,8 @@ export function targetForRoute(route: string | null | undefined): LinkTarget | n
     if (!contractor) return null;
     return { kind: "web", path: `/contractor/${encodeURIComponent(contractor)}?review=${encodeURIComponent(jobId)}#review` };
   }
+  // System install years are set on the web.
+  if (/^systems\/[^/]+$/.test(r)) return { kind: "web", path: `/properties/${encodeURIComponent(r.slice("systems/".length))}/systems` };
   if (APP_ROUTES.some((re) => re.test(r))) return { kind: "app", url: `${APP_SCHEME}${r}` };
   return null;
 }

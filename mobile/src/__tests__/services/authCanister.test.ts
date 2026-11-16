@@ -6,7 +6,7 @@
  * notification relay and the voice Worker accept.
  */
 
-const mockActor = { getProfile: jest.fn(), issueAgentSession: jest.fn(), issueServiceSession: jest.fn() };
+const mockActor = { getProfile: jest.fn(), register: jest.fn(), issueAgentSession: jest.fn(), issueServiceSession: jest.fn() };
 const mockActorFor = jest.fn(() => mockActor);
 jest.mock("../../services/canister", () => ({ actorFor: (...a: unknown[]) => (mockActorFor as any)(...a) }));
 
@@ -87,5 +87,35 @@ describe("with the auth canister", () => {
     mockActor.issueServiceSession.mockClear();
     expect(await load(undefined).issueServiceSession(agent, "notifications")).toBeNull();
     expect(mockActor.issueServiceSession).not.toHaveBeenCalled();
+  });
+
+  it("loadProfile says when the caller hasn't signed up yet, apart from other failures", async () => {
+    const svc = load("auth-id");
+    mockActor.getProfile.mockResolvedValue({ ok: raw });
+    expect(await svc.loadProfile(agent)).toMatchObject({ profile: { role: "Contractor" }, needsRegistration: false });
+    mockActor.getProfile.mockResolvedValue({ err: { NotFound: null } });
+    expect(await svc.loadProfile(agent)).toEqual({ profile: null, needsRegistration: true });
+    mockActor.getProfile.mockRejectedValue(new Error("offline"));
+    expect(await svc.loadProfile(agent)).toEqual({ profile: null, needsRegistration: false });
+  });
+
+  it("register signs the caller up with the role, email and phone they gave", async () => {
+    const svc = load("auth-id");
+    mockActor.register.mockResolvedValue({ ok: { ...raw, role: { Homeowner: null } } });
+    const p = await svc.register(agent, { role: "Homeowner", email: "a@b.c", phone: "" });
+    expect(mockActor.register).toHaveBeenCalledWith({ role: { Homeowner: null }, email: "a@b.c", phone: "" });
+    expect(p.role).toBe("Homeowner");
+  });
+
+  it("register throws the canister's error", async () => {
+    const svc = load("auth-id");
+    mockActor.register.mockResolvedValue({ err: { InvalidInput: "That email is already in use" } });
+    await expect(svc.register(agent, { role: "Homeowner", email: "a@b.c", phone: "" })).rejects.toThrow(/already in use/);
+  });
+});
+
+describe("loadProfile without an auth canister", () => {
+  it("never asks a dev build to sign up", async () => {
+    expect(await load(undefined).loadProfile(agent)).toEqual({ profile: null, needsRegistration: false });
   });
 });

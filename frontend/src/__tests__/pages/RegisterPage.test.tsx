@@ -1,10 +1,13 @@
 /**
  * RegisterPage — real logic worth locking down:
- *   - step 1: Continue is disabled until a role is selected
- *   - step 2: Review is disabled until a valid email is entered (and,
- *     if a phone is entered, it must be valid too)
- *   - step 3: Create Account is disabled until the terms checkbox is
- *     checked
+ *   - two steps: role, then details (no separate confirm screen)
+ *   - step 1: roles are radio buttons (keyboard and screen-reader
+ *     friendly); Continue is disabled until one is chosen, and the role
+ *     the visitor signed up from (sessionStorage "signupRole") is chosen
+ *     for them
+ *   - step 2: Create Account is disabled until a valid email is entered
+ *     (and, if a phone is entered, it must be valid too) and the terms
+ *     checkbox is checked
  *   - a successful submit registers, consumes a pending referral code
  *     if one exists, and navigates based on role and a pending
  *     checkout intent in sessionStorage
@@ -43,15 +46,14 @@ function renderPage() {
   return render(<MemoryRouter><RegisterPage /></MemoryRouter>);
 }
 
-function goToStep2() {
-  fireEvent.click(screen.getByText("Homeowner"));
+function goToStep2(role: "Homeowner" | "Contractor" = "Homeowner") {
+  fireEvent.click(screen.getByRole("radio", { name: new RegExp(role) }));
   fireEvent.click(screen.getByText("Continue"));
 }
 
-function goToStep3(email = "buyer@example.com") {
-  goToStep2();
+function fillDetails(email = "buyer@example.com") {
   fireEvent.change(screen.getByPlaceholderText("you@example.com"), { target: { value: email } });
-  fireEvent.click(screen.getByText("Review"));
+  fireEvent.click(screen.getByRole("checkbox"));
 }
 
 beforeEach(() => {
@@ -64,62 +66,84 @@ describe("RegisterPage — step 1: role", () => {
     renderPage();
     expect(screen.getByText("Continue").closest("button")).toBeDisabled();
 
-    fireEvent.click(screen.getByText("Homeowner"));
+    fireEvent.click(screen.getByRole("radio", { name: /Homeowner/ }));
     expect(screen.getByText("Continue").closest("button")).not.toBeDisabled();
+  });
+
+  it("offers the roles as one radio group", () => {
+    renderPage();
+    const group = screen.getByRole("radiogroup", { name: /I am a/i });
+    expect(group).toBeInTheDocument();
+    expect(screen.getAllByRole("radio")).toHaveLength(3);
+  });
+
+  it("chooses the role the visitor signed up from", () => {
+    sessionStorage.setItem("signupRole", "Contractor");
+    renderPage();
+    expect(screen.getByRole("radio", { name: /Contractor/ })).toBeChecked();
+    expect(screen.getByText("Continue").closest("button")).not.toBeDisabled();
+  });
+
+  it("ignores a signup role it doesn't know", () => {
+    sessionStorage.setItem("signupRole", "Admin");
+    renderPage();
+    expect(screen.getByText("Continue").closest("button")).toBeDisabled();
+  });
+
+  it("shows two steps", () => {
+    renderPage();
+    expect(screen.getByText("Step 1 of 2")).toBeInTheDocument();
+    expect(screen.queryByText(/Confirm/)).not.toBeInTheDocument();
   });
 });
 
 describe("RegisterPage — step 2: details", () => {
-  it("disables Review until a valid email is entered", () => {
+  it("disables Create Account until a valid email is entered and the terms are agreed", () => {
     renderPage();
     goToStep2();
-    expect(screen.getByText("Review").closest("button")).toBeDisabled();
+    const create = () => screen.getByText("Create Account").closest("button");
+    expect(create()).toBeDisabled();
 
     fireEvent.change(screen.getByPlaceholderText("you@example.com"), { target: { value: "not-an-email" } });
-    expect(screen.getByText("Review").closest("button")).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(create()).toBeDisabled();
 
     fireEvent.change(screen.getByPlaceholderText("you@example.com"), { target: { value: "buyer@example.com" } });
-    expect(screen.getByText("Review").closest("button")).not.toBeDisabled();
-  });
-
-  it("disables Review when an invalid phone is entered, even with a valid email", () => {
-    renderPage();
-    goToStep2();
-    fireEvent.change(screen.getByPlaceholderText("you@example.com"), { target: { value: "buyer@example.com" } });
-    fireEvent.change(screen.getByPlaceholderText("+1 (555) 000-0000"), { target: { value: "123" } });
-
-    expect(screen.getByText("Review").closest("button")).toBeDisabled();
-  });
-});
-
-describe("RegisterPage — step 3: confirm", () => {
-  it("disables Create Account until terms are agreed", () => {
-    renderPage();
-    goToStep3();
-    expect(screen.getByText("Create Account").closest("button")).toBeDisabled();
+    expect(create()).not.toBeDisabled();
 
     fireEvent.click(screen.getByRole("checkbox"));
-    expect(screen.getByText("Create Account").closest("button")).not.toBeDisabled();
+    expect(create()).toBeDisabled();
+  });
+
+  it("disables Create Account when an invalid phone is entered, even with a valid email", () => {
+    renderPage();
+    goToStep2();
+    fillDetails();
+    fireEvent.change(screen.getByPlaceholderText("+1 (555) 000-0000"), { target: { value: "123" } });
+
+    expect(screen.getByText("Create Account").closest("button")).toBeDisabled();
   });
 
   it("registers and navigates to /dashboard", async () => {
     mockRegister.mockResolvedValue({ role: "Homeowner", email: "buyer@example.com" });
+    sessionStorage.setItem("signupRole", "Homeowner");
     renderPage();
-    goToStep3();
-    fireEvent.click(screen.getByRole("checkbox"));
+    goToStep2();
+    fillDetails();
     fireEvent.click(screen.getByText("Create Account"));
 
     await waitFor(() => expect(mockRegister).toHaveBeenCalledWith({ role: "Homeowner", email: "buyer@example.com", phone: "" }));
     expect(mockSetProfile).toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
+    expect(sessionStorage.getItem("signupRole")).toBeNull();
   });
 
   it("returns to the gift or invite page the new user signed in from", async () => {
     mockRegister.mockResolvedValue({ role: "Homeowner", email: "buyer@example.com" });
     sessionStorage.setItem("pendingVerification", "/manage/claim/tok-1");
     renderPage();
-    goToStep3();
-    fireEvent.click(screen.getByRole("checkbox"));
+    goToStep2();
+    fillDetails();
     fireEvent.click(screen.getByText("Create Account"));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/manage/claim/tok-1"));
@@ -130,8 +154,8 @@ describe("RegisterPage — step 3: confirm", () => {
     mockRegister.mockResolvedValue({ role: "Homeowner", email: "buyer@example.com" });
     sessionStorage.setItem("pendingCheckout", JSON.stringify({ tier: "Pro", billing: "Yearly" }));
     renderPage();
-    goToStep3();
-    fireEvent.click(screen.getByRole("checkbox"));
+    goToStep2();
+    fillDetails();
     fireEvent.click(screen.getByText("Create Account"));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/checkout?tier=Pro&billing=Yearly"));
@@ -142,11 +166,8 @@ describe("RegisterPage — step 3: confirm", () => {
     mockRegister.mockResolvedValue({ role: "Contractor", email: "pro@example.com" });
     sessionStorage.setItem("pendingCheckout", JSON.stringify({ tier: "Pro", billing: "Yearly" }));
     renderPage();
-    fireEvent.click(screen.getByText("Contractor"));
-    fireEvent.click(screen.getByText("Continue"));
-    fireEvent.change(screen.getByPlaceholderText("you@example.com"), { target: { value: "pro@example.com" } });
-    fireEvent.click(screen.getByText("Review"));
-    fireEvent.click(screen.getByRole("checkbox"));
+    goToStep2("Contractor");
+    fillDetails("pro@example.com");
     fireEvent.click(screen.getByText("Create Account"));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/contractor-dashboard"));
@@ -155,8 +176,8 @@ describe("RegisterPage — step 3: confirm", () => {
   it("shows an error toast when registration fails", async () => {
     mockRegister.mockRejectedValue(new Error("This email is already taken."));
     renderPage();
-    goToStep3();
-    fireEvent.click(screen.getByRole("checkbox"));
+    goToStep2();
+    fillDetails();
     fireEvent.click(screen.getByText("Create Account"));
 
     await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("This email is already taken."));

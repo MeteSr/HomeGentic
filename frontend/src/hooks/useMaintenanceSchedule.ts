@@ -41,10 +41,13 @@ export function useMaintenanceSchedule(
 
   // Reload system ages whenever the active property changes
   useEffect(() => {
-    if (activePropertyId) {
-      setSystemAges(systemAgesService.get(activePropertyId));
-    }
-  }, [activePropertyId]);
+    if (!activePropertyId) return;
+    let cancelled = false;
+    setSystemAges(systemAgesService.get(activePropertyId));
+    const built = Number(properties.find((p) => String(p.id) === activePropertyId)?.yearBuilt ?? 0);
+    systemAgesService.load(activePropertyId, built).then((a) => { if (!cancelled) setSystemAges(a); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [activePropertyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { recurringServices, visitLogMap, systemAges };
 }

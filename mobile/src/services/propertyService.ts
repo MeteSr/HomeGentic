@@ -4,6 +4,7 @@ import { idlFactory } from "@homegentic/shared/declarations/property";
 import { actorFor, nsToMs, tag, unwrap, variant } from "./canister";
 import type { _SERVICE as PropertyCanister } from "@homegentic/shared/types/property";
 import type * as PropertyTypes from "@homegentic/shared/types/property";
+import type { NewPropertyArgs } from "./onboardingForm";
 
 export type VerificationLevel = "Unverified" | "PendingReview" | "Basic" | "Premium";
 export type ManagerRole = "Viewer" | "Manager" | "CoOwner";
@@ -106,6 +107,26 @@ function fromManager(raw: any): PropertyManager {
 }
 
 // ── Properties ────────────────────────────────────────────────────────────────
+
+/** Start the move-in plan for a home bought in the last year (as the web wizard's "bought recently" answer does). */
+export async function startMoveInPlan(propertyId: string, agent?: HttpAgent): Promise<void> {
+  unwrap(await actor(agent).startMoveInPlan(propertyId));
+}
+
+/** Add a home, as the web wizard's address and details steps do. */
+export async function registerProperty(args: NewPropertyArgs, agent?: HttpAgent): Promise<Property> {
+  const result = await actor(agent).registerProperty({
+    address:      args.address,
+    city:         args.city,
+    state:        args.state,
+    zipCode:      args.zipCode,
+    propertyType: variant<PropertyTypes.PropertyType>(args.propertyType),
+    yearBuilt:    BigInt(args.yearBuilt),
+    squareFeet:   BigInt(args.squareFeet),
+    tier:         variant<PropertyTypes.SubscriptionTier>(args.tier),
+  });
+  return fromRaw(unwrap(result));
+}
 
 export async function getProperties(agent?: HttpAgent): Promise<Property[]> {
   const raw: any[] = await actor(agent).getMyProperties();

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { takeReturnPath } from "@/utils/returnPath";
+import { clearSignupRole, signupRole } from "@/utils/signupRole";
 import { useNavigate, Link } from "react-router-dom";
 import { Home, HardHat, Building2, CheckCircle, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/Button";
@@ -35,7 +36,7 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const { setProfile } = useAuthStore();
   const [step, setStep] = useState(1);
-  const [role, setRole] = useState<UserRole | null>(null);
+  const [role, setRole] = useState<UserRole | null>(() => signupRole());
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const profile = await authService.register({ role, email, phone });
+      clearSignupRole();
       setProfile(profile);
       toast.success("Welcome to HomeGentic!");
       const back = takeReturnPath();   // the gift / invite / payment page they signed in from
@@ -71,7 +73,7 @@ export default function RegisterPage() {
     }
   };
 
-  const STEP_LABELS = ["Role", "Details", "Confirm"];
+  const STEP_LABELS = ["Role", "Details"];
 
   return (
     <div style={{
@@ -140,19 +142,18 @@ export default function RegisterPage() {
                   fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem",
                   border: `1px solid rgba(46,37,64,0.1)`,
                 }}>
-                  Step 1 of 3
+                  Step 1 of 2
                 </div>
-                <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: V2_COLORS.ink }}>I am a…</h2>
+                <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: V2_COLORS.ink }} id="register-role-heading">I am a…</h2>
                 <p style={{ fontWeight: 300, fontSize: "0.9rem", color: V2_COLORS.muted, marginBottom: "1.5rem" }}>
                   Choose your role to get started with HomeGentic.
                 </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", marginBottom: "1.5rem" }}>
+                <div role="radiogroup" aria-labelledby="register-role-heading" style={{ display: "flex", flexDirection: "column", gap: "0.625rem", marginBottom: "1.5rem" }}>
                   {ROLES.map((r) => {
                     const selected = role === r.value;
                     return (
-                      <div
+                      <label
                         key={r.value}
-                        onClick={() => setRole(r.value)}
                         style={{
                           padding: "1rem 1.25rem",
                           border: `1.5px solid ${selected ? V2_COLORS.blue : V2_COLORS.border}`,
@@ -165,6 +166,14 @@ export default function RegisterPage() {
                           transition: "border-color 0.15s, background-color 0.15s",
                         }}
                       >
+                        <input
+                          type="radio"
+                          name="register-role"
+                          value={r.value}
+                          checked={selected}
+                          onChange={() => setRole(r.value)}
+                          style={{ accentColor: V2_COLORS.blue, width: "1rem", height: "1rem", flexShrink: 0, margin: 0 }}
+                        />
                         {r.icon}
                         <div style={{ flex: 1 }}>
                           <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, color: V2_COLORS.ink, marginBottom: "0.2rem" }}>
@@ -172,8 +181,8 @@ export default function RegisterPage() {
                           </div>
                           <div style={{ fontSize: "0.8rem", color: V2_COLORS.muted, fontWeight: 300 }}>{r.desc}</div>
                         </div>
-                        {selected && <CheckCircle size={18} color={V2_COLORS.blue} />}
-                      </div>
+                        {selected && <CheckCircle size={18} color={V2_COLORS.blue} aria-hidden="true" />}
+                      </label>
                     );
                   })}
                 </div>
@@ -193,7 +202,7 @@ export default function RegisterPage() {
                   fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem",
                   border: `1px solid rgba(46,37,64,0.1)`,
                 }}>
-                  Step 2 of 3
+                  Step 2 of 2
                 </div>
                 <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: V2_COLORS.ink }}>Your details</h2>
                 <p style={{ fontWeight: 300, fontSize: "0.9rem", color: V2_COLORS.muted, marginBottom: "1.5rem" }}>
@@ -223,60 +232,6 @@ export default function RegisterPage() {
                     {phoneError && <p style={{ color: V2_COLORS.coralText, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: V2_FONTS.body }}>{phoneError}</p>}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: "0.75rem" }}>
-                  <Button variant="outline" onClick={() => setStep(1)} icon={<ArrowLeft size={16} />}>Back</Button>
-                  <Button
-                    disabled={!email || !isValidEmail(email) || (phone !== "" && !isValidPhone(phone))}
-                    onClick={() => setStep(3)}
-                    iconRight={<ArrowRight size={16} />}
-                    style={{ flex: 1 }}
-                  >Review</Button>
-                </div>
-              </>
-            )}
-
-            {/* Step 3 — Confirm */}
-            {step === 3 && (
-              <>
-                <div style={{
-                  display: "inline-flex", alignItems: "center", gap: "8px",
-                  background: V2_COLORS.attentionBg, color: V2_COLORS.ink,
-                  padding: "5px 14px", borderRadius: 100,
-                  fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem",
-                  border: `1px solid rgba(46,37,64,0.1)`,
-                }}>
-                  Step 3 of 3
-                </div>
-                <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: V2_COLORS.ink }}>Confirm</h2>
-                <p style={{ fontWeight: 300, fontSize: "0.9rem", color: V2_COLORS.muted, marginBottom: "1.5rem" }}>
-                  Review and submit to create your HomeGentic account.
-                </p>
-                <div style={{
-                  border: `1.5px solid ${V2_COLORS.border}`,
-                  borderRadius: V2_RADIUS.sm,
-                  overflow: "hidden",
-                  marginBottom: "1.5rem",
-                }}>
-                  {[
-                    { label: "Role",  value: role },
-                    { label: "Email", value: email || "Not provided" },
-                    { label: "Phone", value: phone || "Not provided" },
-                  ].map((row, i) => (
-                    <div key={row.label} style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "0.75rem 1rem",
-                      borderBottom: i < 2 ? `1px solid ${V2_COLORS.border}` : "none",
-                      background: i % 2 === 0 ? V2_COLORS.paper : V2_COLORS.lblue,
-                    }}>
-                      <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted }}>
-                        {row.label}
-                      </span>
-                      <span style={{ fontSize: "0.875rem", fontWeight: 500, color: V2_COLORS.ink }}>{row.value}</span>
-                    </div>
-                  ))}
-                </div>
                 <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", marginBottom: "1.25rem", cursor: "pointer" }}>
                   <input
                     type="checkbox"
@@ -292,13 +247,18 @@ export default function RegisterPage() {
                   </span>
                 </label>
                 <div style={{ display: "flex", gap: "0.75rem" }}>
-                  <Button variant="outline" onClick={() => setStep(2)} icon={<ArrowLeft size={16} />}>Back</Button>
-                  <Button loading={loading} disabled={!agreedToTerms} onClick={handleSubmit} icon={<CheckCircle size={16} />} style={{ flex: 1 }}>
-                    Create Account
-                  </Button>
+                  <Button variant="outline" onClick={() => setStep(1)} icon={<ArrowLeft size={16} />}>Back</Button>
+                  <Button
+                    loading={loading}
+                    disabled={!agreedToTerms || !email || !isValidEmail(email) || (phone !== "" && !isValidPhone(phone))}
+                    onClick={handleSubmit}
+                    icon={<CheckCircle size={16} />}
+                    style={{ flex: 1 }}
+                  >Create Account</Button>
                 </div>
               </>
             )}
+
           </div>
         </div>
       </div>

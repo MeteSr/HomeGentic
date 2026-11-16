@@ -46,7 +46,7 @@ import { reportFailure, errorCode } from "./opsReport";
 import { brandRecallFetcher, markRecallsNotified, newRecallMatches, recallItem, recallPush, type ApplianceRecall } from "./recalls";
 import { dispatchToUser } from "./dispatcher";
 import type { Recall } from "../../packages/shared/src/recalls";
-import type { PulseAppliance, PushPayload } from "./types";
+import type { PulseAppliance, PulseSetup, PushPayload } from "./types";
 
 export const PULSE_PREF = "weekly_pulse";
 
@@ -57,6 +57,8 @@ const MAX_ATTENTION       = 4;   // of those, items that need the homeowner; the
 const WARRANTY_WINDOW_MS  = 60 * 86_400_000;
 const RENEWAL_WINDOW_DAYS = 60;
 const NEAR_LIFE_YEARS     = 2;
+/** A home this new, with no system years and no replacements, gets one "what's been replaced?" ask instead of age notes from the build year. */
+const NEW_HOME_MS         = 14 * 24 * 60 * 60 * 1000;
 const CHECK_INTERVAL_MS   = 60 * 60_000;
 
 const pulseHour = () => {
@@ -101,7 +103,7 @@ function addMonths(ms: number, months: number): number {
 
 // ── Digest ────────────────────────────────────────────────────────────────────
 
-export type PulseTag = "SIGN OFF" | "RECALL" | "INSURANCE" | "HOME WARRANTY" | "PMI" | "PROPERTY TAX" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL" | "SELLING";
+export type PulseTag = "SIGN OFF" | "RECALL" | "INSURANCE" | "HOME WARRANTY" | "PMI" | "PROPERTY TAX" | "PAST RATED LIFE" | "WARRANTY" | "NEARING RATED LIFE" | "SEASONAL" | "SELLING" | "SET UP";
 
 export interface PulseItem {
   tag:   PulseTag;
@@ -248,6 +250,8 @@ export function buildSection(
   recalls: ApplianceRecall[] = [],
   /** Verified agents serving the city, counted only in the home's selling-prompt week. */
   sellingAgents: number | null = null,
+  /** The install years the owner entered and when the home was added; null when unreadable. */
+  setup: PulseSetup | null = null,
 ): PulseSection {
   const currentYear = new Date(nowMs).getUTCFullYear();
   const zone   = climateService.getZone(property.zipCode);
@@ -284,18 +288,37 @@ export function buildSection(
   // 2 + 4. System life, counted like the score's modernization part.
   const past: PulseItem[] = [];
   const near: PulseItem[] = [];
-  if (property.yearBuilt >= 1800 && property.yearBuilt <= currentYear) {
+  const ownerYears = setup?.systemYears ?? {};
+  const replaced = (system: string) =>
+    snapshots.some((s) => s.serviceType === system && s.amountCents >= (REPLACEMENT_MIN_CENTS[system] ?? 0) && s.completedYear > property.yearBuilt);
+  const isNewHome = setup !== null && nowMs - setup.addedAtMs <= NEW_HOME_MS
+    && Object.keys(ownerYears).length === 0
+    && !SYSTEM_LIFESPANS.some(({ system }) => replaced(system));
+  if (isNewHome && property.yearBuilt >= 1800 && property.yearBuilt <= currentYear) {
+    items.push({
+      tag:   "SET UP",
+      title: "Tell us what's been replaced",
+      body:  `All we know so far is that the house was built in ${property.yearBuilt}, so we can't tell how old the roof, HVAC and other systems are. Mark each one as original or give the year it was replaced, and this email will count their age from there.`,
+      link:  { label: "Set system years", url: `${appUrl()}/properties/${encodeURIComponent(property.id)}/systems` },
+    });
+  } else if (property.yearBuilt >= 1800 && property.yearBuilt <= currentYear) {
     for (const { system, lifespanYears } of SYSTEM_LIFESPANS) {
       const min = REPLACEMENT_MIN_CENTS[system] ?? 0;
-      let lastYear = property.yearBuilt;
+      const given = ownerYears[system];
+      let lastYear = given !== undefined && given >= property.yearBuilt ? given : property.yearBuilt;
+      let fromJob = false;
       for (const s of snapshots) {
-        if (s.serviceType === system && s.amountCents >= min && s.completedYear > lastYear) lastYear = s.completedYear;
+        if (s.serviceType === system && s.amountCents >= min && s.completedYear > lastYear) { lastYear = s.completedYear; fromJob = true; }
       }
       const age = Math.max(currentYear - lastYear, 0);
       const [noun, verb] = SYSTEM_NOUN[system] ?? [system, "is"];
-      const since = lastYear === property.yearBuilt
-        ? `No replacement is on record, so it counts from ${lastYear}, when the house was built`
-        : `It was last replaced in ${lastYear}`;
+      const since = fromJob
+        ? `It was last replaced in ${lastYear}`
+        : given === lastYear && given === property.yearBuilt
+          ? `You marked it as original to the house, built in ${lastYear}`
+          : given === lastYear
+            ? `You said it was replaced in ${lastYear}`
+            : `No replacement is on record, so it counts from ${lastYear}, when the house was built`;
       if (age >= lifespanYears) {
         past.push({
           tag:   "PAST RATED LIFE",
@@ -384,10 +407,11 @@ const TAG_COLOR: Record<PulseTag, string> = {
   "NEARING RATED LIFE": "#8A6800",
   "SEASONAL":           "#4A4D5C",
   "SELLING":            "#2B34FF",
+  "SET UP":             "#2B34FF",
 };
 
 export function renderPulse(sections: PulseSection[], moreProperties: number, links: PulseLinks): EmailMessage {
-  const needs = sections.reduce((n, s) => n + s.items.filter((i) => i.tag !== "SEASONAL" && i.tag !== "SELLING").length, 0);
+  const needs = sections.reduce((n, s) => n + s.items.filter((i) => i.tag !== "SEASONAL" && i.tag !== "SELLING" && i.tag !== "SET UP").length, 0);
   const subject = needs > 0
     ? `Your Home Pulse: ${needs} thing${needs === 1 ? "" : "s"} need${needs === 1 ? "s" : ""} you this week`
     : "Your Home Pulse: nothing urgent this week";
@@ -442,6 +466,8 @@ export interface PulseDeps {
   getProperties: (owner: string) => Promise<PulseProperty[]>;
   getJobs:       (owner: string) => Promise<PulseJob[]>;
   getSnapshots:  (propertyId: string) => Promise<ScoreJob[]>;
+  /** System years the owner entered and when each home was added (property.getPulseSetup). */
+  getSetup:      (owner: string) => Promise<PulseSetup[]>;
   /** #711: renewal dates of the owner's saved insurance policies. */
   getInsurance:  (owner: string) => Promise<PulseInsurance[]>;
   /** #719 / #722: home warranty renewals and loan terms for the PMI note. */
@@ -472,6 +498,7 @@ const defaultDeps: PulseDeps = {
   getProperties: icp.getPulseProperties,
   getJobs:       icp.getJobsByOwner,
   getSnapshots:  icp.getJobSnapshots,
+  getSetup:      icp.getPulseSetup,
   getInsurance:  icp.getPulseInsurance,
   getHomeFinance: icp.getPulseHomeFinance,
   getPropertyTax: icp.getPulsePropertyTax,
@@ -553,6 +580,13 @@ export async function sendPulseTo(
   } catch (err) {
     console.warn("[pulse] property-tax years unavailable:", err instanceof Error ? err.message : err);
   }
+  // Without the owner's years the email counts from the build year, as before.
+  let setup: PulseSetup[] | null = null;
+  try {
+    setup = await deps.getSetup(r.principal);
+  } catch (err) {
+    console.warn("[pulse] system years unavailable:", err instanceof Error ? err.message : err);
+  }
   const shown = properties.slice(0, MAX_PROPERTIES);
   // Thinking of selling? Only homes in their prompt week ask for an agent count.
   const selling = new Map<string, number>();
@@ -574,6 +608,7 @@ export async function sendPulseTo(
     sections.push(buildSection(
       p, jobs.filter((j) => j.propertyId === p.id), snapshots, nowMs, policy, fin, taxYears,
       recalls.filter((m) => m.propertyId === p.id), selling.get(p.id) ?? null,
+      setup?.find((x) => x.propertyId === p.id) ?? null,
     ));
   }
   const unsubscribe = unsubscribeUrl(base, r.principal);

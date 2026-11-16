@@ -1,4 +1,5 @@
 import React from "react";
+import { rememberSignupRole } from "@/utils/signupRole";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { PageHead } from "@/components/PageHead";
 import { useAuth } from "@/contexts/AuthContext";
@@ -76,6 +77,8 @@ const RESPONSIVE_CSS = `
 
 export default function ForProsPage() {
   const navigate = useNavigate();
+  // Sign-up buttons choose the Contractor role for the register page.
+  const startSignup = () => { rememberSignupRole("Contractor"); navigate("/login"); };
   const location = useLocation();
   const [menuOpen, setMenuOpen] = React.useState(false);
 
@@ -180,7 +183,7 @@ export default function ForProsPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <button
               className="fpro-nav-signin"
-              onClick={() => navigate("/login")}
+              onClick={() => startSignup()}
               style={{
                 fontFamily: F.body, fontSize: "0.9rem", fontWeight: 500,
                 color: C.ink, background: "none", border: "none", cursor: "pointer",
@@ -191,7 +194,7 @@ export default function ForProsPage() {
             </button>
             <button
               className="fpro-nav-join"
-              onClick={() => navigate("/login")}
+              onClick={() => startSignup()}
               style={{
                 fontFamily: F.body, fontSize: "0.9rem", fontWeight: 700,
                 color: C.paper, background: C.blue, border: "none", cursor: "pointer",
@@ -415,7 +418,7 @@ export default function ForProsPage() {
               Set up your profile in minutes. Leads start flowing as soon as you're verified.
             </p>
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => startSignup()}
               style={{
                 fontFamily: F.body, fontSize: "1rem", fontWeight: 700,
                 padding: "16px 40px", borderRadius: "100px",
@@ -465,7 +468,7 @@ export default function ForProsPage() {
                   </a>
                 </li>
                 <li>
-                  <a onClick={() => navigate("/login")}
+                  <a onClick={() => startSignup()}
                     style={{ fontFamily: F.body, fontSize: "14px", color: "rgba(252,252,253,0.6)", textDecoration: "none", cursor: "pointer" }}>
                     Create Profile
                   </a>

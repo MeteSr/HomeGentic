@@ -2,7 +2,6 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useAppData } from "../context/AppData";
-import { openAddProperty } from "../screens/v3/NoProperty";
 import { Icon } from "./Icon";
 import { Callout, CloseButton, Kicker, Pill, Sheet } from "./ui";
 import { family, v3 } from "../theme";
@@ -71,7 +70,7 @@ export function PropertySheet() {
         onPress={() => {
           app.closeProps();
           if (atLimit && !app.pro) navigation.navigate("Upgrade");
-          else openAddProperty().then(app.refreshProperties);
+          else navigation.navigate("AddProperty");
         }}
         accessibilityRole="button"
         style={{ minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, borderRadius: 100, borderWidth: 1.5, borderColor: v3.chipLine, marginTop: 12 }}

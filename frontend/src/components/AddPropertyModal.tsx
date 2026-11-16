@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { X, Shield, Camera, FileText, Clock, Check } from "lucide-react";
+import { X, Shield, Camera, FileText, Clock, Check, Mail, ListChecks } from "lucide-react";
 import { propertyService } from "@/services/property";
 import { photoService, type PhotoQuota } from "@/services/photo";
 import { docTypeFromOnboardingLabel, encodeDoc } from "@/services/documentVault";
@@ -16,6 +16,9 @@ import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
 import type { PropertyType } from "@/services/property";
 import { errorMessage } from "@/services/candid";
+import { moveInPlanService } from "@/services/moveInPlan";
+import { systemAgesService, type SystemAges, type SystemName } from "@/services/systemAges";
+import { jobInboxService } from "@/services/jobInbox";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const T = {
@@ -50,13 +53,70 @@ const BASELINE_SYSTEMS = [
   { key: "garageDoor",  label: "Garage Door Opener",        prompt: "Motor unit and model label" },
 ];
 
-const SYSTEM_AGES = [
-  { key: "hvac",        label: "HVAC / AC"        },
-  { key: "roof",        label: "Roof"              },
-  { key: "waterHeater", label: "Water Heater"      },
-  { key: "electrical",  label: "Electrical Panel"  },
-  { key: "plumbing",    label: "Plumbing"          },
+const SYSTEM_AGES: { key: string; label: string; system: SystemName }[] = [
+  { key: "hvac",        label: "HVAC / AC",        system: "HVAC"         },
+  { key: "roof",        label: "Roof",             system: "Roofing"      },
+  { key: "waterHeater", label: "Water Heater",     system: "Water Heater" },
+  { key: "electrical",  label: "Electrical Panel", system: "Electrical"   },
+  { key: "plumbing",    label: "Plumbing",         system: "Plumbing"     },
 ];
+
+type AgeChoice = "original" | "replaced";
+
+/**
+ * The years the ages step saves: "original" systems at the year the house was
+ * built, replaced ones at the year given (if it's a real year from the build
+ * year to now), solar when ticked. Unanswered systems are left out.
+ */
+export function agesToSave(
+  choices: Record<string, AgeChoice>, years: Record<string, string>, hasSolar: boolean, yearBuilt: number,
+): SystemAges {
+  const now = new Date().getFullYear();
+  const valid = (y: number) => Number.isInteger(y) && y >= yearBuilt && y <= now;
+  const out: SystemAges = {};
+  for (const { key, system } of SYSTEM_AGES) {
+    if (choices[key] === "original") out[system] = yearBuilt;
+    else if (choices[key] === "replaced" && valid(Number(years[key]))) out[system] = Number(years[key]);
+  }
+  if (hasSolar && valid(Number(years.solar))) out["Solar Panels"] = Number(years.solar);
+  return out;
+}
+
+/** A labelled set of native radio buttons (keyboard and screen-reader friendly). */
+function ChoiceRadios<V extends string>({
+  name, label, options, value, onChange,
+}: {
+  name: string;
+  label: string;
+  options: { value: V; label: string }[];
+  value: V | undefined;
+  onChange: (v: V) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {options.map((o) => {
+        const on = value === o.value;
+        return (
+          <label key={o.value} style={{
+            display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
+            padding: "8px 12px", borderRadius: 100,
+            font: `${on ? 600 : 500} 12.5px/1 ${F.body}`,
+            color: on ? T.blue : T.ink,
+            background: on ? T.vbadge : T.card,
+            border: `1px solid ${on ? T.blue : T.rule}`,
+          }}>
+            <input
+              type="radio" name={name} value={o.value} checked={on}
+              onChange={() => onChange(o.value)}
+              style={{ accentColor: T.blue, margin: 0 }}
+            />
+            {o.label}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
 
 const DOC_TYPES = [
   { value: "DeedRecord",  label: "Deed / Title"  },
@@ -65,7 +125,7 @@ const DOC_TYPES = [
 ];
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-type StepKey = "address" | "details" | "saved" | "photos" | "documents" | "ages" | "verify";
+type StepKey = "address" | "details" | "saved" | "photos" | "documents" | "ages" | "verify" | "capture";
 
 interface AddressForm { address: string; city: string; state: string; zipCode: string; }
 interface DetailsForm { propertyType: PropertyType; yearBuilt: string; squareFeet: string; }
@@ -187,10 +247,12 @@ function PrimaryBtn({
   );
 }
 
-function GhostBtn({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+function GhostBtn({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      disabled={disabled}
       style={{
         padding: "13px 20px",
         font: `500 14px/1 ${F.body}`,
@@ -455,7 +517,13 @@ export default function AddPropertyModal({ open, onClose }: Props) {
   const [quota,        setQuota]        = useState<PhotoQuota>({ used: 0, limit: 10, tier: "Free" });
   const [docsUploaded, setDocsUploaded] = useState(0);
   const [ages,         setAges]         = useState<Record<string, string>>({});
+  const [ageChoices,   setAgeChoices]   = useState<Record<string, AgeChoice>>({});
   const [hasSolar,     setHasSolar]     = useState(false);
+  const [savingAges,   setSavingAges]   = useState(false);
+  const [boughtRecently, setBoughtRecently] = useState<"yes" | "no" | undefined>(undefined);
+  const [moveInStarted,  setMoveInStarted]  = useState(false);
+  const [inboxAddress,   setInboxAddress]   = useState<string | null>(null);
+  const [loadingInbox,   setLoadingInbox]   = useState(false);
 
   const [verify,           setVerify]           = useState<VerifyForm>({ legalName: "", docType: "DeedRecord", docFile: null });
   const [verifySubmitted,  setVerifySubmitted]  = useState(false);
@@ -463,7 +531,8 @@ export default function AddPropertyModal({ open, onClose }: Props) {
 
   // Derived
   const photosCount    = baselineCompleted.size;
-  const agesFilledCount = Object.values(ages).filter(v => v.trim().length > 0).length;
+  const agesFilledCount = SYSTEM_AGES.filter(({ key }) =>
+    ageChoices[key] === "original" || (ageChoices[key] === "replaced" && (ages[key] ?? "").trim().length > 0)).length;
   const score          = computeSetupProgress(step, photosCount, docsUploaded, verifySubmitted);
   const propAddress    = [addr.address, addr.city, addr.state].filter(Boolean).join(", ");
 
@@ -488,7 +557,13 @@ export default function AddPropertyModal({ open, onClose }: Props) {
     setUploadingBaseline(null);
     setDocsUploaded(0);
     setAges({});
+    setAgeChoices({});
     setHasSolar(false);
+    setSavingAges(false);
+    setBoughtRecently(undefined);
+    setMoveInStarted(false);
+    setInboxAddress(null);
+    setLoadingInbox(false);
     setVerify({ legalName: "", docType: "DeedRecord", docFile: null });
     setVerifySubmitted(false);
     setSubmittingVerify(false);
@@ -537,6 +612,12 @@ export default function AddPropertyModal({ open, onClose }: Props) {
       });
       addProperty(property);
       setRegisteredId(String(property.id));
+      // A recent buyer gets the move-in plan (shutoffs, locks, insurance…).
+      if (boughtRecently === "yes") {
+        moveInPlanService.start(String(property.id))
+          .then(() => setMoveInStarted(true))
+          .catch((e) => console.error("[AddPropertyModal] startMoveInPlan:", e));
+      }
       photoService.getQuota().then(setQuota).catch(() => {});
       toast.success("Property saved!");
       setStep("saved");
@@ -608,6 +689,29 @@ export default function AddPropertyModal({ open, onClose }: Props) {
         }
       }).catch(() => { setAttomLoading(false); });
     }
+  };
+
+  const handleSaveAges = async () => {
+    if (!registeredId) return;
+    const toSave = agesToSave(ageChoices, ages, hasSolar, Number(details.yearBuilt));
+    if (Object.keys(toSave).length === 0) { setStep("saved"); return; }
+    setSavingAges(true);
+    try {
+      await systemAgesService.save(registeredId, toSave);
+      toast.success("System ages saved");
+      setStep("saved");
+    } catch (err) {
+      toast.error(errorMessage(err, "Couldn't save the system ages"));
+    } finally {
+      setSavingAges(false);
+    }
+  };
+
+  const showInboxAddress = async () => {
+    setLoadingInbox(true);
+    try { setInboxAddress(await jobInboxService.getAddress()); }
+    catch { toast.error("Couldn't load your forwarding address"); }
+    finally { setLoadingInbox(false); }
   };
 
   const handleFinish = () => {
@@ -787,6 +891,23 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                     ))}
                   </div>
                 </div>
+                <div>
+                  <p id="wiz-bought" style={{ font: `600 12px/1.3 ${F.body}`, color: T.ink, margin: "0 0 8px" }}>
+                    Did you buy this home in the last 12 months? <span style={{ fontWeight: 400, color: T.muted }}>(optional)</span>
+                  </p>
+                  <ChoiceRadios
+                    name="wiz-bought"
+                    label="Did you buy this home in the last 12 months?"
+                    options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
+                    value={boughtRecently}
+                    onChange={setBoughtRecently}
+                  />
+                  {boughtRecently === "yes" && (
+                    <p style={{ font: `400 12px/1.5 ${F.body}`, color: T.muted, margin: "8px 0 0" }}>
+                      We'll start a move-in plan for you: shutoffs, locks, insurance and the other first-weeks jobs.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -874,6 +995,27 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                 onCta={() => setStep("ages")}
                 done={agesFilledCount === 5}
               />
+              <TaskCard
+                icon={<Mail size={20} />}
+                chip="FASTEST WAY IN"
+                title="Forward invoices, scan labels"
+                cta="Set up capture"
+                onCta={() => setStep("capture")}
+                done={inboxAddress !== null}
+              />
+              {moveInStarted && registeredId && (
+                <TaskCard
+                  icon={<ListChecks size={20} />}
+                  chip="FIRST WEEKS"
+                  title="Move-in plan"
+                  cta="Open plan"
+                  onCta={() => {
+                    authService.completeOnboarding().catch(e => console.error("[AddPropertyModal] completeOnboarding:", e));
+                    onClose();
+                    navigate(`/properties/${registeredId}/move-in`);
+                  }}
+                />
+              )}
             </div>
 
             <PrimaryBtn onClick={handleFinish} fullWidth>
@@ -1023,20 +1165,33 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                 How old are your systems?
               </h2>
               <p style={{ font: `400 13.5px/1.6 ${F.body}`, color: T.muted, margin: "0 0 24px" }}>
-                We've pre-filled the year the home was built. Update any you know for better predictions.
+                Tell us which are original to the house ({details.yearBuilt || "the year it was built"}) and which were replaced. Skip any you don't know: they count from the year the house was built.
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {SYSTEM_AGES.map(({ key, label }) => (
-                  <div key={key} style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 12, alignItems: "center" }}>
-                    <FieldLabel htmlFor={`sys-${key}`}>{label}</FieldLabel>
-                    <FieldInput
-                      id={`sys-${key}`} type="number"
-                      min={1900} max={new Date().getFullYear()}
-                      placeholder={details.yearBuilt || "Year"}
-                      value={ages[key] ?? ""}
-                      onChange={e => setAges(a => ({ ...a, [key]: e.target.value }))}
-                    />
+                  <div key={key} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ font: `600 13px/1.3 ${F.body}`, color: T.ink }}>{label}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <ChoiceRadios
+                        name={`sys-${key}`}
+                        label={label}
+                        options={[{ value: "original", label: "Original" }, { value: "replaced", label: "Replaced" }]}
+                        value={ageChoices[key]}
+                        onChange={(v) => setAgeChoices(c => ({ ...c, [key]: v }))}
+                      />
+                      {ageChoices[key] === "replaced" && (
+                        <FieldInput
+                          id={`sys-${key}`} type="number"
+                          aria-label={`Year the ${label} was replaced`}
+                          min={Number(details.yearBuilt) || 1900} max={new Date().getFullYear()}
+                          placeholder="Year"
+                          value={ages[key] ?? ""}
+                          onChange={e => setAges(a => ({ ...a, [key]: e.target.value }))}
+                          style={{ width: 120 }}
+                        />
+                      )}
+                    </div>
                   </div>
                 ))}
 
@@ -1053,7 +1208,8 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                   </label>
                   {hasSolar && (
                     <FieldInput
-                      type="number" min={1990} max={new Date().getFullYear()}
+                      type="number" min={Number(details.yearBuilt) || 1900} max={new Date().getFullYear()}
+                      aria-label="Year the solar panels were installed"
                       placeholder="Year installed"
                       value={ages["solar"] ?? ""}
                       onChange={e => setAges(a => ({ ...a, solar: e.target.value }))}
@@ -1067,7 +1223,54 @@ export default function AddPropertyModal({ open, onClose }: Props) {
             <div style={{ paddingTop: 24, borderTop: `1px solid ${T.rule}`, marginTop: 24, display: "flex", gap: 10 }}>
               <GhostBtn onClick={() => setStep("saved")}>Skip</GhostBtn>
               <div style={{ flex: 1 }}>
-                <PrimaryBtn onClick={() => setStep("saved")} fullWidth>Save & continue</PrimaryBtn>
+                <PrimaryBtn onClick={handleSaveAges} loading={savingAges} fullWidth>Save & continue</PrimaryBtn>
+              </div>
+            </div>
+          </div>
+        );
+
+      // ── CAPTURE ───────────────────────────────────────────────────────────────
+      case "capture":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <div style={{ flex: 1 }}>
+              <StepBadge label="OPTIONAL · FASTEST WAY IN" />
+              <h2 style={{ font: `700 26px/1.15 ${F.display}`, color: T.ink, margin: "0 0 8px", letterSpacing: "-0.02em" }}>
+                Turn paperwork into records.
+              </h2>
+              <p style={{ font: `400 13.5px/1.6 ${F.body}`, color: T.muted, margin: "0 0 24px" }}>
+                You review everything HomeGentic reads before it goes on the record.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {jobInboxService.domain() && (
+                  <div style={{ border: `1px solid ${T.rule}`, borderRadius: T.radius, padding: "16px 18px", background: T.card }}>
+                    <div style={{ font: `600 13px/1.3 ${F.body}`, color: T.ink }}>Forward contractor invoices</div>
+                    <p style={{ font: `400 12.5px/1.6 ${F.body}`, color: T.muted, margin: "6px 0 12px" }}>
+                      Email an invoice or receipt to your private address. HomeGentic reads it into a draft job on the Jobs page for you to check and log.
+                    </p>
+                    {inboxAddress ? (
+                      <div style={{ font: `600 13px/1.4 ${F.mono}`, color: T.ink, wordBreak: "break-all" }}>{inboxAddress}</div>
+                    ) : (
+                      <GhostBtn onClick={showInboxAddress} disabled={loadingInbox}>{loadingInbox ? "Loading…" : "Show my address"}</GhostBtn>
+                    )}
+                  </div>
+                )}
+                <div style={{ border: `1px solid ${T.rule}`, borderRadius: T.radius, padding: "16px 18px", background: T.card }}>
+                  <div style={{ font: `600 13px/1.3 ${F.body}`, color: T.ink }}>Scan an appliance label or warranty card</div>
+                  <p style={{ font: `400 12.5px/1.6 ${F.body}`, color: T.muted, margin: "6px 0 12px" }}>
+                    Photograph it in the Warranty Wallet. HomeGentic reads the brand, model and warranty, and you confirm them before they're saved to a room.
+                  </p>
+                  <GhostBtn onClick={() => {
+                    authService.completeOnboarding().catch(e => console.error("[AddPropertyModal] completeOnboarding:", e));
+                    onClose();
+                    navigate("/warranties");
+                  }}>Scan a label</GhostBtn>
+                </div>
+              </div>
+            </div>
+            <div style={{ paddingTop: 24, borderTop: `1px solid ${T.rule}`, marginTop: 24, display: "flex", gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <PrimaryBtn onClick={() => setStep("saved")} fullWidth>Back to setup</PrimaryBtn>
               </div>
             </div>
           </div>

@@ -17,5 +17,9 @@ export function webPathFor(route: string | undefined): string {
   if (route.startsWith("successor/")) return `/properties/${encodeURIComponent(route.slice("successor/".length))}/successor`;
   if (route === "successor-claims") return "/successor-claims";
   if (route.startsWith("quotes/")) return `/quotes/${encodeURIComponent(route.slice("quotes/".length))}`;
+  // First week: "systems/<propertyId>" (system install years) and
+  // "guide/<propertyId>" (the house guide, where the shutoffs are written).
+  if (route.startsWith("systems/")) return `/properties/${encodeURIComponent(route.slice("systems/".length))}/systems`;
+  if (route.startsWith("guide/")) return `/properties/${encodeURIComponent(route.slice("guide/".length))}?tab=guide`;
   return "/dashboard";
 }

@@ -135,6 +135,7 @@ describe("waiting-period reminders in the poller", () => {
     isPro: jest.fn(async () => true),
     getSuccessionNotice: jest.fn(async () => NOTICE),
     getVisitBooking: jest.fn(async () => null),
+    getSetupStatus: jest.fn(async () => ({ exists: true, hasShutoffs: false, hasPaperwork: false })),
     dispatch: jest.fn(async () => undefined),
     wantsPush: jest.fn(() => false),
     emailEnabled: jest.fn(() => true),

@@ -189,6 +189,16 @@ export interface _SERVICE {
       verifiedJobCount: bigint;
     }
   >;
+  getInboxActivity: ActorMethod<
+    [Principal],
+    | {
+        ok: {
+          forwarded: boolean;
+          openDrafts: bigint;
+        };
+      }
+    | { err: Error }
+  >;
   getJob: ActorMethod<[string], { ok: Job } | { err: Error }>;
   getJobByInviteToken: ActorMethod<
     [string],

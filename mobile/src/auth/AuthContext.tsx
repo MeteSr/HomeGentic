@@ -1,5 +1,6 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import { useAuth, AuthState } from "./useAuth";
+import type { UserRole } from "../services/authTypes";
 
 interface AuthContextValue {
   authState: AuthState;
@@ -7,6 +8,8 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   /** Retries Face ID / fingerprint for a saved session. */
   unlock: () => Promise<void>;
+  /** Creates the profile of a member who signed in for the first time. */
+  completeRegistration: (args: { role: UserRole; email: string; phone: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);

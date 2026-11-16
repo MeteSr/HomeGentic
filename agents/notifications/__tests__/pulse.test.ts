@@ -19,7 +19,7 @@ import { appUrl } from "../email";
 import { scoreBreakdown } from "../../../packages/shared/src/score";
 import { sellPromptWeek } from "../../../packages/shared/src/sellPrompt";
 import { buildApp } from "../server";
-import type { PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax } from "../types";
+import type { PulseHomeFinance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseSetup } from "../types";
 
 // Monday 2026-10-19 14:00 UTC (ISO week 43); autumn.
 const MONDAY = Date.UTC(2026, 9, 19, 14);
@@ -221,6 +221,58 @@ describe("buildSection", () => {
   });
 });
 
+describe("new owners and the years they entered", () => {
+  const DAY = 86_400_000;
+  const setup = (over: Partial<PulseSetup> = {}): PulseSetup => ({
+    propertyId: "P1", addedAtMs: MONDAY - 3 * DAY, systemYears: {}, hasShutoffs: false, ...over,
+  });
+  const section = (s: PulseSetup | null, snapshots: Parameters<typeof buildSection>[2] = []) =>
+    buildSection(HOUSE, [], snapshots, MONDAY, null, null, null, [], null, s);
+  const lifeItems = (s: ReturnType<typeof section>) =>
+    s.items.filter((i) => i.tag === "PAST RATED LIFE" || i.tag === "NEARING RATED LIFE");
+
+  it("counts a system from the year the owner gave, not the year the house was built", () => {
+    const s = section(setup({ addedAtMs: MONDAY - 60 * DAY, systemYears: { HVAC: 2019, Roofing: 2000 } }));
+    const titles = lifeItems(s).map((i) => i.title);
+    expect(titles.some((t) => t.includes("HVAC"))).toBe(false);
+    const roof = s.items.find((i) => i.title.includes("roof"))!;
+    expect(roof.body).toContain("You marked it as original to the house, built in 2000");
+  });
+
+  it("says the owner gave the replacement year, unless a later replacement job is on record", () => {
+    const owner = section(setup({ addedAtMs: MONDAY - 60 * DAY, systemYears: { Roofing: 2001 } }));
+    expect(owner.items.find((i) => i.title.includes("roof"))!.body).toContain("You said it was replaced in 2001");
+    const logged = section(setup({ addedAtMs: MONDAY - 60 * DAY, systemYears: { HVAC: 2005 } }), [
+      { serviceType: "HVAC", completedYear: 2007, amountCents: 900_000, isDiy: false, isVerified: true },
+    ]);
+    expect(logged.items.find((i) => i.title.includes("HVAC"))!.body).toContain("It was last replaced in 2007");
+  });
+
+  it("asks a home added in the last two weeks what's been replaced, instead of guessing from the build year", () => {
+    const s = section(setup());
+    expect(lifeItems(s)).toEqual([]);
+    const ask = s.items.find((i) => i.tag === "SET UP")!;
+    expect(ask.title).toBe("Tell us what's been replaced");
+    expect(ask.body).toContain("2000");
+    expect(ask.link!.url).toBe(`${appUrl()}/properties/P1/systems`);
+  });
+
+  it("goes back to the usual age notes once the home is past two weeks, or the owner gave any year, or a replacement is logged", () => {
+    expect(section(setup({ addedAtMs: MONDAY - 15 * DAY })).items.some((i) => i.tag === "SET UP")).toBe(false);
+    expect(section(setup({ systemYears: { HVAC: 2019 } })).items.some((i) => i.tag === "SET UP")).toBe(false);
+    expect(section(setup(), [
+      { serviceType: "Roofing", completedYear: 2020, amountCents: 1_400_000, isDiy: false, isVerified: true },
+    ]).items.some((i) => i.tag === "SET UP")).toBe(false);
+    expect(section(null).items.some((i) => i.tag === "SET UP")).toBe(false);
+  });
+
+  it("doesn't count the setup ask as something that needs the owner", () => {
+    const msg = renderPulse([section(setup())], 0, { dashboard: "d", settings: "s", unsubscribe: "u" });
+    expect(msg.subject).toBe("Your Home Pulse: nothing urgent this week");
+    expect(msg.text).toContain("Tell us what's been replaced");
+  });
+});
+
 describe("Thinking of selling?", () => {
   it("adds a yearly Bid to List note when enough verified agents serve the city", () => {
     const s = buildSection(HOUSE, [], [], MONDAY, null, null, null, [], 4);
@@ -281,6 +333,7 @@ describe("runPulse", () => {
       getProperties: jest.fn(async (o: string) => (o === "2vxsx-fae" ? [] : [HOUSE])),
       getJobs:       jest.fn(async () => [job()]),
       getSnapshots:  jest.fn(async () => []),
+      getSetup:      jest.fn(async () => []),
       getInsurance:  jest.fn(async () => []),
       getHomeFinance: jest.fn(async () => []),
       getPropertyTax: jest.fn(async () => []),
@@ -352,6 +405,21 @@ describe("runPulse", () => {
     const broken = deps({ getInsurance: jest.fn(async () => { throw new Error("no such method"); }) });
     expect(await runPulse(MONDAY, broken)).toBe(2);
     expect(broken.send.mock.calls[0][1].text).not.toContain("[INSURANCE]");
+  });
+
+  it("uses the years the owner entered, and still sends when they can't be read", async () => {
+    const d = deps({
+      getJobs: jest.fn(async () => []),
+      getSetup: jest.fn(async () => [{ propertyId: "P1", addedAtMs: MONDAY - 3 * 86_400_000, systemYears: {}, hasShutoffs: false }]),
+    });
+    await runPulse(MONDAY, d);
+    expect(d.getSetup).toHaveBeenCalledWith("aaaaa-aa");
+    expect(d.send.mock.calls[0][1].text).toContain("[SET UP] Tell us what's been replaced");
+
+    resetPulseState();
+    const broken = deps({ getSetup: jest.fn(async () => { throw new Error("no such method"); }) });
+    expect(await runPulse(MONDAY, broken)).toBe(2);
+    expect(broken.send.mock.calls[0][1].text).not.toContain("[SET UP]");
   });
 
   it("adds each property's home warranty renewal, and still sends when it can't be read", async () => {

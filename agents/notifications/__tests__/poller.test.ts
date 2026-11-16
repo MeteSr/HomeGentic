@@ -39,6 +39,7 @@ function deps(over: Partial<PollerDeps> = {}): PollerDeps {
     isPro:           jest.fn(async () => true),
     getSuccessionNotice: jest.fn(async () => null),
     getVisitBooking: jest.fn(async () => null),
+    getSetupStatus: jest.fn(async () => ({ exists: true, hasShutoffs: false, hasPaperwork: false })),
     dispatch:        jest.fn(async () => undefined),
     wantsPush:       jest.fn(() => true),
     emailEnabled:    jest.fn(() => false),

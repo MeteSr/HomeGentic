@@ -8,7 +8,8 @@ import { HttpAgent } from "@icp-sdk/core/agent";
 import { buildIIAuthUrl, parseAuthCallback, isDelegationExpired, delegationExpiryMs, delegationTargetsKey, REDIRECT_URI } from "./authUtils";
 import { saveAuth, loadAuth, clearAuth, StoredAuth } from "./authStorage";
 import { authenticateWithBiometrics } from "./biometricService";
-import { getProfile, UserProfile } from "../services/authService";
+import { loadProfile, register, UserProfile } from "../services/authService";
+import type { UserRole } from "../services/authTypes";
 import { clearIcpAgent, setIcpAgent } from "../services/icpAgent";
 
 export type AuthState =
@@ -17,7 +18,11 @@ export type AuthState =
   | { status: "loading" }
   /** A saved session exists but Face ID / fingerprint was cancelled or failed. */
   | { status: "locked" }
-  | { status: "authenticated"; principal: string; profile: UserProfile | null; identity: DelegationIdentity; agent: HttpAgent; expiresAt: number }
+  | {
+      status: "authenticated"; principal: string; profile: UserProfile | null; identity: DelegationIdentity; agent: HttpAgent; expiresAt: number;
+      /** Signed in with Internet Identity but no HomeGentic profile yet: show sign-up before the app. */
+      needsRegistration?: boolean;
+    }
   | { status: "error"; message: string };
 
 /** Sign out this long before the delegation runs out, so no call fails half-way. */
@@ -126,9 +131,9 @@ export function useAuth() {
     const agent = buildAgent(identity);
     setIcpAgent(agent);
     const principal = identity.getPrincipal().toText();
-    const profile = await getProfile(agent).catch(() => null);
+    const { profile, needsRegistration } = await loadProfile(agent);
     const expiresAt = delegationExpiryMs(stored.delegationChainJSON) ?? Date.now();
-    setAuthState({ status: "authenticated", principal, profile, identity, agent, expiresAt });
+    setAuthState({ status: "authenticated", principal, profile, identity, agent, expiresAt, needsRegistration });
   }
 
   /** Retries the biometric prompt for a saved session ("locked" state). */
@@ -200,5 +205,12 @@ export function useAuth() {
     setAuthState({ status: "idle" });
   }, []);
 
-  return { authState, login, logout, unlock };
+  /** Sign-up for a first-time member; throws the canister's error for the form to show. */
+  const completeRegistration = useCallback(async (args: { role: UserRole; email: string; phone: string }) => {
+    if (authState.status !== "authenticated") throw new Error("Sign in first.");
+    const profile = await register(authState.agent, args);
+    setAuthState((s) => (s.status === "authenticated" ? { ...s, profile, needsRegistration: false } : s));
+  }, [authState]);
+
+  return { authState, login, logout, unlock, completeRegistration };
 }

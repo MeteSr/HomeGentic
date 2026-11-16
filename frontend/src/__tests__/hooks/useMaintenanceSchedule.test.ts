@@ -15,6 +15,7 @@ import type { RecurringService, VisitLog } from "@/services/recurringService";
 
 const mockGetSchedule   = vi.fn();
 const mockSystemAgesGet = vi.fn();
+const mockSystemAgesLoad = vi.fn();
 
 vi.mock("@/services/recurringService", () => ({
   recurringService: {
@@ -23,7 +24,10 @@ vi.mock("@/services/recurringService", () => ({
 }));
 
 vi.mock("@/services/systemAges", () => ({
-  systemAgesService: { get: (...a: any[]) => mockSystemAgesGet(...a) },
+  systemAgesService: {
+    get:  (...a: any[]) => mockSystemAgesGet(...a),
+    load: (...a: any[]) => mockSystemAgesLoad(...a),
+  },
 }));
 
 import { useMaintenanceSchedule } from "@/hooks/useMaintenanceSchedule";
@@ -47,6 +51,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockGetSchedule.mockResolvedValue({ services: [SVC], visitLogs: { svc1: [LOG] } });
   mockSystemAgesGet.mockReturnValue({ HVAC: 3 });
+  mockSystemAgesLoad.mockImplementation(async () => mockSystemAgesGet());
 });
 
 // ── MS.1 ─────────────────────────────────────────────────────────────────────

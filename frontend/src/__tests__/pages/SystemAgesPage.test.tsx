@@ -26,10 +26,11 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...actual, useParams: mockUseParams, useNavigate: () => mockNavigate };
 });
 
-const { mockGet, mockSet } = vi.hoisted(() => ({ mockGet: vi.fn(), mockSet: vi.fn() }));
+// Saves go to the home record (save); load() reads it when the page opens.
+const { mockGet, mockSet, mockLoad } = vi.hoisted(() => ({ mockGet: vi.fn(), mockSet: vi.fn(), mockLoad: vi.fn() }));
 vi.mock("@/services/systemAges", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/systemAges")>();
-  return { ...actual, systemAgesService: { get: mockGet, set: mockSet } };
+  return { ...actual, systemAgesService: { get: mockGet, save: mockSet, load: mockLoad } };
 });
 
 const STABLE_PROPS: Property[] = [{
@@ -45,8 +46,8 @@ vi.mock("@/components/Layout", () => ({
   Layout: ({ children }: any) => <div data-testid="layout">{children}</div>,
 }));
 
-const { mockToastSuccess } = vi.hoisted(() => ({ mockToastSuccess: vi.fn() }));
-vi.mock("react-hot-toast", () => ({ default: { success: mockToastSuccess } }));
+const { mockToastSuccess, mockToastError } = vi.hoisted(() => ({ mockToastSuccess: vi.fn(), mockToastError: vi.fn() }));
+vi.mock("react-hot-toast", () => ({ default: { success: mockToastSuccess, error: mockToastError } }));
 
 function renderPage() {
   return render(
@@ -59,7 +60,25 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   mockGet.mockReturnValue({});
+  mockLoad.mockImplementation(async () => mockGet());
+  mockSet.mockImplementation(async (_pid: string, ages: unknown) => ages);
   mockUseParams.mockReturnValue({ id: "prop-1" });
+});
+
+describe("SystemAgesPage — home record", () => {
+  it("shows the years saved on the home record", async () => {
+    mockLoad.mockResolvedValueOnce({ Roofing: 2011 });
+    renderPage();
+    expect(await screen.findByDisplayValue("2011")).toBeInTheDocument();
+  });
+
+  it("stays on the page and says why when the record refuses the years", async () => {
+    mockSet.mockRejectedValueOnce(new Error("The HVAC year is in the future"));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    await waitFor(() => expect(mockToastError).toHaveBeenCalled());
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
 });
 
 describe("SystemAgesPage — initialization", () => {

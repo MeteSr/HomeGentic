@@ -750,6 +750,8 @@ function NotificationsTab() {
       { key: "showing_requests", label: "Email: Showing Requests", desc: "When a buyer asks to see a home you're selling yourself" },
       { key: "visits",         label: "Email: Visit Times",    desc: "When a contractor offers visit times or cancels, and a reminder the day before" },
       { key: "payments",       label: "Email: Payments",       desc: "A receipt when you pay a contractor in the app, or a note if the payment fails" },
+      { key: "getting_started", label: "Email: Getting Started", desc: "A welcome when you add your first home, then up to two setup tips that week. The tips also come as app notifications on a phone with HomeGentic's notifications on" },
+      { key: "verification",   label: "Email: Ownership Verification", desc: "When HomeGentic verifies your ownership document, or can't" },
     ]),
   ];
   const hasSms = !!relay.state?.channels.sms;
