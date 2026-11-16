@@ -245,10 +245,14 @@ describe("AddPropertyScreen — like the web wizard", () => {
     expect(Alert.alert).toHaveBeenCalledWith("Almost there", "Enter the year the HVAC / AC was replaced.");
     expect(mockSaveYears).not.toHaveBeenCalled();
 
-    mockSaveYears.mockRejectedValueOnce(Object.assign(new Error("The HVAC year is in the future"), { name: "CanisterError", code: "InvalidInput" }));
+    mockSaveYears.mockRejectedValueOnce(
+      Object.assign(new Error("The HVAC year is in the future"), { name: "CanisterError", code: "InvalidInput" }),
+    );
     await fireEvent.changeText(screen.getByLabelText("Year the HVAC / AC was replaced"), "2019");
     await fireEvent.press(screen.getByRole("button", { name: "Save years" }));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith("Couldn't save the years", expect.stringMatching(/in the future/)));
+    await waitFor(() =>
+      expect(Alert.alert).toHaveBeenCalledWith("Couldn't save the years", expect.stringMatching(/in the future/)),
+    );
     expect(navigation.goBack).not.toHaveBeenCalled();
   });
 

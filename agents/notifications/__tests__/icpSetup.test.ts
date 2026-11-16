@@ -70,7 +70,11 @@ describe("getSetupStatus", () => {
   it("says whether the home is still the owner's and has its shutoff written down", async () => {
     mockCreateActor.mockReturnValue(actor([{ propertyId: "P2" }], undefined, [{ propertyId: "P2" }]));
     expect(await getSetupStatus("2vxsx-fae", "P1")).toEqual({ exists: true, hasShutoffs: true, hasPaperwork: false });
-    expect(await getSetupStatus("2vxsx-fae", "GONE")).toEqual({ exists: false, hasShutoffs: false, hasPaperwork: false });
+    expect(await getSetupStatus("2vxsx-fae", "GONE")).toEqual({
+      exists: false,
+      hasShutoffs: false,
+      hasPaperwork: false,
+    });
   });
 
   it("counts a job on the home, a forwarded invoice or a scanned appliance label as paperwork", async () => {

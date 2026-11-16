@@ -20,13 +20,7 @@ import {
   type AddressParts,
   type AddressSuggestion,
 } from "../../services/propertyLookupService";
-import {
-  NO_ORIGINAL,
-  SYSTEMS,
-  saveSystemYears,
-  yearsToSave,
-  type YearChoice,
-} from "../../services/systemYearsService";
+import { NO_ORIGINAL, SYSTEMS, saveSystemYears, yearsToSave, type YearChoice } from "../../services/systemYearsService";
 import { Choice, inputStyle } from "../../components/Choice";
 import { Kicker, Pill, PushedScroll } from "../../components/ui";
 import { family, type, v3 } from "../../theme";
@@ -61,10 +55,15 @@ export default function AddPropertyScreen({ navigation }: Props) {
     let live = true;
     const t = setTimeout(() => {
       suggestAddresses(form.address, session.current)
-        .then((s) => { if (live) setSuggestions(s.slice(0, 5)); })
+        .then((s) => {
+          if (live) setSuggestions(s.slice(0, 5));
+        })
         .catch(() => {});
     }, SUGGEST_DEBOUNCE_MS);
-    return () => { live = false; clearTimeout(t); };
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
   }, [form.address]);
 
   async function pick(s: AddressSuggestion) {
@@ -72,7 +71,10 @@ export default function AddPropertyScreen({ navigation }: Props) {
     setSuggestions([]);
     const parts = await placeAddress(s.placeId, session.current).catch(() => null);
     session.current = newAddressSessionToken();
-    if (!parts) { setForm((f) => ({ ...f, address: s.main })); return; }
+    if (!parts) {
+      setForm((f) => ({ ...f, address: s.main }));
+      return;
+    }
     setForm((f) => ({ ...f, address: parts.address, city: parts.city, state: parts.state, zipCode: parts.zipCode }));
     prefill(parts);
   }
@@ -82,8 +84,8 @@ export default function AddPropertyScreen({ navigation }: Props) {
     if (!d) return;
     setForm((f) => ({
       ...f,
-      yearBuilt:    f.yearBuilt || (d.yearBuilt ? String(d.yearBuilt) : ""),
-      squareFeet:   f.squareFeet || (d.squareFeet ? String(d.squareFeet) : ""),
+      yearBuilt: f.yearBuilt || (d.yearBuilt ? String(d.yearBuilt) : ""),
+      squareFeet: f.squareFeet || (d.squareFeet ? String(d.squareFeet) : ""),
       propertyType: d.propertyType ?? f.propertyType,
     }));
     if (d.yearBuilt || d.squareFeet || d.propertyType) setFromRecords(true);
@@ -91,7 +93,10 @@ export default function AddPropertyScreen({ navigation }: Props) {
 
   async function save() {
     const err = validateNewProperty(form);
-    if (err) { Alert.alert("Almost there", err); return; }
+    if (err) {
+      Alert.alert("Almost there", err);
+      return;
+    }
     setSaving(true);
     try {
       const args = buildPropertyArgs(form, app.tier);
@@ -109,9 +114,20 @@ export default function AddPropertyScreen({ navigation }: Props) {
 
   if (saved) return <SystemYearsStep propertyId={saved.id} yearBuilt={saved.yearBuilt} onDone={navigation.goBack} />;
 
-  const field = (k: keyof NewPropertyForm, label: string, extra: Partial<React.ComponentProps<typeof TextInput>> = {}) => (
-    <TextInput style={inputStyle} value={form[k]} onChangeText={set(k)} placeholder={label} placeholderTextColor={v3.muted}
-      accessibilityLabel={label} {...extra} />
+  const field = (
+    k: keyof NewPropertyForm,
+    label: string,
+    extra: Partial<React.ComponentProps<typeof TextInput>> = {},
+  ) => (
+    <TextInput
+      style={inputStyle}
+      value={form[k]}
+      onChangeText={set(k)}
+      placeholder={label}
+      placeholderTextColor={v3.muted}
+      accessibilityLabel={label}
+      {...extra}
+    />
   );
 
   return (
@@ -123,13 +139,22 @@ export default function AddPropertyScreen({ navigation }: Props) {
       <Kicker style={{ marginTop: 12 }}>NEW HOME</Kicker>
       <Text style={[type.pageTitle, { marginTop: 10 }]}>Add your home</Text>
       <Text style={[type.body, { fontSize: 13, lineHeight: 20.8, marginTop: 9 }]}>
-        The address and a few details start its record. You can verify ownership and add photos afterwards on homegentic.app.
+        The address and a few details start its record. You can verify ownership and add photos afterwards on
+        homegentic.app.
       </Text>
 
       <Kicker style={{ marginTop: 22 }}>ADDRESS</Kicker>
       {field("address", "Street address", { autoComplete: "street-address" })}
       {suggestions.length > 0 && (
-        <View style={{ marginTop: 6, borderWidth: 1.5, borderColor: v3.chipLine, borderRadius: 12, backgroundColor: v3.surface }}>
+        <View
+          style={{
+            marginTop: 6,
+            borderWidth: 1.5,
+            borderColor: v3.chipLine,
+            borderRadius: 12,
+            backgroundColor: v3.surface,
+          }}
+        >
           {suggestions.map((s, i) => (
             <Pressable
               key={s.placeId}
@@ -139,7 +164,9 @@ export default function AddPropertyScreen({ navigation }: Props) {
               style={{ paddingVertical: 11, paddingHorizontal: 14, borderTopWidth: i ? 1 : 0, borderTopColor: v3.line }}
             >
               <Text style={{ fontFamily: family.bodySemi, fontSize: 13.5, color: v3.ink }}>{s.main}</Text>
-              <Text style={{ fontFamily: family.body, fontSize: 12, color: v3.muted, marginTop: 2 }}>{s.secondary}</Text>
+              <Text style={{ fontFamily: family.body, fontSize: 12, color: v3.muted, marginTop: 2 }}>
+                {s.secondary}
+              </Text>
             </Pressable>
           ))}
         </View>
@@ -147,13 +174,20 @@ export default function AddPropertyScreen({ navigation }: Props) {
       {field("city", "City")}
       <View style={{ flexDirection: "row", gap: 9 }}>
         <View style={{ flex: 1 }}>{field("state", "State", { autoCapitalize: "characters", maxLength: 2 })}</View>
-        <View style={{ flex: 2 }}>{field("zipCode", "ZIP code", { keyboardType: "number-pad", maxLength: 10, autoComplete: "postal-code" })}</View>
+        <View style={{ flex: 2 }}>
+          {field("zipCode", "ZIP code", { keyboardType: "number-pad", maxLength: 10, autoComplete: "postal-code" })}
+        </View>
       </View>
 
       <Kicker style={{ marginTop: 22 }}>TYPE</Kicker>
       <View accessibilityRole="radiogroup" style={{ flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 10 }}>
         {PROPERTY_TYPES.map((t) => (
-          <Choice key={t.value} label={t.label} on={form.propertyType === t.value} onPress={() => setForm((f) => ({ ...f, propertyType: t.value }))} />
+          <Choice
+            key={t.value}
+            label={t.label}
+            on={form.propertyType === t.value}
+            onPress={() => setForm((f) => ({ ...f, propertyType: t.value }))}
+          />
         ))}
       </View>
 
@@ -164,14 +198,26 @@ export default function AddPropertyScreen({ navigation }: Props) {
         </Text>
       )}
       <View style={{ flexDirection: "row", gap: 9 }}>
-        <View style={{ flex: 1 }}>{field("yearBuilt", "Year built", { keyboardType: "number-pad", maxLength: 4 })}</View>
+        <View style={{ flex: 1 }}>
+          {field("yearBuilt", "Year built", { keyboardType: "number-pad", maxLength: 4 })}
+        </View>
         <View style={{ flex: 1 }}>{field("squareFeet", "Square feet", { keyboardType: "number-pad" })}</View>
       </View>
 
       <Kicker style={{ marginTop: 22 }}>DID YOU BUY THIS HOME IN THE LAST 12 MONTHS?</Kicker>
       <View accessibilityRole="radiogroup" style={{ flexDirection: "row", gap: 7, marginTop: 10 }}>
-        <Choice label="Yes" a11yLabel="Bought in the last 12 months: Yes" on={bought === true} onPress={() => setBought(true)} />
-        <Choice label="No" a11yLabel="Bought in the last 12 months: No" on={bought === false} onPress={() => setBought(false)} />
+        <Choice
+          label="Yes"
+          a11yLabel="Bought in the last 12 months: Yes"
+          on={bought === true}
+          onPress={() => setBought(true)}
+        />
+        <Choice
+          label="No"
+          a11yLabel="Bought in the last 12 months: No"
+          on={bought === false}
+          onPress={() => setBought(false)}
+        />
       </View>
       {bought && (
         <Text style={[type.body, { fontSize: 12.5, lineHeight: 19, marginTop: 8, color: v3.muted }]}>
@@ -183,7 +229,15 @@ export default function AddPropertyScreen({ navigation }: Props) {
 }
 
 /** Original or replaced, and when, for each main system; saved to the home record. */
-function SystemYearsStep({ propertyId, yearBuilt, onDone }: { propertyId: string; yearBuilt: number; onDone: () => void }) {
+function SystemYearsStep({
+  propertyId,
+  yearBuilt,
+  onDone,
+}: {
+  propertyId: string;
+  yearBuilt: number;
+  onDone: () => void;
+}) {
   const [answers, setAnswers] = useState<Record<string, YearChoice>>({});
   const [saving, setSaving] = useState(false);
   const answer = (name: string) => answers[name] ?? { choice: null, year: "" };
@@ -198,7 +252,10 @@ function SystemYearsStep({ propertyId, yearBuilt, onDone }: { propertyId: string
       Alert.alert("Almost there", (e as Error).message);
       return;
     }
-    if (Object.keys(years).length === 0) { onDone(); return; }
+    if (Object.keys(years).length === 0) {
+      onDone();
+      return;
+    }
     setSaving(true);
     try {
       await saveSystemYears(propertyId, years);
@@ -231,11 +288,25 @@ function SystemYearsStep({ propertyId, yearBuilt, onDone }: { propertyId: string
         return (
           <View key={name} style={{ marginTop: 20 }}>
             <Kicker>{label.toUpperCase()}</Kicker>
-            <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ flexDirection: "row", gap: 7, marginTop: 10 }}>
+            <View
+              accessibilityRole="radiogroup"
+              accessibilityLabel={label}
+              style={{ flexDirection: "row", gap: 7, marginTop: 10 }}
+            >
               {!NO_ORIGINAL.has(name) && (
-                <Choice label="Original" a11yLabel={`${label}: Original`} on={a.choice === "original"} onPress={() => update(name, { choice: "original" })} />
+                <Choice
+                  label="Original"
+                  a11yLabel={`${label}: Original`}
+                  on={a.choice === "original"}
+                  onPress={() => update(name, { choice: "original" })}
+                />
               )}
-              <Choice label={replacedLabel} a11yLabel={`${label}: ${replacedLabel}`} on={a.choice === "replaced"} onPress={() => update(name, { choice: "replaced" })} />
+              <Choice
+                label={replacedLabel}
+                a11yLabel={`${label}: ${replacedLabel}`}
+                on={a.choice === "replaced"}
+                onPress={() => update(name, { choice: "replaced" })}
+              />
             </View>
             {a.choice === "replaced" && (
               <TextInput

@@ -3,7 +3,17 @@ import { Pressable, Text } from "react-native";
 import { family, v3 } from "../theme";
 
 /** One option in a row of radio pills. */
-export function Choice({ label, on, onPress, a11yLabel }: { label: string; on: boolean; onPress: () => void; a11yLabel?: string }) {
+export function Choice({
+  label,
+  on,
+  onPress,
+  a11yLabel,
+}: {
+  label: string;
+  on: boolean;
+  onPress: () => void;
+  a11yLabel?: string;
+}) {
   return (
     <Pressable
       onPress={onPress}
