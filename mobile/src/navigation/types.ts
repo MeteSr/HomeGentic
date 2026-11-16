@@ -23,6 +23,7 @@ export type RootStackParamList = {
   People:         undefined;
   Upgrade:        undefined;
   AddRecurring:   { propertyId: string };
+  AddProperty:    undefined;
   PropertyDetail: { property: Property };
   LogJob:         { propertyId: string; propertyAddress: string; prefill?: Partial<import("../services/jobFormService").JobForm> };
   QuoteRequest:   { propertyId: string; propertyAddress: string; urgency?: import("../services/quoteFormService").Urgency };

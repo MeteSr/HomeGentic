@@ -6,6 +6,7 @@ import PeopleScreen from "../screens/v3/PeopleScreen";
 import UpgradeScreen from "../screens/v3/UpgradeScreen";
 import CompareBidsScreen from "../screens/v3/CompareBidsScreen";
 import AddRecurringScreen from "../screens/v3/AddRecurringScreen";
+import AddPropertyScreen from "../screens/v3/AddPropertyScreen";
 import PropertyDetailScreen from "../screens/PropertyDetailScreen";
 import LogJobScreen from "../screens/LogJobScreen";
 import QuoteRequestScreen from "../screens/QuoteRequestScreen";
@@ -52,6 +53,7 @@ export default function RootNavigator() {
       <Stack.Screen name="Upgrade"      component={UpgradeScreen}      options={{ headerShown: false }} />
       <Stack.Screen name="CompareBids"  component={CompareBidsScreen}  options={{ headerShown: false }} />
       <Stack.Screen name="AddRecurring" component={AddRecurringScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="AddProperty"  component={AddPropertyScreen}  options={{ headerShown: false }} />
       <Stack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={{ title: "JOB HISTORY" }} />
       <Stack.Screen name="LogJob"       component={LogJobScreen}       options={{ title: "LOG A JOB" }} />
       <Stack.Screen name="QuoteRequest" component={QuoteRequestScreen} options={{ title: "REQUEST A QUOTE" }} />

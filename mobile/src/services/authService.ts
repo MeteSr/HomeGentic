@@ -5,7 +5,8 @@ import type { IssuedSession } from "@homegentic/shared/agentSession";
 import { actorFor } from "./canister";
 import type { _SERVICE as AuthCanister } from "@homegentic/shared/types/auth";
 import type * as AuthTypes from "@homegentic/shared/types/auth";
-import { canisterError } from "@homegentic/shared/canisterError";
+import { canisterError, hasErrorCode } from "@homegentic/shared/canisterError";
+import type { UserRole } from "./authTypes";
 
 export type { UserRole, UserProfile } from "./authTypes";
 export { fromProfile } from "./authTypes";
@@ -29,6 +30,32 @@ export async function getProfile(agent: HttpAgent): Promise<UserProfile | null> 
   if (!AUTH_CANISTER_ID) return null;
   const actor = actorFor<AuthCanister>(idlFactory, AUTH_CANISTER_ID, agent);
   const result = await actor.getProfile();
+  return unwrap(result);
+}
+
+/**
+ * The profile at sign-in. `needsRegistration` is true only when the auth
+ * canister says this principal has no profile yet; a network failure leaves
+ * it false, so a flaky connection never sends a member to sign-up.
+ */
+export async function loadProfile(agent: HttpAgent): Promise<{ profile: UserProfile | null; needsRegistration: boolean }> {
+  try {
+    return { profile: await getProfile(agent), needsRegistration: false };
+  } catch (err) {
+    return { profile: null, needsRegistration: hasErrorCode(err, "NotFound") };
+  }
+}
+
+/** Sign up: create the caller's profile, as the web Register page does. */
+export async function register(
+  agent: HttpAgent, args: { role: UserRole; email: string; phone: string },
+): Promise<UserProfile> {
+  const actor = actorFor<AuthCanister>(idlFactory, AUTH_CANISTER_ID, agent);
+  const result = await actor.register({
+    role: { [args.role]: null } as AuthTypes.UserRole,
+    email: args.email,
+    phone: args.phone,
+  });
   return unwrap(result);
 }
 

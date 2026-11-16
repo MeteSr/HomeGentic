@@ -1,18 +1,15 @@
 import React from "react";
 import { Text } from "react-native";
-import * as WebBrowser from "expo-web-browser";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../../navigation/types";
 import { useAppData } from "../../context/AppData";
-import { HOMEGENTIC_WEB_URL } from "../../services/reportService";
 import { Card, Kicker, PageHeader, Pill } from "../../components/ui";
 import { type } from "../../theme";
 
-/** Adding a property needs address lookup and ownership checks, which live on the web. */
-export function openAddProperty(): Promise<unknown> {
-  return WebBrowser.openBrowserAsync(`${HOMEGENTIC_WEB_URL.replace(/\/$/, "")}/dashboard`);
-}
-
 export function NoProperty() {
   const app = useAppData();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
     <>
       <PageHeader kicker="WELCOME" title="Add your home" />
@@ -21,13 +18,12 @@ export function NoProperty() {
         <Text style={[type.body, { fontSize: 13.5, lineHeight: 21, marginTop: 10 }]}>
           {app.propertiesError
             ? "We couldn't reach your properties. Check your connection and try again."
-            : "Add your property on homegentic.app. It shows up here as soon as it's saved, with its score, jobs and upkeep."}
+            : "Add your home's address and a few details to start its record: jobs, upkeep and its score live here."}
         </Text>
         <Pill
           label={app.propertiesError ? "Try again" : "Add a property"}
-          icon={app.propertiesError ? undefined : "external"}
           style={{ marginTop: 16 }}
-          onPress={() => (app.propertiesError ? app.refreshProperties() : openAddProperty().then(app.refreshProperties))}
+          onPress={() => (app.propertiesError ? app.refreshProperties() : navigation.navigate("AddProperty"))}
         />
       </Card>
     </>
