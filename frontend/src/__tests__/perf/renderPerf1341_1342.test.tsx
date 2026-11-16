@@ -120,6 +120,7 @@ vi.mock("@/services/systemAges", () => ({
   systemAgesService: {
     getSystemAges: vi.fn(() => Promise.resolve({})),
     get:           vi.fn(() => ({})),
+    load:          vi.fn(() => Promise.resolve({})),
   },
 }));
 

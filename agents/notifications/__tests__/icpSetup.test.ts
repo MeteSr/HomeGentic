@@ -12,7 +12,9 @@ jest.mock("@icp-sdk/core/agent", () => ({
 import { getPulseSetup, getSetupStatus } from "../icp";
 
 const setupRow = {
-  propertyId: "P1", addedAt: 1_762_000_000_000_000_000n, hasShutoffs: true,
+  propertyId: "P1",
+  addedAt: 1_762_000_000_000_000_000n,
+  hasShutoffs: true,
   systemYears: [{ name: "HVAC", installYear: 2019n }],
 };
 
@@ -38,11 +40,23 @@ it("throws on an error result", async () => {
 describe("getSetupStatus", () => {
   const actor = (jobs: { propertyId: string }[]) => ({
     getPulseSetup: jest.fn(async () => ({ ok: [setupRow] })),
-    getJobsByOwner: jest.fn(async () => jobs.map((j) => ({
-      id: "J", propertyId: j.propertyId, title: "t", serviceType: { HVAC: null }, contractorName: [], amount: 0n,
-      completedDate: 0n, warrantyMonths: [], isDiy: true, status: { Completed: null }, verified: false,
-      homeownerSigned: true, contractorSigned: false,
-    }))),
+    getJobsByOwner: jest.fn(async () =>
+      jobs.map((j) => ({
+        id: "J",
+        propertyId: j.propertyId,
+        title: "t",
+        serviceType: { HVAC: null },
+        contractorName: [],
+        amount: 0n,
+        completedDate: 0n,
+        warrantyMonths: [],
+        isDiy: true,
+        status: { Completed: null },
+        verified: false,
+        homeownerSigned: true,
+        contractorSigned: false,
+      })),
+    ),
   });
 
   it("says whether the home is still the owner's, has its shutoff written down and has a job", async () => {
@@ -54,7 +68,11 @@ describe("getSetupStatus", () => {
   });
 
   it("returns null when the record can't be read", async () => {
-    mockCreateActor.mockReturnValue({ getPulseSetup: jest.fn(async () => { throw new Error("down"); }) });
+    mockCreateActor.mockReturnValue({
+      getPulseSetup: jest.fn(async () => {
+        throw new Error("down");
+      }),
+    });
     expect(await getSetupStatus("2vxsx-fae", "P1")).toBeNull();
   });
 });

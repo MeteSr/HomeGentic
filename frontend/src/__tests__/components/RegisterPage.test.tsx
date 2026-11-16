@@ -7,19 +7,11 @@
  *     - Continue button is disabled until a role is selected
  *     - Continue button advances to step 2
  *
- *   Step 2 — details / validation
+ *   Step 2 — details, terms and submit (there is no separate confirm step)
  *     - renders email and phone fields
  *     - shows email error on blur with invalid email
  *     - clears email error when user edits the field
- *     - Review button disabled when email is invalid
- *     - Review button disabled when phone is invalid
- *     - Review button re-enables once invalid email is corrected
- *     - Review button advances with valid inputs
- *     - Review button advances when both fields are empty (optional)
- *
- *   Step 3 — confirm
- *     - shows the selected role, email, and phone
- *     - shows "Not provided" for empty optional fields
+ *     - Create Account disabled until the email is valid, the phone (if any) is valid and the terms are agreed
  *     - calls authService.register on Create Account
  *     - navigates to /dashboard after successful Homeowner registration
  *     - navigates to /contractor-dashboard after successful Contractor registration
@@ -71,11 +63,11 @@ function renderPage() {
 describe("RegisterPage — step 1: role selection", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders all three role cards", () => {
+  it("renders all three roles as radio buttons", () => {
     renderPage();
-    expect(screen.getByText("Homeowner")).toBeInTheDocument();
-    expect(screen.getByText("Contractor")).toBeInTheDocument();
-    expect(screen.getByText("Realtor")).toBeInTheDocument();
+    for (const r of ["Homeowner", "Contractor", "Realtor"]) {
+      expect(screen.getByRole("radio", { name: new RegExp(r) })).toBeInTheDocument();
+    }
   });
 
   it("Continue button is disabled until a role is selected", () => {
@@ -85,13 +77,13 @@ describe("RegisterPage — step 1: role selection", () => {
 
   it("Continue button becomes enabled after selecting a role", () => {
     renderPage();
-    fireEvent.click(screen.getByText("Homeowner"));
+    fireEvent.click(screen.getByRole("radio", { name: /Homeowner/ }));
     expect(screen.getByRole("button", { name: /continue/i })).not.toBeDisabled();
   });
 
   it("advances to step 2 after selecting a role and clicking Continue", () => {
     renderPage();
-    fireEvent.click(screen.getByText("Homeowner"));
+    fireEvent.click(screen.getByRole("radio", { name: /Homeowner/ }));
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
     expect(screen.getByText(/your details/i)).toBeInTheDocument();
   });
@@ -99,10 +91,18 @@ describe("RegisterPage — step 1: role selection", () => {
 
 // ── Step 2 ────────────────────────────────────────────────────────────────────
 
-function goToStep2() {
+function goToStep2(role: "Homeowner" | "Contractor" = "Homeowner") {
   renderPage();
-  fireEvent.click(screen.getByText("Homeowner"));
+  fireEvent.click(screen.getByRole("radio", { name: new RegExp(role) }));
   fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+}
+
+const createButton = () => screen.getByRole("button", { name: /create account/i });
+
+function fillAndAgree(email = "test@example.com", phone = "5125550100") {
+  if (email) fireEvent.change(screen.getByPlaceholderText(/you@example\.com/i), { target: { value: email } });
+  if (phone) fireEvent.change(screen.getByPlaceholderText(/\+1.*555/i), { target: { value: phone } });
+  fireEvent.click(screen.getByRole("checkbox"));
 }
 
 describe("RegisterPage — step 2: details & validation", () => {
@@ -132,82 +132,29 @@ describe("RegisterPage — step 2: details & validation", () => {
     expect(screen.queryByText(/valid email/i)).not.toBeInTheDocument();
   });
 
-  it("Review button is disabled when email is invalid", () => {
+  it("Create Account is disabled with no email, a bad email, a bad phone or without the terms", () => {
     goToStep2();
-    fireEvent.change(screen.getByPlaceholderText(/you@example\.com/i), {
-      target: { value: "not-an-email" },
-    });
-    expect(screen.getByRole("button", { name: /review/i })).toBeDisabled();
-  });
-
-  it("Review button is disabled when phone is invalid", () => {
-    goToStep2();
-    fireEvent.change(screen.getByPlaceholderText(/\+1.*555/i), {
-      target: { value: "abc" },
-    });
-    expect(screen.getByRole("button", { name: /review/i })).toBeDisabled();
-  });
-
-  it("Review button re-enables once an invalid email is corrected", () => {
-    goToStep2();
-    const emailInput = screen.getByPlaceholderText(/you@example\.com/i);
-    fireEvent.change(emailInput, { target: { value: "not-an-email" } });
-    expect(screen.getByRole("button", { name: /review/i })).toBeDisabled();
-    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
-    expect(screen.getByRole("button", { name: /review/i })).not.toBeDisabled();
-  });
-
-  it("Review button advances with valid email and phone", () => {
-    goToStep2();
-    fireEvent.change(screen.getByPlaceholderText(/you@example\.com/i), {
-      target: { value: "test@example.com" },
-    });
-    fireEvent.change(screen.getByPlaceholderText(/\+1.*555/i), {
-      target: { value: "5125550100" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /review/i }));
-    expect(screen.getByRole("heading", { name: /confirm/i })).toBeInTheDocument();
-  });
-
-  it("Review button is disabled when email is empty", () => {
-    goToStep2();
-    // Email is required — button must be disabled with no input
-    expect(screen.getByRole("button", { name: /review/i })).toBeDisabled();
+    expect(createButton()).toBeDisabled();
+    fillAndAgree("not-an-email", "");
+    expect(createButton()).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText(/you@example\.com/i), { target: { value: "test@example.com" } });
+    expect(createButton()).not.toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText(/\+1.*555/i), { target: { value: "abc" } });
+    expect(createButton()).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText(/\+1.*555/i), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(createButton()).toBeDisabled();
   });
 });
 
-// ── Step 3 ────────────────────────────────────────────────────────────────────
-
-function goToStep3(email = "test@example.com", phone = "5125550100") {
-  renderPage();
-  fireEvent.click(screen.getByText("Homeowner"));
-  fireEvent.click(screen.getByRole("button", { name: /continue/i }));
-  if (email) fireEvent.change(screen.getByPlaceholderText(/you@example\.com/i), { target: { value: email } });
-  if (phone) fireEvent.change(screen.getByPlaceholderText(/\+1.*555/i), { target: { value: phone } });
-  fireEvent.click(screen.getByRole("button", { name: /review/i }));
-  // Must agree to terms before Create Account is enabled
-  fireEvent.click(screen.getByRole("checkbox"));
-}
-
-describe("RegisterPage — step 3: confirm & submit", () => {
+describe("RegisterPage — submit", () => {
   beforeEach(() => vi.clearAllMocks());
-
-  it("shows the selected role and contact details", () => {
-    goToStep3();
-    expect(screen.getByText("Homeowner")).toBeInTheDocument();
-    expect(screen.getByText("test@example.com")).toBeInTheDocument();
-    expect(screen.getByText("5125550100")).toBeInTheDocument();
-  });
-
-  it("shows 'Not provided' for empty optional phone field", () => {
-    goToStep3("test@example.com", "");
-    expect(screen.getAllByText("Not provided").length).toBe(1);
-  });
 
   it("calls authService.register on Create Account", async () => {
     vi.mocked(authService.register).mockResolvedValue(MOCK_PROFILE);
-    goToStep3();
-    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+    goToStep2();
+    fillAndAgree();
+    fireEvent.click(createButton());
     await waitFor(() => expect(authService.register).toHaveBeenCalledWith({
       role: "Homeowner",
       email: "test@example.com",
@@ -217,34 +164,33 @@ describe("RegisterPage — step 3: confirm & submit", () => {
 
   it("navigates to /dashboard after Homeowner registration", async () => {
     vi.mocked(authService.register).mockResolvedValue(MOCK_PROFILE);
-    goToStep3();
-    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+    goToStep2();
+    fillAndAgree();
+    fireEvent.click(createButton());
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/dashboard"));
   });
 
   it("navigates to /contractor-dashboard after Contractor registration", async () => {
     vi.mocked(authService.register).mockResolvedValue({ ...MOCK_PROFILE, role: "Contractor" });
-    renderPage();
-    fireEvent.click(screen.getByText("Contractor"));
-    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
-    fireEvent.change(screen.getByPlaceholderText(/you@example\.com/i), { target: { value: "contractor@example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: /review/i }));
-    fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+    goToStep2("Contractor");
+    fillAndAgree("contractor@example.com", "");
+    fireEvent.click(createButton());
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/contractor-dashboard"));
   });
 
   it("shows toast error when registration fails", async () => {
     vi.mocked(authService.register).mockRejectedValue(new CanisterError("AlreadyExists"));
-    goToStep3();
-    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+    goToStep2();
+    fillAndAgree();
+    fireEvent.click(createButton());
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("That already exists."));
   });
 
   it("never shows a raw error tag or agent text", async () => {
     vi.mocked(authService.register).mockRejectedValue(new Error("Call failed: Reject code 5, canister trapped"));
-    goToStep3();
-    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+    goToStep2();
+    fillAndAgree();
+    fireEvent.click(createButton());
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Registration failed"));
   });
 });

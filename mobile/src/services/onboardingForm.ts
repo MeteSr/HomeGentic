@@ -4,37 +4,85 @@ export type NewPropertyType = "SingleFamily" | "Townhouse" | "Condo" | "MultiFam
 
 export const PROPERTY_TYPES: { value: NewPropertyType; label: string }[] = [
   { value: "SingleFamily", label: "Single-family" },
-  { value: "Townhouse",    label: "Townhouse" },
-  { value: "Condo",        label: "Condo" },
-  { value: "MultiFamily",  label: "Multi-family" },
+  { value: "Townhouse", label: "Townhouse" },
+  { value: "Condo", label: "Condo" },
+  { value: "MultiFamily", label: "Multi-family" },
 ];
 
 export interface NewPropertyForm {
-  address:      string;
-  city:         string;
-  state:        string;
-  zipCode:      string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
   propertyType: NewPropertyType;
-  yearBuilt:    string;
-  squareFeet:   string;
+  yearBuilt: string;
+  squareFeet: string;
 }
 
 export interface NewPropertyArgs {
-  address:      string;
-  city:         string;
-  state:        string;
-  zipCode:      string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
   propertyType: NewPropertyType;
-  yearBuilt:    number;
-  squareFeet:   number;
+  yearBuilt: number;
+  squareFeet: number;
   /** The caller's plan; the canister reads the live tier from payment either way. */
-  tier:         string;
+  tier: string;
 }
 
 const US_STATES = new Set([
-  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
-  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
-  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC",
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
+  "DC",
 ]);
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -45,7 +93,12 @@ const isPhone = (v: string) => {
 const wholeNumber = (v: string) => Number(v.replace(/[,\s]/g, ""));
 
 /** Pure — the first problem with the sign-up form, or null. */
-export function validateRegistration(f: { role: UserRole | null; email: string; phone: string; agreed: boolean }): string | null {
+export function validateRegistration(f: {
+  role: UserRole | null;
+  email: string;
+  phone: string;
+  agreed: boolean;
+}): string | null {
   if (!f.role) return "Choose how you'll use HomeGentic.";
   if (!f.email.trim()) return "Enter your email address.";
   if (!isEmail(f.email)) return "Enter a valid email address.";
@@ -76,13 +129,13 @@ export function validateNewProperty(f: NewPropertyForm, currentYear = new Date()
 /** Pure — a validated form as registerProperty's arguments. */
 export function buildPropertyArgs(f: NewPropertyForm, tier: string): NewPropertyArgs {
   return {
-    address:      f.address.trim(),
-    city:         f.city.trim(),
-    state:        f.state.trim().toUpperCase(),
-    zipCode:      f.zipCode.trim(),
+    address: f.address.trim(),
+    city: f.city.trim(),
+    state: f.state.trim().toUpperCase(),
+    zipCode: f.zipCode.trim(),
     propertyType: f.propertyType,
-    yearBuilt:    wholeNumber(f.yearBuilt),
-    squareFeet:   wholeNumber(f.squareFeet),
+    yearBuilt: wholeNumber(f.yearBuilt),
+    squareFeet: wholeNumber(f.squareFeet),
     tier,
   };
 }

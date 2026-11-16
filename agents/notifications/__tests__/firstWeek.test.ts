@@ -25,7 +25,12 @@ const lookups = {
   getVisitBooking: jest.fn(async () => null),
 };
 const ev = (kind: string, over: Partial<OutboxEvent> = {}): OutboxEvent => ({
-  seq: 1, kind, recipient: "owner", refId: "PROP_1", summary: "12 Elm St", ...over,
+  seq: 1,
+  kind,
+  recipient: "owner",
+  refId: "PROP_1",
+  summary: "12 Elm St",
+  ...over,
 });
 
 function freshPoller() {

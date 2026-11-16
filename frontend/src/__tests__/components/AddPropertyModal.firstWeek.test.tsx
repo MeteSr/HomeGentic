@@ -19,7 +19,9 @@ vi.mock("@/services/photo", () => ({
 }));
 vi.mock("@/services/auth", () => ({ authService: { completeOnboarding: vi.fn().mockResolvedValue(undefined) } }));
 vi.mock("@/store/propertyStore", () => ({ usePropertyStore: () => ({ addProperty: vi.fn() }) }));
-vi.mock("@/hooks/useBreakpoint", () => ({ useBreakpoint: () => ({ isMobile: false, isTablet: false, isDesktop: true }) }));
+vi.mock("@/hooks/useBreakpoint", () => ({
+  useBreakpoint: () => ({ isMobile: false, isTablet: false, isDesktop: true }),
+}));
 vi.mock("@/components/AddressAutocomplete", () => ({
   AddressAutocomplete: ({ onChange, value, id }: any) => (
     <input data-testid="address-autocomplete" id={id} value={value} onChange={(e) => onChange(e.target.value)} />
@@ -103,7 +105,9 @@ describe("AddPropertyModal — system ages", () => {
     fireEvent.click(screen.getByRole("button", { name: /Fill in ages/i }));
     expect(screen.queryByText(/pre-filled/i)).not.toBeInTheDocument();
 
-    fireEvent.click(within(screen.getByRole("radiogroup", { name: "HVAC / AC" })).getByRole("radio", { name: /Replaced/i }));
+    fireEvent.click(
+      within(screen.getByRole("radiogroup", { name: "HVAC / AC" })).getByRole("radio", { name: /Replaced/i }),
+    );
     fireEvent.change(screen.getByLabelText(/Year the HVAC \/ AC was replaced/i), { target: { value: "2019" } });
     fireEvent.click(within(screen.getByRole("radiogroup", { name: "Roof" })).getByRole("radio", { name: /Original/i }));
 

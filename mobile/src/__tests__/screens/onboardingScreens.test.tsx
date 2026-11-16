@@ -20,8 +20,13 @@ let mockPro = false;
 let mockCount = 0;
 jest.mock("../../context/AppData", () => ({
   useAppData: () => ({
-    tier: mockTier, pro: mockPro, limits: { propertyLimit: 1 }, properties: Array.from({ length: mockCount }, (_, i) => ({ id: `p${i}` })),
-    propertiesError: false, refreshProperties: mockRefresh, setActivePropertyId: mockSetActive,
+    tier: mockTier,
+    pro: mockPro,
+    limits: { propertyLimit: 1 },
+    properties: Array.from({ length: mockCount }, (_, i) => ({ id: `p${i}` })),
+    propertiesError: false,
+    refreshProperties: mockRefresh,
+    setActivePropertyId: mockSetActive,
   }),
 }));
 
@@ -42,7 +47,16 @@ import AddPropertyScreen from "../../screens/v3/AddPropertyScreen";
 import { NoProperty } from "../../screens/v3/NoProperty";
 
 const wrap = (el: React.ReactElement) =>
-  render(<SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>{el}</SafeAreaProvider>);
+  render(
+    <SafeAreaProvider
+      initialMetrics={{
+        frame: { x: 0, y: 0, width: 390, height: 844 },
+        insets: { top: 0, left: 0, right: 0, bottom: 0 },
+      }}
+    >
+      {el}
+    </SafeAreaProvider>,
+  );
 
 jest.setTimeout(20_000);
 
@@ -64,24 +78,37 @@ describe("RegisterScreen", () => {
     await fireEvent.changeText(screen.getByLabelText("Phone (optional)"), "512-555-0100");
     await fireEvent.press(screen.getByRole("checkbox", { name: /Terms of Service/ }));
     await fireEvent.press(screen.getByRole("button", { name: "Create account" }));
-    await waitFor(() => expect(mockComplete).toHaveBeenCalledWith({ role: "Contractor", email: "pro@example.com", phone: "512-555-0100" }));
+    await waitFor(() =>
+      expect(mockComplete).toHaveBeenCalledWith({
+        role: "Contractor",
+        email: "pro@example.com",
+        phone: "512-555-0100",
+      }),
+    );
   });
 
   it("says what's missing and sends nothing", async () => {
     await wrap(<RegisterScreen />);
     await fireEvent.changeText(screen.getByLabelText("Email"), "pro@example.com");
     await fireEvent.press(screen.getByRole("button", { name: "Create account" }));
-    expect(Alert.alert).toHaveBeenCalledWith("Almost there", "Agree to the Terms of Service and Privacy Policy to continue.");
+    expect(Alert.alert).toHaveBeenCalledWith(
+      "Almost there",
+      "Agree to the Terms of Service and Privacy Policy to continue.",
+    );
     expect(mockComplete).not.toHaveBeenCalled();
   });
 
   it("shows the canister's reason when sign-up fails, and can sign out instead", async () => {
-    mockComplete.mockRejectedValue(Object.assign(new Error("That email is already in use"), { name: "CanisterError", code: "InvalidInput" }));
+    mockComplete.mockRejectedValue(
+      Object.assign(new Error("That email is already in use"), { name: "CanisterError", code: "InvalidInput" }),
+    );
     await wrap(<RegisterScreen />);
     await fireEvent.changeText(screen.getByLabelText("Email"), "dana@example.com");
     await fireEvent.press(screen.getByRole("checkbox", { name: /Terms of Service/ }));
     await fireEvent.press(screen.getByRole("button", { name: "Create account" }));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith("Couldn't create your account", expect.stringMatching(/already in use/)));
+    await waitFor(() =>
+      expect(Alert.alert).toHaveBeenCalledWith("Couldn't create your account", expect.stringMatching(/already in use/)),
+    );
     await fireEvent.press(screen.getByRole("button", { name: "Sign out" }));
     expect(mockLogout).toHaveBeenCalled();
   });
@@ -108,8 +135,14 @@ describe("AddPropertyScreen", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Save home" }));
     await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
     expect(mockRegisterProperty).toHaveBeenCalledWith({
-      address: "12 Elm St", city: "Raleigh", state: "NC", zipCode: "27601",
-      propertyType: "Townhouse", yearBuilt: 1990, squareFeet: 1850, tier: "Free",
+      address: "12 Elm St",
+      city: "Raleigh",
+      state: "NC",
+      zipCode: "27601",
+      propertyType: "Townhouse",
+      yearBuilt: 1990,
+      squareFeet: 1850,
+      tier: "Free",
     });
     expect(mockRefresh).toHaveBeenCalled();
     expect(mockSetActive).toHaveBeenCalledWith("P9");
@@ -121,10 +154,14 @@ describe("AddPropertyScreen", () => {
     expect(Alert.alert).toHaveBeenCalledWith("Almost there", "Enter the street address.");
     expect(mockRegisterProperty).not.toHaveBeenCalled();
 
-    mockRegisterProperty.mockRejectedValue(Object.assign(new Error("This address is already registered"), { name: "CanisterError", code: "InvalidInput" }));
+    mockRegisterProperty.mockRejectedValue(
+      Object.assign(new Error("This address is already registered"), { name: "CanisterError", code: "InvalidInput" }),
+    );
     await fill();
     await fireEvent.press(screen.getByRole("button", { name: "Save home" }));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith("Couldn't add the home", expect.stringMatching(/already registered/)));
+    await waitFor(() =>
+      expect(Alert.alert).toHaveBeenCalledWith("Couldn't add the home", expect.stringMatching(/already registered/)),
+    );
     expect(navigation.goBack).not.toHaveBeenCalled();
   });
 });
@@ -135,5 +172,4 @@ describe("NoProperty", () => {
     await fireEvent.press(screen.getByRole("button", { name: /Add a property/ }));
     expect(mockNavigate).toHaveBeenCalledWith("AddProperty");
   });
-
 });

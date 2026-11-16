@@ -11,7 +11,8 @@ const mockActor = {
     pid === "theirs" ? { err: { NotAuthorized: null } } : { ok: saved.get(pid) ?? [] },
   ),
   setSystemYears: vi.fn(async (pid: string, years: { name: string; installYear: bigint }[]) => {
-    if (years.some((y) => y.installYear < 1990n)) return { err: { InvalidInput: "The HVAC year is before the house was built (1990)" } };
+    if (years.some((y) => y.installYear < 1990n))
+      return { err: { InvalidInput: "The HVAC year is before the house was built (1990)" } };
     saved.set(pid, years);
     return { ok: years };
   }),

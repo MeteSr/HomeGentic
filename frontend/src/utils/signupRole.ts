@@ -10,7 +10,11 @@ const KEY = "signupRole";
 const ROLES: readonly UserRole[] = ["Homeowner", "Contractor", "Realtor"];
 
 export function rememberSignupRole(role: UserRole): void {
-  try { sessionStorage.setItem(KEY, role); } catch { /* storage blocked: no default */ }
+  try {
+    sessionStorage.setItem(KEY, role);
+  } catch {
+    /* storage blocked: no default */
+  }
 }
 
 export function signupRole(): UserRole | null {
@@ -23,5 +27,9 @@ export function signupRole(): UserRole | null {
 }
 
 export function clearSignupRole(): void {
-  try { sessionStorage.removeItem(KEY); } catch { /* nothing to clear */ }
+  try {
+    sessionStorage.removeItem(KEY);
+  } catch {
+    /* nothing to clear */
+  }
 }

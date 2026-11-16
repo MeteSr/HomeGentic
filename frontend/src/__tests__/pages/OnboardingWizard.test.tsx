@@ -435,8 +435,8 @@ describe("AddPropertyModal V2 — system ages step", () => {
   });
 
   it("unchecking solar hides year installed input", () => {
-    fireEvent.click(screen.getByLabelText(/solar panels/i)); // on
-    fireEvent.click(screen.getByLabelText(/solar panels/i)); // off
+    fireEvent.click(screen.getByRole("checkbox", { name: /solar panels/i })); // on
+    fireEvent.click(screen.getByRole("checkbox", { name: /solar panels/i })); // off
     expect(screen.queryByPlaceholderText(/year installed/i)).not.toBeInTheDocument();
   });
 
