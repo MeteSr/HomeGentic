@@ -21,6 +21,10 @@
  *     cancelled, day-before reminder)
  *   job_payment_* (bank payment on   yes   Payments                   —
  *     its way, paid, receipt, failed)
+ *   welcome, setup_tip_* (first       —     Getting Started            —
+ *     home added; day 1 and day 3)
+ *   verification_approved /          yes   Ownership Verification     —
+ *     verification_rejected
  *
  * * new-lead pushes follow the contractor profile's notifyPush instead of a
  *   relay preference.
@@ -57,9 +61,23 @@ export const PAYMENT_NOTIFICATION_KINDS = [
   "job_payment_failed",
 ] as const satisfies readonly NotificationKind[];
 
+/** A homeowner's first week: the welcome when their first home is added, then two tips. Email only. */
+export const GETTING_STARTED_KINDS = [
+  "welcome",
+  "setup_tip_shutoffs",
+  "setup_tip_first_job",
+] as const satisfies readonly NotificationKind[];
+
+/** How an ownership review went: no push setting, one email row. */
+export const VERIFICATION_KINDS = [
+  "verification_approved",
+  "verification_rejected",
+] as const satisfies readonly NotificationKind[];
+
 /** Kinds that are pushed at all (new_lead's opt-in lives on the contractor profile). */
 export const PUSH_KINDS: readonly NotificationKind[] = [
   ...PUSH_PREF_KINDS, "new_lead", "showing_request", ...VISIT_NOTIFICATION_KINDS, ...PAYMENT_NOTIFICATION_KINDS,
+  ...VERIFICATION_KINDS,
 ];
 
 /** Email preference keys — one per Settings row — and the kinds each covers. */
@@ -73,6 +91,8 @@ export const EMAIL_GROUPS = {
   showing_requests: ["showing_request"],
   visits:         VISIT_NOTIFICATION_KINDS,
   payments:       PAYMENT_NOTIFICATION_KINDS,
+  getting_started: GETTING_STARTED_KINDS,
+  verification:   VERIFICATION_KINDS,
 } as const satisfies Record<string, readonly NotificationKind[]>;
 export type EmailPrefKey = keyof typeof EMAIL_GROUPS;
 export const EMAIL_PREF_KEYS = Object.keys(EMAIL_GROUPS) as EmailPrefKey[];
@@ -92,6 +112,8 @@ export const EMAIL_DEFAULTS: Record<EmailPrefKey, boolean> = {
   showing_requests: true,
   visits:         true,
   payments:       true,
+  getting_started: true,
+  verification:   true,
 };
 
 /**

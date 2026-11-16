@@ -24,7 +24,8 @@ import { emailConfigured, sendEmail } from "./email";
 import { sendSms, smsConfigured } from "./sms";
 import { PUSH_KINDS } from "./channels";
 import type {
-  ContractorInfo, NotificationEvent, OutboxPage, PushPayload, QuoteRequestInfo, SuccessionNoticeInfo, VisitBookingInfo,
+  ContractorInfo, NotificationEvent, OutboxPage, PushPayload, QuoteRequestInfo, SetupStatus, SuccessionNoticeInfo,
+  VisitBookingInfo,
 } from "./types";
 import { reportFailure, errorCode } from "./opsReport";
 
@@ -41,6 +42,8 @@ export interface PollerDeps {
   isPro:           (principal: string) => Promise<boolean>;
   getSuccessionNotice: (claimId: string) => Promise<SuccessionNoticeInfo | null>;
   getVisitBooking: (quoteId: string) => Promise<VisitBookingInfo | null>;
+  /** First-week tips: the home's setup, or null when it can't be read (the tip is kept to retry). */
+  getSetupStatus:  (owner: string, propertyId: string) => Promise<SetupStatus | null>;
   dispatch:        (principal: string, payload: PushPayload) => Promise<void>;
   wantsPush:       (principal: string, kind: string) => boolean;
   // Email and SMS (optional channels — off when not configured)
@@ -60,6 +63,7 @@ const defaultDeps: PollerDeps = {
   isPro:           icp.isContractorPro,
   getSuccessionNotice: icp.getSuccessionNotice,
   getVisitBooking: icp.getVisitBooking,
+  getSetupStatus:  icp.getSetupStatus,
   dispatch:        dispatchToUser,
   wantsPush,
   emailEnabled:    emailConfigured,
@@ -173,6 +177,12 @@ export async function flushHeld(deps: PollerDeps = defaultDeps, now: number = Da
         const notice = await notices.get(h.requestId)!;
         const open = notice && (notice.status === "AwaitingReview" || notice.status === "Approved");
         if (open && notice.household.includes(h.n.principal)) sent += await deliver(deps, emailFor, h.n, `${h.key}:${h.n.notBefore}`);
+      } else if (h.n.type === "setup_tip_shutoffs" || h.n.type === "setup_tip_first_job") {
+        // Only while the home is still theirs and the step isn't done.
+        const status = await deps.getSetupStatus(h.n.principal, h.requestId);
+        if (status === null) continue; // couldn't read the record: try again next pass
+        const done = h.n.type === "setup_tip_shutoffs" ? status.hasShutoffs : status.hasJobs;
+        if (status.exists && !done) sent += await deliver(deps, emailFor, h.n, `${h.key}:${h.n.type}`);
       } else if (h.n.type === "visit_reminder") {
         // Only while the visit is still booked for the time the reminder is about.
         const b = await deps.getVisitBooking(h.requestId);

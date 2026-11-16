@@ -16,7 +16,7 @@
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
-import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, SuccessionNoticeInfo, VisitBookingInfo, PulseHomeFinance, PulseAppliance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseRecipient } from "./types";
+import type { OutboxEvent, OutboxPage, QuoteRequestInfo, ContractorInfo, SuccessionNoticeInfo, VisitBookingInfo, PulseHomeFinance, PulseAppliance, PulseInsurance, PulseJob, PulseProperty, PulsePropertyTax, PulseRecipient, PulseSetup, SetupStatus } from "./types";
 import type { ScoreJob } from "../../packages/shared/src/score";
 import { rootKeyFor } from "../../packages/shared/src/rootKey";
 import { idlFactory as quoteIdl } from "../../packages/shared/src/declarations/quote";
@@ -361,6 +361,33 @@ export async function getPulseAppliances(owner: string): Promise<PulseAppliance[
   const res = await property.getPulseAppliances(Principal.fromText(owner));
   if ("err" in res) throw new Error(`getPulseAppliances: ${Object.keys(res.err)[0]}`);
   return res.ok.map((a: any) => ({ propertyId: a.propertyId, room: a.room, brand: a.brand, model: a.model }));
+}
+
+/** When each of `owner`'s homes was added, its system install years, and whether its shutoff is written down (needs addNotifier on property). */
+export async function getPulseSetup(owner: string): Promise<PulseSetup[]> {
+  const property = Actor.createActor(propertyIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_PROPERTY"),
+  }) as any;
+  const res = await property.getPulseSetup(Principal.fromText(owner));
+  if ("err" in res) throw new Error(`getPulseSetup: ${Object.keys(res.err)[0]}`);
+  return res.ok.map((p: any) => ({
+    propertyId:  p.propertyId,
+    addedAtMs:   Number(BigInt(p.addedAt) / 1_000_000n),
+    systemYears: Object.fromEntries((p.systemYears as any[]).map((y) => [y.name, Number(y.installYear)])),
+    hasShutoffs: p.hasShutoffs,
+  }));
+}
+
+/** A held first-week tip's check: is the home still theirs, is the shutoff written down, is a job logged. Null when unreadable. */
+export async function getSetupStatus(owner: string, propertyId: string): Promise<SetupStatus | null> {
+  try {
+    const home = (await getPulseSetup(owner)).find((p) => p.propertyId === propertyId);
+    if (!home) return { exists: false, hasShutoffs: false, hasJobs: false };
+    const jobs = await getJobsByOwner(owner);
+    return { exists: true, hasShutoffs: home.hasShutoffs, hasJobs: jobs.some((j) => j.propertyId === propertyId) };
+  } catch {
+    return null;
+  }
 }
 
 /** All of `owner`'s jobs (needs addNotifier on job). */
