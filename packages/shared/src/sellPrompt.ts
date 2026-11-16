@@ -9,8 +9,14 @@
  * (agent.countVerifiedAgentsForCities), since an auction with one or two bids
  * helps nobody.
  *
+ * The dashboard card also shows outside those weeks when the home's
+ * HomeGentic score or its index-based value (homeValueIndex.ts) has risen
+ * enough to make selling worth a look: see scoreRise and indexValueRise.
+ * Only rises count; a fall is not a reason to suggest selling.
+ *
  * Dependency-free: used by the frontend and the notifications relay.
  */
+import { indexEstimate, type HpiPoint, type Quarter } from "./homeValueIndex";
 
 /** Verified agents a city needs before Bid to List is offered there. */
 export const MIN_VERIFIED_AGENTS = 3;
@@ -71,4 +77,85 @@ export function sellPromptDismissKey(propertyId: string, nowMs: number): string 
 /** Whether a city with this many verified agents gets the prompt. */
 export function bidToListOpen(verifiedAgents: number): boolean {
   return verifiedAgents >= MIN_VERIFIED_AGENTS;
+}
+
+/** Points the HomeGentic score must rise to prompt. */
+export const SCORE_MOVE_POINTS = 10;
+
+/** The rise is counted over this many days of score history. */
+export const SCORE_MOVE_DAYS = 90;
+
+/** Percent the state index must rise over the last four quarters to prompt. */
+export const VALUE_MOVE_PCT = 5;
+
+const DAY_MS = 86_400_000;
+
+export interface ScoreRise {
+  from: number;
+  to: number;
+  /** When the `from` score was recorded. */
+  sinceMs: number;
+}
+
+/**
+ * The score rose by SCORE_MOVE_POINTS or more since the earliest snapshot in
+ * the last SCORE_MOVE_DAYS days, and (when the owner said "Not now" to a
+ * move before) by that much over the score they dismissed at.
+ */
+export function scoreRise(
+  history: { score: number; timestamp: number }[],
+  scoreNow: number,
+  nowMs: number,
+  dismissedAt: number | null = null,
+): ScoreRise | null {
+  const since = nowMs - SCORE_MOVE_DAYS * DAY_MS;
+  const first = history.filter((s) => s.timestamp >= since).sort((a, b) => a.timestamp - b.timestamp)[0];
+  if (!first || scoreNow - first.score < SCORE_MOVE_POINTS) return null;
+  if (dismissedAt !== null && scoreNow - dismissedAt < SCORE_MOVE_POINTS) return null;
+  return { from: first.score, to: scoreNow, sinceMs: first.timestamp };
+}
+
+export interface ValueRise {
+  /** The index estimate since the loan was made, dollars rounded to $1,000. */
+  estimate: number;
+  /** Whole percent rise of the state index from `from` to `to`. */
+  changePct: number;
+  from: Quarter;
+  to: Quarter;
+}
+
+const quarterIndex = (q: Quarter) => q.year * 4 + q.quarter - 1;
+
+/**
+ * The state index rose VALUE_MOVE_PCT or more over the last four quarters (or
+ * since the loan, when it's under a year old), and (after a "Not now") the
+ * estimate is that much above the value the owner dismissed at.
+ */
+export function indexValueRise(
+  originalValue: number | null,
+  series: HpiPoint[],
+  loanStart: Quarter | null,
+  dismissedAt: number | null = null,
+): ValueRise | null {
+  const est = indexEstimate(originalValue, series, loanStart);
+  if (!est || !loanStart) return null;
+  const latest = series[series.length - 1];
+  const yearBack = quarterIndex({ year: latest[0], quarter: latest[1] }) - 4;
+  const fromIdx = Math.max(yearBack, quarterIndex(loanStart));
+  const from = series.find(([y, q]) => quarterIndex({ year: y, quarter: q }) === fromIdx);
+  if (!from) return null;
+  const ratio = latest[2] / from[2];
+  if (ratio < 1 + VALUE_MOVE_PCT / 100) return null;
+  if (dismissedAt !== null && est.estimate < dismissedAt * (1 + VALUE_MOVE_PCT / 100)) return null;
+  return {
+    estimate: est.estimate,
+    changePct: Math.round((ratio - 1) * 100),
+    from: { year: from[0], quarter: from[1] },
+    to: est.to,
+  };
+}
+
+/** Where the dashboard remembers the score and value at the last "Not now", for this home. */
+export function sellPromptMoveKey(propertyId: string): string {
+  return `hg_sell_prompt_move:${propertyId}`;
 }

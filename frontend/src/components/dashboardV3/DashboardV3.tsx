@@ -670,7 +670,13 @@ export function DashboardV3() {
                 </div>
 
                 {activeProperty && activePropertyId && (
-                  <SellPromptCard propertyId={activePropertyId} city={activeProperty.city ?? ""} />
+                  <SellPromptCard
+                    propertyId={activePropertyId}
+                    city={activeProperty.city ?? ""}
+                    state={activeProperty.state ?? ""}
+                    score={loading ? 0 : score}
+                    scoreHistory={scoreHistory}
+                  />
                 )}
               </div>
             )}

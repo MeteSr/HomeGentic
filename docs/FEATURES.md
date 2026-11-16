@@ -494,6 +494,7 @@ Multi-tab page — the main workspace for a property.
 **"Thinking of selling?" prompts**
 - Public page `/sell`: explains Bid to List, checks how many verified agents serve the visitor's city (`agent.countVerifiedAgentsForCities`), and sends them to sign up (or straight to `/listing/new` when signed in)
 - Dashboard card: four weeks a year per home (each home's own weeks, from a hash of its id), only when at least 3 verified agents serve the home's city; "Not now" hides it until next year
+- The same card also shows, under the same agent threshold, when the home's numbers rise: the HomeGentic score up 10+ points within 90 days of its weekly snapshots, or the state's FHFA house price index up 5%+ over the last four quarters (or since the loan, if newer) for a home with a mortgage card that has its original value and first payment date. The card says what moved. Falls never prompt. "Not now" remembers the score and estimate, so it returns only after another 10 points or 5%. Web dashboard only, kept in the browser like the score history (`@homegentic/shared/sellPrompt`: `scoreRise`, `indexValueRise`)
 - Home Pulse: the same note once a year, in the home's prompt week, under the same agent threshold
 - Copy never promises a commission level or a saving: agents set their own terms and the seller chooses
 
