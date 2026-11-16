@@ -217,16 +217,24 @@ persistent actor Job {
   private let permitStatuses = Map.empty<Text, PermitStatus>();
   private let jobPapers = Map.empty<Text, [JobPaper]>();
 
-  // Secondary indexes over `jobs` (transient, rebuilt on every upgrade).
-  // Writes go through putJob / Index.delete so they stay in step.
-  private transient let jobsByProperty   = Index.empty();
-  private transient let jobsByHomeowner  = Index.empty();
-  private transient let jobsByContractor = Index.empty();
-  private transient let jobIndexes : [Index.Keyed<Job>] = Index.indexed(jobs, [
-    (jobsByProperty,   func(j : Job) : ?Text { ?j.propertyId }),
-    (jobsByHomeowner,  func(j : Job) : ?Text { ?j.homeowner.toText() }),
-    (jobsByContractor, func(j : Job) : ?Text { j.contractor.map(Principal.toText) }),
-  ]);
+  // Secondary indexes over `jobs`, kept in stable memory so an upgrade
+  // doesn't rebuild them (that rebuild was most of the job canister's upgrade
+  // cost). Writes go through putJob / Index.delete so they stay in step.
+  // `jobIndexesFilled` is false only on the first upgrade from a build that
+  // kept them transient; that upgrade files every job once.
+  private let jobsByProperty   = Index.empty();
+  private let jobsByHomeowner  = Index.empty();
+  private let jobsByContractor = Index.empty();
+  private var jobIndexesFilled = false;
+  private transient let jobIndexes : [Index.Keyed<Job>] = do {
+    let ixs : [Index.Keyed<Job>] = [
+      (jobsByProperty,   func(j : Job) : ?Text { ?j.propertyId }),
+      (jobsByHomeowner,  func(j : Job) : ?Text { ?j.homeowner.toText() }),
+      (jobsByContractor, func(j : Job) : ?Text { j.contractor.map(Principal.toText) }),
+    ];
+    if (not jobIndexesFilled) { ignore Index.indexed(jobs, ixs); jobIndexesFilled := true };
+    ixs
+  };
 
   private func putJob(j : Job) { Index.put(jobs, jobIndexes, j.id, j) };
 

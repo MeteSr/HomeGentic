@@ -2,9 +2,13 @@
 ///
 /// Canisters keep each entity in one `Map<Text, Record>` keyed by its id. An
 /// `Index` answers "all records for this property / owner / job" without
-/// scanning that map. Indexes are declared `transient` and rebuilt from the
-/// primary map when the actor initialises (on install and on every upgrade),
-/// so they never become stable state and can be added or changed freely.
+/// scanning that map. Most indexes are declared `transient` and rebuilt from
+/// the primary map when the actor initialises (on install and on every
+/// upgrade), so they never become stable state and can be added or changed
+/// freely. A canister with many records can store an index instead (job's
+/// jobsByProperty and friends): the upgrade then skips the rebuild, which is
+/// most of its cost, but the index's key can't change shape later and every
+/// write must keep it in step (Index.put / Index.delete).
 ///
 /// Ids come back in ascending `Text` order, the same order a scan of the
 /// primary map produced, so switching a scan to an index keeps result order.
