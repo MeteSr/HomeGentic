@@ -3,12 +3,12 @@ import { Pressable, Text } from "react-native";
 import { family, v3 } from "../theme";
 
 /** One option in a row of radio pills. */
-export function Choice({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+export function Choice({ label, on, onPress, a11yLabel }: { label: string; on: boolean; onPress: () => void; a11yLabel?: string }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="radio"
-      accessibilityLabel={label}
+      accessibilityLabel={a11yLabel ?? label}
       accessibilityState={{ selected: on }}
       style={{
         minHeight: 40,

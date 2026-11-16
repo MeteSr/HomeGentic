@@ -47,7 +47,7 @@ function deps(over: Partial<PollerDeps> = {}): PollerDeps {
     isPro: jest.fn(async () => true),
     getSuccessionNotice: jest.fn(async () => null),
     getVisitBooking: jest.fn(async () => null),
-    getSetupStatus: jest.fn(async () => ({ exists: true, hasShutoffs: false, hasJobs: false })),
+    getSetupStatus: jest.fn(async () => ({ exists: true, hasShutoffs: false, hasPaperwork: false })),
     dispatch: jest.fn(async () => undefined),
     wantsPush: jest.fn(() => true),
     emailEnabled: jest.fn(() => true),
@@ -67,19 +67,22 @@ describe("first home added", () => {
     expect(out.map((n) => [n.type, n.principal, n.notBefore])).toEqual([
       ["welcome", "owner", undefined],
       ["setup_tip_shutoffs", "owner", NOW + 1 * DAY],
-      ["setup_tip_first_job", "owner", NOW + 3 * DAY],
+      ["setup_tip_paperwork", "owner", NOW + 3 * DAY],
     ]);
-    expect(SETUP_TIP_AFTER_MS).toEqual({ setup_tip_shutoffs: 1 * DAY, setup_tip_first_job: 3 * DAY });
+    expect(SETUP_TIP_AFTER_MS).toEqual({ setup_tip_shutoffs: 1 * DAY, setup_tip_paperwork: 3 * DAY });
 
-    const [welcome, shutoffs, firstJob] = out.map((n) => n.payload);
+    expect(out.map((n) => n.pushOptIn)).toEqual([false, true, true]);
+    const [welcome, shutoffs, paperwork] = out.map((n) => n.payload);
     expect(welcome.title).toBe("Welcome to HomeGentic");
     expect(welcome.body).toContain("12 Elm St");
     expect(welcome.body).toMatch(/Monday/);
     expect(welcome.route).toBe("systems/PROP_1");
     expect(shutoffs.route).toBe("guide/PROP_1");
     expect(shutoffs.body).toMatch(/water shutoff/i);
-    expect(firstJob.route).toBe("jobs");
-    expect(firstJob.body).toMatch(/HomeGentic Score/);
+    expect(paperwork.title).toBe("Turn one receipt into a record");
+    expect(paperwork.route).toBe("jobs");
+    expect(paperwork.body).toMatch(/forward a contractor's invoice/i);
+    expect(paperwork.body).toMatch(/scan an appliance's label/i);
     for (const p of out.map((n) => n.payload)) expect(p.data).toEqual({ propertyId: "PROP_1" });
   });
 
@@ -87,11 +90,13 @@ describe("first home added", () => {
     expect(await notificationsFor(ev("first_home_added", { recipient: null }), lookups, NOW)).toEqual([]);
   });
 
-  it("sends these by email only, on a Getting started setting that's on by default", () => {
-    for (const k of ["welcome", "setup_tip_shutoffs", "setup_tip_first_job"]) {
-      expect(PUSH_KINDS).not.toContain(k);
+  it("emails all three on a Getting started setting that's on by default, and pushes the two tips", () => {
+    for (const k of ["welcome", "setup_tip_shutoffs", "setup_tip_paperwork"]) {
       expect(EMAIL_GROUPS.getting_started).toContain(k);
     }
+    expect(PUSH_KINDS).not.toContain("welcome");
+    expect(PUSH_KINDS).toContain("setup_tip_shutoffs");
+    expect(PUSH_KINDS).toContain("setup_tip_paperwork");
     expect(EMAIL_DEFAULTS.getting_started).toBe(true);
   });
 
@@ -118,28 +123,30 @@ describe("held setup tips", () => {
     });
     await p.pollCanister("property-id", d);
     expect(d.sendEmail).toHaveBeenCalledTimes(1); // the welcome
-    expect(p.heldNotifications().map((h) => h.n.type)).toEqual(["setup_tip_shutoffs", "setup_tip_first_job"]);
+    expect(p.heldNotifications().map((h) => h.n.type)).toEqual(["setup_tip_shutoffs", "setup_tip_paperwork"]);
   }
   const later = Date.now() + 4 * DAY;
   const status = (s: Partial<SetupStatus> | null) =>
-    jest.fn(async () => (s === null ? null : { exists: true, hasShutoffs: false, hasJobs: false, ...s }));
+    jest.fn(async () => (s === null ? null : { exists: true, hasShutoffs: false, hasPaperwork: false, ...s }));
 
   it("sends each tip when it's due and its step isn't done", async () => {
     const p = freshPoller();
     await holdTips(p);
     const d = deps();
-    expect(await p.flushHeld(d, later)).toBe(2);
+    expect(await p.flushHeld(d, later)).toBe(4); // two emails, two pushes
     expect(d.getSetupStatus).toHaveBeenCalledWith("owner", "PROP_1");
-    expect(d.dispatch).not.toHaveBeenCalled();
+    expect(d.sendEmail).toHaveBeenCalledTimes(2);
+    expect(d.dispatch).toHaveBeenCalledTimes(2);
     expect(p.heldNotifications()).toEqual([]);
   });
 
-  it("skips the shutoff tip once the guide says where the shutoff is, and the job tip once a job is logged", async () => {
+  it("skips the shutoff tip once the guide says where the shutoff is, and the paperwork tip once a job, a forwarded invoice or a scanned label is on record", async () => {
     const p = freshPoller();
     await holdTips(p);
-    const d = deps({ getSetupStatus: status({ hasShutoffs: true, hasJobs: true }) });
+    const d = deps({ getSetupStatus: status({ hasShutoffs: true, hasPaperwork: true }) });
     expect(await p.flushHeld(d, later)).toBe(0);
     expect(d.sendEmail).not.toHaveBeenCalled();
+    expect(d.dispatch).not.toHaveBeenCalled();
     expect(p.heldNotifications()).toEqual([]);
   });
 

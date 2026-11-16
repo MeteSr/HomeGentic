@@ -2352,6 +2352,20 @@ persistent actor Job {
     })
   };
 
+  public type InboxActivity = { forwarded : Bool; openDrafts : Nat };
+
+  /// Notifiers (the first-week tips) and admins: has `owner` ever had an
+  /// invoice filed from their forwarding address, and how many drafts are
+  /// open. "Ever" survives logging or dismissing the draft; deleteMyData
+  /// forgets it.
+  public query(msg) func getInboxActivity(owner : Principal) : async Result.Result<InboxActivity, Error> {
+    if (not isNotifier(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok({
+      forwarded = inboxDayCounts.get(owner.toText()) != null;
+      openDrafts = Index.count(draftsByOwner, owner.toText());
+    })
+  };
+
   /// Remove one of the caller's drafts (after logging it as a job, or to discard it).
   public shared(msg) func dismissEmailDraft(id : Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };

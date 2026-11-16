@@ -108,6 +108,11 @@ function fromManager(raw: any): PropertyManager {
 
 // ── Properties ────────────────────────────────────────────────────────────────
 
+/** Start the move-in plan for a home bought in the last year (as the web wizard's "bought recently" answer does). */
+export async function startMoveInPlan(propertyId: string, agent?: HttpAgent): Promise<void> {
+  unwrap(await actor(agent).startMoveInPlan(propertyId));
+}
+
 /** Add a home, as the web wizard's address and details steps do. */
 export async function registerProperty(args: NewPropertyArgs, agent?: HttpAgent): Promise<Property> {
   const result = await actor(agent).registerProperty({

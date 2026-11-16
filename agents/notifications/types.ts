@@ -51,19 +51,20 @@ export type NotificationKind =
   | "job_payment_failed"
   | "welcome"
   | "setup_tip_shutoffs"
-  | "setup_tip_first_job"
+  | "setup_tip_paperwork"
   | "verification_approved"
   | "verification_rejected";
 
 /**
  * What a held setup tip checks before it goes out: whether the home is still
  * the owner's, whether its house guide says where the water shutoff is, and
- * whether any job is logged on it.
+ * whether any paperwork is on record: a job logged on it, an invoice ever
+ * forwarded to the owner's inbox address, or an appliance label saved on it.
  */
 export interface SetupStatus {
-  exists:      boolean;
-  hasShutoffs: boolean;
-  hasJobs:     boolean;
+  exists:       boolean;
+  hasShutoffs:  boolean;
+  hasPaperwork: boolean;
 }
 
 export interface NotificationEvent {

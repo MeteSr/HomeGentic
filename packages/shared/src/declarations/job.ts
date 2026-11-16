@@ -122,6 +122,7 @@ export const idlFactory = ({ IDL }: any) => {
       ["query"],
     ),
     getMyEmailDrafts:   IDL.Func([], [IDL.Vec(EmailDraft)], ["query"]),
+    getInboxActivity:   IDL.Func([IDL.Principal], [IDL.Variant({ ok: IDL.Record({ forwarded: IDL.Bool, openDrafts: IDL.Nat }), err: Error })], ["query"]),
     dismissEmailDraft:  IDL.Func([IDL.Text], [UnitResult], []),
     addInboxRelay:      IDL.Func([IDL.Principal], [UnitResult], []),
     removeInboxRelay:   IDL.Func([IDL.Principal], [UnitResult], []),

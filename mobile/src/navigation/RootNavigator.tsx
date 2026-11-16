@@ -20,7 +20,7 @@ import QueueStatusScreen from "../screens/QueueStatusScreen";
 import ReportScreen from "../screens/ReportScreen";
 import MyListingScreen from "../screens/v3/MyListingScreen";
 import EmergencyCardScreen from "../screens/v3/EmergencyCardScreen";
-import { JobLinkScreen, LeadLinkScreen } from "../screens/LinkScreens";
+import { GuideLinkScreen, JobLinkScreen, LeadLinkScreen } from "../screens/LinkScreens";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { family, v3 } from "../theme";
 
@@ -69,6 +69,7 @@ export default function RootNavigator() {
       <Stack.Screen name="EmergencyCard" component={EmergencyCardScreen} options={{ headerShown: false }} />
       <Stack.Screen name="JobLink"      component={JobLinkScreen}      options={{ headerShown: false, animation: "none" }} />
       <Stack.Screen name="LeadLink"     component={LeadLinkScreen}     options={{ headerShown: false, animation: "none" }} />
+      <Stack.Screen name="GuideLink"    component={GuideLinkScreen}    options={{ headerShown: false, animation: "none" }} />
     </Stack.Navigator>
   );
 }

@@ -43,4 +43,5 @@ export type RootStackParamList = {
   JobLink:        { jobId?: string } | undefined;
   /** Deep-link target for leads/<id>: opens the lead or the feed. */
   LeadLink:       { leadId?: string } | undefined;
+  GuideLink:      { propertyId: string };
 };

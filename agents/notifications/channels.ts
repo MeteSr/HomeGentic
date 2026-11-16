@@ -21,8 +21,9 @@
  *     cancelled, day-before reminder)
  *   job_payment_* (bank payment on   yes   Payments                   —
  *     its way, paid, receipt, failed)
- *   welcome, setup_tip_* (first       —     Getting Started            —
- *     home added; day 1 and day 3)
+ *   welcome (first home added)        —     Getting Started            —
+ *   setup_tip_* (day 1 shutoff,       yes   Getting Started            —
+ *     day 3 paperwork)
  *   verification_approved /          yes   Ownership Verification     —
  *     verification_rejected
  *
@@ -61,11 +62,16 @@ export const PAYMENT_NOTIFICATION_KINDS = [
   "job_payment_failed",
 ] as const satisfies readonly NotificationKind[];
 
-/** A homeowner's first week: the welcome when their first home is added, then two tips. Email only. */
+/** The first week's two tips, pushed as well as emailed (no push setting). */
+export const SETUP_TIP_KINDS = [
+  "setup_tip_shutoffs",
+  "setup_tip_paperwork",
+] as const satisfies readonly NotificationKind[];
+
+/** A homeowner's first week: the welcome when their first home is added (email only), then the two tips. */
 export const GETTING_STARTED_KINDS = [
   "welcome",
-  "setup_tip_shutoffs",
-  "setup_tip_first_job",
+  ...SETUP_TIP_KINDS,
 ] as const satisfies readonly NotificationKind[];
 
 /** How an ownership review went: no push setting, one email row. */
@@ -77,7 +83,7 @@ export const VERIFICATION_KINDS = [
 /** Kinds that are pushed at all (new_lead's opt-in lives on the contractor profile). */
 export const PUSH_KINDS: readonly NotificationKind[] = [
   ...PUSH_PREF_KINDS, "new_lead", "showing_request", ...VISIT_NOTIFICATION_KINDS, ...PAYMENT_NOTIFICATION_KINDS,
-  ...VERIFICATION_KINDS,
+  ...VERIFICATION_KINDS, ...SETUP_TIP_KINDS,
 ];
 
 /** Email preference keys — one per Settings row — and the kinds each covers. */

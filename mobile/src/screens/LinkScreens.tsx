@@ -9,6 +9,8 @@
  *                (contractor). One route for both roles: the relay sends the
  *                same path to homeowners and contractors.
  *   leads/<id> → the lead's detail, else the lead feed.
+ *   guide/<propertyId> → that home's emergency card (shutoffs, insurer,
+ *                who to call), else the Property tab.
  */
 import React, { useEffect } from "react";
 import { View } from "react-native";
@@ -76,6 +78,21 @@ export function LeadLinkScreen({ route, navigation }: NativeStackScreenProps<Roo
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadId]);
+
+  return <Holding />;
+}
+
+export function GuideLinkScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, "GuideLink">) {
+  const app = useAppData();
+  const { propertyId } = route.params;
+
+  useEffect(() => {
+    if (!app.propertiesLoaded) return;
+    const home = app.properties.find((p) => p.id === propertyId);
+    if (home) navigation.replace("EmergencyCard", { propertyId: home.id, propertyAddress: home.address, state: home.state });
+    else navigation.popTo("Tabs", { screen: "Property" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app.propertiesLoaded, propertyId]);
 
   return <Holding />;
 }

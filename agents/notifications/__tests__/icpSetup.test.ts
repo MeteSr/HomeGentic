@@ -38,8 +38,16 @@ it("throws on an error result", async () => {
 });
 
 describe("getSetupStatus", () => {
-  const actor = (jobs: { propertyId: string }[]) => ({
+  const actor = (
+    jobs: { propertyId: string }[],
+    inbox: { forwarded: boolean; openDrafts: bigint } = { forwarded: false, openDrafts: 0n },
+    appliances: { propertyId: string }[] = [],
+  ) => ({
     getPulseSetup: jest.fn(async () => ({ ok: [setupRow] })),
+    getInboxActivity: jest.fn(async () => ({ ok: inbox })),
+    getPulseAppliances: jest.fn(async () => ({
+      ok: appliances.map((a) => ({ ...a, room: "Kitchen", brand: "GE", model: "X1" })),
+    })),
     getJobsByOwner: jest.fn(async () =>
       jobs.map((j) => ({
         id: "J",
@@ -59,12 +67,26 @@ describe("getSetupStatus", () => {
     ),
   });
 
-  it("says whether the home is still the owner's, has its shutoff written down and has a job", async () => {
-    mockCreateActor.mockReturnValue(actor([{ propertyId: "P2" }]));
-    expect(await getSetupStatus("2vxsx-fae", "P1")).toEqual({ exists: true, hasShutoffs: true, hasJobs: false });
+  it("says whether the home is still the owner's and has its shutoff written down", async () => {
+    mockCreateActor.mockReturnValue(actor([{ propertyId: "P2" }], undefined, [{ propertyId: "P2" }]));
+    expect(await getSetupStatus("2vxsx-fae", "P1")).toEqual({ exists: true, hasShutoffs: true, hasPaperwork: false });
+    expect(await getSetupStatus("2vxsx-fae", "GONE")).toEqual({ exists: false, hasShutoffs: false, hasPaperwork: false });
+  });
+
+  it("counts a job on the home, a forwarded invoice or a scanned appliance label as paperwork", async () => {
     mockCreateActor.mockReturnValue(actor([{ propertyId: "P1" }]));
-    expect(await getSetupStatus("2vxsx-fae", "P1")).toEqual({ exists: true, hasShutoffs: true, hasJobs: true });
-    expect(await getSetupStatus("2vxsx-fae", "GONE")).toEqual({ exists: false, hasShutoffs: false, hasJobs: false });
+    expect((await getSetupStatus("2vxsx-fae", "P1"))!.hasPaperwork).toBe(true);
+    mockCreateActor.mockReturnValue(actor([], { forwarded: true, openDrafts: 0n }));
+    expect((await getSetupStatus("2vxsx-fae", "P1"))!.hasPaperwork).toBe(true);
+    mockCreateActor.mockReturnValue(actor([], { forwarded: false, openDrafts: 0n }, [{ propertyId: "P1" }]));
+    expect((await getSetupStatus("2vxsx-fae", "P1"))!.hasPaperwork).toBe(true);
+  });
+
+  it("returns null when the inbox can't be read, so the tip waits rather than guessing", async () => {
+    const a = actor([]);
+    a.getInboxActivity = jest.fn(async () => ({ err: { NotAuthorized: null } })) as any;
+    mockCreateActor.mockReturnValue(a);
+    expect(await getSetupStatus("2vxsx-fae", "P1")).toBeNull();
   });
 
   it("returns null when the record can't be read", async () => {

@@ -4,13 +4,13 @@
  * Adding a home from the app goes to the same property canister method the
  * web wizard uses.
  */
-const mockActor = { registerProperty: jest.fn() };
+const mockActor = { registerProperty: jest.fn(), startMoveInPlan: jest.fn() };
 jest.mock("../../services/canister", () => ({
   ...jest.requireActual("../../services/canister"),
   actorFor: () => mockActor,
 }));
 
-import { registerProperty } from "../../services/propertyService";
+import { registerProperty, startMoveInPlan } from "../../services/propertyService";
 
 const raw = {
   id: "P9",
@@ -73,4 +73,12 @@ it("throws the canister's message, e.g. the Free plan's one-home limit", async (
       tier: "Free",
     }),
   ).rejects.toThrow(/Free plan includes 1 home/);
+});
+
+it("starts the move-in plan for a home", async () => {
+  mockActor.startMoveInPlan.mockResolvedValue({ ok: {} });
+  await startMoveInPlan("P9");
+  expect(mockActor.startMoveInPlan).toHaveBeenCalledWith("P9");
+  mockActor.startMoveInPlan.mockResolvedValue({ err: { NotAuthorized: null } });
+  await expect(startMoveInPlan("P9")).rejects.toMatchObject({ code: "NotAuthorized" });
 });

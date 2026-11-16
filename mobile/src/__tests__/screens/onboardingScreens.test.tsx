@@ -31,9 +31,27 @@ jest.mock("../../context/AppData", () => ({
 }));
 
 const mockRegisterProperty = jest.fn();
+const mockStartMoveIn = jest.fn();
 jest.mock("../../services/propertyService", () => ({
   ...jest.requireActual("../../services/propertyService"),
   registerProperty: (...a: unknown[]) => mockRegisterProperty(...a),
+  startMoveInPlan: (...a: unknown[]) => mockStartMoveIn(...a),
+}));
+
+const mockSuggest = jest.fn();
+const mockPlace = jest.fn();
+const mockLookup = jest.fn();
+jest.mock("../../services/propertyLookupService", () => ({
+  newAddressSessionToken: () => "sess",
+  suggestAddresses: (...a: unknown[]) => mockSuggest(...a),
+  placeAddress: (...a: unknown[]) => mockPlace(...a),
+  lookupPropertyDetails: (...a: unknown[]) => mockLookup(...a),
+}));
+
+const mockSaveYears = jest.fn();
+jest.mock("../../services/systemYearsService", () => ({
+  ...jest.requireActual("../../services/systemYearsService"),
+  saveSystemYears: (...a: unknown[]) => mockSaveYears(...a),
 }));
 
 const mockNavigate = jest.fn();
@@ -66,6 +84,10 @@ beforeEach(() => {
   mockPro = false;
   mockCount = 0;
   jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
+  mockSuggest.mockResolvedValue([]);
+  mockLookup.mockResolvedValue(null);
+  mockSaveYears.mockResolvedValue(undefined);
+  mockStartMoveIn.mockResolvedValue(undefined);
 });
 
 describe("RegisterScreen", () => {
@@ -114,26 +136,30 @@ describe("RegisterScreen", () => {
   });
 });
 
+async function fill() {
+  await fireEvent.changeText(screen.getByLabelText("Street address"), "12 Elm St");
+  await fireEvent.changeText(screen.getByLabelText("City"), "Raleigh");
+  await fireEvent.changeText(screen.getByLabelText("State"), "nc");
+  await fireEvent.changeText(screen.getByLabelText("ZIP code"), "27601");
+  await fireEvent.changeText(screen.getByLabelText("Year built"), "1990");
+  await fireEvent.changeText(screen.getByLabelText("Square feet"), "1850");
+}
+
 describe("AddPropertyScreen", () => {
   const navigation = { goBack: jest.fn(), navigate: jest.fn() } as any;
   const route = { key: "k", name: "AddProperty", params: undefined } as any;
 
-  async function fill() {
-    await fireEvent.changeText(screen.getByLabelText("Street address"), "12 Elm St");
-    await fireEvent.changeText(screen.getByLabelText("City"), "Raleigh");
-    await fireEvent.changeText(screen.getByLabelText("State"), "nc");
-    await fireEvent.changeText(screen.getByLabelText("ZIP code"), "27601");
-    await fireEvent.changeText(screen.getByLabelText("Year built"), "1990");
-    await fireEvent.changeText(screen.getByLabelText("Square feet"), "1850");
-  }
-
-  it("saves the home, makes it the active one and goes back", async () => {
+  it("saves the home, makes it the active one, and then asks about system years", async () => {
     mockRegisterProperty.mockResolvedValue({ id: "P9" });
     await wrap(<AddPropertyScreen navigation={navigation} route={route} />);
     await fill();
     await fireEvent.press(screen.getByRole("radio", { name: "Townhouse" }));
     await fireEvent.press(screen.getByRole("button", { name: "Save home" }));
-    await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+    expect(await screen.findByText("How old are your systems?")).toBeTruthy();
+    await fireEvent.press(screen.getByRole("button", { name: "Skip for now" }));
+    expect(navigation.goBack).toHaveBeenCalled();
+    expect(mockSaveYears).not.toHaveBeenCalled();
+    expect(mockStartMoveIn).not.toHaveBeenCalled();
     expect(mockRegisterProperty).toHaveBeenCalledWith({
       address: "12 Elm St",
       city: "Raleigh",
@@ -163,6 +189,77 @@ describe("AddPropertyScreen", () => {
       expect(Alert.alert).toHaveBeenCalledWith("Couldn't add the home", expect.stringMatching(/already registered/)),
     );
     expect(navigation.goBack).not.toHaveBeenCalled();
+  });
+});
+
+describe("AddPropertyScreen — like the web wizard", () => {
+  const navigation = { goBack: jest.fn(), navigate: jest.fn() } as any;
+  const route = { key: "k", name: "AddProperty", params: undefined } as any;
+
+  it("suggests addresses, fills the rest from the pick and pre-fills details from public records", async () => {
+    mockSuggest.mockResolvedValue([{ placeId: "pl1", main: "12 Elm St", secondary: "Raleigh, NC, USA" }]);
+    mockPlace.mockResolvedValue({ address: "12 Elm St", city: "Raleigh", state: "NC", zipCode: "27601" });
+    mockLookup.mockResolvedValue({ yearBuilt: 1994, squareFeet: 1850, propertyType: "Condo" });
+    await wrap(<AddPropertyScreen navigation={navigation} route={route} />);
+    await fireEvent.changeText(screen.getByLabelText("Street address"), "12 Elm");
+    await fireEvent.press(await screen.findByRole("button", { name: "12 Elm St, Raleigh, NC, USA" }));
+    await waitFor(() => expect(screen.getByLabelText("ZIP code")).toHaveProp("value", "27601"));
+    expect(screen.getByLabelText("City")).toHaveProp("value", "Raleigh");
+    expect(screen.getByLabelText("State")).toHaveProp("value", "NC");
+    expect(mockPlace).toHaveBeenCalledWith("pl1", "sess");
+    await waitFor(() => expect(screen.getByLabelText("Year built")).toHaveProp("value", "1994"));
+    expect(screen.getByLabelText("Square feet")).toHaveProp("value", "1850");
+    expect(screen.getByRole("radio", { name: "Condo" })).toHaveProp("accessibilityState", { selected: true });
+    expect(screen.getByText(/Filled in from public records/)).toBeTruthy();
+    expect(mockLookup).toHaveBeenCalledWith({ address: "12 Elm St", city: "Raleigh", state: "NC", zipCode: "27601" });
+  });
+
+  it("saves Original and Replaced years to the home record, then goes back", async () => {
+    mockRegisterProperty.mockResolvedValue({ id: "P9", yearBuilt: 1990 });
+    await wrap(<AddPropertyScreen navigation={navigation} route={route} />);
+    await fireEvent.changeText(screen.getByLabelText("Street address"), "12 Elm St");
+    await fireEvent.changeText(screen.getByLabelText("City"), "Raleigh");
+    await fireEvent.changeText(screen.getByLabelText("State"), "NC");
+    await fireEvent.changeText(screen.getByLabelText("ZIP code"), "27601");
+    await fireEvent.changeText(screen.getByLabelText("Year built"), "1990");
+    await fireEvent.changeText(screen.getByLabelText("Square feet"), "1850");
+    await fireEvent.press(screen.getByRole("button", { name: "Save home" }));
+    await screen.findByText("How old are your systems?");
+
+    await fireEvent.press(screen.getByRole("radio", { name: "HVAC / AC: Replaced" }));
+    await fireEvent.changeText(screen.getByLabelText("Year the HVAC / AC was replaced"), "2019");
+    await fireEvent.press(screen.getByRole("radio", { name: "Roof: Original" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Save years" }));
+    await waitFor(() => expect(mockSaveYears).toHaveBeenCalledWith("P9", { HVAC: 2019, Roofing: 1990 }));
+    await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+  });
+
+  it("keeps the years step open with the reason when a year is wrong or the record refuses it", async () => {
+    mockRegisterProperty.mockResolvedValue({ id: "P9", yearBuilt: 1990 });
+    await wrap(<AddPropertyScreen navigation={navigation} route={route} />);
+    await fill();
+    await fireEvent.press(screen.getByRole("button", { name: "Save home" }));
+    await screen.findByText("How old are your systems?");
+    await fireEvent.press(screen.getByRole("radio", { name: "HVAC / AC: Replaced" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Save years" }));
+    expect(Alert.alert).toHaveBeenCalledWith("Almost there", "Enter the year the HVAC / AC was replaced.");
+    expect(mockSaveYears).not.toHaveBeenCalled();
+
+    mockSaveYears.mockRejectedValueOnce(Object.assign(new Error("The HVAC year is in the future"), { name: "CanisterError", code: "InvalidInput" }));
+    await fireEvent.changeText(screen.getByLabelText("Year the HVAC / AC was replaced"), "2019");
+    await fireEvent.press(screen.getByRole("button", { name: "Save years" }));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith("Couldn't save the years", expect.stringMatching(/in the future/)));
+    expect(navigation.goBack).not.toHaveBeenCalled();
+  });
+
+  it("starts the move-in plan when the home was bought in the last 12 months", async () => {
+    mockRegisterProperty.mockResolvedValue({ id: "P9", yearBuilt: 1990 });
+    await wrap(<AddPropertyScreen navigation={navigation} route={route} />);
+    await fill();
+    await fireEvent.press(screen.getByRole("radio", { name: "Bought in the last 12 months: Yes" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Save home" }));
+    await screen.findByText("How old are your systems?");
+    expect(mockStartMoveIn).toHaveBeenCalledWith("P9");
   });
 });
 

@@ -177,11 +177,11 @@ export async function flushHeld(deps: PollerDeps = defaultDeps, now: number = Da
         const notice = await notices.get(h.requestId)!;
         const open = notice && (notice.status === "AwaitingReview" || notice.status === "Approved");
         if (open && notice.household.includes(h.n.principal)) sent += await deliver(deps, emailFor, h.n, `${h.key}:${h.n.notBefore}`);
-      } else if (h.n.type === "setup_tip_shutoffs" || h.n.type === "setup_tip_first_job") {
+      } else if (h.n.type === "setup_tip_shutoffs" || h.n.type === "setup_tip_paperwork") {
         // Only while the home is still theirs and the step isn't done.
         const status = await deps.getSetupStatus(h.n.principal, h.requestId);
         if (status === null) continue; // couldn't read the record: try again next pass
-        const done = h.n.type === "setup_tip_shutoffs" ? status.hasShutoffs : status.hasJobs;
+        const done = h.n.type === "setup_tip_shutoffs" ? status.hasShutoffs : status.hasPaperwork;
         if (status.exists && !done) sent += await deliver(deps, emailFor, h.n, `${h.key}:${h.n.type}`);
       } else if (h.n.type === "visit_reminder") {
         // Only while the visit is still booked for the time the reminder is about.

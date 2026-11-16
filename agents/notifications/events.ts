@@ -176,10 +176,10 @@ export function successionPayload(kind: string, notice: SuccessionNoticeInfo, re
  * First week (property canister): first_home_added (an owner's first home;
  * refId the property, summary its address) brings a welcome email at once and
  * two tips, held until their day and skipped by the poller if the step is
- * done by then. Email only.
+ * done by then. The welcome is email only; the tips are pushed too.
  */
 const DAY_MS = 24 * 60 * 60 * 1000;
-export const SETUP_TIP_AFTER_MS = { setup_tip_shutoffs: 1 * DAY_MS, setup_tip_first_job: 3 * DAY_MS } as const;
+export const SETUP_TIP_AFTER_MS = { setup_tip_shutoffs: 1 * DAY_MS, setup_tip_paperwork: 3 * DAY_MS } as const;
 
 export function firstWeekPayloads(propertyId: string, address: string): Record<"welcome" | keyof typeof SETUP_TIP_AFTER_MS, PushPayload> {
   const home = address || "your home";
@@ -198,10 +198,11 @@ export function firstWeekPayloads(propertyId: string, address: string): Record<"
              "where it is in your house guide so anyone at the house can find it too.",
       route: `guide/${propertyId}`, data,
     },
-    setup_tip_first_job: {
-      title: "Put one past job on your record",
-      body:  `A repair, a service visit or your own work on ${home} all count. Logging one gives your home its first ` +
-             "HomeGentic Score.",
+    setup_tip_paperwork: {
+      title: "Turn one receipt into a record",
+      body:  "Forward a contractor's invoice to your HomeGentic forwarding address (it's on the Jobs page) and we'll " +
+             "turn it into a draft job for you to check, or scan an appliance's label to save its brand and model. " +
+             `Either one starts the paperwork side of ${home}'s record.`,
       route: "jobs", data,
     },
   };
@@ -388,7 +389,7 @@ export async function notificationsFor(
     return [
       { type: "welcome", principal: event.recipient, payload: p.welcome, pushOptIn: false },
       ...(Object.keys(SETUP_TIP_AFTER_MS) as (keyof typeof SETUP_TIP_AFTER_MS)[]).map((tip) => ({
-        type: tip, principal: event.recipient!, payload: p[tip], pushOptIn: false, notBefore: now + SETUP_TIP_AFTER_MS[tip],
+        type: tip, principal: event.recipient!, payload: p[tip], pushOptIn: true, notBefore: now + SETUP_TIP_AFTER_MS[tip],
       })),
     ];
   }
