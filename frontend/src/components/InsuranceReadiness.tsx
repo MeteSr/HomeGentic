@@ -4,7 +4,7 @@
  * home's record already shows, and what's missing. Part of the Insurance
  * Defense page, so it prints with the rest of the packet; the buttons don't.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle, CircleDashed, CircleAlert, Search } from "lucide-react";
 import SystemAgesModal from "@/components/SystemAgesModal";
@@ -78,6 +78,11 @@ export function InsuranceReadiness({ property, jobs }: { property: Property; job
   const navigate = useNavigate();
   const pid = String(property.id);
   const [ages, setAges]       = useState(() => systemAgesService.get(pid));
+  useEffect(() => {
+    let cancelled = false;
+    systemAgesService.load(pid, Number(property.yearBuilt)).then((a) => { if (!cancelled) setAges(a); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [pid]); // eslint-disable-line react-hooks/exhaustive-deps
   const [agesOpen, setAgesOpen] = useState(false);
   const facts = { yearBuilt: Number(property.yearBuilt), state: property.state };
   const own = jobs.filter((j) => j.propertyId === pid);

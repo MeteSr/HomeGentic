@@ -497,6 +497,18 @@ export type PulsePropertyTax = {
   }>;
 };
 
+export type PulseSetup = {
+  hasShutoffs: boolean;
+  propertyId: string;
+  addedAt: bigint;
+  systemYears: SystemYear[];
+};
+
+export type SystemYear = {
+  name: string;
+  installYear: bigint;
+};
+
 export type RoomRecord = {
   id: string;
   paintBrand: string;
@@ -834,6 +846,7 @@ export interface _SERVICE {
     | { err: Error }
   >;
   getPulsePropertyTax: ActorMethod<[Principal], { ok: PulsePropertyTax[] } | { err: Error }>;
+  getPulseSetup: ActorMethod<[Principal], { ok: PulseSetup[] } | { err: Error }>;
   getRoomsByProperty: ActorMethod<[string], RoomRecord[]>;
   getSharedHouseGuide: ActorMethod<[string], { ok: SharedHouseGuide } | { err: Error }>;
   getSpecialAssessments: ActorMethod<[string], { ok: SpecialAssessment[] } | { err: Error }>;
@@ -841,6 +854,7 @@ export interface _SERVICE {
   getSuccessionNotice: ActorMethod<[string], { ok: [] | [SuccessionNotice] } | { err: Error }>;
   getSuccessionProof: ActorMethod<[string], { ok: SuccessionProof } | { err: Error }>;
   getSuccessor: ActorMethod<[string], { ok: [] | [Successor] } | { err: Error }>;
+  getSystemYears: ActorMethod<[string], { ok: SystemYear[] } | { err: Error }>;
   getVerificationLevel: ActorMethod<[string], [] | [string]>;
   getVerifyStatus: ActorMethod<[string], { ok: VerifyStatus } | { err: Error }>;
   initiateTransfer: ActorMethod<[string], { ok: PendingTransfer } | { err: Error }>;
@@ -875,6 +889,7 @@ export interface _SERVICE {
   setMoveInStep: ActorMethod<[string, string, boolean], { ok: MoveInPlan } | { err: Error }>;
   setPropertyTaxYear: ActorMethod<[string, PropertyTaxYearInput], { ok: PropertyTaxYear } | { err: Error }>;
   setSuccessor: ActorMethod<[string, SuccessorInput], { ok: Successor } | { err: Error }>;
+  setSystemYears: ActorMethod<[string, SystemYear[]], { ok: SystemYear[] } | { err: Error }>;
   startMoveInPlan: ActorMethod<[string], { ok: MoveInPlan } | { err: Error }>;
   submitVerification: ActorMethod<[string, string, string, [] | [string]], { ok: Property } | { err: Error }>;
   updateArchitecturalReview: ActorMethod<[string, ReviewInput], { ok: ArchitecturalReview } | { err: Error }>;

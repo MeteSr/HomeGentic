@@ -347,6 +347,15 @@ export const idlFactory = ({ IDL }: any) => {
     tasks:     IDL.Vec(MoveInTask),
     updatedAt: IDL.Int,
   });
+  // First week: the year each main system was installed, and what the
+  // notification relay reads about a home's setup.
+  const SystemYear = IDL.Record({ name: IDL.Text, installYear: IDL.Nat });
+  const PulseSetup = IDL.Record({
+    propertyId:  IDL.Text,
+    addedAt:     IDL.Int,
+    systemYears: IDL.Vec(SystemYear),
+    hasShutoffs: IDL.Bool,
+  });
   // #724 successor / legacy contact
   const SuccessorInput = IDL.Record({ name: IDL.Text, email: IDL.Text, relationship: IDL.Text });
   const Successor = IDL.Record({
@@ -722,6 +731,22 @@ export const idlFactory = ({ IDL }: any) => {
     getPulsePropertyTax: IDL.Func(
       [IDL.Principal],
       [IDL.Variant({ ok: IDL.Vec(PulsePropertyTax), err: Error })],
+      ["query"]
+    ),
+    // First week: system install years, and the relay's setup read
+    setSystemYears: IDL.Func(
+      [IDL.Text, IDL.Vec(SystemYear)],
+      [IDL.Variant({ ok: IDL.Vec(SystemYear), err: Error })],
+      []
+    ),
+    getSystemYears: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(SystemYear), err: Error })],
+      ["query"]
+    ),
+    getPulseSetup: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Vec(PulseSetup), err: Error })],
       ["query"]
     ),
     // #712 move-in plan for new owners

@@ -5,6 +5,7 @@ import { systemAgesService, TRACKED_SYSTEMS, type SystemName, type SystemAges } 
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/services/candid";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -49,6 +50,7 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
   const [ages, setAges]       = useState<Record<SystemName, string>>(() => buildAges(stored, yearBuilt));
   const [touched, setTouched] = useState<Set<SystemName>>(() => buildTouched(stored));
   const [hasSolar, setHasSolar] = useState<boolean>(() => !!stored["Solar Panels"]);
+  const [saving, setSaving] = useState(false);
 
   // Re-sync when propertyId / open changes
   React.useEffect(() => {
@@ -57,6 +59,16 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
       setAges(buildAges(s, yearBuilt));
       setTouched(buildTouched(s));
       setHasSolar(!!s["Solar Panels"]);
+      // The home record may hold years this browser hasn't seen.
+      if (!propertyId) return;
+      let cancelled = false;
+      systemAgesService.load(propertyId, yearBuilt).then((fromRecord) => {
+        if (cancelled) return;
+        setAges(buildAges(fromRecord, yearBuilt));
+        setTouched(buildTouched(fromRecord));
+        setHasSolar(!!fromRecord["Solar Panels"]);
+      }).catch(() => {});
+      return () => { cancelled = true; };
     }
   }, [propertyId, yearBuilt, open]);
 
@@ -74,23 +86,31 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
     setTouched((prev) => { const next = new Set(prev); next.delete(sys); return next; });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!propertyId) return;
     const result: SystemAges = {};
     for (const sys of TRACKED_SYSTEMS) {
       if (sys === "Solar Panels") {
         if (hasSolar) {
           const yr = parseInt(ages[sys], 10);
-          if (!isNaN(yr) && yr >= 1900 && yr <= CURRENT_YEAR) result[sys] = yr;
+          if (!isNaN(yr) && yr >= Math.max(1900, yearBuilt) && yr <= CURRENT_YEAR) result[sys] = yr;
         }
         continue;
       }
       if (touched.has(sys)) {
         const yr = parseInt(ages[sys], 10);
-        if (!isNaN(yr) && yr >= 1900 && yr <= CURRENT_YEAR) result[sys] = yr;
+        if (!isNaN(yr) && yr >= Math.max(1900, yearBuilt) && yr <= CURRENT_YEAR) result[sys] = yr;
       }
     }
-    systemAgesService.set(propertyId, result);
+    setSaving(true);
+    try {
+      await systemAgesService.save(propertyId, result);
+    } catch (err) {
+      toast.error(errorMessage(err, "Couldn't save the system ages"));
+      return;
+    } finally {
+      setSaving(false);
+    }
     toast.success("System ages saved — maintenance predictions updated.");
     onSuccess?.();
     onClose();
@@ -279,7 +299,7 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
         </div>
 
         <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "flex-end" }}>
-          <Button onClick={handleSave} icon={<Save size={14} />} size="lg">
+          <Button onClick={handleSave} icon={<Save size={14} />} size="lg" disabled={saving}>
             Save System Ages
           </Button>
         </div>

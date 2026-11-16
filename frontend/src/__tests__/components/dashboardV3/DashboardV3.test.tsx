@@ -469,3 +469,23 @@ describe("DashboardV3 — multi-step assistant tasks", () => {
     expect(approvePlan).toHaveBeenCalledWith([0]);
   });
 });
+
+describe("DashboardV3 — a brand-new record", () => {
+  it("leads with setting up the record and claims nothing is overdue", () => {
+    renderDashboard();
+    expect(screen.getByText("Start your home record")).toBeInTheDocument();
+    const brief = screen.getByTestId("home-brief");
+    expect(within(brief).getByText(/Confirm when your main systems were installed/)).toBeInTheDocument();
+    expect(within(brief).getByText(/Log one past job/)).toBeInTheDocument();
+    expect(screen.queryByText(/HVAC service overdue/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/hasn't been serviced/)).not.toBeInTheDocument();
+  });
+
+  it("drops the system-years step once years are saved", () => {
+    mockUseMaintenanceSchedule.mockReturnValue({ recurringServices: [], visitLogMap: {}, systemAges: { HVAC: 2019 } });
+    renderDashboard();
+    const brief = screen.getByTestId("home-brief");
+    expect(within(brief).queryByText(/Confirm when your main systems were installed/)).not.toBeInTheDocument();
+    expect(within(brief).getByText(/Log one past job/)).toBeInTheDocument();
+  });
+});

@@ -103,12 +103,19 @@ describe("getWeeklyPulse", () => {
     expect(result!.headline).toBe("Clean dryer vents");
   });
 
-  it("returns no jobs → Overdue immediately (no jobs at all)", () => {
+  it("asks a new owner to start the record instead of calling anything overdue (no jobs at all)", () => {
     const result = getWeeklyPulse([makeProperty()], []);
     expect(result).not.toBeNull();
-    expect(result!.category).toBe("Overdue");
-    // First annual service checked is HVAC
-    expect(result!.headline).toContain("HVAC");
+    expect(result!.category).toBe("Getting started");
+    expect(result!.headline).toBe("Start your home record");
+    // We know nothing about past service yet, so nothing may claim it.
+    expect(result!.detail).not.toMatch(/hasn't been|overdue|over a year/i);
+  });
+
+  it("says a service isn't on record, not that it hasn't happened, when the record has other jobs", () => {
+    const result = getWeeklyPulse([makeProperty()], [makeJob({ serviceType: "Plumbing", date: "2025-05-01" })]);
+    expect(result!.headline).toBe("No HVAC service on record");
+    expect(result!.detail).not.toMatch(/hasn't been serviced/i);
   });
 
   it("returns the seasonal tip for each month when no overdue services", () => {

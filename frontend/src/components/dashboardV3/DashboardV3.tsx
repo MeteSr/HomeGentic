@@ -71,6 +71,7 @@ import { buildHomeBrief, type BriefTone } from "./homeBrief";
 import { roomService } from "@/services/room";
 import { recallItems, checkRecalls, type RecallMatch } from "@/services/recalls";
 import { moveInPlanService, type MoveInPlan } from "@/services/moveInPlan";
+import { jobInboxService } from "@/services/jobInbox";
 import { houseGuideService, type HouseGuide } from "@/services/houseGuide";
 import { insurancePolicyService } from "@/services/insurancePolicy";
 import { buildMoveInSteps, moveInProgress } from "@/services/moveInSteps";
@@ -124,7 +125,7 @@ function routeQuery(q: string): PanelKey {
 // ── Small presentational bits ────────────────────────────────────────────────
 
 const BRIEF_DOT: Record<BriefTone, string> = {
-  urgent: "var(--hg-bad)", action: "#2B34FF", money: "var(--hg-warn)", info: "var(--hg-dim)",
+  urgent: "var(--hg-bad)", action: "#2B34FF", money: "var(--hg-warn)", info: "var(--hg-dim)", setup: "var(--hg-blue-soft)",
 };
 const FACT_TONE: Record<FactTone, string> = {
   good: "var(--hg-good)", warn: "var(--hg-warn)", bad: "var(--hg-bad)", neutral: "var(--hg-ink-2)",
@@ -452,12 +453,23 @@ export function DashboardV3() {
     return { propertyId: activePropertyId, ...moveInProgress(moveIn.plan, steps) };
   }, [moveIn, activeProperty, activePropertyId, rooms, recalls, systems]);
 
+  // First steps while the active home's record has no jobs.
+  const setupStatus = useMemo(() => {
+    if (loading || !activePropertyId || jobs.length > 0) return null;
+    return {
+      propertyId:     activePropertyId,
+      systemYearsSet: Object.keys(systemAges).length > 0,
+      hasAppliance:   rooms.some((r) => r.fixtures.some((f) => f.brand.trim() !== "" && f.model.trim() !== "")),
+      inboxReady:     !!jobInboxService.domain(),
+    };
+  }, [loading, activePropertyId, jobs.length, systemAges, rooms]);
+
   const brief = useMemo(() => buildHomeBrief({
     now: new Date(), pendingProposals, sensorAlerts, quoteRequests, bidCountMap, jobs,
     recurringServices, visitLogMap, atRiskWarnings, systems, billInsights, people,
-    quotaExhausted: voice.quotaExhausted, recalls, moveIn: moveInStatus,
+    quotaExhausted: voice.quotaExhausted, recalls, moveIn: moveInStatus, setup: setupStatus,
   }), [pendingProposals, sensorAlerts, quoteRequests, bidCountMap, jobs, recurringServices, visitLogMap,
-    atRiskWarnings, systems, billInsights, people, voice.quotaExhausted, recalls, moveInStatus]);
+    atRiskWarnings, systems, billInsights, people, voice.quotaExhausted, recalls, moveInStatus, setupStatus]);
 
   // ── Header helpers ────────────────────────────────────────────────────────
   const propertyLabel = activeProperty

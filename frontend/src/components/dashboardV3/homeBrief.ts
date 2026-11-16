@@ -20,7 +20,7 @@ import { nextVisit } from "./panelData";
 import type { FlowKey, PanelKey } from "./types";
 import { formatCents } from "@/utils/format";
 
-export type BriefTone = "urgent" | "action" | "money" | "info";
+export type BriefTone = "urgent" | "action" | "money" | "info" | "setup";
 
 export interface BriefItem {
   id:     string;
@@ -59,6 +59,12 @@ export interface BriefInput {
   recalls?:          RecallMatch[];
   /** #712: progress on the active property's move-in plan, when it has one. */
   moveIn?:           { propertyId: string; done: number; total: number } | null;
+  /**
+   * First steps for a record with no jobs yet (null once it has one): whether
+   * the system install years are saved, whether an appliance with a brand and
+   * model is saved, and whether invoice forwarding is set up in this build.
+   */
+  setup?:            { propertyId: string; systemYearsSet: boolean; hasAppliance: boolean; inboxReady: boolean } | null;
 }
 
 /** Most items the brief shows; the rest are one tap away in the rail. */
@@ -186,12 +192,28 @@ export function buildHomeBrief(input: BriefInput): HomeBrief {
     items.push({ id: "quota", tone: "info", text: "Your AI assistant calls are used up for this period. Chat still works.", go: "billing" });
   }
 
+  // Setup steps come last: anything that needs the owner goes first.
+  const setup = input.setup;
+  if (setup) {
+    if (!setup.systemYearsSet) {
+      items.push({ id: "setup-years", tone: "setup", text: "Confirm when your main systems were installed, so forecasts start from real years.", path: `/properties/${setup.propertyId}/systems` });
+    }
+    items.push({ id: "setup-job", tone: "setup", text: "Log one past job (a repair, a service visit or your own work) to get your first HomeGentic Score.", flow: "logJob" });
+    if (!setup.hasAppliance) {
+      items.push({ id: "setup-label", tone: "setup", text: "Scan an appliance label to save its model and get recall alerts for it.", path: "/warranties" });
+    }
+    if (setup.inboxReady) {
+      items.push({ id: "setup-inbox", tone: "setup", text: "Forward a contractor invoice to your HomeGentic address and it becomes a draft job.", path: "/jobs" });
+    }
+  }
+
   const shown = items.slice(0, MAX_BRIEF_ITEMS);
-  const actionable = items.filter((i) => i.tone !== "info").length;
+  const actionable = items.filter((i) => i.tone !== "info" && i.tone !== "setup").length;
+  const settingUp = items.some((i) => i.tone === "setup");
   return {
     greeting: greetingFor(input.now),
     summary: actionable === 0
-      ? "Nothing needs you today."
+      ? (settingUp ? "Let's set up your record." : "Nothing needs you today.")
       : actionable === 1 ? "One thing needs you." : `${actionable} things need you.`,
     items: shown,
   };

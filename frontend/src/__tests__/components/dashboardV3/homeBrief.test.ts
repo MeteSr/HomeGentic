@@ -145,3 +145,40 @@ describe("buildHomeBrief", () => {
     expect(b.items[0].href).toBeUndefined();
   });
 });
+
+describe("buildHomeBrief — setting up a new record", () => {
+  const setup = (over: Partial<NonNullable<BriefInput["setup"]>> = {}) => ({
+    propertyId: "p1", systemYearsSet: false, hasAppliance: false, inboxReady: true, ...over,
+  });
+
+  it("lists the first steps for a record with no jobs, and says so in the summary", () => {
+    const b = buildHomeBrief(input({ setup: setup() }));
+    expect(b.summary).toBe("Let's set up your record.");
+    expect(b.items.map((i) => i.id)).toEqual(["setup-years", "setup-job", "setup-label", "setup-inbox"]);
+    expect(b.items[0]).toMatchObject({ tone: "setup", path: "/properties/p1/systems" });
+    expect(b.items[1]).toMatchObject({ tone: "setup", flow: "logJob" });
+    expect(b.items[2]).toMatchObject({ path: "/warranties" });
+    expect(b.items[3]).toMatchObject({ path: "/jobs" });
+  });
+
+  it("drops each step once it's done, and the inbox step when forwarding isn't set up", () => {
+    const b = buildHomeBrief(input({ setup: setup({ systemYearsSet: true, hasAppliance: true, inboxReady: false }) }));
+    expect(b.items.map((i) => i.id)).toEqual(["setup-job"]);
+  });
+
+  it("puts anything that needs the owner ahead of setup steps and counts only those", () => {
+    const b = buildHomeBrief(input({
+      setup: setup(),
+      pendingProposals: [{ id: "j1" } as any],
+    }));
+    expect(b.items[0].id).toBe("approvals");
+    expect(b.summary).toBe("One thing needs you.");
+    expect(b.items).toHaveLength(MAX_BRIEF_ITEMS);
+  });
+
+  it("says nothing about setup once the record has a job", () => {
+    const b = buildHomeBrief(input({ setup: null }));
+    expect(b.items).toEqual([]);
+    expect(b.summary).toBe("Nothing needs you today.");
+  });
+});
