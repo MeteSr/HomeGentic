@@ -2,7 +2,7 @@
  * Upgrade cost at scale — an upgrade must fit in one message however much a
  * canister holds.
  *
- * The canisters rebuild their transient indexes from the stored records on
+ * Most canisters rebuild their transient indexes from the stored records on
  * every upgrade, so upgrade cost grows with record count, and an upgrade over
  * the instruction limit is rejected (the canister keeps running the old
  * code, and no fix can ship until data is removed). Seeding a realistic
@@ -21,6 +21,12 @@
  * the index rebuild. The targets below sit at about half of those, so the test
  * fails well before a real canister would, and when a change makes records
  * dearer to upgrade.
+ *
+ * Since 2026-11-16 the job canister stores its indexes instead (job/main.mo),
+ * which took its upgrade from about 143k instructions per job to a handful;
+ * its case now also checks that the cost stays flat as jobs grow. That turned
+ * out to be the index rebuild, not the heap a record takes, so the other
+ * canisters can do the same if they near their targets.
  */
 
 import { describe, it, expect, afterAll, afterEach } from "vitest";
@@ -67,8 +73,12 @@ async function fill(from: number, to: number, write: (i: number) => Promise<unkn
   }
 }
 
-/** Projects the upgrade cost to `target` records and checks it against the limit. */
-function check(label: string, target: number, n1: number, c1: bigint, n2: number, c2: bigint) {
+/**
+ * Projects the upgrade cost to `target` records and checks it against the limit.
+ * `maxPerRecord`, for a canister whose indexes are stored rather than rebuilt,
+ * also caps the cost per record: such an upgrade should barely grow with data.
+ */
+function check(label: string, target: number, n1: number, c1: bigint, n2: number, c2: bigint, maxPerRecord?: number) {
   const perRecord = Number(c2 - c1) / (n2 - n1) / CYCLES_PER_INSTRUCTION;
   const fixed = Number(c1) / CYCLES_PER_INSTRUCTION - perRecord * n1;
   const projected = fixed + perRecord * target;
@@ -78,7 +88,11 @@ function check(label: string, target: number, n1: number, c1: bigint, n2: number
     `${target.toLocaleString()} records → ${(projected / 1e9).toFixed(1)}B of ${UPGRADE_LIMIT / 1e9}B  ` +
     `(limit reached at ~${fits.toLocaleString()})`
   );
-  expect(perRecord, `${label}: upgrade cost should grow with records`).toBeGreaterThan(0);
+  if (maxPerRecord === undefined) {
+    expect(perRecord, `${label}: upgrade cost should grow with records`).toBeGreaterThan(0);
+  } else {
+    expect(perRecord, `${label}: ${Math.round(perRecord)} instructions per record on upgrade`).toBeLessThan(maxPerRecord);
+  }
   expect(projected, `${label}: ${target.toLocaleString()} records would need ${(projected / 1e9).toFixed(1)}B instructions`)
     .toBeLessThan(UPGRADE_LIMIT * HEADROOM);
 }
@@ -118,7 +132,8 @@ describe("upgrade cost stays under the instruction limit at scale", () => {
     const c2 = await t.upgradeCost();
     // The indexes came back: one property's jobs are still found after the upgrades.
     expect((await a.getJobsForProperty("P_7")).ok).toHaveLength(n2 / 500);
-    check("job", 1_000_000, n1, c1, n2, c2);
+    // The job indexes are stored, so an upgrade no longer files every job again.
+    check("job", 1_000_000, n1, c1, n2, c2, 1_000);
     await t.pic.tearDown();
   }, TIMEOUT);
 
