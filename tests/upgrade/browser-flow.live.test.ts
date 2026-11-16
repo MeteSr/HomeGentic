@@ -86,16 +86,15 @@ describe("browser: log a job and get it countersigned", () => {
     return page;
   };
 
-  /** Dev sign-in, then the three-step sign-up as `role`. */
+  /** Dev sign-in, then the two-step sign-up as `role`. */
   const signUp = async (page: Page, role: "Homeowner" | "Realtor", email: string) => {
     await page.goto(`${app.baseUrl}/login`);
     await page.getByRole("button", { name: /dev login/i }).click();
     await page.waitForURL(/dashboard/);
     await go(page, "/register");
-    await page.getByText(role, { exact: true }).click();
+    await page.getByRole("radio", { name: new RegExp(role) }).check();
     await page.getByRole("button", { name: /continue/i }).click();
     await page.getByPlaceholder(/you@example.com/i).fill(email);
-    await page.getByRole("button", { name: /review/i }).click();
     await page.getByRole("checkbox").check();
     await page.getByRole("button", { name: /create account/i }).click();
     await page.waitForURL(/dashboard/, { timeout: 30_000 });
@@ -103,10 +102,9 @@ describe("browser: log a job and get it countersigned", () => {
 
   /** The sign-up steps on /register, for someone already signed in. */
   const register = async (page: Page, role: "Homeowner" | "Realtor", email: string) => {
-    await page.getByText(role, { exact: true }).click({ timeout: 30_000 });
+    await page.getByRole("radio", { name: new RegExp(role) }).check({ timeout: 30_000 });
     await page.getByRole("button", { name: /continue/i }).click();
     await page.getByPlaceholder(/you@example.com/i).fill(email);
-    await page.getByRole("button", { name: /review/i }).click();
     await page.getByRole("checkbox").check();
     await page.getByRole("button", { name: /create account/i }).click();
   };
