@@ -773,7 +773,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="hg-footer-copy" style={{ maxWidth: 1280, margin: "0 auto", padding: "0 40px 44px", boxSizing: "border-box", font: `500 12.5px/1 ${BODY}`, color: MUTED }}>
-            © 2026 HomeGentic · Nashville, TN
+            © {new Date().getFullYear()} HomeGentic, Inc.
           </div>
         </footer>
 
