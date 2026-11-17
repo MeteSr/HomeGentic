@@ -489,7 +489,7 @@ export default function ForProsPage() {
             </div>
           </div>
           <div style={{ borderTop: "1px solid rgba(252,252,253,0.08)", paddingTop: "24px", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: F.body, fontSize: "13px", color: "rgba(252,252,253,0.5)" }}>
-            <span>© 2026 HomeGentic Inc.</span>
+            <span>© {new Date().getFullYear()} HomeGentic Inc.</span>
             <div style={{ display: "flex", gap: "24px" }}>
               <Link to="/privacy" style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Privacy</Link>
               <Link to="/terms"   style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Terms</Link>

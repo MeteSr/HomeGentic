@@ -99,3 +99,15 @@ describe("LandingPage — navigation", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/sample-report");
   });
 });
+
+describe("LandingPage — footer", () => {
+  // The footer used to say "Nashville, TN", left over from the mockup. The
+  // company is HomeGentic, Inc. (a Florida corporation, per the Terms) and
+  // has no office in Nashville, so the footer names no city.
+  it("shows the legal name and current year, and no made-up location", () => {
+    renderPage();
+    const year = new Date().getFullYear();
+    expect(screen.getByText(`© ${year} HomeGentic, Inc.`)).toBeInTheDocument();
+    expect(screen.queryByText(/Nashville/)).not.toBeInTheDocument();
+  });
+});

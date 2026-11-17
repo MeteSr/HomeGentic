@@ -293,7 +293,7 @@ export default function TermsOfServicePage() {
         <footer style={{ background: C.ink, padding: "32px 1.5rem", fontFamily: F.body }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
             <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
-              © 2025 HomeGentic
+              © {new Date().getFullYear()} HomeGentic
             </span>
             <div style={{ display: "flex", gap: 24 }}>
               {[["Security", "/privacy#security"], ["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/support"]].map(([label, href]) => (

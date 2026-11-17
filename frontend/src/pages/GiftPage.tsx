@@ -513,7 +513,7 @@ function Footer() {
         </div>
       </div>
       <div style={{ borderTop: "1px solid rgba(252,252,253,0.08)", paddingTop: 24, display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center", justifyContent: "space-between", fontFamily: F.body, fontSize: 13, color: "rgba(252,252,253,0.5)" }}>
-        <span>© 2026 HomeGentic Inc.</span>
+        <span>© {new Date().getFullYear()} HomeGentic Inc.</span>
         <div style={{ display: "flex", gap: 24 }}>
           <Link to="/privacy" style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Privacy</Link>
           <Link to="/terms"   style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Terms</Link>
