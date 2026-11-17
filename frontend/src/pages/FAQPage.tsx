@@ -247,7 +247,7 @@ export default function FAQPage() {
             flexWrap: "wrap", gap: 16,
           }}>
             <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
-              © 2025 HomeGentic
+              © {new Date().getFullYear()} HomeGentic
             </span>
             <div style={{ display: "flex", gap: 24 }}>
               {[["Security", "/privacy#security"], ["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/support"]].map(([label, href]) => (

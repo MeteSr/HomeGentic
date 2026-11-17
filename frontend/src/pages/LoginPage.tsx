@@ -365,7 +365,7 @@ export default function LoginPage() {
             <span key={t} style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.65)", cursor: "pointer" }}>{t}</span>
           ))}
         </div>
-        <span style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.65)" }}>© 2025 HomeGentic. All rights reserved.</span>
+        <span style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.65)" }}>© {new Date().getFullYear()} HomeGentic. All rights reserved.</span>
       </div>
     </div>
   );
