@@ -109,4 +109,14 @@ describe("ForProsPage — Bid to List section", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/login");
     expect(sessionStorage.getItem("signupRole")).toBe("Realtor");
   });
+
+  it("scrolls to the agents section from the footer's Real Estate Agents link", () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    renderPage();
+    fireEvent.click(screen.getByText("Real Estate Agents"));
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(scrollIntoView.mock.contexts[0]).toBe(document.getElementById("agents"));
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+  });
 });
