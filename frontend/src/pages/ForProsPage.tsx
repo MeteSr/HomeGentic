@@ -377,8 +377,9 @@ export default function ForProsPage() {
           </div>
         </section>
 
-        {/* ── BidToList cross-sell ─────────────────────────────────────────── */}
+        {/* ── Bid to List (real estate agents) ─────────────────────────────── */}
         <section
+          id="agents"
           className="fpro-section-pad"
           style={{ padding: "72px 56px", background: C.ink }}
         >
@@ -387,24 +388,32 @@ export default function ForProsPage() {
               🏡 Real Estate Agents
             </div>
             <h2 style={{ fontFamily: F.display, fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)", fontWeight: 800, color: C.paper, marginBottom: "1rem" }}>
-              Competing for listings?<br /><span style={{ fontWeight: 400, color: C.yellow }}>Try BidToList.</span>
+              Win listings on your terms.<br /><span style={{ fontWeight: 400, color: C.yellow }}>Bid to List is now part of HomeGentic.</span>
             </h2>
-            <p style={{ fontFamily: F.body, fontSize: "1rem", color: "rgba(252,252,253,0.55)", maxWidth: 520, margin: "0 auto 2rem", lineHeight: 1.7 }}>
-              HomeGentic focuses on home maintenance records. For agents looking to win seller listings through competitive proposals, our sister platform BidToList is built exactly for that.
+            <p style={{ fontFamily: F.body, fontSize: "1rem", color: "rgba(252,252,253,0.7)", maxWidth: 560, margin: "0 auto 2rem", lineHeight: 1.7 }}>
+              Bid to List used to be a separate app. It now runs inside HomeGentic, under the same sign-in. When homeowners get ready to sell, they post their home. Verified agents in that area send sealed proposals, and the seller picks the one that fits.
             </p>
-            <a
-              href="https://bidtolist.com"
-              target="_blank"
-              rel="noopener noreferrer"
+            <ul style={{ listStyle: "none", padding: 0, margin: "0 auto 2.25rem", maxWidth: 560, textAlign: "left", display: "flex", flexDirection: "column", gap: "0.9rem" }}>
+              {[
+                ["Sealed proposals", "Set your commission, suggested list price, CMA summary and marketing plan. No one else sees your terms, and you never see theirs."],
+                ["Listings with a verified history", "Sellers come with HomeGentic records of their repairs and maintenance. When you win, you get the seller's contact details and the home's record."],
+                ["Free to browse and bid", "Verify your licence and put a card on file. You pay a one-time fee only when a seller picks you, and it's refunded if no listing agreement is signed."],
+              ].map(([title, body]) => (
+                <li key={title} style={{ fontFamily: F.body, fontSize: "0.95rem", lineHeight: 1.6, color: "rgba(252,252,253,0.7)" }}>
+                  <span style={{ fontWeight: 700, color: C.paper }}>{title}.</span> {body}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={() => { rememberSignupRole("Realtor"); navigate("/login"); }}
               style={{
-                display: "inline-block", textDecoration: "none",
                 fontFamily: F.body, fontSize: "1rem", fontWeight: 700,
                 padding: "14px 32px", borderRadius: "100px",
-                background: C.yellow, color: C.ink,
+                background: C.yellow, color: C.ink, border: "none", cursor: "pointer",
               }}
             >
-              Go to BidToList →
-            </a>
+              Join as an agent
+            </button>
           </div>
         </section>
 
@@ -462,9 +471,11 @@ export default function ForProsPage() {
                   </a>
                 </li>
                 <li>
-                  <a href="https://bidtolist.com" target="_blank" rel="noopener noreferrer"
-                    style={{ fontFamily: F.body, fontSize: "14px", color: "rgba(252,252,253,0.6)", textDecoration: "none" }}>
-                    Real Estate Agents →
+                  <a
+                    onClick={(e) => { e.preventDefault(); document.getElementById("agents")?.scrollIntoView({ behavior: scrollBehavior() }); }}
+                    style={{ fontFamily: F.body, fontSize: "14px", color: "rgba(252,252,253,0.6)", textDecoration: "none", cursor: "pointer" }}
+                  >
+                    Real Estate Agents
                   </a>
                 </li>
                 <li>
