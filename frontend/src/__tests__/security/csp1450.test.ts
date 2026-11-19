@@ -76,3 +76,31 @@ describe("CSP.3 — connect-src must not hardcode http://localhost:3001", () => 
     expect(html).toContain("%VITE_VOICE_AGENT_URL%");
   });
 });
+
+// ── CSP.4 — the meta CSP reaches the IC hosts the agent calls ───────────────────
+// Browsers enforce the <meta> CSP and the _headers CSP together, so a host
+// allowed in only one of them is still blocked. @icp-sdk/auth's sign-in agent
+// has no host set on a deployed build (user-sign-in skill: leave it unset), and
+// off an icp0.io/ic0.app page its default host is https://icp-api.io.
+// Sign-in failed with "Refused to connect … icp-api.io" when only the header
+// allowed it.
+
+function connectSrc(csp: string): string[] {
+  const m = csp.match(/(?:^|;)\s*connect-src\s+([^;]*)/);
+  return m ? m[1].trim().split(/\s+/) : [];
+}
+
+describe("CSP.4 — meta connect-src allows the IC boundary-node hosts", () => {
+  it("allows https://icp-api.io (the agent's default host for sign-in)", () => {
+    expect(connectSrc(cspContent())).toContain("https://icp-api.io");
+  });
+
+  it("allows every IC host the generated _headers CSP allows", () => {
+    const src = readFileSync(resolve(ROOT, "frontend/scripts/gen-ic-assets.mjs"), "utf-8");
+    const headerConnect = src.match(/`connect-src ([^$`]*)/)?.[1] ?? "";
+    const icHosts = headerConnect.split(/\s+/).filter((h) => /ic0\.app|icp0\.io|icp-api\.io/.test(h));
+    expect(icHosts).toContain("https://icp-api.io");
+    const meta = connectSrc(cspContent());
+    for (const host of icHosts) expect(meta).toContain(host);
+  });
+});

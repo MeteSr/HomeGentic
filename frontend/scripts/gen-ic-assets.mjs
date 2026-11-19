@@ -114,7 +114,8 @@ const csp = [
   `script-src 'self' 'wasm-unsafe-eval' https://js.stripe.com https://m.stripe.network ${TURNSTILE}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  // icp-api.io is an alternative boundary-node endpoint used by some @dfinity/* versions
+  // icp-api.io is the agent's default host off icp0.io/ic0.app (sign-in calls II
+  // there). index.html's <meta> CSP must list it too: browsers enforce both.
   `connect-src 'self' https://ic0.app https://*.ic0.app https://icp-api.io ${STRIPE_CONNECT} ${voiceOrigin}${notificationsOrigin ? ` ${notificationsOrigin}` : ""}${iotGatewayOrigin ? ` ${iotGatewayOrigin}` : ""}`,
   // The voice Worker serves off-chain photos (listing photos load straight from it).
   `img-src 'self' data: blob: ${STRIPE_IMG} ${voiceOrigin}`,
