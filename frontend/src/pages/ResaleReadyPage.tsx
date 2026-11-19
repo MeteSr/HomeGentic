@@ -181,27 +181,25 @@ export default function ResaleReadyPage() {
           ))}
         </div>
 
-        {/* BidToList cross-sell */}
+        {/* Bid to List: start a listing */}
         <div style={{ border: `1px solid ${UI.rule}`, background: "#F0F7FF", padding: "1.25rem 1.5rem", marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
           <div>
             <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>
               Ready to Sell?
             </p>
             <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", marginBottom: "0.25rem" }}>
-              List your home on BidToList — agents compete for your listing
+              Let local agents compete for your listing with Bid to List
             </p>
             <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
-              Get multiple agent proposals and choose the best commission offer.
+              Verified agents send sealed proposals with their commission and marketing plan. You compare them and pick one.
             </p>
           </div>
-          <a
-            href="https://bidtolist.com"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            to="/sell"
             style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.5rem 1.25rem", background: "#1B3266", color: "#fff", textDecoration: "none", flexShrink: 0 }}
           >
-            Go to BidToList →
-          </a>
+            Start Bid to List →
+          </Link>
         </div>
 
         {/* Buyer premium estimate */}

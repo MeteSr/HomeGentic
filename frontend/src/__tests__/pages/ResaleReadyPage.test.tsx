@@ -271,3 +271,12 @@ describe("ResaleReadyPage — permits and lien waivers (#716)", () => {
     expect(await screen.findByText(/1 permit with no status recorded/i)).toBeInTheDocument();
   });
 });
+
+describe("ResaleReadyPage — Bid to List", () => {
+  it("links to the in-app /sell page, not the old standalone site", async () => {
+    const { container } = renderPage();
+    const link = await screen.findByRole("link", { name: "Start Bid to List →" });
+    expect(link).toHaveAttribute("href", "/sell");
+    expect(container.querySelector('a[href*="bidtolist.com"]')).toBeNull();
+  });
+});

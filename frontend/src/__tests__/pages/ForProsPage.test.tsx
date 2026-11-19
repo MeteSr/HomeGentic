@@ -94,3 +94,29 @@ describe("ForProsPage — sign-up role", () => {
     expect(sessionStorage.getItem("signupRole")).toBe("Contractor");
   });
 });
+
+describe("ForProsPage — Bid to List section", () => {
+  it("presents Bid to List as part of HomeGentic, with no link to the old standalone site", () => {
+    const { container } = renderPage();
+    expect(screen.getByText("Bid to List is now part of HomeGentic.")).toBeInTheDocument();
+    expect(container.querySelector('a[href*="bidtolist.com"]')).toBeNull();
+  });
+
+  it("chooses the Realtor role for the register page from Join as an agent", () => {
+    sessionStorage.clear();
+    renderPage();
+    fireEvent.click(screen.getByText("Join as an agent"));
+    expect(mockNavigate).toHaveBeenCalledWith("/login");
+    expect(sessionStorage.getItem("signupRole")).toBe("Realtor");
+  });
+
+  it("scrolls to the agents section from the footer's Real Estate Agents link", () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    renderPage();
+    fireEvent.click(screen.getByText("Real Estate Agents"));
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(scrollIntoView.mock.contexts[0]).toBe(document.getElementById("agents"));
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+  });
+});
