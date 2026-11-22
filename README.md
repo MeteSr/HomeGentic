@@ -388,6 +388,10 @@ icp canister call job pause '(null)' -e local
 icp canister call job unpause -e local
 ```
 
+Before a release, run the manual pass in [docs/MANUAL_TEST_PLAN.md](docs/MANUAL_TEST_PLAN.md): every main
+journey on web and mobile, with a one-hour smoke subset. [docs/MANUAL_TESTS.md](docs/MANUAL_TESTS.md) holds
+the deep-dive runbooks it points to.
+
 ---
 
 ## Coming Soon
