@@ -48,6 +48,7 @@ import { resolveSessionPrincipal, SESSION_HEADER } from "./session";
 import { resolveTier } from "./tier";
 import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
+import { canisterPlatformFeeLedger, settlePlatformFee, startPlatformFeeCheckout } from "./platformFee";
 import { canisterLedger, startCardSetup, saveCardFromSession, markInvoicePaid, markPaymentIntentPaid, chargeDueFees } from "./referralFees";
 import {
   canisterPaymentLedger, handleJobPaymentEvent, startJobPayment, startPayoutOnboarding, syncPayoutAccount,
@@ -154,17 +155,12 @@ export interface Env {
   // BidtoList
   BIDTOLIST_RESEND_API_KEY?:           string;
   BIDTOLIST_RESEND_FROM?:              string;
-  BIDTOLIST_STRIPE_SECRET_KEY?:        string;
-  BIDTOLIST_STRIPE_WEBHOOK_SECRET?:    string;
   /** Signing secret of the Connect webhook endpoint (events from contractors' payout accounts). */
   STRIPE_CONNECT_WEBHOOK_SECRET?:      string;
   BIDTOLIST_LISTING_CANISTER_ID?:      string;
   BIDTOLIST_AGENT_CANISTER_ID?:        string;
-  BIDTOLIST_FEE_CANISTER_ID?:          string;
   BIDTOLIST_IDENTITY_SEED?:            string;
   BIDTOLIST_ICP_HOST?:                 string;
-  HOMEGENTIC_CANISTER_ID?:             string;
-  HOMEGENTIC_ICP_HOST?:                string;
   // KV
   RATE_LIMIT: KVNamespace;
   /** RateLimiterDO namespace (atomic counters); KV is the fallback when unbound. */
@@ -1622,6 +1618,23 @@ Rules:
     }
   }
 
+  // ── POST /api/payments/platform-fee ──────────────────────────────────────
+  // Bid to List: the agent whose bid the seller chose pays the platform fee
+  // before either side's details are released; see src/platformFee.ts.
+  if (path === "/api/payments/platform-fee" && method === "POST") {
+    const sk = env.STRIPE_SECRET_KEY;
+    if (!sk) return json({ error: "Payments are not configured" }, 500, cors);
+    const { proposalId } = await readJsonBody<{ proposalId?: string }>(request);
+    try {
+      const out = await startPlatformFeeCheckout(
+        sessionPrincipal!, String(proposalId ?? ""), env.FRONTEND_ORIGIN, await stripeClient(sk), canisterPlatformFeeLedger(),
+      );
+      return json(out.body, out.status, cors);
+    } catch (err) {
+      return stripeFailure("platform-fee", err, cors);
+    }
+  }
+
   // ── POST /api/stripe/verify-session ──────────────────────────────────────
   // Legacy Stripe-hosted checkout. Only the session's own principal can
   // verify it, and activation is idempotent with Stripe's period end (F-3).
@@ -1892,6 +1905,8 @@ Rules:
         case "checkout.session.async_payment_succeeded":
         case "checkout.session.async_payment_failed":
         case "checkout.session.expired": {
+          if (event.type === "checkout.session.async_payment_succeeded"
+              && await settlePlatformFee(event.data.object, canisterPlatformFeeLedger())) break;
           await handleJobPaymentEvent(event.type, event.data.object, stripe, canisterPaymentLedger());
           break;
         }
@@ -1901,7 +1916,9 @@ Rules:
         }
         case "checkout.session.completed": {
           const session = event.data.object;
-          if (session.metadata?.type === "job_payment") {
+          if (await settlePlatformFee(session, canisterPlatformFeeLedger())) {
+            // Bid to List platform fee (src/platformFee.ts).
+          } else if (session.metadata?.type === "job_payment") {
             await handleJobPaymentEvent(event.type, session, stripe, canisterPaymentLedger());
           } else if (session.metadata?.type === "agent_credits" && session.payment_status === "paid") {
             const p    = (session.metadata?.principal ?? "") as string;
@@ -2003,7 +2020,7 @@ const STRIPE_SESSION_ROUTES = new Set([
   "/api/stripe/identity-session", "/api/stripe/referral-card",
   "/api/stripe/verify-session", "/api/stripe/verify-subscription",
   "/api/stripe/create-credit-checkout", "/api/stripe/verify-credit-purchase",
-  "/api/payments/payout-onboarding", "/api/payments/start",
+  "/api/payments/payout-onboarding", "/api/payments/start", "/api/payments/platform-fee",
 ]);
 
 function allowedOrigins(env: Env): Array<string | undefined> {

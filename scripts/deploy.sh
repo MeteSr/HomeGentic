@@ -892,8 +892,6 @@ fi
 #                             to read notification events (job, quote), email
 #                             addresses and Home Pulse recipients (auth), and the
 #                             Home Pulse property summaries and jobs (property, job).
-#   BIDTOLIST_WORKER_PRINCIPAL — the voice Worker's BIDTOLIST_IDENTITY_SEED. Made a
-#                             fee relay so agents can pay the Bid to List platform fee.
 #   VOICE_WORKER_PRINCIPAL  — the voice Worker's DFX_IDENTITY_PEM. Made a payment
 #                             Stripe relay so it can activate subscriptions after checkout.
 #                             Also a photo relay, for photoAccess checks on /photos/*,
@@ -926,16 +924,10 @@ if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
   grant photo addPhotoRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker check who may read off-chain photos"
   grant job addInboxRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker file forwarded invoices as drafts"
   grant contractor addLicenseRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker record Florida DBPR licence lookups"
-  grant fee addReferralRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker save referral-fee cards and record charges"
+  grant fee addReferralRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker save referral-fee cards, record charges and take Bid to List platform fees"
   grant quote addPaymentRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker open in-app payments to contractors and record Stripe events"
   grant property addIdentityRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker record Stripe Identity results"
   grant listing addShowingRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker file buyers' FSBO showing requests"
-fi
-if [ -n "${BIDTOLIST_WORKER_PRINCIPAL:-}" ]; then
-  # The principal of the Worker's BIDTOLIST_IDENTITY_SEED. It reads the winning
-  # bid's platform fee for Stripe Checkout and reports the settled payment,
-  # which releases the seller's details to the agent.
-  grant fee addReferralRelay "$BIDTOLIST_WORKER_PRINCIPAL" "Letting the Bid to List Worker identity take agents' platform-fee payments"
 fi
 if [ -n "${PHOTO_CRON_PRINCIPAL:-}" ]; then
   # X-1 (security review 2026-11-11): the photo migration and orphan sweep can

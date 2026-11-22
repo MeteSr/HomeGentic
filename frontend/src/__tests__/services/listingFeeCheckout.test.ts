@@ -20,7 +20,7 @@ describe("startFeeCheckout", () => {
     fetchMock.mockResolvedValue(reply(200, { url: "https://checkout.stripe.test/s" }));
     expect(await listingService.startFeeCheckout("PROP_1")).toBe("https://checkout.stripe.test/s");
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(/\/api\/bidtolist\/stripe\/create-checkout-session$/);
+    expect(url).toMatch(/\/api\/payments\/platform-fee$/);
     expect(JSON.parse(init.body as string)).toEqual({ proposalId: "PROP_1" });
   });
 

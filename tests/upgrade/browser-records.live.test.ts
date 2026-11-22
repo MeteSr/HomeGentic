@@ -378,8 +378,9 @@ describe("browser: records, privacy and succession on real canisters", () => {
     // 31 days later, on the canisters' clock and the successor's.
     await app.pic.advanceTime(31 * DAY_MS);
     await app.pic.tick();
-    await heir.clock.setSystemTime(Date.now() + 31 * DAY_MS);
-    await go(heir, "/dashboard");
+    // Follow the canisters' clock, then sign in again so the app keeps no old clock offset.
+    await heir.clock.setSystemTime(await app.pic.getTime());
+    await crowd.signIn(heir);
     await go(heir, "/successor-claims");
     await heir.getByRole("button", { name: /take over the record/i }).click({ timeout: 30_000 });
     await expect

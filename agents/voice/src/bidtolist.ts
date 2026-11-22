@@ -7,14 +7,13 @@
  */
 
 import { Resend } from "resend";
-import Stripe from "stripe";
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { IDL } from "@icp-sdk/core/candid";
 import { Principal } from "@icp-sdk/core/principal";
 import {
-  HttpError, readJsonBody, readBodyBytes, escapeHtml, subjectText,
-  PRINCIPAL_RE, EMAIL_RE, MAX_WEBHOOK_BYTES,
+  HttpError, readJsonBody, escapeHtml, subjectText,
+  PRINCIPAL_RE, EMAIL_RE,
 } from "./security";
 import { rootKeyFor } from "../../../packages/shared/src/rootKey";
 import { hitCounter, beginOnce, finishOnce, abortOnce } from "./rateLimiter";
@@ -24,17 +23,10 @@ export interface BidtolistEnv {
   BIDTOLIST_RESEND_API_KEY?: string;
   BIDTOLIST_RESEND_FROM?: string;
   BIDTOLIST_FRONTEND_ORIGIN?: string;
-  /** The HomeGentic web app, where the winning agent pays the platform fee. */
-  FRONTEND_ORIGIN?: string;
-  BIDTOLIST_STRIPE_SECRET_KEY?: string;
-  BIDTOLIST_STRIPE_WEBHOOK_SECRET?: string;
   BIDTOLIST_LISTING_CANISTER_ID?: string;
   BIDTOLIST_AGENT_CANISTER_ID?: string;
-  BIDTOLIST_FEE_CANISTER_ID?: string;
   BIDTOLIST_IDENTITY_SEED?: string;
   BIDTOLIST_ICP_HOST?: string;
-  HOMEGENTIC_CANISTER_ID?: string;
-  HOMEGENTIC_ICP_HOST?: string;
   /** Fallback store for email dedupe / per-IP limits when RATE_LIMITER is unbound. */
   RATE_LIMIT?: KVNamespace;
   /** RateLimiterDO namespace: atomic email dedupe and per-IP limits. */
@@ -93,34 +85,6 @@ const agentIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
   });
 };
 
-const feeIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
-  const FeeStatus = I.Variant({ Owed: I.Null, Invoiced: I.Null, Paid: I.Null, Waived: I.Null });
-  const FeeRecord = I.Record({
-    id: I.Text, requestId: I.Text, proposalId: I.Text,
-    agentId: I.Principal, homeownerId: I.Principal, amountCents: I.Nat,
-    status: FeeStatus, createdAt: I.Int, updatedAt: I.Int,
-  });
-  const Error = I.Variant({
-    NotFound: I.Null, NotAuthorized: I.Null, InvalidInput: I.Text,
-    Paused: I.Null, RateLimited: I.Null, Unavailable: I.Text, AlreadyExists: I.Null,
-  });
-  // Relay methods: the Worker's identity is registered with fee.addReferralRelay.
-  return I.Service({
-    relayGetPlatformFee:      I.Func([I.Text], [I.Opt(FeeRecord)], ["query"]),
-    relayMarkPlatformFeePaid: I.Func([I.Text, I.Text], [I.Variant({ ok: FeeRecord, err: Error })], []),
-  });
-};
-
-const homegenticIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
-  const Error = I.Variant({
-    NotFound: I.Null, NotAuthorized: I.Null, InvalidInput: I.Text,
-    RateLimited: I.Null, PaymentFailed: I.Text,
-  });
-  return I.Service({
-    createDiscountCode: I.Func([I.Text, I.Nat, I.Int], [I.Variant({ ok: I.Null, err: Error })], []),
-  });
-};
-
 // ── ICP actor factories ───────────────────────────────────────────────────────
 
 function makeIdentity(seed: string): Ed25519KeyIdentity {
@@ -141,22 +105,6 @@ async function createAgentActor(env: BidtolistEnv) {
   const host  = env.BIDTOLIST_ICP_HOST ?? "https://ic0.app";
   const agent = await HttpAgent.create({ identity: makeIdentity(env.BIDTOLIST_IDENTITY_SEED), host, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY) });
   return Actor.createActor(agentIdlFactory, { agent, canisterId: env.BIDTOLIST_AGENT_CANISTER_ID });
-}
-
-function createFeeActor(env: BidtolistEnv) {
-  if (!env.BIDTOLIST_FEE_CANISTER_ID || !env.BIDTOLIST_IDENTITY_SEED) return null;
-  const host     = env.BIDTOLIST_ICP_HOST ?? "https://ic0.app";
-  const identity = makeIdentity(env.BIDTOLIST_IDENTITY_SEED);
-  const agent    = HttpAgent.createSync({ identity, host, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY) });
-  return Actor.createActor(feeIdlFactory, { agent, canisterId: env.BIDTOLIST_FEE_CANISTER_ID });
-}
-
-function createHomegenticActor(env: BidtolistEnv) {
-  if (!env.HOMEGENTIC_CANISTER_ID || !env.BIDTOLIST_IDENTITY_SEED) return null;
-  const host     = env.HOMEGENTIC_ICP_HOST ?? "https://ic0.app";
-  const identity = makeIdentity(env.BIDTOLIST_IDENTITY_SEED);
-  const agent    = HttpAgent.createSync({ identity, host, rootKey: rootKeyFor(host, process.env.ICP_ROOT_KEY) });
-  return Actor.createActor(homegenticIdlFactory, { agent, canisterId: env.HOMEGENTIC_CANISTER_ID });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -230,17 +178,6 @@ async function fetchAgentProfile(agentPrincipal: string, env: BidtolistEnv): Pro
   return { email: String(profile[0].email ?? ""), name: String(profile[0].name ?? ""), isVerified: !!profile[0].isVerified };
 }
 
-/**
- * F-11 / M-01: 6 chars from a 32-symbol alphabet using the CSPRNG
- * (masking with 31 is unbiased because 32 is a power of two).
- */
-function generateDiscountCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  return "BIDTOLIST-" + Array.from(bytes).map((b) => chars[b & 31]).join("");
-}
-
 const REQUEST_ID_RE  = /^[A-Za-z0-9_-]{1,64}$/;
 const DAY            = 86_400;
 /** Dedupe window for one-shot lifecycle emails ("at most once" in practice). */
@@ -259,48 +196,8 @@ async function sendOrThrow(
   const res = await resend.emails.send(msg, idempotencyKey ? { idempotencyKey } : undefined);
   if (res?.error) throw new Error(res.error.message ?? "Resend error");
 }
-/** Per-IP budget for the Bid to List email + checkout routes. */
+/** Per-IP budget for the Bid to List email routes. */
 const IP_HOURLY_LIMIT = 30;
-
-async function createHomegenticCode(code: string, env: BidtolistEnv): Promise<void> {
-  const actor = createHomegenticActor(env);
-  if (!actor) { console.warn("[bidtolist] HomeGentic ICP not configured — skipping discount code"); return; }
-  const ninetyDaysNs = BigInt(90) * BigInt(24 * 60 * 60 * 1_000_000_000);
-  const expiresAt    = BigInt(Date.now()) * BigInt(1_000_000) + ninetyDaysNs;
-  const result       = await (actor as any).createDiscountCode(code, 50, expiresAt) as any;
-  if (result.err) console.warn("[bidtolist] createDiscountCode error:", JSON.stringify(result.err));
-}
-
-async function sendHomeownerCodeEmail(requestId: string, code: string, env: BidtolistEnv): Promise<void> {
-  const actor = await createListingActor(env);
-  if (!actor) { console.warn("[bidtolist] ICP not wired — skipping homeowner-code email"); return; }
-  const result = await (actor as any).getBidRequest(requestId) as any;
-  if ("err" in result) throw new Error(`getBidRequest error: ${JSON.stringify(result.err)}`);
-  const { homeownerEmail, city } = result.ok;
-  if (!homeownerEmail) throw new Error("homeownerEmail empty on record");
-  const from        = env.BIDTOLIST_RESEND_FROM ?? "noreply@bidtolist.com";
-  const resend      = new Resend(env.BIDTOLIST_RESEND_API_KEY ?? "");
-  const checkoutUrl = `https://homegentic.com/checkout?bidtolist_code=${encodeURIComponent(code)}`;
-  await sendOrThrow(resend, {
-    from,
-    to: homeownerEmail,
-    subject: "Your HomeGentic discount — compliments of BidtoList",
-    html: `
-      <p>Congratulations on finding your agent for the <strong>${escapeHtml(city, 100)}</strong> listing!</p>
-      <p>As a BidtoList homeowner, you're entitled to a discount on your first month of HomeGentic — the property management platform that helps you stay on top of maintenance, records, and repairs at your next home.</p>
-      <p style="margin:24px 0">
-        <a href="${checkoutUrl}" style="background:#1B4332;color:#fff;padding:14px 28px;text-decoration:none;font-weight:600;display:inline-block">
-          Claim your discount →
-        </a>
-      </p>
-      <p style="font-size:0.85em;color:#6B7280">
-        Or enter code <strong>${escapeHtml(code, 40)}</strong> at homegentic.com/checkout.
-        Code is valid for 90 days and can only be used once.
-      </p>
-      <p style="color:#6B7280;font-size:0.85em">You're receiving this because you recently completed a listing on BidtoList.</p>
-    `,
-  });
-}
 
 // ── JSON helper ───────────────────────────────────────────────────────────────
 
@@ -353,81 +250,6 @@ async function routeBidtolist(
 ): Promise<Response> {
   const from   = env.BIDTOLIST_RESEND_FROM ?? "noreply@bidtolist.com";
   const resend = new Resend(env.BIDTOLIST_RESEND_API_KEY ?? "");
-
-  // POST /api/bidtolist/stripe/webhook — raw body for Stripe HMAC
-  if (subpath === "/stripe/webhook" && request.method === "POST") {
-    const stripeKey     = env.BIDTOLIST_STRIPE_SECRET_KEY;
-    const webhookSecret = env.BIDTOLIST_STRIPE_WEBHOOK_SECRET;
-    if (!stripeKey || !webhookSecret) return jsonResp({ received: true });
-
-    const rawBody = new Uint8Array(await readBodyBytes(request, MAX_WEBHOOK_BYTES));
-    const sig     = request.headers.get("stripe-signature") ?? "";
-    const stripe  = new Stripe(stripeKey, { apiVersion: "2024-11-20.acacia" as any });
-
-    let event: Stripe.Event;
-    try {
-      // F-7: constructEvent (sync) can't use SubtleCrypto on workerd.
-      event = await stripe.webhooks.constructEventAsync(
-        rawBody as any, sig, webhookSecret, undefined, Stripe.createSubtleCryptoProvider(),
-      );
-    } catch (err: any) {
-      console.error("[bidtolist] Webhook signature verification failed:", err?.message);
-      return jsonResp({ error: "Webhook signature verification failed" }, 400);
-    }
-
-    // async_payment_succeeded covers delayed methods, whose "completed" event
-    // arrives before the money does (payment_status "unpaid").
-    if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
-      const session = event.data.object as Stripe.Checkout.Session;
-      // metadata.feeId was set by create-checkout-session from the fee
-      // canister's own record, never from a request body.
-      const feeId      = session.metadata?.feeId;
-      const proposalId = session.metadata?.proposalId ?? "";
-      const onceKey = `btl:feepaid:${event.id}`;
-      const once    = feeId && session.payment_status === "paid" ? await beginOnce(env, onceKey) : "done";
-      if (once === "busy") return jsonResp({ error: "Event is being processed" }, 409);   // Stripe retries
-      if (once === "new") {
-        try {
-          const feeActor = createFeeActor(env);
-          if (!feeActor) {
-            console.warn("[bidtolist] Fee canister not configured — skipping the platform fee payment");
-          } else {
-            // Marks the fee paid; the fee canister then has the listing canister
-            // release the seller's details to the agent (and the agent's to the seller).
-            const result = await (feeActor as any).relayMarkPlatformFeePaid(feeId, proposalId) as { ok?: any; err?: Record<string, unknown> };
-            if (result.err && "InvalidInput" in result.err) {
-              // Permanent: the seller moved to another bid or the fee was waived.
-              // Retrying won't help; the payment needs a refund in Stripe.
-              console.error(`[bidtolist] Payment for fee ${feeId} (bid ${proposalId}) can't be applied, refund it in Stripe: ${String(result.err.InvalidInput)}`);
-            } else if (result.err) {
-              throw new Error(`fee canister error: ${Object.keys(result.err)[0]}`);
-            } else {
-              const requestId = result.ok?.requestId ?? "";
-              console.log(`[bidtolist] Fee ${feeId} paid; seller details released`);
-              if (requestId) {
-                const code = generateDiscountCode();
-                createHomegenticCode(code, env).catch((e) =>
-                  console.error("[bidtolist] createHomegenticCode failed:", e?.message)
-                );
-                sendHomeownerCodeEmail(requestId, code, env).catch((e) =>
-                  console.error("[bidtolist] homeowner-code email failed:", e?.message)
-                );
-                console.log(`[bidtolist] Promo generated for request ${requestId}`);
-              }
-            }
-          }
-        } catch (err: any) {
-          console.error(`[bidtolist] platform fee payment failed for ${feeId}:`, err?.message);
-          // Let Stripe's retry try again.
-          await abortOnce(env, onceKey);
-          return jsonResp({ error: "fee update failed" }, 500);
-        }
-        await finishOnce(env, onceKey, 7 * DAY);
-      }
-    }
-
-    return jsonResp({ received: true });
-  }
 
   if (request.method !== "POST") return jsonResp({ error: "Not found" }, 404);
 
@@ -639,58 +461,6 @@ async function routeBidtolist(
       if (r === "sent") sent++;
     }
     return jsonResp({ ok: true, sent });
-  }
-
-  // POST /api/bidtolist/stripe/create-checkout-session — Body: { proposalId, feeId? }.
-  // The winning agent pays the platform fee after the seller chooses their bid
-  // and before either side's details are released. Bound to canister state: the
-  // fee must be the open one for that proposal, the proposal still Pending and
-  // the request still Open. The amount and Stripe metadata come from the fee
-  // record, never from the body.
-  if (subpath === "/stripe/create-checkout-session") {
-    const stripeKey = env.BIDTOLIST_STRIPE_SECRET_KEY;
-    const origin    = env.FRONTEND_ORIGIN ?? env.BIDTOLIST_FRONTEND_ORIGIN ?? "http://localhost:3000";
-    if (!stripeKey) return jsonResp({ url: null, mock: true });
-    const proposalId = idOf("proposalId");
-    const feeIdIn    = body.feeId === undefined || body.feeId === null ? null : idOf("feeId");
-    const feeActor   = createFeeActor(env);
-    if (!feeActor) return jsonResp({ error: "fee canister not configured" }, 503);
-    let fee: any;
-    try {
-      fee = ((await (feeActor as any).relayGetPlatformFee(proposalId)) as any[])[0];
-    } catch (err) {
-      console.error("[bidtolist] fee lookup failed:", (err as Error)?.message);
-      return jsonResp({ error: "fee canister call failed" }, 502);
-    }
-    if (!fee || (feeIdIn !== null && fee.id !== feeIdIn)) return jsonResp({ error: "Fee not found" }, 404);
-    const feeStatus = variantName(fee.status);
-    if (feeStatus !== "Owed" && feeStatus !== "Invoiced") return jsonResp({ error: "Fee is not payable" }, 409);
-    const requestId = String(fee.requestId);
-    const listing = await listingOf(requestId);
-    if (!listing || listing.status !== "Open") return jsonResp({ error: "The listing request is no longer open" }, 409);
-    const chosen = (await proposalsOf(requestId)).find((p) => p.id === proposalId);
-    if (!chosen || chosen.status !== "Pending") return jsonResp({ error: "This bid is no longer open" }, 409);
-    const stripe = new Stripe(stripeKey, { apiVersion: "2024-11-20.acacia" as any });
-    const back = `${origin}/agents/bids/${encodeURIComponent(proposalId)}`;
-    try {
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        line_items: [{
-          quantity: 1,
-          price_data: { currency: "usd", unit_amount: Number(fee.amountCents), product_data: { name: "HomeGentic Bid to List platform fee" } },
-        }],
-        metadata: {
-          feeId: String(fee.id), proposalId, requestId,
-          agentId: (fee.agentId as Principal)?.toText?.() ?? String(fee.agentId),
-        },
-        success_url: `${back}?fee_paid=1`,
-        cancel_url:  `${back}?fee_cancelled=1`,
-      });
-      return jsonResp({ url: session.url });
-    } catch (err: any) {
-      console.error("[bidtolist] Stripe create-session error:", err?.message);
-      return jsonResp({ error: "Failed to create checkout session" }, 500);
-    }
   }
 
   // POST /api/bidtolist/email/reveal-opened — Body: { requestId }. Sent to the

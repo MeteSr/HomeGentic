@@ -440,7 +440,7 @@ function createListingService() {
    * seller's details are released by the settled-payment webhook.
    */
   async startFeeCheckout(proposalId: string): Promise<string | null> {
-    const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/bidtolist/stripe/create-checkout-session`, {
+    const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/payments/platform-fee`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ proposalId }),

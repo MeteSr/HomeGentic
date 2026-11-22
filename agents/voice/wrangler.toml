@@ -9,7 +9,6 @@ NODE_ENV = "production"
 DFX_NETWORK = "ic"
 BIDTOLIST_RESEND_FROM = "noreply@bidtolist.com"
 BIDTOLIST_ICP_HOST = "https://ic0.app"
-HOMEGENTIC_ICP_HOST = "https://ic0.app"
 # Domain of the invoice forwarding addresses (h-<token>@INBOX_DOMAIN). Needs an
 # Email Routing catch-all to this Worker (docs/DEPLOYMENT.md). Empty → inbound
 # mail is ignored.
@@ -112,13 +111,9 @@ crons = ["0 * * * *"]   # every hour — scheduledBidtolist (deadline reminders)
 #   CANISTER_ID_MONITORING
 #   BIDTOLIST_FRONTEND_ORIGIN     e.g. https://bidtolist.com
 #   BIDTOLIST_RESEND_API_KEY
-#   BIDTOLIST_STRIPE_SECRET_KEY
-#   BIDTOLIST_STRIPE_WEBHOOK_SECRET
 #   BIDTOLIST_LISTING_CANISTER_ID
 #   BIDTOLIST_AGENT_CANISTER_ID
-#   BIDTOLIST_FEE_CANISTER_ID
 #   BIDTOLIST_IDENTITY_SEED
-#   HOMEGENTIC_CANISTER_ID
 
 # ── Testnet ──────────────────────────────────────────────────────────────────
 # Separate Worker for the testnet frontend, so testnet never touches production
@@ -139,7 +134,6 @@ NODE_ENV = "production"
 DFX_NETWORK = "ic"   # testnet canisters live on the IC network (icp.yaml)
 BIDTOLIST_RESEND_FROM = "noreply@bidtolist.com"
 BIDTOLIST_ICP_HOST = "https://ic0.app"
-HOMEGENTIC_ICP_HOST = "https://ic0.app"
 TURNSTILE_SITE_KEY = ""
 FREE_AI_DAILY_TOKEN_BUDGET = "2000000"
 NEW_ACCOUNT_AUX_DAILY_LIMIT = "3"
