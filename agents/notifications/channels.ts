@@ -13,6 +13,7 @@
  *   new_lead                          yes*  New Lead                   —
  *   review_request                    —     Job Verified               —
  *   showing_request                   yes   Showing Requests           —
+ *   bid_chosen (Bid to List winner)   yes   always (no row)            —
  *   weekly_pulse                      —     Weekly Home Pulse          —
  *   product_recall                    yes   in the Weekly Home Pulse   —
  *   succession_claim_*                —     always (no row)            —
@@ -82,7 +83,7 @@ export const VERIFICATION_KINDS = [
 
 /** Kinds that are pushed at all (new_lead's opt-in lives on the contractor profile). */
 export const PUSH_KINDS: readonly NotificationKind[] = [
-  ...PUSH_PREF_KINDS, "new_lead", "showing_request", ...VISIT_NOTIFICATION_KINDS, ...PAYMENT_NOTIFICATION_KINDS,
+  ...PUSH_PREF_KINDS, "new_lead", "showing_request", "bid_chosen", ...VISIT_NOTIFICATION_KINDS, ...PAYMENT_NOTIFICATION_KINDS,
   ...VERIFICATION_KINDS, ...SETUP_TIP_KINDS,
 ];
 
@@ -128,6 +129,8 @@ export const EMAIL_DEFAULTS: Record<EmailPrefKey, boolean> = {
  * owner stop someone taking over their record, so no setting turns them off.
  */
 export const REQUIRED_EMAIL_KINDS: readonly NotificationKind[] = [
+  // The Bid to List winner must pay before the seller's details are released.
+  "bid_chosen",
   "succession_claim_opened",
   "succession_claim_reminder",
   "succession_claim_approved",

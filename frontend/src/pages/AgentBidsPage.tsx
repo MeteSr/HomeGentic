@@ -6,8 +6,10 @@
  */
 
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { listingService, type ListingProposal } from "@/services/listing";
+import { feeService } from "@/services/fee";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { formatCents } from "@/utils/format";
 
@@ -15,6 +17,7 @@ const UI = V2_COLORS;
 
 const STATUS_STYLE: Record<string, { label: string; bg: string; color: string }> = {
   Accepted:  { label: "WON",          bg: UI.greenBg,      color: UI.green },
+  Chosen:    { label: "CHOSEN",       bg: UI.blueTintSurface, color: UI.blue },
   Pending:   { label: "SEALED",       bg: UI.neutralSurface, color: UI.muted },
   Rejected:  { label: "NOT SELECTED", bg: UI.neutralSurface, color: UI.muted2 },
   Withdrawn: { label: "WITHDRAWN",    bg: UI.neutralSurface, color: UI.muted2 },
@@ -23,9 +26,14 @@ const STATUS_STYLE: Record<string, { label: string; bg: string; color: string }>
 export default function AgentBidsPage() {
   const [proposals, setProposals] = useState<ListingProposal[]>([]);
   const [loading, setLoading] = useState(true);
+  /** Bids the seller chose whose platform fee is still to pay. */
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     listingService.getMyProposals().then((p) => { setProposals(p); setLoading(false); }).catch(() => setLoading(false));
+    feeService.getMyFees()
+      .then((fees) => setChosen(new Set(fees.filter((f) => f.status === "Owed" || f.status === "Invoiced").map((f) => f.proposalId))))
+      .catch(() => {});
   }, []);
 
   const won = proposals.filter((p) => p.status === "Accepted");
@@ -52,7 +60,9 @@ export default function AgentBidsPage() {
               <span>Listing</span><span>Commission</span><span>Suggested list</span><span>Status</span><span />
             </div>
             {proposals.map((p) => {
-              const s = STATUS_STYLE[p.status] ?? STATUS_STYLE.Pending;
+              const isChosen = p.status === "Pending" && chosen.has(p.id);
+              const s = isChosen ? STATUS_STYLE.Chosen : STATUS_STYLE[p.status] ?? STATUS_STYLE.Pending;
+              const action = isChosen ? "Pay fee" : p.status === "Accepted" ? "View" : null;
               return (
                 <div key={p.id} style={{
                   display: "grid", gridTemplateColumns: "minmax(0,1.5fr) 92px 116px 118px auto", gap: 12, padding: 16,
@@ -65,7 +75,9 @@ export default function AgentBidsPage() {
                     fontFamily: V2_FONTS.mono, fontSize: "0.62rem", letterSpacing: "0.06em", padding: "4px 10px",
                     borderRadius: 100, background: s.bg, color: s.color, width: "fit-content",
                   }}>{s.label}</span>
-                  <span />
+                  {action ? (
+                    <Link to={`/agents/bids/${p.id}`} style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", fontWeight: 600, color: UI.blue }}>{action}</Link>
+                  ) : <span />}
                 </div>
               );
             })}

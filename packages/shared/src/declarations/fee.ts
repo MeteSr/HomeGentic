@@ -75,6 +75,8 @@ export const idlFactory = ({ IDL }: any) => {
     getFeesDue: IDL.Func([], [IDL.Variant({ ok: IDL.Vec(FeeRecord), err: Error })], ["query"]),
     markFeeInvoiced: IDL.Func([IDL.Text], [IDL.Variant({ ok: FeeRecord, err: Error })], []),
     markFeePaid: IDL.Func([IDL.Text], [IDL.Variant({ ok: FeeRecord, err: Error })], []),
+    relayGetPlatformFee: IDL.Func([IDL.Text], [IDL.Opt(FeeRecord)], ["query"]),
+    relayMarkPlatformFeePaid: IDL.Func([IDL.Text, IDL.Text], [IDL.Variant({ ok: FeeRecord, err: Error })], []),
     waiveFee: IDL.Func([IDL.Text], [IDL.Variant({ ok: FeeRecord, err: Error })], []),
     // Contractor Free referral fee (3% of a winning bid, $20 minimum)
     referralBidAllowed: IDL.Func([IDL.Principal], [BidCheck], ["query"]),

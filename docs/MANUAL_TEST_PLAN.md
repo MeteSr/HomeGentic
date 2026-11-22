@@ -486,9 +486,11 @@ that too.
 | # | Step | Expected |
 |---|---|---|
 | 1 | After the window closes, the seller compares bids on `/listing/:id` and picks one | The pick is recorded; identities are still masked |
-| 2 | Before the fee is paid, the winning agent opens `/agents/bids/:id` | Says the platform fee ($399 by default) is due; no seller address or email yet |
-| 3 | The fee is marked paid (today an admin does this; there is no in-app payment for it yet) | `/agents/bids/:id` says the fee is paid, shows "RECEIPT SENT", the seller's address and email; the seller's `/listing/:id` names the agent |
-| 4 | A losing agent checks `/agents/bids` | Lost, with no detail about the winner |
+| 2 | The winning agent opens My bids (`/agents/bids`) | The bid shows "CHOSEN" with "Pay fee"; the agent also gets a "A seller chose your bid" push and email |
+| 3 | On `/agents/bids/:id`, before paying | Asks for the platform fee ($399 by default) with "Pay $399 by card"; no seller address or email |
+| 4 | Pay with a Stripe test card (4242 4242 4242 4242) | Back on the page, "Payment received…", then within seconds the fee shows as paid with "RECEIPT SENT", the seller's address and email; the seller's `/listing/:id` names the agent |
+| 5 | Cancel on the Stripe page instead | Back on the page, nothing charged, still masked |
+| 6 | A losing agent checks `/agents/bids` | Lost, with no detail about the winner |
 
 ### SELL-05 — FSBO listing · P2 · Web
 Run MT-08 (listing, 360° tour, showing and offers). After an accepted offer, the listing points the seller to

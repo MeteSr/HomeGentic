@@ -12,6 +12,7 @@ export function webPathFor(route: string | undefined): string {
     const [contractor, jobId = ""] = route.slice("review/".length).split("/");
     return `/contractor/${encodeURIComponent(contractor)}?review=${encodeURIComponent(jobId)}#review`;
   }
+  if (route.startsWith("agents/bids/")) return `/agents/bids/${encodeURIComponent(route.slice("agents/bids/".length))}`;
   if (route.startsWith("my-listing/")) return `/my-listing/${encodeURIComponent(route.slice("my-listing/".length))}`;
   // #724: "successor/<propertyId>": the owner's successor page for that home.
   if (route.startsWith("successor/")) return `/properties/${encodeURIComponent(route.slice("successor/".length))}/successor`;

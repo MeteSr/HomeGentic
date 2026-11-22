@@ -2,6 +2,9 @@ import { lazyActor } from "./lazyActor";
 import { idlFactory } from "@homegentic/shared/declarations/listing";
 import type { _SERVICE as ListingCanister } from "@homegentic/shared/types/listing";
 import { canisterError, variant } from "./candid";
+import { voiceAgentFetch } from "./voiceAgentHeaders";
+
+const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:8787";
 import type * as Listing from "@homegentic/shared/types/listing";
 export { idlFactory };
 
@@ -428,6 +431,23 @@ function createListingService() {
     const result = await actor.acceptProposal(proposalId);
     if ("err" in result) throw canisterError(result.err);
     return result.ok;
+  },
+
+  /**
+   * The winning agent's Stripe Checkout for the platform fee on a bid the
+   * seller chose. Returns the Checkout URL, or null when Stripe isn't set up
+   * (nothing is charged). The Worker checks the fee and bid on-chain; the
+   * seller's details are released by the settled-payment webhook.
+   */
+  async startFeeCheckout(proposalId: string): Promise<string | null> {
+    const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/bidtolist/stripe/create-checkout-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ proposalId }),
+    });
+    const data = (await resp.json().catch(() => ({}))) as { url?: string | null; error?: string };
+    if (!resp.ok) throw new Error(data.error ?? "Couldn't open the payment page");
+    return data.url ?? null;
   },
 
   // ── Anonymous message thread (H4) ───────────────────────────────────────────

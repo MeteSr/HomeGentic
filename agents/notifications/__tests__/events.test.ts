@@ -6,6 +6,7 @@ import {
   FREE_LEAD_DELAY_MS, VISIT_REMINDER_BEFORE_MS, contractorWantsLead, notificationsFor, payloadFor, tradeLabel,
 } from "../events";
 import type { ContractorInfo, OutboxEvent, QuoteRequestInfo, VisitBookingInfo } from "../types";
+import { PUSH_KINDS, REQUIRED_EMAIL_KINDS } from "../channels";
 
 const REQ: QuoteRequestInfo = {
   id: "REQ_1", homeowner: "homeowner", serviceType: "HVAC", status: "Open",
@@ -165,6 +166,22 @@ describe("notificationsFor", () => {
       payload: { title: "New showing request", body: "Jane asked to see your home. Reply to them from My Listing.", route: "my-listing/PROP_7" },
     }]);
     expect(payloadFor({ ...ev, summary: "" })!.body).toMatch(/^A buyer asked/);
+  });
+
+  it("tells the agent the seller chose their bid, linking to the page where they pay the platform fee", async () => {
+    const ev = { seq: 6, kind: "bid_chosen", recipient: "agent-1", refId: "PROP_3", summary: "Orlando" };
+    const out = await notificationsFor(ev, lookups(null, []));
+    expect(out).toEqual([{
+      type: "bid_chosen", principal: "agent-1", pushOptIn: true,
+      payload: {
+        title: "A seller chose your bid",
+        body: "A seller in Orlando chose your Bid to List bid. Pay the platform fee to see their address and email.",
+        route: "agents/bids/PROP_3",
+      },
+    }]);
+    expect(PUSH_KINDS).toContain("bid_chosen");
+    // Transactional: no setting turns it off, or the agent never learns they won.
+    expect(REQUIRED_EMAIL_KINDS).toContain("bid_chosen");
   });
 
   it("doesn't look up tiers for recipient events", async () => {

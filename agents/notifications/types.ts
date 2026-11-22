@@ -32,6 +32,7 @@ export type NotificationKind =
   | "new_lead"
   | "review_request"
   | "showing_request"
+  | "bid_chosen"
   | "weekly_pulse"
   | "product_recall"
   | "succession_claim_opened"

@@ -324,6 +324,48 @@ persistent actor Fee {
     }
   };
 
+  // ─── Platform fee paid through Stripe (voice Worker relay) ───────────────────
+
+  /// Relay only: the open platform fee for the bid the seller chose, so the
+  /// Worker can start a Stripe Checkout for exactly that amount and fee.
+  public query(msg) func relayGetPlatformFee(proposalId: Text) : async ?FeeRecord {
+    if (not isReferralRelay(msg.caller)) return null;
+    fees.values().find(func(f : FeeRecord) : Bool { f.proposalId == proposalId })
+  };
+
+  /// Relay only: Stripe says the agent's checkout for `proposalId` settled.
+  /// Marks the fee paid, then has the listing canister release both sides'
+  /// details (it re-checks this fee itself). Idempotent: a retry after the
+  /// listing canister was unreachable sends the release again.
+  /// #InvalidInput means the payment can't be applied (the seller moved to a
+  /// different bid, or the fee was waived) and needs a refund, not a retry.
+  public shared(msg) func relayMarkPlatformFeePaid(feeId: Text, proposalId: Text) : async Result.Result<FeeRecord, Error> {
+    if (not isReferralRelay(msg.caller)) return #err(#NotAuthorized);
+    let paid = switch (fees.get(feeId)) {
+      case null { return #err(#NotFound) };
+      case (?f) {
+        if (f.proposalId != proposalId) return #err(#InvalidInput("This payment was for a different bid than the one the seller chose"));
+        if (f.status == #Waived) return #err(#InvalidInput("This fee was waived"));
+        if (f.status == #Paid) f else {
+          let updated = { f with status = #Paid; updatedAt = Time.now() };
+          Index.put(fees, feesIndexes, feeId, updated);
+          updated
+        }
+      };
+    };
+    if (Text.size(listingCanisterId) == 0) return #err(#Unavailable(Canisters.unavailable("listing")));
+    let listing = actor(listingCanisterId) : actor {
+      markListingFeePaid : (Text, Text) -> async { #ok : (); #err : Errors.Common or { #AlreadyCancelled; #DeadlinePassed; #SlotsFull } };
+    };
+    switch (try { await listing.markListingFeePaid(paid.requestId, paid.proposalId) } catch (_) { #err(#Unavailable(Canisters.unavailable("listing"))) }) {
+      case (#ok) { #ok(paid) };
+      case (#err(#InvalidInput m)) { #err(#InvalidInput(m)) };
+      case (#err(#Unavailable m)) { #err(#Unavailable(m)) };
+      case (#err(#NotFound)) { #err(#InvalidInput("The listing request no longer exists")) };
+      case (#err(_)) { #err(#Unavailable(Canisters.unavailable("listing"))) };
+    }
+  };
+
   // ─── Referral fees (Contractor Free) ─────────────────────────────────────────
 
   /// 3% of the bid, rounded to the cent, never under $20.

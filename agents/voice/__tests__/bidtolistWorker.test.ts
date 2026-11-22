@@ -11,17 +11,21 @@
  * BTLW.3 listing-cancelled: only when Cancelled; sent to proposers, not body addresses
  * BTLW.4 agent-verified: only for verified profiles; once
  * BTLW.5 reveal-opened / new-listing gates
- * BTLW.6 checkout is bound to an Owed fee for the Accepted proposal; metadata from the record
+ * BTLW.6 checkout is bound to the open fee for the bid the seller chose (still Pending, request
+ *        Open); the amount and metadata come from the fee record
+ * BTLW.8 the settled webhook reports the payment, which releases the seller's details
  * BTLW.7 per-IP rate limit; HTML escaping
  */
 
 const mockResendSend          = jest.fn();
 const mockSessionsCreate      = jest.fn();
+const mockConstructEvent      = jest.fn();
+const mockRelayMarkPaid       = jest.fn();
 
 jest.mock("stripe", () => {
   const Stripe: any = jest.fn().mockImplementation(() => ({
     checkout: { sessions: { create: mockSessionsCreate } },
-    webhooks: { constructEventAsync: jest.fn() },
+    webhooks: { constructEventAsync: mockConstructEvent },
   }));
   Stripe.createSubtleCryptoProvider = jest.fn(() => ({}));
   return { __esModule: true, default: Stripe };
@@ -57,8 +61,8 @@ jest.mock("@icp-sdk/core/agent", () => {
     getAgentsForCity: jest.fn(async () => state.cityAgents),
   };
   const fee = {
-    getAllFees: jest.fn(async () => ({ ok: state.fees })),
-    markFeePaid: jest.fn(),
+    relayGetPlatformFee: jest.fn(async (proposalId: string) => state.fees.filter((f) => f.proposalId === proposalId).slice(0, 1)),
+    relayMarkPlatformFeePaid: (...a: unknown[]) => mockRelayMarkPaid(...a),
   };
   const byId: Record<string, unknown> = { "listing-id": listing, "agent-id": agent, "fee-id": fee };
   class FakeHttpAgent {
@@ -124,8 +128,9 @@ beforeEach(() => {
     BIDTOLIST_AGENT_CANISTER_ID: "agent-id",
     BIDTOLIST_FEE_CANISTER_ID: "fee-id",
     BIDTOLIST_IDENTITY_SEED: "11".repeat(32),
-    BIDTOLIST_STRIPE_SECRET_KEY: "sk_test", BIDTOLIST_STRIPE_PRICE_PLATFORM_FEE: "price_fee",
+    BIDTOLIST_STRIPE_SECRET_KEY: "sk_test",
     BIDTOLIST_FRONTEND_ORIGIN: "https://bidtolist.test",
+    FRONTEND_ORIGIN: "https://app.test",
     RATE_LIMITER: fakeNamespace(),
   };
   state.request = {
@@ -265,9 +270,8 @@ describe("BTLW.6 — fee checkout", () => {
     homeownerId: HOMEOWNER, amountCents: 39_900n, status: { [status]: null },
   });
 
-  it("creates a session for an Owed fee on the Accepted proposal, metadata from the record", async () => {
-    state.request.status = { Awarded: null };
-    state.proposals = [proposal("PROP_1", A1, "Accepted")];
+  it("creates a session for the chosen bid's open fee, for the fee's amount, metadata from the record", async () => {
+    state.proposals = [proposal("PROP_1", A1, "Pending")];
     state.fees = [fee("Owed")];
     mockSessionsCreate.mockResolvedValue({ url: "https://checkout.stripe.test/x" });
     const res = await call("/stripe/create-checkout-session",
@@ -275,18 +279,72 @@ describe("BTLW.6 — fee checkout", () => {
     expect(await res.json()).toEqual({ url: "https://checkout.stripe.test/x" });
     const args = mockSessionsCreate.mock.calls[0][0] as any;
     expect(args.metadata).toEqual({ feeId: "FEE_1", proposalId: "PROP_1", requestId: "REQ_1", agentId: A1 });
-    expect(args.success_url).toBe("https://bidtolist.test/agents/dashboard?fee_paid=1");
+    expect(args.line_items).toEqual([{
+      quantity: 1,
+      price_data: { currency: "usd", unit_amount: 39_900, product_data: { name: "HomeGentic Bid to List platform fee" } },
+    }]);
+    expect(args.success_url).toBe("https://app.test/agents/bids/PROP_1?fee_paid=1");
+    expect(args.cancel_url).toBe("https://app.test/agents/bids/PROP_1?fee_cancelled=1");
   });
 
-  it("refuses paid fees, unknown fees and superseded proposals", async () => {
-    state.proposals = [proposal("PROP_1", A1, "Rejected")];
+  it("refuses paid fees, unknown fees, bids no longer pending and closed requests", async () => {
+    state.proposals = [proposal("PROP_1", A1, "Pending")];
     state.fees = [fee("Paid")];
     expect((await call("/stripe/create-checkout-session", { proposalId: "PROP_1" })).status).toBe(409);
     state.fees = [fee("Owed")];
+    state.proposals = [proposal("PROP_1", A1, "Withdrawn")];
     expect((await call("/stripe/create-checkout-session", { proposalId: "PROP_1" })).status).toBe(409);
+    state.proposals = [proposal("PROP_1", A1, "Pending")];
+    state.request.status = { Cancelled: null };
+    expect((await call("/stripe/create-checkout-session", { proposalId: "PROP_1" })).status).toBe(409);
+    state.request.status = { Open: null };
     expect((await call("/stripe/create-checkout-session", { proposalId: "PROP_2" })).status).toBe(404);
     expect((await call("/stripe/create-checkout-session", { proposalId: "PROP_1", feeId: "FEE_X" })).status).toBe(404);
     expect(mockSessionsCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("BTLW.8 — settled payment releases the seller's details", () => {
+  const settled = (id: string, metadata: Record<string, string>, payment_status = "paid") => ({
+    id, type: "checkout.session.completed", data: { object: { metadata, payment_status } },
+  });
+  const webhook = () => handleBidtolist(new Request("https://w.test/api/bidtolist/stripe/webhook", {
+    method: "POST", headers: { "stripe-signature": "sig" }, body: "{}",
+  }), "/stripe/webhook", env);
+
+  beforeEach(() => { env.BIDTOLIST_STRIPE_WEBHOOK_SECRET = "whsec"; });
+
+  it("reports the fee and the bid it paid for; once per event", async () => {
+    mockConstructEvent.mockResolvedValue(settled("evt_1", { feeId: "FEE_1", proposalId: "PROP_1" }));
+    mockRelayMarkPaid.mockResolvedValue({ ok: { requestId: "REQ_1" } });
+    expect((await webhook()).status).toBe(200);
+    expect(mockRelayMarkPaid).toHaveBeenCalledWith("FEE_1", "PROP_1");
+    expect((await webhook()).status).toBe(200);
+    expect(mockRelayMarkPaid).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks Stripe to retry when the canisters can't be reached", async () => {
+    mockConstructEvent.mockResolvedValue(settled("evt_2", { feeId: "FEE_1", proposalId: "PROP_1" }));
+    mockRelayMarkPaid.mockResolvedValueOnce({ err: { Unavailable: "listing is down" } });
+    expect((await webhook()).status).toBe(500);
+    mockRelayMarkPaid.mockResolvedValueOnce({ ok: { requestId: "REQ_1" } });
+    expect((await webhook()).status).toBe(200);
+    expect(mockRelayMarkPaid).toHaveBeenCalledTimes(2);
+  });
+
+  it("logs a payment that can't be applied for a refund instead of retrying it forever", async () => {
+    const error = jest.spyOn(console, "error").mockImplementation(() => {});
+    mockConstructEvent.mockResolvedValue(settled("evt_3", { feeId: "FEE_1", proposalId: "PROP_OLD" }));
+    mockRelayMarkPaid.mockResolvedValue({ err: { InvalidInput: "This payment was for a different bid" } });
+    expect((await webhook()).status).toBe(200);
+    expect(error.mock.calls.flat().join(" ")).toMatch(/refund/i);
+    error.mockRestore();
+  });
+
+  it("waits for a delayed payment method to settle", async () => {
+    mockConstructEvent.mockResolvedValue(settled("evt_4", { feeId: "FEE_1", proposalId: "PROP_1" }, "unpaid"));
+    expect((await webhook()).status).toBe(200);
+    expect(mockRelayMarkPaid).not.toHaveBeenCalled();
   });
 });
 

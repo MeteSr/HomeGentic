@@ -14,6 +14,8 @@
  * A review_request (a contractor co-signed a job) goes to the homeowner only
  * when the contractor has ContractorPro; summary carries the contractor.
  *
+ * A bid_chosen (listing canister) goes to the agent whose Bid to List bid the
+ * seller chose; refId is the proposal, summary the city.
  * A showing_request (listing canister) goes to the FSBO seller; refId is the
  * property and summary the buyer's name. The buyer's contact stays on the
  * canister, readable only by the seller on My Listing.
@@ -284,6 +286,12 @@ export function payloadFor(event: OutboxEvent, zipCode?: string | null): PushPay
         title: "How did your contractor do?",
         body:  "Your job is verified. A short review helps other homeowners pick a contractor.",
         route: `review/${event.summary}/${event.refId}`,
+      };
+    case "bid_chosen":
+      return {
+        title: "A seller chose your bid",
+        body:  `A seller${event.summary ? ` in ${event.summary}` : ""} chose your Bid to List bid. Pay the platform fee to see their address and email.`,
+        route: `agents/bids/${event.refId}`,
       };
     case "showing_request":
       return {

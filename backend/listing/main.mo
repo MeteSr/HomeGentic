@@ -879,7 +879,11 @@ persistent actor Listing {
               case (#err(#Paused))         { #err(#Paused) };
               case (#err(#RateLimited))    { #err(#RateLimited) };
               case (#err(#Unavailable m))  { #err(#Unavailable(m)) };
-              case (#ok(fee))              { #ok(fee.id) };
+              case (#ok(fee)) {
+                // Tell the winning agent to pay; their details stay masked until they do.
+                notifyLatestSeq := Notify.record(notifyLog, notifyLatestSeq, "bid_chosen", ?p.agentId, p.id, req.city);
+                #ok(fee.id)
+              };
             }
           };
         }
@@ -895,8 +899,8 @@ persistent actor Listing {
     try { await agentActor.isVerifiedAgent(agentId) } catch (_) { false }
   };
 
-  /// Called only from the settled Stripe webhook (via an admin-held identity,
-  /// never a client). Reveals identity to both sides, closes the other bids,
+  /// Called by the fee canister once the Worker reports the agent's settled
+  /// Stripe payment (fee.relayMarkPlatformFeePaid), or by an admin. Reveals identity to both sides, closes the other bids,
   /// marks the request Awarded. Idempotent on webhook retry.
   ///
   /// M13: the relay's (requestId, proposalId) is not trusted on its own. The
@@ -904,7 +908,9 @@ persistent actor Listing {
   /// i.e. the homeowner's latest selection — must be #Paid for exactly this
   /// proposal, and the request/proposal must still be open/pending.
   public shared(msg) func markListingFeePaid(requestId: Text, proposalId: Text) : async Result.Result<(), Error> {
-    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    // The fee canister calls this when the Worker reports the Stripe payment.
+    let fromFee = Text.size(feeCanisterId) > 0 and msg.caller.toText() == feeCanisterId;
+    if (not isAdmin(msg.caller) and not fromFee) return #err(#NotAuthorized);
     switch (requests.get(requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {

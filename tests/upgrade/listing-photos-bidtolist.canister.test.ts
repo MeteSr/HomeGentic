@@ -47,6 +47,7 @@ describe("listing photos and Bid to List on real canisters", () => {
   const agentB  = createIdentity("lb-agent-b");
   const agentC  = createIdentity("lb-agent-c");
   const buyer   = createIdentity("lb-buyer");
+  const stripeRelay = createIdentity("lb-stripe-relay");   // the voice Worker
 
   const as = (name: Name, who: Identity) => {
     const a = pic.createActor<any>((() => svcs[name]) as any, ids[name]);
@@ -200,6 +201,7 @@ describe("listing photos and Bid to List on real canisters", () => {
 
     it("awards after the fee settles, and then takes one review from the seller", async () => {
       const [bidA] = await as("listing", agentA).getMyProposals();
+      const [bidB] = await as("listing", agentB).getMyProposals();
       expect(errKey(await as("listing", mallory).acceptProposal(bidA.id))).toBe("NotAuthorized");
       const feeId = ok<string>(await as("listing", alice).acceptProposal(bidA.id));
       const [fee] = await as("fee", admin).getFeeForRequest(requestId);
@@ -209,9 +211,29 @@ describe("listing photos and Bid to List on real canisters", () => {
       // Not awarded yet: no review.
       expect(errKey(await as("agent", alice).addReview(review))).toBe("NotAuthorized");
       expect(errText(await as("listing", admin).markListingFeePaid(requestId, bidA.id))).toMatch(/not settled/);
-      ok(await as("fee", admin).markFeePaid(feeId));
-      ok(await as("listing", admin).markListingFeePaid(requestId, bidA.id));
-      ok(await as("listing", admin).markListingFeePaid(requestId, bidA.id));   // webhook retry
+
+      // The winning agent is told they were chosen, with a link to pay.
+      const page = ok<any>(await as("listing", admin).getNotificationEvents(0n, 200n));
+      const chosen = page.events.filter((e: any) => e.kind === "bid_chosen");
+      expect(chosen.map((e: any) => [e.recipient[0]?.toText(), e.refId])).toEqual([[agentA.getPrincipal().toText(), bidA.id]]);
+
+      // Stripe checkout reads the fee through the Worker's relay identity only.
+      ok(await as("fee", admin).addReferralRelay(stripeRelay.getPrincipal()));
+      expect(await as("fee", agentA).relayGetPlatformFee(bidA.id)).toEqual([]);
+      expect((await as("fee", stripeRelay).relayGetPlatformFee(bidA.id))[0].id).toBe(feeId);
+      expect(await as("fee", stripeRelay).relayGetPlatformFee(bidB.id)).toEqual([]);
+
+      // The settled payment releases the seller's details; nobody else can.
+      expect(errKey(await as("fee", agentA).relayMarkPlatformFeePaid(feeId, bidA.id))).toBe("NotAuthorized");
+      expect(errKey(await as("listing", agentA).markListingFeePaid(requestId, bidA.id))).toBe("NotAuthorized");
+      // A checkout started for a bid the seller has since moved away from doesn't pay for the new one.
+      expect(errText(await as("fee", stripeRelay).relayMarkPlatformFeePaid(feeId, bidB.id))).toMatch(/different bid/);
+      expect(Object.keys((await as("fee", admin).getFeeForRequest(requestId))[0].status)).toEqual(["Owed"]);
+      expect(ok<any>(await as("listing", agentA).getBidRequest(requestId)).address).toBe("");
+
+      expect(Object.keys(ok<any>(await as("fee", stripeRelay).relayMarkPlatformFeePaid(feeId, bidA.id)).status)).toEqual(["Paid"]);
+      ok(await as("fee", stripeRelay).relayMarkPlatformFeePaid(feeId, bidA.id));   // webhook retry
+      ok(await as("listing", admin).markListingFeePaid(requestId, bidA.id));      // admin retry
       // The winner now sees the address; the other bidder still doesn't.
       expect(ok<any>(await as("listing", agentA).getBidRequest(requestId)).address).toBe("5 Bay Street");
       expect(ok<any>(await as("listing", agentB).getBidRequest(requestId)).address).toBe("");

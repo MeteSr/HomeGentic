@@ -7,6 +7,7 @@ describe("webPathFor", () => {
     expect(webPathFor("leads/R1")).toBe("/contractor-dashboard");
     expect(webPathFor("quotes/Q 1")).toBe("/quotes/Q%201");
     expect(webPathFor("my-listing/P 1")).toBe("/my-listing/P%201");
+    expect(webPathFor("agents/bids/P 1")).toBe("/agents/bids/P%201");
   });
 
   it("sends a review request to the contractor's page with the job filled in", () => {

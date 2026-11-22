@@ -158,7 +158,6 @@ export interface Env {
   BIDTOLIST_STRIPE_WEBHOOK_SECRET?:    string;
   /** Signing secret of the Connect webhook endpoint (events from contractors' payout accounts). */
   STRIPE_CONNECT_WEBHOOK_SECRET?:      string;
-  BIDTOLIST_STRIPE_PRICE_PLATFORM_FEE?: string;
   BIDTOLIST_LISTING_CANISTER_ID?:      string;
   BIDTOLIST_AGENT_CANISTER_ID?:        string;
   BIDTOLIST_FEE_CANISTER_ID?:          string;

@@ -14,10 +14,14 @@
  *  - A successor's claim is approved by an admin and, once 30 days have
  *    passed, the successor takes over the record (property canister).
  *
+ *  - Bid to List: the seller chooses a bid, the winning agent is asked for the
+ *    platform fee and sees nothing of the seller until the Stripe payment is
+ *    reported, then sees the address and email (listing + fee canisters).
+ *
  *  - An unverified home's report modal doesn't offer a link at all.
  *
  * The manual plan's cases: REPORT-01, PRIV-01, PHOTO-01/02, ONB-05, PRIV-03,
- * SUCC-02 (docs/MANUAL_TEST_PLAN.md).
+ * SUCC-02, SELL-04 (docs/MANUAL_TEST_PLAN.md).
  *
  * Run: cd tests/upgrade && npx vitest run browser-records.live.test.ts
  * (needs every canister's .dfx/local/canisters/<name>/<name>.wasm, the root
@@ -40,6 +44,9 @@ const CONTRACTOR = 35;
 const BROWSING_OWNER = 36;
 const LEGACY_OWNER = 37;
 const SUCCESSOR = 38;
+const SELLER = 39;
+const LISTING_AGENT = 40;
+const STRIPE_RELAY = 41; // the voice Worker's identity
 
 const DAY_MS = 86_400_000;
 
@@ -382,6 +389,118 @@ describe("browser: records, privacy and succession on real canisters", () => {
     // The previous household no longer has the home.
     const mine: any[] = await app.deployment.actor("property", identityOf(LEGACY_OWNER)).getMyProperties();
     expect(mine.map((p) => p.id)).not.toContain(propertyId);
+    expect(crowd.errors).toEqual([]);
+  }, 300_000);
+
+  it("Bid to List: the agent pays the platform fee before seeing the seller", async () => {
+    // The home exists before sign-up, so the first-home wizard doesn't open over the page.
+    const propertyId = await homeFor(SELLER, "12 Auction Avenue", "Free");
+    // Earlier tests moved the canisters' clock ahead; the browsers follow it.
+    const seller = await crowd.person(SELLER);
+    const agentPage = await crowd.person(LISTING_AGENT);
+    for (const p of [seller, agentPage]) await p.clock.setSystemTime(await app.pic.getTime());
+    await crowd.signUp(seller, "Homeowner", "seller@example.com");
+    await crowd.signUp(agentPage, "Realtor", "lena@example.com");
+
+    const sellerId = identityOf(SELLER);
+    const agentId = identityOf(LISTING_AGENT);
+    const nowNs = BigInt(await app.pic.getTime()) * 1_000_000n;
+    const request = ok<any>(
+      await app.deployment
+        .actor("listing", sellerId)
+        .createBidRequest(
+          propertyId,
+          "12 Auction Avenue",
+          "Orlando",
+          "Orange",
+          "32801",
+          "seller@example.com",
+          [3n],
+          [2n],
+          [1700n],
+          nowNs + 30n * BigInt(DAY_MS) * 1_000_000n,
+          [],
+          "",
+          { Seven: null },
+        ),
+    );
+    ok(
+      await app.deployment.actor("agent", agentId).register({
+        name: "Lena Lister",
+        brokerage: "Gulf Realty",
+        licenseNumber: "BK3301234",
+        licenseState: "FL",
+        county: "Orange",
+        serviceCities: ["orlando"],
+        bio: "",
+        phone: "+14075550111",
+        email: "lena@example.com",
+      }),
+    );
+    ok(await app.deployment.actor("agent", app.admin).verifyAgent(principalOf(LISTING_AGENT)));
+    const bid = ok<any>(
+      await app.deployment
+        .actor("listing", agentId)
+        .submitProposal(
+          request.id,
+          250n,
+          465_000_00n,
+          "Recent sales support this.",
+          "Open houses",
+          ["Pro photos"],
+          21n,
+          [],
+          0n,
+          "Hello",
+        ),
+    );
+
+    // The 7-day window closes, on the canisters' clock and the browsers'.
+    await app.pic.advanceTime(8 * DAY_MS);
+    await app.pic.tick();
+    // A fresh sign-in after the jump, so neither app keeps an old clock offset.
+    for (const p of [seller, agentPage]) {
+      await p.clock.setSystemTime(await app.pic.getTime());
+      await crowd.signIn(p);
+    }
+
+    // The seller shortlists and chooses the bid.
+    await go(seller, `/listing/${request.id}`);
+    await seller.getByRole("button", { name: "Shortlist" }).click({ timeout: 30_000 });
+    await seller.getByRole("button", { name: "Choose" }).click();
+    await seller.getByRole("checkbox").check();
+    await seller.getByRole("button", { name: /choose bid a and unmask/i }).click();
+    await expect
+      .poll(async () => (await app.deployment.actor("fee", app.admin).getFeeForRequest(request.id))[0]?.proposalId, {
+        timeout: 30_000,
+      })
+      .toBe(bid.id);
+    const [fee] = await app.deployment.actor("fee", app.admin).getFeeForRequest(request.id);
+
+    // The agent is asked to pay, and sees nothing of the seller yet.
+    await go(agentPage, "/agents/bids");
+    await agentPage.getByText("CHOSEN").waitFor({ timeout: 30_000 });
+    await agentPage.getByRole("link", { name: "Pay fee" }).click();
+    await agentPage.getByText(/the seller chose your bid\. pay the \$399 platform fee/i).waitFor({ timeout: 30_000 });
+    await agentPage.getByRole("button", { name: "Pay $399 by card" }).waitFor();
+    expect(await agentPage.getByText("12 Auction Avenue").count()).toBe(0);
+    expect(ok<any>(await app.deployment.actor("listing", agentId).getBidRequest(request.id)).address).toBe("");
+
+    // Stripe reports the settled payment through the Worker (its webhook's call).
+    ok(await app.deployment.actor("fee", app.admin).addReferralRelay(principalOf(STRIPE_RELAY)));
+    ok(await app.deployment.actor("fee", identityOf(STRIPE_RELAY)).relayMarkPlatformFeePaid(fee.id, bid.id));
+
+    // Back from Stripe, the agent's page picks up the release.
+    await go(agentPage, `/agents/bids/${bid.id}?fee_paid=1`);
+    await agentPage.getByText("12 Auction Avenue").waitFor({ timeout: 30_000 });
+    await agentPage.getByText("seller@example.com").waitFor();
+    await agentPage.getByText(/your \$399 platform fee is paid/i).waitFor();
+
+    // And the seller sees who they chose.
+    await go(seller, "/dashboard");
+    await go(seller, `/listing/${request.id}`);
+    await seller.getByText(/payment cleared/i).waitFor({ timeout: 30_000 });
+    await seller.getByText("Lena Lister").first().waitFor();
     expect(crowd.errors).toEqual([]);
   }, 300_000);
 });

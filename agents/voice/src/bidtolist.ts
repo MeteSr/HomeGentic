@@ -24,9 +24,10 @@ export interface BidtolistEnv {
   BIDTOLIST_RESEND_API_KEY?: string;
   BIDTOLIST_RESEND_FROM?: string;
   BIDTOLIST_FRONTEND_ORIGIN?: string;
+  /** The HomeGentic web app, where the winning agent pays the platform fee. */
+  FRONTEND_ORIGIN?: string;
   BIDTOLIST_STRIPE_SECRET_KEY?: string;
   BIDTOLIST_STRIPE_WEBHOOK_SECRET?: string;
-  BIDTOLIST_STRIPE_PRICE_PLATFORM_FEE?: string;
   BIDTOLIST_LISTING_CANISTER_ID?: string;
   BIDTOLIST_AGENT_CANISTER_ID?: string;
   BIDTOLIST_FEE_CANISTER_ID?: string;
@@ -99,10 +100,14 @@ const feeIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     agentId: I.Principal, homeownerId: I.Principal, amountCents: I.Nat,
     status: FeeStatus, createdAt: I.Int, updatedAt: I.Int,
   });
-  const Error = I.Variant({ NotFound: I.Null, NotAuthorized: I.Null, InvalidInput: I.Text });
+  const Error = I.Variant({
+    NotFound: I.Null, NotAuthorized: I.Null, InvalidInput: I.Text,
+    Paused: I.Null, RateLimited: I.Null, Unavailable: I.Text, AlreadyExists: I.Null,
+  });
+  // Relay methods: the Worker's identity is registered with fee.addReferralRelay.
   return I.Service({
-    getAllFees:  I.Func([], [I.Variant({ ok: I.Vec(FeeRecord), err: Error })], ["query"]),
-    markFeePaid: I.Func([I.Text], [I.Variant({ ok: FeeRecord, err: Error })], []),
+    relayGetPlatformFee:      I.Func([I.Text], [I.Opt(FeeRecord)], ["query"]),
+    relayMarkPlatformFeePaid: I.Func([I.Text, I.Text], [I.Variant({ ok: FeeRecord, err: Error })], []),
   });
 };
 
@@ -376,7 +381,8 @@ async function routeBidtolist(
       const session = event.data.object as Stripe.Checkout.Session;
       // metadata.feeId was set by create-checkout-session from the fee
       // canister's own record, never from a request body.
-      const feeId   = session.metadata?.feeId;
+      const feeId      = session.metadata?.feeId;
+      const proposalId = session.metadata?.proposalId ?? "";
       const onceKey = `btl:feepaid:${event.id}`;
       const once    = feeId && session.payment_status === "paid" ? await beginOnce(env, onceKey) : "done";
       if (once === "busy") return jsonResp({ error: "Event is being processed" }, 409);   // Stripe retries
@@ -384,25 +390,34 @@ async function routeBidtolist(
         try {
           const feeActor = createFeeActor(env);
           if (!feeActor) {
-            console.warn("[bidtolist] Fee canister not configured — skipping markFeePaid");
+            console.warn("[bidtolist] Fee canister not configured — skipping the platform fee payment");
           } else {
-            const result = await (feeActor as any).markFeePaid(feeId) as { ok?: any; err?: unknown };
-            if (result.err) throw new Error(`fee canister error: ${JSON.stringify(result.err)}`);
-            const requestId = result.ok?.requestId ?? "";
-            console.log(`[bidtolist] Fee ${feeId} marked paid`);
-            if (requestId) {
-              const code = generateDiscountCode();
-              createHomegenticCode(code, env).catch((e) =>
-                console.error("[bidtolist] createHomegenticCode failed:", e?.message)
-              );
-              sendHomeownerCodeEmail(requestId, code, env).catch((e) =>
-                console.error("[bidtolist] homeowner-code email failed:", e?.message)
-              );
-              console.log(`[bidtolist] Promo generated for request ${requestId}`);
+            // Marks the fee paid; the fee canister then has the listing canister
+            // release the seller's details to the agent (and the agent's to the seller).
+            const result = await (feeActor as any).relayMarkPlatformFeePaid(feeId, proposalId) as { ok?: any; err?: Record<string, unknown> };
+            if (result.err && "InvalidInput" in result.err) {
+              // Permanent: the seller moved to another bid or the fee was waived.
+              // Retrying won't help; the payment needs a refund in Stripe.
+              console.error(`[bidtolist] Payment for fee ${feeId} (bid ${proposalId}) can't be applied, refund it in Stripe: ${String(result.err.InvalidInput)}`);
+            } else if (result.err) {
+              throw new Error(`fee canister error: ${Object.keys(result.err)[0]}`);
+            } else {
+              const requestId = result.ok?.requestId ?? "";
+              console.log(`[bidtolist] Fee ${feeId} paid; seller details released`);
+              if (requestId) {
+                const code = generateDiscountCode();
+                createHomegenticCode(code, env).catch((e) =>
+                  console.error("[bidtolist] createHomegenticCode failed:", e?.message)
+                );
+                sendHomeownerCodeEmail(requestId, code, env).catch((e) =>
+                  console.error("[bidtolist] homeowner-code email failed:", e?.message)
+                );
+                console.log(`[bidtolist] Promo generated for request ${requestId}`);
+              }
             }
           }
         } catch (err: any) {
-          console.error(`[bidtolist] markFeePaid failed for ${feeId}:`, err?.message);
+          console.error(`[bidtolist] platform fee payment failed for ${feeId}:`, err?.message);
           // Let Stripe's retry try again.
           await abortOnce(env, onceKey);
           return jsonResp({ error: "fee update failed" }, 500);
@@ -627,45 +642,49 @@ async function routeBidtolist(
   }
 
   // POST /api/bidtolist/stripe/create-checkout-session — Body: { proposalId, feeId? }.
-  // Bound to fee-canister state: the fee must exist for that proposal, still
-  // be Owed/Invoiced, and the proposal must be the request's Accepted one.
-  // Stripe metadata comes from the fee record, never from the body.
+  // The winning agent pays the platform fee after the seller chooses their bid
+  // and before either side's details are released. Bound to canister state: the
+  // fee must be the open one for that proposal, the proposal still Pending and
+  // the request still Open. The amount and Stripe metadata come from the fee
+  // record, never from the body.
   if (subpath === "/stripe/create-checkout-session") {
     const stripeKey = env.BIDTOLIST_STRIPE_SECRET_KEY;
-    const priceId   = env.BIDTOLIST_STRIPE_PRICE_PLATFORM_FEE;
-    const origin    = env.BIDTOLIST_FRONTEND_ORIGIN ?? "http://localhost:3000";
-    if (!stripeKey || !priceId) return jsonResp({ url: null, mock: true });
+    const origin    = env.FRONTEND_ORIGIN ?? env.BIDTOLIST_FRONTEND_ORIGIN ?? "http://localhost:3000";
+    if (!stripeKey) return jsonResp({ url: null, mock: true });
     const proposalId = idOf("proposalId");
     const feeIdIn    = body.feeId === undefined || body.feeId === null ? null : idOf("feeId");
     const feeActor   = createFeeActor(env);
     if (!feeActor) return jsonResp({ error: "fee canister not configured" }, 503);
-    let fees: any[];
+    let fee: any;
     try {
-      const r = await (feeActor as any).getAllFees() as { ok?: any[]; err?: unknown };
-      if (!r.ok) throw new Error(`getAllFees: ${Object.keys(r.err ?? {})[0] ?? "error"}`);
-      fees = r.ok;
+      fee = ((await (feeActor as any).relayGetPlatformFee(proposalId)) as any[])[0];
     } catch (err) {
       console.error("[bidtolist] fee lookup failed:", (err as Error)?.message);
       return jsonResp({ error: "fee canister call failed" }, 502);
     }
-    const fee = fees.find((f: any) => f.proposalId === proposalId && (feeIdIn === null || f.id === feeIdIn));
-    if (!fee) return jsonResp({ error: "Fee not found" }, 404);
+    if (!fee || (feeIdIn !== null && fee.id !== feeIdIn)) return jsonResp({ error: "Fee not found" }, 404);
     const feeStatus = variantName(fee.status);
     if (feeStatus !== "Owed" && feeStatus !== "Invoiced") return jsonResp({ error: "Fee is not payable" }, 409);
     const requestId = String(fee.requestId);
-    const winner = (await proposalsOf(requestId)).find((p) => p.id === proposalId);
-    if (!winner || winner.status !== "Accepted") return jsonResp({ error: "Proposal is not the accepted one" }, 409);
+    const listing = await listingOf(requestId);
+    if (!listing || listing.status !== "Open") return jsonResp({ error: "The listing request is no longer open" }, 409);
+    const chosen = (await proposalsOf(requestId)).find((p) => p.id === proposalId);
+    if (!chosen || chosen.status !== "Pending") return jsonResp({ error: "This bid is no longer open" }, 409);
     const stripe = new Stripe(stripeKey, { apiVersion: "2024-11-20.acacia" as any });
+    const back = `${origin}/agents/bids/${encodeURIComponent(proposalId)}`;
     try {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
-        line_items: [{ price: priceId, quantity: 1 }],
+        line_items: [{
+          quantity: 1,
+          price_data: { currency: "usd", unit_amount: Number(fee.amountCents), product_data: { name: "HomeGentic Bid to List platform fee" } },
+        }],
         metadata: {
           feeId: String(fee.id), proposalId, requestId,
           agentId: (fee.agentId as Principal)?.toText?.() ?? String(fee.agentId),
         },
-        success_url: `${origin}/agents/dashboard?fee_paid=1`,
-        cancel_url:  `${origin}/agents/dashboard?fee_cancelled=1`,
+        success_url: `${back}?fee_paid=1`,
+        cancel_url:  `${back}?fee_cancelled=1`,
       });
       return jsonResp({ url: session.url });
     } catch (err: any) {

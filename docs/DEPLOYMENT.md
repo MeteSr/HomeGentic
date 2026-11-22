@@ -150,7 +150,7 @@ deadline reminders.
 | `LOCAL_BROKER_EMAIL` | Recipient of broker-lead emails |
 | `GOOGLE_PLACES_API_KEY` | Optional — Add Property address suggestions (`/api/address/suggest`, `/api/address/place`). Create a key in Google Cloud with only **Places API (New)** enabled and restrict it to that API. Each user gets 40 calls/minute (then a 1, 2, 4 … 60-minute lockout), 300 suggestion and 50 address calls/day; var `ADDRESS_DAILY_BUDGET` caps all users together (default 5000/day). Unset, the field is plain text |
 | `CANISTER_ID_MONITORING` | Monitoring canister — frontend-error and cycle-alert routes, and server-side failures (Stripe webhook handler errors, Resend refusals, 5xx responses) that the hourly Cycle Watchdog emails about. Without it those failures are only in the Worker log. The Worker's identity must be added with `monitoring.addReporter` (`scripts/deploy.sh` does it) |
-| `BIDTOLIST_*` | Optional — Bid to List Stripe/Resend keys and canister IDs (see the comment block in `wrangler.toml`) |
+| `BIDTOLIST_*` | Bid to List Stripe/Resend keys and canister IDs (see the comment block in `wrangler.toml`). Agents pay the platform fee through `BIDTOLIST_STRIPE_SECRET_KEY`; the webhook (`/api/bidtolist/stripe/webhook`, events `checkout.session.completed` and `checkout.session.async_payment_succeeded`) releases the seller's details. Set `BIDTOLIST_WORKER_PRINCIPAL` (the principal of `BIDTOLIST_IDENTITY_SEED`) when running `scripts/deploy.sh` so it is made a fee relay |
 
 `INBOX_DOMAIN` (a `[vars]` entry, not a secret) is the domain of homeowners'
 forwarding addresses (`h-<token>@INBOX_DOMAIN`); see

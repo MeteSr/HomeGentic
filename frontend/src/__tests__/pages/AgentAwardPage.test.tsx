@@ -5,7 +5,7 @@
  *     due and shows no seller details (the listing canister masks them)
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import AgentAwardPage from "@/pages/AgentAwardPage";
@@ -17,14 +17,15 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...actual, useParams: () => ({ id: "prop-1" }) };
 });
 
-const { mockGetMyProposals, mockGetBidRequest, mockGetMyFees } = vi.hoisted(() => ({
-  mockGetMyProposals: vi.fn(),
-  mockGetBidRequest:  vi.fn(),
-  mockGetMyFees:      vi.fn(),
+const { mockGetMyProposals, mockGetBidRequest, mockGetMyFees, mockStartFeeCheckout } = vi.hoisted(() => ({
+  mockGetMyProposals:   vi.fn(),
+  mockGetBidRequest:    vi.fn(),
+  mockGetMyFees:        vi.fn(),
+  mockStartFeeCheckout: vi.fn(),
 }));
 
 vi.mock("@/services/listing", () => ({
-  listingService: { getMyProposals: mockGetMyProposals, getBidRequest: mockGetBidRequest },
+  listingService: { getMyProposals: mockGetMyProposals, getBidRequest: mockGetBidRequest, startFeeCheckout: mockStartFeeCheckout },
 }));
 
 vi.mock("@/services/fee", () => ({
@@ -40,9 +41,9 @@ const REQUEST: Partial<ListingBidRequest> = { id: "req-1", address: "123 Main St
 const FEE: Partial<FeeRecord> = { id: "fee-1", proposalId: "prop-1", amountCents: 29500, status: "Paid" };
 const MASKED: Partial<ListingBidRequest> = { id: "req-1", address: "", homeownerEmail: "" };
 
-function renderPage() {
+function renderPage(path = "/agents/bids/prop-1") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <AgentAwardPage />
     </MemoryRouter>
   );
@@ -88,21 +89,6 @@ describe("AgentAwardPage — fee display", () => {
     expect(screen.getByText("RECEIPT SENT")).toBeInTheDocument();
   });
 
-  it("while the fee is owed, says it's due, claims no charge and shows no seller details", async () => {
-    mockGetMyProposals.mockResolvedValue([PROPOSAL]);
-    mockGetBidRequest.mockResolvedValue(MASKED);
-    mockGetMyFees.mockResolvedValue([{ ...FEE, status: "Owed" }]);
-    renderPage();
-    await waitFor(() =>
-      expect(
-        screen.getByText(/your \$295 platform fee is due\. the seller's address and email show here once it's paid/i),
-      ).toBeInTheDocument(),
-    );
-    expect(screen.queryByText(/charged/i)).not.toBeInTheDocument();
-    expect(screen.queryByText("RECEIPT SENT")).not.toBeInTheDocument();
-    expect(screen.queryByText("Address")).not.toBeInTheDocument();
-  });
-
   it("before the fee is recorded, says the details come once it's paid", async () => {
     mockGetMyProposals.mockResolvedValue([PROPOSAL]);
     mockGetBidRequest.mockResolvedValue(MASKED);
@@ -112,5 +98,55 @@ describe("AgentAwardPage — fee display", () => {
       expect(screen.getByText(/the seller's address and email show here once your platform fee is paid/i)).toBeInTheDocument(),
     );
     expect(screen.queryByText(/charged/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("AgentAwardPage — paying the platform fee", () => {
+  const CHOSEN = { ...PROPOSAL, status: "Pending" as any };
+  const OWED = { ...FEE, status: "Owed" as const };
+
+  it("when the seller chose this bid, asks for the fee by card and shows no seller details", async () => {
+    mockGetMyProposals.mockResolvedValue([CHOSEN]);
+    mockGetBidRequest.mockResolvedValue(MASKED);
+    mockGetMyFees.mockResolvedValue([OWED]);
+    mockStartFeeCheckout.mockResolvedValue("https://checkout.stripe.test/s");
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByText(/the seller chose your bid\. pay the \$295 platform fee to see their address and email\./i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("Address")).not.toBeInTheDocument();
+    expect(screen.queryByText(/charged/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Pay $295 by card" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://checkout.stripe.test/s"));
+    expect(mockStartFeeCheckout).toHaveBeenCalledWith("prop-1");
+    vi.unstubAllGlobals();
+  });
+
+  it("says so when card payments aren't set up, and that nothing was charged", async () => {
+    mockGetMyProposals.mockResolvedValue([CHOSEN]);
+    mockGetBidRequest.mockResolvedValue(MASKED);
+    mockGetMyFees.mockResolvedValue([OWED]);
+    mockStartFeeCheckout.mockResolvedValue(null);
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Pay $295 by card" }));
+    expect(await screen.findByText("Card payments aren't set up yet. Nothing was charged.")).toBeInTheDocument();
+  });
+
+  it("back from Stripe, says the payment is being confirmed until the details are released", async () => {
+    mockGetMyProposals.mockResolvedValue([CHOSEN]);
+    mockGetBidRequest.mockResolvedValue(MASKED);
+    mockGetMyFees.mockResolvedValue([OWED]);
+    renderPage("/agents/bids/prop-1?fee_paid=1");
+    expect(await screen.findByText("Payment received. The seller's details show here as soon as Stripe confirms it.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /pay \$295/i })).not.toBeInTheDocument();
+  });
+
+  it("shows nothing for a pending bid the seller hasn't chosen", async () => {
+    mockGetMyProposals.mockResolvedValue([CHOSEN]);
+    mockGetMyFees.mockResolvedValue([{ ...OWED, proposalId: "someone-else" }]);
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Nothing to show yet.")).toBeInTheDocument());
   });
 });

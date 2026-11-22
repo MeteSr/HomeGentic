@@ -17,7 +17,8 @@ export default function DashboardPage() {
   // no properties gets the onboarding wizard on either layout.
   const autoOpenedRef = useRef(false);
   useEffect(() => {
-    if (!propLoading && !autoOpenedRef.current && profile && !profile.onboardingComplete && properties.length === 0) {
+    // Realtors sign up to bid on listings, not to add a home.
+    if (!propLoading && !autoOpenedRef.current && profile && profile.role !== "Realtor" && !profile.onboardingComplete && properties.length === 0) {
       autoOpenedRef.current = true;
       openAddProp();
     }
