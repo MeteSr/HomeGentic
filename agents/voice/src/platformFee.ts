@@ -50,15 +50,23 @@ export async function startPlatformFeeCheckout(
   const fee = await ledger.feeFor(proposalId);
   // Someone else's fee is reported as not found, so nothing about it leaks.
   if (!fee || fee.agentId !== principal) return { status: 404, body: { error: "No platform fee for this bid" } };
-  if (fee.status !== "Owed" && fee.status !== "Invoiced") return { status: 409, body: { error: "This fee is already settled" } };
-  if (!(await ledger.requestOpen(fee.requestId))) return { status: 409, body: { error: "The listing request is no longer open" } };
+  if (fee.status !== "Owed" && fee.status !== "Invoiced")
+    return { status: 409, body: { error: "This fee is already settled" } };
+  if (!(await ledger.requestOpen(fee.requestId)))
+    return { status: 409, body: { error: "The listing request is no longer open" } };
   const back = `${origin}/agents/bids/${encodeURIComponent(proposalId)}`;
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
-    line_items: [{
-      quantity: 1,
-      price_data: { currency: "usd", unit_amount: fee.amountCents, product_data: { name: "HomeGentic Bid to List platform fee" } },
-    }],
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: "usd",
+          unit_amount: fee.amountCents,
+          product_data: { name: "HomeGentic Bid to List platform fee" },
+        },
+      },
+    ],
     metadata: { type: "platform_fee", feeId: fee.id, proposalId, requestId: fee.requestId, agentId: fee.agentId },
     success_url: `${back}?fee_paid=1`,
     cancel_url: `${back}?fee_cancelled=1`,
@@ -80,7 +88,9 @@ export async function settlePlatformFee(session: any, ledger: PlatformFeeLedger)
   const r = await ledger.markPaid(feeId, proposalId);
   if ("err" in r) {
     if (r.retry) throw new Error(`platform fee ${feeId}: ${r.err}`);
-    console.error(`[platform-fee] Payment for fee ${feeId} (bid ${proposalId}) can't be applied, refund it in Stripe: ${r.err}`);
+    console.error(
+      `[platform-fee] Payment for fee ${feeId} (bid ${proposalId}) can't be applied, refund it in Stripe: ${r.err}`,
+    );
   }
   return true;
 }
@@ -97,8 +107,11 @@ export function canisterPlatformFeeLedger(): PlatformFeeLedger {
       const [f] = (await (await actor(feeIdl, "FEE")).relayGetPlatformFee(proposalId)) as any[];
       if (!f) return null;
       return {
-        id: f.id, requestId: f.requestId, proposalId: f.proposalId,
-        agentId: (f.agentId as Principal).toText(), amountCents: Number(f.amountCents),
+        id: f.id,
+        requestId: f.requestId,
+        proposalId: f.proposalId,
+        agentId: (f.agentId as Principal).toText(),
+        amountCents: Number(f.amountCents),
         status: Object.keys(f.status)[0] ?? "",
       };
     },
