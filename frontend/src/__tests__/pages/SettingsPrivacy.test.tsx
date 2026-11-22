@@ -150,6 +150,28 @@ describe("Privacy tab — contractor", () => {
     expect(contractor.setProfilePrivacy).toHaveBeenCalledWith({ listed: true, showTrustScore: false, showJobsCompleted: true });
   });
 
+  // Two saves in flight at once can reach the canister in either order, so
+  // the second switch must wait for the first save (found by the real-canister
+  // browser test, browser-records.live.test.ts).
+  it("sends the second switch's save only after the first one lands, with both changes", async () => {
+    contractor.getMyProfilePrivacy.mockResolvedValue(DEFAULT_PROFILE_PRIVACY);
+    const pending: Array<() => void> = [];
+    contractor.setProfilePrivacy.mockImplementation(
+      (p) => new Promise((resolve) => pending.push(() => resolve(p))),
+    );
+    renderPrivacyTab();
+    await waitFor(() => expect(sw("Show Trust Score")).toBeEnabled());
+    fireEvent.click(sw("Show Trust Score"));
+    fireEvent.click(sw("Listed in the Directory"));
+    expect(sw("Listed in the Directory")).toHaveAttribute("aria-checked", "false");
+    expect(contractor.setProfilePrivacy).toHaveBeenCalledTimes(1);
+
+    pending.shift()!();
+    await waitFor(() => expect(contractor.setProfilePrivacy).toHaveBeenCalledTimes(2));
+    expect(contractor.setProfilePrivacy).toHaveBeenLastCalledWith({ listed: false, showTrustScore: false, showJobsCompleted: true });
+    pending.shift()!();
+  });
+
   it("rolls back when the save fails", async () => {
     contractor.getMyProfilePrivacy.mockResolvedValue(DEFAULT_PROFILE_PRIVACY);
     contractor.setProfilePrivacy.mockRejectedValue(new Error("Create your contractor profile first"));

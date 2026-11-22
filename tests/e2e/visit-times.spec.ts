@@ -5,6 +5,9 @@
  *       accepted quote, books one, and is told about the day-before reminder
  * VT.2  /quotes/:id — "None of these work" asks the contractor for other times
  * VT.3  /contractor-dashboard — a won bid offers times to the homeowner
+ * VT.4  /quotes/:id — the homeowner cancels a booked visit
+ * VT.5  /contractor-dashboard — the contractor cancels a booked visit and
+ *       can offer new times
  *
  * All tests use window.__e2e_* injection (window.__e2e_visits holds the
  * bookings) — no canister required.
@@ -90,6 +93,40 @@ test.describe("VT — homeowner books a visit", () => {
     const panel = page.getByRole("region", { name: "Visit time" });
     await panel.getByRole("button", { name: /none of these work/i }).click();
     await expect(panel.getByText(/for other times/i)).toBeVisible();
+  });
+});
+
+const BOOKED = { ...OFFER, status: "booked", booked: OFFER.offered[0] };
+
+test.describe("VT — a booked visit is cancelled", () => {
+  // VT.4
+  test("the homeowner cancels", async ({ page }) => {
+    await injectTestAuth(page);
+    await injectSubscription(page);
+    await injectTestProperties(page);
+    await injectQuoteRequests(page, [REQUEST]);
+    await injectQuotes(page, [WON]);
+    await injectVisits(page, { [WON.id]: BOOKED });
+    await page.goto(`/quotes/${REQUEST.id}`);
+    const panel = page.getByRole("region", { name: "Visit time" });
+    await expect(panel.getByText(/visit booked/i)).toBeVisible();
+    await panel.getByRole("button", { name: /cancel visit/i }).click();
+    await expect(panel.getByText(/visit cancelled\. if .* offers new times, you'll pick one here/i)).toBeVisible();
+    await expect(panel.getByRole("button", { name: /^book /i })).toHaveCount(0);
+  });
+
+  // VT.5
+  test("the contractor cancels and can offer new times", async ({ page }) => {
+    await injectTestAuth(page);
+    await injectQuotes(page, [{ ...WON, contractor: "test-e2e-principal" }]);
+    await injectVisits(page, { [WON.id]: BOOKED });
+    await page.goto("/contractor-dashboard");
+    const panel = page.getByRole("region", { name: "Visit time" });
+    await expect(panel.getByText(/the homeowner booked/i)).toBeVisible();
+    await panel.getByRole("button", { name: /cancel visit/i }).click();
+    await expect(panel.getByText("Visit cancelled.")).toBeVisible();
+    await panel.getByRole("button", { name: /offer new times/i }).click();
+    await expect(panel.getByRole("button", { name: /send times/i })).toBeVisible();
   });
 });
 

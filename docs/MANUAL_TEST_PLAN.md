@@ -486,11 +486,9 @@ that too.
 | # | Step | Expected |
 |---|---|---|
 | 1 | After the window closes, the seller compares bids on `/listing/:id` and picks one | The pick is recorded; identities are still masked |
-| 2 | The winning agent pays the platform fee ($399 by default) | Once it settles, `/agents/bids/:id` shows the receipt, the seller's identity and record access |
-| 3 | A losing agent checks `/agents/bids` | Lost, with no detail about the winner |
-
-**Watch for:** the award page's wording assumes the agent's pronoun ("Fee she paid", "Her bid…" in
-`ListingDetailPage`); log it if it reads wrong for the agent shown.
+| 2 | Before the fee is paid, the winning agent opens `/agents/bids/:id` | Says the platform fee ($399 by default) is due; no seller address or email yet |
+| 3 | The fee is marked paid (today an admin does this; there is no in-app payment for it yet) | `/agents/bids/:id` says the fee is paid, shows "RECEIPT SENT", the seller's address and email; the seller's `/listing/:id` names the agent |
+| 4 | A losing agent checks `/agents/bids` | Lost, with no detail about the winner |
 
 ### SELL-05 — FSBO listing · P2 · Web
 Run MT-08 (listing, 360° tour, showing and offers). After an accepted offer, the listing points the seller to
@@ -501,10 +499,12 @@ Short form of MT-04.
 
 | # | Step | Expected |
 |---|---|---|
-| 1 | From the property page, generate a report | Share link shown |
+| 1 | On an unverified home, open Generate report | Generate is disabled, with a "Verify ownership" link |
+| 1b | On a Basic or Premium verified home, generate a report | Share link shown |
 | 2 | Open it in a private window | Report loads signed out, showing "Signed by HomeGentic" |
 | 3 | Download the signed copy and check it on `/verify-record` | Signature checks out; the page explains what a signature does and doesn't prove |
-| 4 | Revoke the link and reload the private window | The report no longer loads |
+| 4 | Turn off "Public HomeGentic Report" in Settings → Privacy and reload the private window | "Sign in to view this report"; turning it back on restores it |
+| 5 | Revoke the link and reload the private window | "Report link revoked" |
 
 ---
 

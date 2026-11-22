@@ -87,6 +87,10 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       .catch((e) => console.error("[GenerateReportModal] privacy load failed:", e));
   }, [propertyId]);
 
+  // The report canister only shares Basic- or Premium-verified homes
+  // (#UnverifiedProperty), so the button stays off until then.
+  const canShare = property.verificationLevel === "Basic" || property.verificationLevel === "Premium";
+
   const handleGenerate = async () => {
     setGenerating(true);
     try {
@@ -312,7 +316,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
             <Button
               size="lg"
               loading={generating}
-              disabled={subscriptionLoading}
+              disabled={subscriptionLoading || !canShare}
               onClick={handleGenerate}
               icon={<Link2 size={16} />}
               style={{ width: "100%", marginTop: "1.375rem" }}
@@ -322,7 +326,13 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
 
             {property.verificationLevel === "Unverified" && (
               <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.rust, marginTop: "0.625rem", letterSpacing: "0.04em" }}>
-                Note: this property is unverified — the report will be marked as self-reported.
+                Verify you own this home before you share a report.{" "}
+                <a href={`/properties/${property.id}/verify`} style={{ color: V2_COLORS.blue }}>Verify ownership</a>
+              </p>
+            )}
+            {property.verificationLevel === "PendingReview" && (
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginTop: "0.625rem", letterSpacing: "0.04em" }}>
+                You can share a report once HomeGentic approves your ownership document.
               </p>
             )}
           </div>

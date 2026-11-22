@@ -144,7 +144,7 @@ export default function ListingDetailPage() {
                 </div>
                 <div>
                   <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.68rem", letterSpacing: "0.08em", color: UI.muted, textTransform: "uppercase", marginBottom: 10 }}>What happens next</div>
-                  {["She has your record and 48 hours to make contact", "Walkthrough and listing agreement", "Buyer's Truth Kit generated for the listing", "Request closes when the agreement is signed"].map((step, i) => (
+                  {[`${winner.agentName ?? "Your agent"} has your record and your email`, "Walkthrough and listing agreement", "Buyer's Truth Kit generated for the listing", "Request closes when the agreement is signed"].map((step, i) => (
                     <div key={i} style={{ display: "flex", gap: 12, padding: "10px 0", borderTop: i > 0 ? `1px solid ${UI.border}` : "none" }}>
                       <div style={{
                         width: 22, height: 22, borderRadius: "50%", flexShrink: 0, fontSize: "0.7rem", fontWeight: 700,
@@ -159,7 +159,7 @@ export default function ListingDetailPage() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ background: UI.ink, borderRadius: V2_RADIUS.card + 2, padding: 20 }}>
-                  <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: "rgba(252,252,253,0.6)", textTransform: "uppercase" }}>Her bid, now binding as terms</div>
+                  <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: "rgba(252,252,253,0.6)", textTransform: "uppercase" }}>{winner.agentName ? `${winner.agentName}'s bid` : "The winning bid"}, now binding as terms</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", color: UI.paper, fontFamily: V2_FONTS.body, fontSize: "0.875rem" }}>
                       <span>Commission</span><span>{commissionPct(winner.commissionBps)}</span>
@@ -168,17 +168,17 @@ export default function ListingDetailPage() {
                       <span>Suggested list</span><span>{formatCents(winner.suggestedListCents)}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", color: UI.greenBright, fontFamily: V2_FONTS.body, fontSize: "0.875rem" }}>
-                      <span>Fee she paid</span><span>{formatCents(feeCents)}</span>
+                      <span>Platform fee paid</span><span>{formatCents(feeCents)}</span>
                     </div>
                   </div>
                   <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: "rgba(252,252,253,0.55)", marginTop: 12 }}>
-                    These were her bid terms. They are not a signed listing agreement — that is between the two of you,
-                    and we keep a copy of what she promised here.
+                    These were the bid terms. They are not a signed listing agreement — that is between the two of you,
+                    and we keep a copy of what was promised here.
                   </p>
                 </div>
 
                 <div>
-                  <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: UI.muted, textTransform: "uppercase", marginBottom: 10 }}>The other four</div>
+                  <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: UI.muted, textTransform: "uppercase", marginBottom: 10 }}>The other agents</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {others.map((p) => (
                       <div key={p.id} style={{ background: UI.neutralSurface, borderRadius: V2_RADIUS.input, padding: "10px 14px", display: "flex", justifyContent: "space-between", fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: UI.muted }}>
@@ -194,12 +194,15 @@ export default function ListingDetailPage() {
                 <div style={{ background: UI.neutralSurface, borderRadius: V2_RADIUS.card, padding: 18 }}>
                   <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.68rem", letterSpacing: "0.08em", color: UI.muted, textTransform: "uppercase", marginBottom: 8 }}>If this does not work out</div>
                   <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: UI.ink, marginBottom: 12 }}>
-                    You are not committed. Tell us within 30 days that you did not sign with her and we refund her{" "}
-                    {formatCents(feeCents)} and reopen your request to the other agents.
+                    You are not committed. Tell us within 30 days that you did not sign with{" "}
+                    {winner.agentName ?? "your agent"} and we refund their {formatCents(feeCents)} platform fee.
                   </p>
-                  <Button variant="outline" size="sm" onClick={() => toast("Report submitted — our team will follow up.")}>
+                  <a
+                    href={`mailto:support@homegentic.app?subject=${encodeURIComponent(`We did not sign: listing request ${request.id}`)}`}
+                    style={{ display: "inline-block", fontFamily: V2_FONTS.body, fontSize: "0.85rem", fontWeight: 600, color: UI.ink, border: `1.5px solid ${UI.border}`, borderRadius: V2_RADIUS.pill, padding: "6px 14px", textDecoration: "none" }}
+                  >
                     Report that we did not sign
-                  </Button>
+                  </a>
                 </div>
               </div>
             </div>

@@ -358,6 +358,11 @@ persistent actor Report {
   }) : Bool {
     let max = switch msg {
       case (#generateReport _) Inspect.MAX_UPLOAD_ARG_BYTES;
+      // Buyers open shared links signed out, and getReport is an update (it
+      // counts the view), so it is the one method an anonymous caller may
+      // reach. Its argument is a share token: a short cap keeps junk cheap.
+      // The method itself refuses sign-in-only links to anonymous callers.
+      case (#getReport _) return arg.size() > 0 and arg.size() <= Inspect.MAX_TOKEN_ARG_BYTES;
       case _ Inspect.MAX_ARG_BYTES;
     };
     Inspect.accept(caller, arg, max)

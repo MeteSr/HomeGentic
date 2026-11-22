@@ -1,7 +1,8 @@
 /**
  * AgentAwardPage — real branching logic worth locking down:
  *   - loading -> "nothing to show" (no proposal / not accepted) -> full award view
- *   - fee amount formatted from cents; "(pending confirmation)" when no fee yet
+ *   - fee amount formatted from cents; until the fee is paid the page says it's
+ *     due and shows no seller details (the listing canister masks them)
  */
 
 import { render, screen, waitFor } from "@testing-library/react";
@@ -36,7 +37,8 @@ vi.mock("@/components/Layout", () => ({
 
 const PROPOSAL: Partial<ListingProposal> = { id: "prop-1", requestId: "req-1", status: "Accepted" as any };
 const REQUEST: Partial<ListingBidRequest> = { id: "req-1", address: "123 Main St", homeownerEmail: "seller@example.com" };
-const FEE: Partial<FeeRecord> = { id: "fee-1", proposalId: "prop-1", amountCents: 29500 };
+const FEE: Partial<FeeRecord> = { id: "fee-1", proposalId: "prop-1", amountCents: 29500, status: "Paid" };
+const MASKED: Partial<ListingBidRequest> = { id: "req-1", address: "", homeownerEmail: "" };
 
 function renderPage() {
   return render(
@@ -77,19 +79,38 @@ describe("AgentAwardPage — gating", () => {
 });
 
 describe("AgentAwardPage — fee display", () => {
-  it("formats the fee amount from cents to dollars", async () => {
+  it("says the fee is paid, from cents to dollars, once it is", async () => {
     mockGetMyProposals.mockResolvedValue([PROPOSAL]);
     mockGetBidRequest.mockResolvedValue(REQUEST);
     mockGetMyFees.mockResolvedValue([FEE]);
     renderPage();
-    await waitFor(() => expect(screen.getByText(/\$295 charged/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/your \$295 platform fee is paid/i)).toBeInTheDocument());
+    expect(screen.getByText("RECEIPT SENT")).toBeInTheDocument();
   });
 
-  it("shows pending confirmation when no fee record exists yet", async () => {
+  it("while the fee is owed, says it's due, claims no charge and shows no seller details", async () => {
     mockGetMyProposals.mockResolvedValue([PROPOSAL]);
-    mockGetBidRequest.mockResolvedValue(REQUEST);
+    mockGetBidRequest.mockResolvedValue(MASKED);
+    mockGetMyFees.mockResolvedValue([{ ...FEE, status: "Owed" }]);
+    renderPage();
+    await waitFor(() =>
+      expect(
+        screen.getByText(/your \$295 platform fee is due\. the seller's address and email show here once it's paid/i),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/charged/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("RECEIPT SENT")).not.toBeInTheDocument();
+    expect(screen.queryByText("Address")).not.toBeInTheDocument();
+  });
+
+  it("before the fee is recorded, says the details come once it's paid", async () => {
+    mockGetMyProposals.mockResolvedValue([PROPOSAL]);
+    mockGetBidRequest.mockResolvedValue(MASKED);
     mockGetMyFees.mockResolvedValue([]);
     renderPage();
-    await waitFor(() => expect(screen.getByText(/\$0 charged \(pending confirmation\)/)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/the seller's address and email show here once your platform fee is paid/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/charged/i)).not.toBeInTheDocument();
   });
 });

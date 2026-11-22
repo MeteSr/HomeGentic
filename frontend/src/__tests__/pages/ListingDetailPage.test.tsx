@@ -156,3 +156,25 @@ describe("ListingDetailPage — fee_paid query param", () => {
     await waitFor(() => expect(mockGetBidRequest).toHaveBeenCalledTimes(2)); // initial load + reload from the effect
   });
 });
+
+describe("ListingDetailPage — H6 introduced", () => {
+  it("names the winning agent without assuming a pronoun or a contact deadline", async () => {
+    mockGetBidRequest.mockResolvedValue({ ...REQUEST, status: "Awarded", feePaid: true } as any);
+    mockGetBidProgress.mockResolvedValue({ count: 2, sealed: false });
+    mockGetProposalsForRequest.mockResolvedValue([
+      makeProposal({ id: "p1", status: "Accepted" as any, agentName: "Sam Rivera", agentEmail: "sam@x.com" }),
+      makeProposal({ id: "p2", letter: "B", status: "Rejected" as any }),
+    ]);
+    renderAt("/listing/req-1");
+    await waitFor(() => expect(screen.getByText("Sam Rivera's bid, now binding as terms")).toBeInTheDocument());
+    expect(screen.getByText("Platform fee paid")).toBeInTheDocument();
+    expect(screen.getByText("Sam Rivera has your record and your email")).toBeInTheDocument();
+    expect(screen.getByText("The other agents")).toBeInTheDocument();
+    const text = document.body.textContent ?? "";
+    expect(text).not.toMatch(/\b(she|her)\b/i);
+    expect(text).not.toMatch(/48 hours/);
+    // The refund request goes to a person: no button that only pretends to send it.
+    const report = screen.getByRole("link", { name: "Report that we did not sign" });
+    expect(report.getAttribute("href")).toMatch(/^mailto:support@homegentic\.app\?subject=/);
+  });
+});
