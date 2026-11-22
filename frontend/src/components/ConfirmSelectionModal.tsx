@@ -25,7 +25,7 @@ export interface ConfirmSelectionModalProps {
 }
 
 const CONSEQUENCE_ROWS: { label: string; note: string; ok: boolean }[] = [
-  { label: "They're billed the platform fee", note: "They pay it in Bid to List. Nothing is released to either side until it clears.", ok: true },
+  { label: "They're billed the platform fee", note: "They pay it by card. Nothing is released to either side until it clears.", ok: true },
   { label: "Your name, address and record release to them", note: "Maintenance history, permits and invoiced work, all at once.", ok: true },
   { label: "Their name, license and contact release to you", note: "HomeGentic checked their license before they were allowed to bid.", ok: true },
   { label: "The other four bids close permanently", note: "They cannot be reopened while this selection stands.", ok: false },
@@ -41,7 +41,7 @@ export function ConfirmSelectionModal({ proposal, feeCents, onClose, onConfirmed
     setSubmitting(true);
     try {
       // Records the selection and the winning agent's platform fee (Owed in the
-      // fee canister). The agent pays that fee from Bid to List; identities are
+      // fee canister). The agent pays it by card from My bids; identities are
       // released once it settles. Nothing is charged to the homeowner here.
       await listingService.acceptProposal(proposal.id);
       toast.success(`Bid ${proposal.letter} chosen. Identities release once the agent's platform fee clears.`);

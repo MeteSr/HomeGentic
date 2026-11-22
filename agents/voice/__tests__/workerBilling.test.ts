@@ -54,6 +54,13 @@ jest.mock("../src/session", () => ({
   SESSION_HEADER: "x-agent-session",
   resolveSessionPrincipal: jest.fn(async (token: string | null) => (token === "hgs_good" ? "user-aaa" : null)),
 }));
+const mockStartPlatformFee  = jest.fn();
+const mockSettlePlatformFee = jest.fn();
+jest.mock("../src/platformFee", () => ({
+  startPlatformFeeCheckout:  (...a: unknown[]) => mockStartPlatformFee(...a),
+  settlePlatformFee:         (...a: unknown[]) => mockSettlePlatformFee(...a),
+  canisterPlatformFeeLedger: () => ({}),
+}));
 jest.mock("../src/propertyCanister", () => ({ markIdentityCleared: jest.fn().mockResolvedValue(undefined) }));
 jest.mock("../src/offchainOutcalls", () => {
   const actual = jest.requireActual("../src/offchainOutcalls");
@@ -251,3 +258,26 @@ describe("WBILL.6 — sendGiftEmail", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
+
+describe("WBILL.9 — Bid to List platform fee on the app's Stripe account", () => {
+  it("opens Checkout only for a signed-in caller, as that caller, returning to the app", async () => {
+    expect((await worker.fetch(req("/api/payments/platform-fee", { proposalId: "PROP_1" }), makeEnv(), ctx)).status).toBe(401);
+    expect(mockStartPlatformFee).not.toHaveBeenCalled();
+    mockStartPlatformFee.mockResolvedValueOnce({ status: 200, body: { url: "https://checkout.stripe.test/s" } });
+    const res = await worker.fetch(req("/api/payments/platform-fee", { proposalId: "PROP_1" }, SESSION), makeEnv(), ctx);
+    expect(await res.json()).toEqual({ url: "https://checkout.stripe.test/s" });
+    const [principal, proposalId, origin] = mockStartPlatformFee.mock.calls[0] as unknown[];
+    expect([principal, proposalId, origin]).toEqual(["user-aaa", "PROP_1", "https://app.test"]);
+  });
+
+  it("hands completed and delayed-payment sessions to the platform fee first, and retries when it throws", async () => {
+    mockSettlePlatformFee.mockResolvedValue(true);
+    const session = { id: "cs_pf", metadata: { type: "platform_fee", feeId: "FEE_1", proposalId: "PROP_1" }, payment_status: "paid" };
+    expect((await hook({ id: "evt_pf1", type: "checkout.session.completed", data: { object: session } })).status).toBe(200);
+    expect((await hook({ id: "evt_pf2", type: "checkout.session.async_payment_succeeded", data: { object: session } })).status).toBe(200);
+    expect(mockSettlePlatformFee).toHaveBeenCalledTimes(2);
+    mockSettlePlatformFee.mockRejectedValueOnce(new Error("listing is down"));
+    expect((await hook({ id: "evt_pf3", type: "checkout.session.completed", data: { object: session } })).status).toBe(500);
+  });
+});
+

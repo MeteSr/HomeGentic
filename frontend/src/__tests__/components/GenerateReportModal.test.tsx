@@ -178,6 +178,42 @@ describe("GenerateReportModal — report generation never fires in-app notificat
   });
 });
 
+// The report canister refuses a share link for a home that isn't Basic or
+// Premium verified (#UnverifiedProperty), so the modal must not offer one.
+describe("GenerateReportModal — homes that aren't verified yet", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("an unverified home can't generate a link and is pointed to verification", async () => {
+    render(
+      <MemoryRouter>
+        <GenerateReportModal property={{ ...mockProperty, verificationLevel: "Unverified" }} onClose={vi.fn()} />
+      </MemoryRouter>,
+    );
+    const button = await screen.findByRole("button", { name: /generate report link/i });
+    await waitFor(() => expect(button).toBeDisabled());
+    expect(screen.getByText(/verify you own this home before you share a report/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /verify ownership/i })).toHaveAttribute("href", "/properties/42/verify");
+    expect(screen.queryByText(/marked as self-reported/i)).not.toBeInTheDocument();
+  });
+
+  it("a home waiting for review can't generate a link yet", async () => {
+    render(
+      <MemoryRouter>
+        <GenerateReportModal property={{ ...mockProperty, verificationLevel: "PendingReview" }} onClose={vi.fn()} />
+      </MemoryRouter>,
+    );
+    const button = await screen.findByRole("button", { name: /generate report link/i });
+    await waitFor(() => expect(button).toBeDisabled());
+    expect(screen.getByText(/you can share a report once homegentic approves your ownership document/i)).toBeInTheDocument();
+  });
+
+  it("a verified home can generate a link", async () => {
+    renderModal();
+    await clickGenerate();
+    await waitFor(() => expect(screen.getByText(/link ready to share/i)).toBeInTheDocument());
+  });
+});
+
 // ──────────────────────────────────────────────────────────────────────────────
 // notificationService unit tests (use vi.importActual to bypass the mock)
 // ──────────────────────────────────────────────────────────────name──────────

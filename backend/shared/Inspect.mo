@@ -7,9 +7,10 @@
 /// cycles even when the method rejects it.
 ///
 /// Every canister refuses anonymous callers, empty payloads and arguments over
-/// MAX_ARG_BYTES. Methods that really take more (photo.uploadPhoto,
-/// report.generateReport) are named in their canister's inspect with
-/// MAX_UPLOAD_ARG_BYTES.
+/// MAX_ARG_BYTES. The one exception is report.getReport, which signed-out
+/// buyers call to open a shared report link (capped at MAX_TOKEN_ARG_BYTES).
+/// Methods that really take more (photo.uploadPhoto, report.generateReport)
+/// are named in their canister's inspect with MAX_UPLOAD_ARG_BYTES.
 ///
 /// Not a security boundary: inspect runs on one replica and never for
 /// inter-canister calls (canister-security skill), so every method keeps its
@@ -27,6 +28,11 @@ module {
   /// Largest argument for the few methods that carry bytes or whole reports.
   /// 2 MiB, the IC's own ingress limit.
   public let MAX_UPLOAD_ARG_BYTES : Nat = 2_097_152;
+
+  /// Largest argument for a method that takes only a short token (a share
+  /// link's token is under 100 bytes encoded). Used where anonymous callers
+  /// are let through on purpose (report.getReport).
+  public let MAX_TOKEN_ARG_BYTES : Nat = 1_024;
 
   /// True when an ingress message should be accepted.
   public func accept(caller : Principal, arg : Blob, maxBytes : Nat) : Bool {

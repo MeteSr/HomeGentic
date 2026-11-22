@@ -111,6 +111,8 @@ export interface _SERVICE {
     { ok: [] | [ReferralFee] } | { err: Error }
   >;
   referralBidAllowed: ActorMethod<[Principal], BidCheck>;
+  relayGetPlatformFee: ActorMethod<[string], [] | [FeeRecord]>;
+  relayMarkPlatformFeePaid: ActorMethod<[string, string], { ok: FeeRecord } | { err: Error }>;
   relayMarkReferralFeeFailed: ActorMethod<[string, string, string], { ok: ReferralFee } | { err: Error }>;
   relayMarkReferralFeePaid: ActorMethod<[string, string], { ok: ReferralFee } | { err: Error }>;
   relaySetReferralCard: ActorMethod<[Principal, ReferralCard], { ok: null } | { err: Error }>;

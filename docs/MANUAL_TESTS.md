@@ -4,6 +4,9 @@ These tests cover critical user journeys that automated tests cannot adequately
 validate: real authentication, two-device workflows, subjective quality, and
 on-chain state persistence.
 
+For the full manual pass across every area (with a smoke subset), start from
+[MANUAL_TEST_PLAN.md](MANUAL_TEST_PLAN.md); it points back to these runbooks.
+
 Run these before any production deployment and after significant changes to
 auth, job signing, payment, reports, or the voice agent.
 
@@ -119,9 +122,10 @@ it on next load, and that tier-gated features unlock immediately.
 photos/job, and 3 open quote requests (same as the old retired Basic
 tier), plus job logging and Bid to List access. Homeowner paid pricing
 is a single plan, **Pro at $59/year**, which raises those caps to 20
-properties / 30 photos / unlimited quotes and unlocks the AI/intelligence
-features (Market Intelligence, Maintenance, Warranty Wallet, Insurance
-Defense, Resale Ready, Recurring Services).
+properties / 30 photos / unlimited quotes, raises the AI allowance, and
+unlocks the two Pro-only pages, Insurance Defense and Resale Ready. Market
+Intelligence, Maintenance, Warranty Wallet and Recurring Services are open
+on Free too.
 
 **Prerequisites**
 - A newly registered user account (defaults to **Free** tier)
@@ -136,10 +140,10 @@ Defense, Resale Ready, Recurring Services).
 | 2 | Confirm the property limit: navigate to `/properties/new` and register a property | Succeeds — Free allows 1 property |
 | 3 | Attempt to register a second property | Blocked — upgrade modal appears instead of the add-property form |
 | 4 | Confirm Free-tier access on the registered property: log a DIY job, upload up to 5 photos, submit up to 3 open quote requests | All succeed; a 6th photo or 4th open quote request is blocked with an upgrade hint |
-| 5 | Confirm `/market`, `/maintenance`, `/warranties`, `/insurance-defense`, `/resale-ready`, `/recurring/new` all redirect to `/pricing` | Still Pro-only on Free |
+| 5 | Open `/insurance-defense` and `/resale-ready`; then open `/market`, `/maintenance`, `/warranties` and `/recurring/new` | The first two redirect to `/pricing` (Pro only); the other four load on Free |
 | 6 | Return to `/settings`, click **Subscription** tab | Free plan + upgrade-to-Pro option visible |
 | 7 | Click **Upgrade** / **Get Pro** | Redirects to checkout or loading spinner on button |
-| 8 | Complete Stripe checkout with test card | Redirected to `/payment-success`; toast "Upgraded to Pro!" |
+| 8 | Complete Stripe checkout with test card | Redirected to `/payment-success`, which says "Payment confirmed" |
 | 9 | Confirm the Subscription tab now shows **Pro** | Plan card updated in current session |
 | 10 | Hard-refresh the page | Still shows **Pro** — tier persisted to canister |
 | 11 | Open a new tab, navigate to `/settings` → Subscription | Still Pro |
@@ -149,7 +153,7 @@ Defense, Resale Ready, Recurring Services).
 - UI showing Pro but canister still returning Free on next session (optimistic update bug)
 - Tier-gated property/photo/quote limits not relaxing without a full reload
 - Checkout offering Monthly billing or any tier other than Pro (Pro is annual-only; there should be no billing-cycle choice)
-- Free tier able to reach Pro-only pages (Market Intelligence, Maintenance, etc.) via direct URL navigation
+- Free tier able to reach the Pro-only pages (Insurance Defense, Resale Ready) via direct URL navigation
 
 ---
 

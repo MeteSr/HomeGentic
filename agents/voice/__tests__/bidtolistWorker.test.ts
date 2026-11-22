@@ -11,22 +11,11 @@
  * BTLW.3 listing-cancelled: only when Cancelled; sent to proposers, not body addresses
  * BTLW.4 agent-verified: only for verified profiles; once
  * BTLW.5 reveal-opened / new-listing gates
- * BTLW.6 checkout is bound to an Owed fee for the Accepted proposal; metadata from the record
+ * (The platform fee is paid on the app's own Stripe account: see platformFee.test.ts.)
  * BTLW.7 per-IP rate limit; HTML escaping
  */
 
 const mockResendSend          = jest.fn();
-const mockSessionsCreate      = jest.fn();
-
-jest.mock("stripe", () => {
-  const Stripe: any = jest.fn().mockImplementation(() => ({
-    checkout: { sessions: { create: mockSessionsCreate } },
-    webhooks: { constructEventAsync: jest.fn() },
-  }));
-  Stripe.createSubtleCryptoProvider = jest.fn(() => ({}));
-  return { __esModule: true, default: Stripe };
-});
-
 jest.mock("resend", () => ({
   Resend: jest.fn().mockImplementation(() => ({ emails: { send: mockResendSend } })),
 }), { virtual: true });
@@ -36,10 +25,9 @@ const state: {
   request: any | null;
   proposals: any[];
   profiles: Record<string, any>;
-  fees: any[];
   cityAgents: any[];
   nearDeadline: any[];
-} = { request: null, proposals: [], profiles: {}, fees: [], cityAgents: [], nearDeadline: [] };
+} = { request: null, proposals: [], profiles: {}, cityAgents: [], nearDeadline: [] };
 
 jest.mock("@icp-sdk/core/agent", () => {
   const actual = jest.requireActual("@icp-sdk/core/agent") as Record<string, unknown>;
@@ -56,11 +44,7 @@ jest.mock("@icp-sdk/core/agent", () => {
     }),
     getAgentsForCity: jest.fn(async () => state.cityAgents),
   };
-  const fee = {
-    getAllFees: jest.fn(async () => ({ ok: state.fees })),
-    markFeePaid: jest.fn(),
-  };
-  const byId: Record<string, unknown> = { "listing-id": listing, "agent-id": agent, "fee-id": fee };
+  const byId: Record<string, unknown> = { "listing-id": listing, "agent-id": agent };
   class FakeHttpAgent {
     static async create() { return new FakeHttpAgent(); }
     static createSync() { return new FakeHttpAgent(); }
@@ -122,9 +106,7 @@ beforeEach(() => {
   env = {
     BIDTOLIST_LISTING_CANISTER_ID: "listing-id",
     BIDTOLIST_AGENT_CANISTER_ID: "agent-id",
-    BIDTOLIST_FEE_CANISTER_ID: "fee-id",
     BIDTOLIST_IDENTITY_SEED: "11".repeat(32),
-    BIDTOLIST_STRIPE_SECRET_KEY: "sk_test", BIDTOLIST_STRIPE_PRICE_PLATFORM_FEE: "price_fee",
     BIDTOLIST_FRONTEND_ORIGIN: "https://bidtolist.test",
     RATE_LIMITER: fakeNamespace(),
   };
@@ -138,7 +120,6 @@ beforeEach(() => {
     [A2]: profile("a2@agents.test", "Agent Two"),
     [A3]: profile("a3@agents.test", "Agent Three"),
   };
-  state.fees = [];
   state.cityAgents = [];
   state.nearDeadline = [];
 });
@@ -256,37 +237,6 @@ describe("BTLW.5 — reveal-opened / new-listing", () => {
 
   it("404 for an unknown request", async () => {
     expect((await call("/email/new-listing", { requestId: "REQ_404" })).status).toBe(404);
-  });
-});
-
-describe("BTLW.6 — fee checkout", () => {
-  const fee = (status: string, proposalId = "PROP_1") => ({
-    id: "FEE_1", requestId: "REQ_1", proposalId, agentId: Principal.fromText(A1),
-    homeownerId: HOMEOWNER, amountCents: 39_900n, status: { [status]: null },
-  });
-
-  it("creates a session for an Owed fee on the Accepted proposal, metadata from the record", async () => {
-    state.request.status = { Awarded: null };
-    state.proposals = [proposal("PROP_1", A1, "Accepted")];
-    state.fees = [fee("Owed")];
-    mockSessionsCreate.mockResolvedValue({ url: "https://checkout.stripe.test/x" });
-    const res = await call("/stripe/create-checkout-session",
-      { proposalId: "PROP_1", successUrl: "https://evil.test" });
-    expect(await res.json()).toEqual({ url: "https://checkout.stripe.test/x" });
-    const args = mockSessionsCreate.mock.calls[0][0] as any;
-    expect(args.metadata).toEqual({ feeId: "FEE_1", proposalId: "PROP_1", requestId: "REQ_1", agentId: A1 });
-    expect(args.success_url).toBe("https://bidtolist.test/agents/dashboard?fee_paid=1");
-  });
-
-  it("refuses paid fees, unknown fees and superseded proposals", async () => {
-    state.proposals = [proposal("PROP_1", A1, "Rejected")];
-    state.fees = [fee("Paid")];
-    expect((await call("/stripe/create-checkout-session", { proposalId: "PROP_1" })).status).toBe(409);
-    state.fees = [fee("Owed")];
-    expect((await call("/stripe/create-checkout-session", { proposalId: "PROP_1" })).status).toBe(409);
-    expect((await call("/stripe/create-checkout-session", { proposalId: "PROP_2" })).status).toBe(404);
-    expect((await call("/stripe/create-checkout-session", { proposalId: "PROP_1", feeId: "FEE_X" })).status).toBe(404);
-    expect(mockSessionsCreate).not.toHaveBeenCalled();
   });
 });
 

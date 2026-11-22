@@ -104,6 +104,12 @@ describe("DashboardPage — auto-open add-property wizard for new users", () => 
     expect(mockOpen).not.toHaveBeenCalled();
   });
 
+  it("does not open the home wizard for a realtor, who signs up to bid on listings", () => {
+    mockProfile.value = { onboardingComplete: false, role: "Realtor" };
+    render(<DashboardPage />);
+    expect(mockOpen).not.toHaveBeenCalled();
+  });
+
   it("does not open the wizard when there is no profile yet", () => {
     mockProfile.value = null;
     render(<DashboardPage />);

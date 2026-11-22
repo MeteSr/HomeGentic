@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { MobileAccountPage } from "@/pages/MobileAccountPage";
 import { User, CreditCard, Bell, Lock, CheckCircle, Download, Sparkles } from "lucide-react";
@@ -834,30 +834,47 @@ function ContractorPrivacyTab() {
   const [privacy,    setPrivacy]    = useState<ProfilePrivacy | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
 
+  // What the switches show, and what the canister last confirmed.
+  const shown = useRef<ProfilePrivacy | null>(null);
+  const saved = useRef<ProfilePrivacy | null>(null);
+  // One save at a time: two update calls in flight can land in either order.
+  const saving = useRef(false);
+
   useEffect(() => {
     let live = true;
     contractorService.getMyProfilePrivacy()
-      .then((p) => { if (live) setPrivacy(p); })
+      .then((p) => { if (live) { shown.current = saved.current = p; setPrivacy(p); } })
       .catch(() => { if (live) setLoadFailed(true); });
     return () => { live = false; };
   }, []);
 
-  // Saved to the contractor canister as each switch changes; rolled back if
-  // the save fails.
-  const change = (key: keyof ProfilePrivacy) => async (v: boolean) => {
-    if (!privacy) return;
-    const before = privacy;
-    const next = { ...before, [key]: v };
-    setPrivacy(next);
-    try {
-      await contractorService.setProfilePrivacy(next);
-    } catch (err) {
-      setPrivacy(before);
-      toast.error(err instanceof Error ? err.message : "Couldn't save privacy settings");
+  // Sends what the switches show until the canister has it, one save at a
+  // time; on a failed save, goes back to the last saved set.
+  const flush = async () => {
+    if (saving.current) return;
+    saving.current = true;
+    while (shown.current && shown.current !== saved.current) {
+      const next = shown.current;
+      try {
+        await contractorService.setProfilePrivacy(next);
+        saved.current = next;
+      } catch (err) {
+        shown.current = saved.current;
+        setPrivacy(saved.current);
+        toast.error(err instanceof Error ? err.message : "Couldn't save privacy settings");
+        break;
+      }
     }
+    saving.current = false;
   };
 
-
+  // Each switch saves as it changes (sending every switch as it then stands).
+  const change = (key: keyof ProfilePrivacy) => (v: boolean) => {
+    if (!shown.current) return;
+    shown.current = { ...shown.current, [key]: v };
+    setPrivacy(shown.current);
+    void flush();
+  };
 
   const p = privacy ?? DEFAULT_PROFILE_PRIVACY;
   const rows = [

@@ -2,7 +2,8 @@
  * Ingress size caps in `system func inspect` (cycle-drain audit CD-5,
  * 2026-10-31). The ingress fee is charged once a message is accepted, so
  * oversized junk is refused there: 64 KiB for ordinary methods, 2 MiB for
- * photo.uploadPhoto and report.generateReport.
+ * photo.uploadPhoto and report.generateReport. Anonymous callers are refused
+ * everywhere except report.getReport (shared links open signed out).
  *
  * Run: cd tests/upgrade && npx vitest run inspect.canister.test.ts
  * (needs .dfx/local/canisters/{auth,photo,report}/*.wasm)
@@ -10,6 +11,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PocketIc, createIdentity } from "@dfinity/pic";
+import { AnonymousIdentity } from "@icp-sdk/core/agent";
 import { IDL } from "@icp-sdk/core/candid";
 import { createPic, wasmPath } from "./__helpers__/setup";
 import { serviceFromWasm } from "./__helpers__/candid";
@@ -65,6 +67,21 @@ describe("inspect: argument size caps", () => {
   it("still lets a method just under the cap through to its own checks", async () => {
     const r = await report.revokeShareLink("t".repeat(60 * KIB));
     expect(r).toHaveProperty("err");
+  });
+
+  // A shared report link is opened by buyers who aren't signed in, and
+  // getReport is an update call (it counts the view), so inspect must let an
+  // anonymous caller reach it. The method itself refuses sign-in-only links.
+  it("lets a signed-out viewer open a report link, and nothing else", async () => {
+    report.setIdentity(new AnonymousIdentity());
+    try {
+      expect(await report.getReport("RPT_missing")).toEqual({ err: { NotFound: null } });
+      await expect(report.getReport("t".repeat(4 * KIB))).rejects.toThrow(refused);
+      await expect(report.revokeShareLink("RPT_missing")).rejects.toThrow(refused);
+      await expect(report.listShareLinks("PROP_1")).rejects.toThrow(refused);
+    } finally {
+      report.setIdentity(user);
+    }
   });
 
   it("lets photo uploads carry up to 2 MiB", async () => {
