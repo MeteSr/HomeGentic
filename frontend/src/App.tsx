@@ -6,7 +6,6 @@ import { useAuthStore } from "@/store/authStore";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { errorTracker } from "@/services/errorTracker";
 import { RouteAnnouncer } from "@/components/RouteAnnouncer";
-import { PrivateLinkNoindex } from "@/components/PrivateLinkNoindex";
 import { AppMain, SkipLink } from "@/components/MainLandmark";
 
 /** Records route changes as navigation breadcrumbs in the error tracker. */
@@ -180,7 +179,6 @@ export default function App() {
         <NavigationTracker />
         <SkipLink />
         <RouteAnnouncer />
-        <PrivateLinkNoindex />
         <AppMain>
         <Suspense fallback={<PageLoader />}>
           <RouteErrorBoundary>
