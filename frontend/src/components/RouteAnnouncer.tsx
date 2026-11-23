@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { matchPath, useLocation, useNavigationType } from "react-router-dom";
+import { PrivateLinkNoindex } from "@/components/PrivateLinkNoindex";
 
 /**
  * Single-page navigation doesn't reload the document, so on its own a route
@@ -125,8 +126,11 @@ export function RouteAnnouncer() {
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="sr-only" aria-live="polite" aria-atomic="true" data-testid="route-announcer">
-      {message}
-    </div>
+    <>
+      <PrivateLinkNoindex />
+      <div className="sr-only" aria-live="polite" aria-atomic="true" data-testid="route-announcer">
+        {message}
+      </div>
+    </>
   );
 }

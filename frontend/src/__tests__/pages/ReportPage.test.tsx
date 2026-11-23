@@ -231,3 +231,14 @@ describe("ReportPage — permits and lien waivers (#716)", () => {
     expect(screen.queryByText("Permits and Lien Waivers")).not.toBeInTheDocument();
   });
 });
+
+describe("ReportPage — search privacy", () => {
+  it("keeps the home's address out of the page title and description", async () => {
+    mockGetReport.mockResolvedValue({ link: makeLink(), snapshot: makeSnapshot({ address: "742 Evergreen Terrace" }) });
+    renderAt("/report/tok-1");
+    await screen.findAllByText(/742 Evergreen Terrace/);
+    expect(document.title).not.toContain("742 Evergreen Terrace");
+    const desc = document.querySelector('meta[name="description"]')?.getAttribute("content") ?? "";
+    expect(desc).not.toContain("742 Evergreen Terrace");
+  });
+});

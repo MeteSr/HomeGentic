@@ -107,11 +107,6 @@ export default function ReportPage() {
     if (!token) { setState("notfound"); return; }
     reportService.getReport(token).then(({ link, snapshot }) => {
       setLink(link); setSnapshot(snapshot); setState("loaded");
-      // §17.4.4 — SEO: set document title + meta description for Google indexing
-      document.title = `HomeGentic Report — ${snapshot.address}`;
-      const meta = document.querySelector<HTMLMetaElement>("meta[name='description']")
-        ?? (() => { const m = document.createElement("meta"); m.name = "description"; document.head.appendChild(m); return m; })();
-      meta.content = `Verified maintenance history for ${snapshot.address}. ${snapshot.verifiedJobCount} verified job${snapshot.verifiedJobCount !== 1 ? "s" : ""}.`;
     }).catch((err: Error) => {
       const msg = err.message.toLowerCase();
       if (msg.includes("expired"))       setState("expired");

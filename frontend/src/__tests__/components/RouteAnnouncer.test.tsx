@@ -74,3 +74,14 @@ describe("RouteAnnouncer", () => {
     expect(screen.getByTestId("route-announcer")).toHaveTextContent("Warranty wallet | HomeGentic");
   });
 });
+
+describe("RouteAnnouncer — private share links", () => {
+  it("RA.5 marks a private report link noindex, and only that", () => {
+    const robots = () => document.querySelector('meta[name="robots"]')?.getAttribute("content") ?? null;
+    const { unmount } = render(<MemoryRouter initialEntries={["/report/tok-1"]}><RouteAnnouncer /></MemoryRouter>);
+    expect(robots()).toBe("noindex, nofollow");
+    unmount();
+    render(<MemoryRouter initialEntries={["/pricing"]}><RouteAnnouncer /></MemoryRouter>);
+    expect(robots()).toBeNull();
+  });
+});
