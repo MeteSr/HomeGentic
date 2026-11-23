@@ -4,7 +4,7 @@
  * Token links (/report/:token, /badge/:token, claim and verify links) are
  * shared privately and carry a home's address and history. Each must carry
  * <meta name="robots" content="noindex, nofollow">, and every ":token" route
- * App.tsx declares must be on the list (or deliberately public, like /cert).
+ * App.tsx declares must be on the list (or on the deliberately public list).
  */
 import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -29,13 +29,14 @@ describe("isNoindexPath", () => {
     "/transfer/claim/abc123",
     "/successor/abc123",
     "/manage/claim/abc123",
+    "/cert/abc123",
     "/verify/abc123",
     "/guide/abc123",
   ])("marks %s noindex", (path) => {
     expect(isNoindexPath(path)).toBe(true);
   });
 
-  it.each(["/", "/pricing", "/homes", "/for-sale/prop-1", "/cert/abc123", "/verify-record", "/sample-report"])(
+  it.each(["/", "/pricing", "/homes", "/for-sale/prop-1", "/verify-record", "/sample-report"])(
     "leaves %s indexable",
     (path) => {
       expect(isNoindexPath(path)).toBe(false);
