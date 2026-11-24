@@ -9,6 +9,7 @@
 import { useState, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Share2, Copy, ArrowRight } from "lucide-react";
+import { RouteHead } from "@/components/RouteHead";
 import {
   parseEstimatorParams,
   buildEstimatorUrl,
@@ -333,13 +334,19 @@ export default function HomeSystemsEstimatorPage() {
   const [searchParams] = useSearchParams();
   const input = parseEstimatorParams(searchParams);
 
-  if (!input) return <EstimatorForm />;
+  if (!input) return <><RouteHead path="/home-systems" /><EstimatorForm /></>;
 
   return (
-    <EstimatorResults
-      yearBuilt={input.yearBuilt}
-      propertyType={input.propertyType}
-      state={input.state}
-    />
+    <>
+      <RouteHead
+        path="/home-systems"
+        title={`Systems for a ${input.yearBuilt} Home${input.state ? ` in ${input.state}` : ""} | HomeGentic`}
+      />
+      <EstimatorResults
+        yearBuilt={input.yearBuilt}
+        propertyType={input.propertyType}
+        state={input.state}
+      />
+    </>
   );
 }

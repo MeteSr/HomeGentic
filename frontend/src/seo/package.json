@@ -1,0 +1,4 @@
+{
+  "//": "Node imports publicRoutes.ts directly at build time (scripts/prerender.mjs, scripts/gen-sitemap.mjs); this marks it as an ES module.",
+  "type": "module"
+}

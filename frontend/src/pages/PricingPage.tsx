@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/Button";
+import { RouteHead } from "@/components/RouteHead";
 import { PLANS, type PlanTier, type BillingCycle } from "@/services/planConstants";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -46,6 +47,7 @@ export default function PricingPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.paper }}>
+      <RouteHead path="/pricing" />
       {/* Nav */}
       <header style={{ borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, background: C.paper, zIndex: 50 }}>
         <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 56px", display: "flex", alignItems: "center", justifyContent: "space-between", height: "70px" }}>

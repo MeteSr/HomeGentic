@@ -18,9 +18,10 @@ test.describe("LandingPage — /", () => {
   });
 
   test("shows nav links including Pricing and The record", async ({ page }) => {
-    // Nav uses onClick div elements, not anchor tags
-    await expect(page.getByText("The record").first()).toBeVisible();
-    await expect(page.getByText("Pricing").first()).toBeVisible();
+    // Real links (crawlers follow only hrefs); in-page ones point at sections.
+    await expect(page.getByRole("link", { name: "The record" }).first()).toHaveAttribute("href", "#hg-how");
+    await expect(page.getByRole("link", { name: "Pricing" }).first()).toHaveAttribute("href", "#hg-pricing");
+    await expect(page.getByRole("link", { name: "Contractors" }).first()).toHaveAttribute("href", "/for-pros");
   });
 
   test("Pricing nav link scrolls to the pricing section", async ({ page }) => {
@@ -33,12 +34,12 @@ test.describe("LandingPage — /", () => {
 
   test("shows a primary CTA button in the hero", async ({ page }) => {
     // Hero CTA is now 'Start your record' (was 'Get Started')
-    const cta = page.getByRole("button", { name: /start your record|start free/i }).first();
+    const cta = page.getByRole("link", { name: /start your record|start free/i }).first();
     await expect(cta).toBeVisible();
   });
 
   test("hero primary CTA triggers auth flow", async ({ page }) => {
-    await page.getByRole("button", { name: /start your record/i }).first().click();
+    await page.getByRole("link", { name: /start your record/i }).first().click();
     await expect(page).toHaveURL(/\/(dashboard|login)/);
   });
 
@@ -66,6 +67,6 @@ test.describe("LandingPage — /", () => {
 
   test("shows Log in / Start free action in nav", async ({ page }) => {
     // Nav CTA labels changed: 'Log in' + 'Start free' (was 'Sign In' / 'Get Started')
-    await expect(page.getByRole("button", { name: /log in|start free/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /log in|start free/i }).first()).toBeVisible();
   });
 });

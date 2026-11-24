@@ -4,10 +4,11 @@
  * Validates:
  *   1. public/robots.txt exists, allows all crawlers, points to sitemap
  *   2. scripts/gen-sitemap.mjs exists
- *   3. gen-sitemap produces valid XML with one <url> per SSG route
+ *   3. gen-sitemap lists exactly PUBLIC_ROUTES (src/seo/publicRoutes.ts)
  *   4. package.json has a gen:sitemap script
  */
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
+import { readFileSync, existsSync } from "fs";
+import { PUBLIC_ROUTES, canonicalUrl } from "@/seo/publicRoutes";
 import { resolve } from "path";
 
 const ROOT   = resolve(__dirname, "../../../");
@@ -44,43 +45,51 @@ describe("scripts/gen-sitemap.mjs", () => {
   });
 });
 
-// ── gen-sitemap produces valid XML ────────────────────────────────────────────
+// ── gen-sitemap produces valid XML from PUBLIC_ROUTES ─────────────────────────
 describe("gen-sitemap output", () => {
   let xml: string;
+  let locs: string[];
 
   beforeAll(async () => {
-    // Run the generator with DIST pointing to a temp dir so no real dist needed
-    const tmpDist = resolve(ROOT, "dist-test-sitemap");
-    mkdirSync(tmpDist, { recursive: true });
-    writeFileSync(resolve(tmpDist, "index.html"), "<html></html>");
-
-    // Dynamic import of the generator module (it exports generateSitemap)
-    const mod = await import(resolve(ROOT, "scripts/gen-sitemap.mjs") + `?t=${Date.now()}`);
+    const mod = await import(resolve(ROOT, "scripts/gen-sitemap.mjs"));
     xml = mod.generateSitemap("https://homegentic.app");
+    locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
   });
 
-  it("returns a string", () => {
-    expect(typeof xml).toBe("string");
-  });
-
-  it("is valid XML (starts with <?xml)", () => {
+  it("is a sitemap urlset", () => {
     expect(xml.trimStart()).toMatch(/^<\?xml/);
+    expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
   });
 
-  it("contains <urlset>", () => {
-    expect(xml).toContain("<urlset");
+  it("lists exactly the public routes, each once, as canonical URLs", () => {
+    expect(locs).toEqual(PUBLIC_ROUTES.map((r) => canonicalUrl(r.path)));
   });
 
-  it("contains at least one <loc> for the landing page", () => {
-    expect(xml).toContain("<loc>https://homegentic.app/</loc>");
+  it.each(["/pricing", "/homes", "/sell", "/check", "/home-systems", "/prices", "/sample-report", "/truth-kit", "/demo", "/gift"])(
+    "includes %s",
+    (path) => {
+      expect(locs).toContain(`https://homegentic.app${path}`);
+    },
+  );
+
+  it("leaves out /login and /register", () => {
+    expect(locs.some((l) => /\/(login|register)$/.test(l))).toBe(false);
   });
 
-  it("contains /pricing", () => {
-    expect(xml).toContain("/pricing");
+  it("writes no lastmod (a build date would claim every page changed on each deploy)", () => {
+    expect(xml).not.toContain("<lastmod>");
   });
 
-  it("contains /instant-forecast", () => {
-    expect(xml).toContain("/instant-forecast");
+  it("uses the base URL it is given", async () => {
+    const mod = await import(resolve(ROOT, "scripts/gen-sitemap.mjs"));
+    expect(mod.generateSitemap("https://example.test/")).toContain("<loc>https://example.test/pricing</loc>");
+  });
+});
+
+// ── one sitemap, generated at build ──────────────────────────────────────────
+describe("public/sitemap.xml", () => {
+  it("is gone: the build writes dist/sitemap.xml from PUBLIC_ROUTES", () => {
+    expect(existsSync(resolve(PUBLIC, "sitemap.xml"))).toBe(false);
   });
 });
 

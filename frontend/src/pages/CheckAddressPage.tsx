@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
-import { PageHead } from "@/components/PageHead";
+import { RouteHead } from "@/components/RouteHead";
 import { Shield, ArrowRight, CheckCircle } from "lucide-react";
 import { lookupReport, submitReportRequest, type BuyerLookupResult } from "@/services/buyerLookup";
 import { PublicNav } from "@/components/PublicNav";
@@ -308,18 +308,9 @@ export default function CheckAddressPage() {
     : rawAddress
       ? `Check Address — ${rawAddress} | HomeGentic™`
       : "Check Address | HomeGentic™";
-  const helmetDesc = "Verify a property's HomeGentic maintenance report. Search by address to see if a verified home history is available.";
 
   const helmet = (
-    <PageHead>
-      <title>{helmetTitle}</title>
-      <meta name="description" content={helmetDesc} />
-      <meta property="og:title" content={helmetTitle} />
-      <meta property="og:description" content={helmetDesc} />
-      <meta property="og:type" content="website" />
-      <meta property="og:image" content="https://homegentic.app/og-default.png" />
-      <link rel="canonical" href="https://homegentic.app/check" />
-    </PageHead>
+    <RouteHead path="/check" title={helmetTitle} />
   );
 
   if (!rawAddress)  return <>{helmet}<SearchForm /></>;

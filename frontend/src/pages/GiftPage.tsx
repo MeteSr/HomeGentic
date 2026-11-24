@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { paymentService } from "@/services/payment";
-import { PageHead } from "@/components/PageHead";
+import { RouteHead } from "@/components/RouteHead";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { CheckCircle } from "lucide-react";
 
@@ -573,10 +573,7 @@ export default function GiftPage() {
 
   return (
     <>
-      <PageHead>
-        <title>Gift a HomeGentic Subscription</title>
-        <meta name="description" content="Give the gift of a verified home. Gift a HomeGentic Pro subscription to a buyer, client, or homeowner you care about." />
-      </PageHead>
+      <RouteHead path="/gift" />
 
       <div style={{ background: C.paper, minHeight: "100vh", fontFamily: F.body }}>
         <NavBar />

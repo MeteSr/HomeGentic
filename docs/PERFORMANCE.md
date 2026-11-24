@@ -1,6 +1,6 @@
 # Performance Baseline
 
-Measured against the pre-rendered landing page (`npm run build:ssg`).
+Measured against the pre-rendered landing page (`npm run build`).
 
 ## Targets (SEO.8)
 
@@ -20,7 +20,7 @@ Measured against the pre-rendered landing page (`npm run build:ssg`).
 
 ## Lighthouse
 
-Run locally after `npm run build:ssg && npm run preview`:
+Run locally after `npm run build && npm run preview`:
 
 ```bash
 npx lighthouse http://localhost:4173 --output=json --output-path=./lighthouse-report.json

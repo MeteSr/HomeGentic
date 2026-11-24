@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { matchPath, useLocation, useNavigationType } from "react-router-dom";
 import { PrivateLinkNoindex } from "@/components/PrivateLinkNoindex";
+import { DefaultCanonical } from "@/components/RouteHead";
+import { PUBLIC_ROUTES } from "@/seo/publicRoutes";
 
 /**
  * Single-page navigation doesn't reload the document, so on its own a route
@@ -83,6 +85,10 @@ const ROUTE_TITLES: [pattern: string, title: string][] = [
 ];
 
 export function titleForPath(pathname: string): string {
+  // A public page's title is the one its RouteHead sets (and the build writes
+  // into its HTML); this effect runs after an eagerly loaded page's own.
+  const pub = PUBLIC_ROUTES.find((r) => r.path === pathname);
+  if (pub) return pub.title;
   const hit = ROUTE_TITLES.find(([pattern]) => matchPath({ path: pattern, end: true }, pathname));
   return hit ? hit[1] + SUFFIX : DEFAULT_TITLE;
 }
@@ -128,6 +134,7 @@ export function RouteAnnouncer() {
   return (
     <>
       <PrivateLinkNoindex />
+      <DefaultCanonical />
       <div className="sr-only" aria-live="polite" aria-atomic="true" data-testid="route-announcer">
         {message}
       </div>

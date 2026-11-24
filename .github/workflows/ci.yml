@@ -372,9 +372,6 @@ jobs:
       - name: Build
         run: cd frontend && npm run build
 
-      - name: SSG pre-render
-        run: cd frontend && node scripts/prerender.mjs
-
   test-perf:
     runs-on: ubuntu-latest
     steps:

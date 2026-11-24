@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { PageHead } from "@/components/PageHead";
+import { RouteHead } from "@/components/RouteHead";
 
 const C = {
   blue:   "#2B34FF",
@@ -211,14 +211,7 @@ const SECTIONS: Section[] = [
 export default function PrivacyPolicyPage() {
   return (
     <>
-      <PageHead>
-        <title>Privacy Policy — HomeGentic</title>
-        <meta name="description" content="HomeGentic's Privacy Policy: what we collect, who we share it with, how long we keep it, and how to export or delete your data." />
-        <link rel="canonical" href="https://homegentic.app/privacy" />
-        <meta property="og:title" content="Privacy Policy — HomeGentic" />
-        <meta property="og:description" content="How HomeGentic collects, uses, and protects your data." />
-        <meta property="og:url" content="https://homegentic.app/privacy" />
-      </PageHead>
+      <RouteHead path="/privacy" />
 
       <div style={{ minHeight: "100vh", background: C.paper, fontFamily: F.body }}>
 

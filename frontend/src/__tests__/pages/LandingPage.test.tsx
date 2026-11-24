@@ -73,30 +73,57 @@ describe("LandingPage — dual signature demo", () => {
   });
 });
 
+// Crawlers follow only real links, so every way off the page is an <a href>.
 describe("LandingPage — navigation", () => {
-  it("navigates to /login when 'Start free' is clicked", () => {
+  const link = (name: string | RegExp, i = 0) => screen.getAllByRole("link", { name })[i];
+
+  it.each([
+    ["Start free", "/login"],
+    ["Log in", "/login"],
+    ["Start your record", "/login"],
+    ["Get started", "/login"],
+    ["Contractors", "/for-pros"],
+    ["For contractors", "/for-pros"],
+    ["See a sample report", "/sample-report"],
+    ["Talk to us", "/support"],
+    ["Try Demo", "/demo"],
+    ["Privacy", "/privacy"],
+    ["Terms", "/terms"],
+    ["Contact", "/support"],
+  ])("'%s' is a link to %s", (name, href) => {
     renderPage();
-    fireEvent.click(screen.getByText("Start free"));
-    expect(mockNavigate).toHaveBeenCalledWith("/login");
+    expect(link(name)).toHaveAttribute("href", href);
   });
 
-  it("chooses the Homeowner role for the register page when a sign-up button is clicked", () => {
+  it("every plan card's button is a sign-up link", () => {
+    renderPage();
+    const pricing = document.getElementById("hg-pricing")!;
+    const links = within(pricing).getAllByRole("link");
+    expect(links.length).toBeGreaterThan(0);
+    for (const a of links) expect(a).toHaveAttribute("href", "/login");
+  });
+
+  it("chooses the Homeowner role for the register page when a sign-up link is clicked", () => {
     sessionStorage.clear();
     renderPage();
-    fireEvent.click(screen.getByText("Start free"));
+    fireEvent.click(link("Start free"));
     expect(sessionStorage.getItem("signupRole")).toBe("Homeowner");
   });
 
-  it("navigates to /for-pros when the Contractors nav link is clicked", () => {
+  it("in-page links point at their section and scroll to it smoothly", () => {
     renderPage();
-    fireEvent.click(screen.getByText("Contractors"));
-    expect(mockNavigate).toHaveBeenCalledWith("/for-pros");
+    const pricing = link("Pricing");
+    expect(pricing).toHaveAttribute("href", "#hg-pricing");
+    expect(link("The record")).toHaveAttribute("href", "#hg-how");
+    expect(link("The score")).toHaveAttribute("href", "#hg-score");
+    fireEvent.click(pricing);
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
-  it("navigates to /sample-report from the hero CTA", () => {
+  it("leaves no navigation on onClick-only buttons", () => {
     renderPage();
-    fireEvent.click(screen.getAllByText("See a sample report")[0]);
-    expect(mockNavigate).toHaveBeenCalledWith("/sample-report");
+    fireEvent.click(link("Contractors"));
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });
 

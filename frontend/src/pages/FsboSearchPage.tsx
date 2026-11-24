@@ -18,7 +18,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { PageHead } from "@/components/PageHead";
+import { RouteHead } from "@/components/RouteHead";
 import { Search, SlidersHorizontal, ShieldCheck, Award, TrendingUp, Clock, Wrench, ChevronRight } from "lucide-react";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import {
@@ -447,7 +447,6 @@ export default function FsboSearchPage() {
   );
 
   // ── SEO helpers ─────────────────────────────────────────────────────────────
-  const pageTitle    = "FSBO Homes for Sale — Verified Listings with HomeGentic Scores";
   const pageDesc     = `Browse ${allListings.length} homes for sale by owner with verified maintenance histories, HomeGentic scores, and transparent system ages. Find your next home with full confidence.`;
   const canonicalUrl = "https://homegentic.app/homes";
 
@@ -504,27 +503,10 @@ export default function FsboSearchPage() {
 
   return (
     <>
-      <PageHead>
-        <title>{pageTitle}</title>
-        <meta name="description" content={pageDesc} />
-        <link rel="canonical" href={canonicalUrl} />
-
-        {/* Open Graph */}
-        <meta property="og:type"        content="website" />
-        <meta property="og:url"         content={canonicalUrl} />
-        <meta property="og:title"       content={pageTitle} />
-        <meta property="og:description" content={pageDesc} />
-        <meta property="og:image"       content="https://homegentic.app/og-homes.png" />
-
-        {/* Twitter card */}
-        <meta name="twitter:card"        content="summary_large_image" />
-        <meta name="twitter:title"       content={pageTitle} />
-        <meta name="twitter:description" content={pageDesc} />
-
-        {/* JSON-LD */}
+      <RouteHead path="/homes">
         <script type="application/ld+json">{JSON.stringify(jsonLdItemList)}</script>
         <script type="application/ld+json">{JSON.stringify(jsonLdBreadcrumb)}</script>
-      </PageHead>
+      </RouteHead>
 
       <div style={{ minHeight: "100vh", background: C.paper, fontFamily: F.body }}>
 
