@@ -118,6 +118,13 @@ describe("successor claim notifications", () => {
 });
 
 describe("waiting-period reminders in the poller", () => {
+  // The poller holds a notification only while its notBefore is in the
+  // future, measured with Date.now(). Pin the clock to the day the claim
+  // opened, or these tests break once the real date passes the first reminder
+  // (they did on 2026-11-23).
+  beforeEach(() => { jest.spyOn(Date, "now").mockReturnValue(OPENED + 60_000); });
+  afterEach(() => { jest.restoreAllMocks(); });
+
   function freshPoller() {
     jest.resetModules();
     // eslint-disable-next-line @typescript-eslint/no-var-requires
