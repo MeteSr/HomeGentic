@@ -5,6 +5,8 @@ license: Apache-2.0
 metadata:
   title: ICP CLI
   category: Infrastructure
+  summary: "Build, deploy and manage IC projects with the icp CLI and icp.yaml."
+  keywords: "icp, dfx, command line, deploy, icp.yaml, local network, project setup, canister, environment, identity, recipes, bundle, getting started"
 ---
 
 # ICP CLI
@@ -102,7 +104,7 @@ npm install -g @icp-sdk/icp-cli @icp-sdk/ic-wasm
     canisters:
       - name: frontend
         recipe:
-          type: "@dfinity/static-site@v0.4.3"   # recommended frontend recipe (certified-assets)
+          type: "@dfinity/static-site@v1.0.0"   # recommended frontend recipe (certified-assets)
           configuration:
             dir: dist
             build:
@@ -252,7 +254,7 @@ Source Code → [Build] → WASM → [Deploy] → Running Canister → [Sync] �
 `icp deploy` runs all three phases in sequence:
 1. **Build** — Compile canisters to WASM (via recipes or explicit build steps)
 2. **Deploy** — Create canisters (if new), apply settings, install WASM
-3. **Sync** — Post-deployment operations via `script` or `plugin` steps (e.g., uploading assets). Asset uploading is not built into the CLI: a frontend recipe supplies a `plugin` sync step that uploads the `dir` contents — the recommended `@dfinity/static-site@v0.4.3` (certified-assets) or the legacy `@dfinity/asset-canister@v2.2.1`. The legacy built-in `type: assets` step is removed in icp-cli 0.3.0 — see the `static-site` skill.
+3. **Sync** — Post-deployment operations via `script` or `plugin` steps (e.g., uploading assets). Asset uploading is not built into the CLI: a frontend recipe supplies a `plugin` sync step that uploads the `dir` contents — the recommended `@dfinity/static-site@v1.0.0` (certified-assets) or the legacy `@dfinity/asset-canister@v2.2.1`. The legacy built-in `type: assets` step is removed in icp-cli 0.3.0 — see the `static-site` skill.
 
 Run phases separately for more control:
 ```bash
@@ -404,7 +406,7 @@ The canister name (`backend`) must exactly match between `icp.yaml` and `mops.to
 canisters:
   - name: frontend
     recipe:
-      type: "@dfinity/static-site@v0.4.3"
+      type: "@dfinity/static-site@v1.0.0"
       configuration:
         dir: dist
         build:
@@ -442,7 +444,7 @@ canisters:
 |--------|------------|-----------------|-----------------|
 | Rust | `@dfinity/rust@v3.3.0` | — | `package` (defaults to canister name), `candid`, `locked`, `shrink`, `compress`, `metadata` |
 | Motoko | `@dfinity/motoko@v5.0.0` | — | `shrink`, `compress`, `metadata` |
-| Static site (frontend) | `@dfinity/static-site@v0.4.3` | `dir` | `build`, `presync`, `metadata` |
+| Static site (frontend) | `@dfinity/static-site@v1.0.0` | `dir` | `build`, `presync`, `metadata` |
 | Asset (legacy frontend) | `@dfinity/asset-canister@v2.2.1` | `dir` | `build`, `version` |
 | Prebuilt | `@dfinity/prebuilt@v2.1.0` | `path` | `sha256`, `shrink`, `compress`, `metadata` |
 
