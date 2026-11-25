@@ -160,6 +160,10 @@ block("/*", {
 block("/assets/*", { "Cache-Control": "public, max-age=31536000, immutable" });
 block("/*.html", { "Cache-Control": "no-cache" });
 
+// The web manifest (linked from index.html) has no extension the canister
+// knows, so its media type is set here.
+block("/site.webmanifest", { "Content-Type": "application/manifest+json" });
+
 // .well-known/ is uploaded automatically (the only dot-folder that is).
 // Internet Identity fetches ii-alternative-origins from the derivation origin
 // (this canister's own address) while a page on homegentic.app signs in, so it

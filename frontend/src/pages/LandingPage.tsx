@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { rememberSignupRole } from "@/utils/signupRole";
-import { useNavigate } from "react-router-dom";
-import { PageHead } from "@/components/PageHead";
+import { Link } from "react-router-dom";
+import { RouteHead } from "@/components/RouteHead";
 import { scrollBehavior } from "@/utils/motion";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -425,15 +425,50 @@ function useHover() {
   };
 }
 
+// ── Links ──────────────────────────────────────────────────────────────────────
+// Every way off this page is a real link (crawlers follow only hrefs). "#id"
+// scrolls smoothly to a section here; anything else is a route.
+type LinkProps = {
+  to: string;
+  onClick?: () => void;
+  style: React.CSSProperties;
+  children: React.ReactNode;
+} & Pick<React.HTMLAttributes<HTMLAnchorElement>, "onMouseEnter" | "onMouseLeave">;
+
+function SiteLink({ to, onClick, style, children, ...rest }: LinkProps) {
+  const linkStyle = { textDecoration: "none", ...style };
+  if (to.startsWith("#")) {
+    return (
+      <a
+        href={to}
+        onClick={(e) => {
+          e.preventDefault();
+          onClick?.();
+          document.getElementById(to.slice(1))?.scrollIntoView({ behavior: scrollBehavior() });
+        }}
+        style={linkStyle}
+        {...rest}
+      >
+        {children}
+      </a>
+    );
+  }
+  return <Link to={to} onClick={onClick} style={linkStyle} {...rest}>{children}</Link>;
+}
+
+/** Sign-up links choose the Homeowner role for the register page. */
+const SIGNUP = "/login";
+const chooseHomeowner = () => rememberSignupRole("Homeowner");
+
 // ── Nav link ───────────────────────────────────────────────────────────────────
-function NavLink({ label, onClick }: { label: string; onClick: () => void }) {
+function NavLink({ label, to }: { label: string; to: string }) {
   const { hovered, handlers } = useHover();
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <SiteLink
+      to={to}
       {...handlers}
       style={{
+        display: "inline-block",
         font: `600 13.5px/1 ${BODY}`, color: hovered ? INK : PAPER,
         cursor: "pointer", padding: "10px 16px", borderRadius: 100,
         background: hovered ? PAPER : "transparent",
@@ -442,16 +477,17 @@ function NavLink({ label, onClick }: { label: string; onClick: () => void }) {
       }}
     >
       {label}
-    </button>
+    </SiteLink>
   );
 }
 
 // ── Pill button ────────────────────────────────────────────────────────────────
 function PillBtn({
-  label, onClick, variant = "yellow", size = "md",
+  label, to, onClick, variant = "yellow", size = "md",
 }: {
   label: string;
-  onClick: () => void;
+  to: string;
+  onClick?: () => void;
   variant?: "yellow" | "glass" | "outline";
   size?: "md" | "lg";
 }) {
@@ -468,7 +504,8 @@ function PillBtn({
   const hoverShadow = hovered && variant === "yellow" ? "0 16px 36px rgba(11,13,26,0.3)" : "";
 
   return (
-    <button
+    <SiteLink
+      to={to}
       onClick={onClick}
       {...handlers}
       style={{
@@ -481,32 +518,17 @@ function PillBtn({
       }}
     >
       {label}
-    </button>
+    </SiteLink>
   );
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function LandingPage() {
-  const navigate = useNavigate();
-  // Sign-up buttons choose the Homeowner role for the register page.
-  const startSignup = () => { rememberSignupRole("Homeowner"); navigate("/login"); };
-
-  const scrollTo = (id: string) =>
-    document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior() });
-
   const marqueeItems = [...MARQUEE_ITEMS, ...MARQUEE_ITEMS];
 
   return (
     <>
-      <PageHead>
-        <title>HomeGentic™ — Your house keeps receipts.</title>
-        <meta name="description" content="HomeGentic keeps every repair in one verified record, signed by the contractor who did the work and stored where nobody can edit it." />
-        <meta property="og:title" content="HomeGentic™ — Your house keeps receipts." />
-        <meta property="og:description" content="Verified home maintenance records on the Internet Computer. One number buyers, agents, and insurers can trust." />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://homegentic.app/" />
-        <meta property="og:image" content="https://homegentic.app/og-default.png" />
-        <link rel="canonical" href="https://homegentic.app/" />
+      <RouteHead path="/">
         <script type="application/ld+json">{JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebSite",
@@ -514,7 +536,7 @@ export default function LandingPage() {
           "url": "https://homegentic.app",
           "description": "Verified home maintenance records on the Internet Computer. One number buyers, agents, and insurers can trust.",
         })}</script>
-      </PageHead>
+      </RouteHead>
 
       <style>{KEYFRAMES + RESPONSIVE_CSS}</style>
 
@@ -530,16 +552,16 @@ export default function LandingPage() {
               </span>
             </a>
             <div className="hg-nav-links" style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(11,13,26,0.18)", borderRadius: 100, padding: 6 }}>
-              <NavLink label="The record" onClick={() => scrollTo("hg-how")} />
-              <NavLink label="The score"  onClick={() => scrollTo("hg-score")} />
-              <NavLink label="Pricing"    onClick={() => scrollTo("hg-pricing")} />
-              <NavLink label="Contractors" onClick={() => navigate("/for-pros")} />
+              <NavLink label="The record" to="#hg-how" />
+              <NavLink label="The score"  to="#hg-score" />
+              <NavLink label="Pricing"    to="#hg-pricing" />
+              <NavLink label="Contractors" to="/for-pros" />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <button onClick={() => startSignup()} style={{ cursor: "pointer", font: `600 14px/1 ${BODY}`, color: PAPER, background: "none", border: "none", padding: "12px 6px" }}>
+              <SiteLink to={SIGNUP} onClick={chooseHomeowner} style={{ cursor: "pointer", font: `600 14px/1 ${BODY}`, color: PAPER, padding: "12px 6px" }}>
                 Log in
-              </button>
-              <PillBtn label="Start free" onClick={() => startSignup()} variant="yellow" />
+              </SiteLink>
+              <PillBtn label="Start free" to={SIGNUP} onClick={chooseHomeowner} variant="yellow" />
             </div>
           </div>
         </div>
@@ -558,8 +580,8 @@ export default function LandingPage() {
                   The roof, the rewire, the furnace you replaced in a cold snap. HomeGentic keeps every job in one record, signed by the contractor who did the work and stored where nobody can edit it.
                 </p>
                 <div style={{ display: "flex", gap: 12, marginTop: 38, flexWrap: "wrap", alignItems: "center" }}>
-                  <PillBtn label="Start your record" onClick={() => startSignup()} variant="yellow" size="lg" />
-                  <PillBtn label="See a sample report" onClick={() => navigate("/sample-report")} variant="glass" size="lg" />
+                  <PillBtn label="Start your record" to={SIGNUP} onClick={chooseHomeowner} variant="yellow" size="lg" />
+                  <PillBtn label="See a sample report" to="/sample-report" variant="glass" size="lg" />
                 </div>
               </div>
               <div style={{ flexShrink: 0, animation: "hgwRise .7s cubic-bezier(.2,.8,.3,1) both", animationDelay: ".12s" }}>
@@ -605,7 +627,7 @@ export default function LandingPage() {
               <p style={{ font: `400 16.5px/1.66 ${BODY}`, color: PAPER, marginTop: 18, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 Verified work on each key system adds points, and so does replacing a system near the end of its rated life. As systems age the score drifts down, so it reflects the house as it is today — not the day you signed up.
               </p>
-              <PillBtn label="See a sample report" onClick={() => navigate("/sample-report")} variant="yellow" />
+              <PillBtn label="See a sample report" to="/sample-report" variant="yellow" />
             </div>
             <div style={{ minWidth: 0, background: "rgba(252,252,253,0.06)", border: "1px solid rgba(252,252,253,0.14)", borderRadius: 26, padding: 30 }}>
               <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: PAPER }}>WHERE THE POINTS COME FROM</div>
@@ -707,7 +729,7 @@ export default function LandingPage() {
           </div>
           <div className="hg-grid-plans" style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 20, maxWidth: 860, margin: "48px auto 0", alignItems: "stretch" }}>
             {PLANS.map((pl) => (
-              <PlanCard key={pl.tier} plan={pl} onStart={() => startSignup()} />
+              <PlanCard key={pl.tier} plan={pl} />
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 28, font: `500 13.5px/1 ${BODY}`, color: MUTED }}>
@@ -731,8 +753,8 @@ export default function LandingPage() {
                 </p>
               </div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <PillBtn label="Get started" onClick={() => startSignup()} variant="yellow" size="lg" />
-                <PillBtn label="Talk to us" onClick={() => navigate("/support")} variant="glass" size="lg" />
+                <PillBtn label="Get started" to={SIGNUP} onClick={chooseHomeowner} variant="yellow" size="lg" />
+                <PillBtn label="Talk to us" to="/support" variant="glass" size="lg" />
               </div>
             </div>
           </div>
@@ -755,8 +777,13 @@ export default function LandingPage() {
             <div style={{ display: "flex", gap: 64, flexWrap: "wrap" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                 <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: MUTED, marginBottom: 5 }}>PRODUCT</div>
-                {["The record", "The score", "Pricing", "For contractors"].map((l) => (
-                  <FooterLink key={l} label={l} onClick={() => l === "For contractors" ? navigate("/for-pros") : scrollTo(l === "Pricing" ? "hg-pricing" : l === "The score" ? "hg-score" : "hg-how")} />
+                {[
+                  { label: "The record",      to: "#hg-how" },
+                  { label: "The score",       to: "#hg-score" },
+                  { label: "Pricing",         to: "#hg-pricing" },
+                  { label: "For contractors", to: "/for-pros" },
+                ].map((l) => (
+                  <FooterLink key={l.label} label={l.label} to={l.to} />
                 ))}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -767,7 +794,7 @@ export default function LandingPage() {
                   { label: "Terms",     path: "/terms" },
                   { label: "Contact",   path: "/support" },
                 ].map((l) => (
-                  <FooterLink key={l.label} label={l.label} onClick={() => navigate(l.path)} />
+                  <FooterLink key={l.label} label={l.label} to={l.path} />
                 ))}
               </div>
             </div>
@@ -843,7 +870,6 @@ const MS_PATHS = [
 ];
 
 function DualSignatureSection() {
-  const navigate = useNavigate();
   const [pathIdx, setPathIdx] = useState(0);
   const [step, setStep] = useState(0);
   const [skipContractor, setSkipContractor] = useState(false);
@@ -982,20 +1008,20 @@ function DualSignatureSection() {
 
             {/* CTAs */}
             <div style={{ marginTop: 36, display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-              <button
-                onClick={() => navigate("/demo")}
+              <SiteLink
+                to="/demo"
                 style={{
                   font: `600 14.5px/1 ${BODY}`,
                   color: PAPER,
                   background: BLUE,
-                  border: "none",
+                  display: "inline-block",
                   borderRadius: 100,
                   padding: "14px 26px",
                   cursor: "pointer",
                 }}
               >
                 Try Demo
-              </button>
+              </SiteLink>
               <span style={{ font: `400 14px/1.5 ${BODY}`, color: "#3D4155" }}>
                 Sign both sides yourself. No account needed.
               </span>
@@ -1132,7 +1158,7 @@ function FeatureCard({ feature: ft }: { feature: typeof FEATURES[number] }) {
   );
 }
 
-function PlanCard({ plan: pl, onStart }: { plan: typeof PLANS[number]; onStart: () => void }) {
+function PlanCard({ plan: pl }: { plan: typeof PLANS[number] }) {
   const { hovered: btnHovered, handlers: btnHandlers } = useHover();
   return (
     <div style={{ minWidth: 0, background: pl.bg, border: `1.5px solid ${pl.border}`, borderRadius: 28, padding: 32, display: "flex", flexDirection: "column", boxShadow: pl.shadow }}>
@@ -1160,8 +1186,9 @@ function PlanCard({ plan: pl, onStart }: { plan: typeof PLANS[number]; onStart: 
         ))}
       </div>
       <div style={{ flex: 1, minHeight: 28 }} />
-      <button
-        onClick={onStart}
+      <SiteLink
+        to={SIGNUP}
+        onClick={chooseHomeowner}
         {...btnHandlers}
         style={{
           cursor: "pointer", boxSizing: "border-box", minHeight: 50,
@@ -1173,21 +1200,20 @@ function PlanCard({ plan: pl, onStart }: { plan: typeof PLANS[number]; onStart: 
         }}
       >
         {pl.cta}
-      </button>
+      </SiteLink>
     </div>
   );
 }
 
-function FooterLink({ label, onClick }: { label: string; onClick: () => void }) {
+function FooterLink({ label, to }: { label: string; to: string }) {
   const { hovered, handlers } = useHover();
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <SiteLink
+      to={to}
       {...handlers}
-      style={{ font: `500 13.5px/1 ${BODY}`, color: hovered ? BLUE : INK, cursor: "pointer", transition: "color .15s", background: "none", border: "none", padding: "6px 0" }}
+      style={{ display: "block", font: `500 13.5px/1 ${BODY}`, color: hovered ? BLUE : INK, cursor: "pointer", transition: "color .15s", padding: "6px 0" }}
     >
       {label}
-    </button>
+    </SiteLink>
   );
 }

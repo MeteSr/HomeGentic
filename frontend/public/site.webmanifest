@@ -1,0 +1,14 @@
+{
+  "name": "HomeGentic",
+  "short_name": "HomeGentic",
+  "description": "Every repair in one verified record, signed by the contractor who did the work.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#2B34FF",
+  "theme_color": "#2B34FF",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

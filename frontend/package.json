@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node scripts/gen-ic-assets.mjs && npm run check:security",
-    "build:ssg": "npm run build && node scripts/prerender.mjs && npm run gen:sitemap",
+    "build": "tsc && vite build && node scripts/prerender.mjs && node scripts/gen-sitemap.mjs && node scripts/gen-ic-assets.mjs && npm run check:security",
     "gen:sitemap": "node scripts/gen-sitemap.mjs",
     "check:security": "node scripts/security-checks.mjs",
     "preview": "vite preview",

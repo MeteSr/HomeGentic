@@ -815,6 +815,15 @@ covering inputs, and the back gesture.
 Open `/check`, `/prices`, `/instant-forecast` (see MT-07), `/home-systems`, `/truth-kit` and `/sample-report`
 signed out. Each loads without sign-in and without console errors.
 
+### X-06 — Link previews and search files · P2 · Deployed site
+| # | Step | Expected |
+|---|---|---|
+| 1 | `curl -s https://<site>/pricing \| grep -E '<title>\|canonical'` | "Pricing — HomeGentic" and a canonical of `https://homegentic.app/pricing`, in the raw HTML |
+| 2 | `curl -s https://<site>/for-sale/anything \| grep -c canonical` | `0`: other URLs get the generic shell, with no canonical claiming they are the homepage |
+| 3 | Open `/sitemap.xml` and `/robots.txt` | One URL per public page (src/seo/publicRoutes.ts), no `/login` or `/register`; robots.txt points at the sitemap |
+| 4 | Paste `https://homegentic.app/pricing` into Slack or iMessage (or LinkedIn's Post Inspector) | Pricing title and description, with the blue "Your house keeps receipts." image |
+| 5 | Look at the browser tab; on iPhone, Add to Home Screen | HomeGentic house icon on the tab and on the home screen |
+
 ---
 
 ## 20. Sign-off

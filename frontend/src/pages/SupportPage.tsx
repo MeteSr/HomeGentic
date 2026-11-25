@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { PageHead } from "@/components/PageHead";
+import { RouteHead } from "@/components/RouteHead";
 import { ChevronDown, ChevronUp, Mail, FileText, Settings, CreditCard, Shield } from "lucide-react";
 
 const C = {
@@ -123,14 +123,7 @@ function FaqRow({ item }: { item: FaqItem }) {
 export default function SupportPage() {
   return (
     <>
-      <PageHead>
-        <title>Support — HomeGentic</title>
-        <meta name="description" content="Get help with HomeGentic: billing, cancellation, Internet Identity, sharing reports, and more. Find answers or contact our support team." />
-        <link rel="canonical" href="https://homegentic.app/support" />
-        <meta property="og:title" content="Support — HomeGentic" />
-        <meta property="og:description" content="Answers to common questions about HomeGentic, plus how to reach our team." />
-        <meta property="og:url" content="https://homegentic.app/support" />
-      </PageHead>
+      <RouteHead path="/support" />
 
       <div style={{ minHeight: "100vh", background: C.paper, fontFamily: F.body }}>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { PageHead } from "@/components/PageHead";
+import { RouteHead } from "@/components/RouteHead";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
@@ -548,10 +548,7 @@ export default function DemoPage() {
 
   return (
     <div style={{ background: PAPER, color: INK, fontFamily: BODY, minHeight: "100vh" }}>
-      <PageHead>
-        <title>See HomeGentic in Action — Interactive Demo</title>
-        <meta name="description" content="Explore HomeGentic features for homeowners, contractors, realtors, and property managers." />
-      </PageHead>
+      <RouteHead path="/demo" />
       <style>{`
         @keyframes dm-rise { from { opacity:0; transform:translateY(14px) } to { opacity:1; transform:translateY(0) } }
         @keyframes dm-pulse { 0%,100% { transform:scale(1) } 50% { transform:scale(1.5); opacity:.6 } }

@@ -1,7 +1,7 @@
 import React from "react";
 import { rememberSignupRole } from "@/utils/signupRole";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { PageHead } from "@/components/PageHead";
+import { RouteHead } from "@/components/RouteHead";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 import { type PlanTier, type BillingCycle, PLANS } from "@/services/planConstants";
@@ -132,11 +132,7 @@ export default function ForProsPage() {
 
   return (
     <>
-      <PageHead>
-        <title>For Contractors — Join the HomeGentic Network</title>
-        <meta name="description" content="Contractors: grow your business with HomeGentic. Get leads from verified homeowners, auto-log completed work, and build a trusted profile." />
-        <link rel="canonical" href="https://homegentic.app/for-pros" />
-      </PageHead>
+      <RouteHead path="/for-pros" />
       <style>{RESPONSIVE_CSS}</style>
 
       <div style={{ background: C.paper, minHeight: "100vh", fontFamily: F.body }}>

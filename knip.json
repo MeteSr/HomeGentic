@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     "frontend": {
-      "entry": ["src/ssg-routes.ts!", "scripts/*.mjs!"],
+      "entry": ["scripts/*.mjs!"],
       "project": ["src/**/*.{ts,tsx}!", "!src/**/__tests__/**!"]
     }
   },

@@ -105,6 +105,8 @@ bash scripts/ci/check-declarations.sh   # Check packages/shared declarations aga
 bash scripts/ci/check-canister-calls.sh # Check every canister-to-canister actor type against the callee's Candid (needs moc)
 ```
 
+`npm run build` also writes each public page's own HTML (`scripts/prerender.mjs`: `dist/pricing.html` etc., with its title, description, canonical and share tags) and `dist/sitemap.xml`, both from `src/seo/publicRoutes.ts`. Unmatched URLs fall back to `dist/app-shell.html`. A new public page goes in that list and renders `<RouteHead path="/its-path" />`; `publicRoutes.test.ts` fails otherwise. Brand images in `public/` (share image, favicons, touch icons) come from `scripts/gen-brand-images.mjs`, run by hand.
+
 ## Architecture
 
 ### Monorepo Layout

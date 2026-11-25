@@ -13,6 +13,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter, Routes, Route, Link } from "react-router-dom";
 import { RouteAnnouncer, titleForPath } from "@/components/RouteAnnouncer";
+import { PUBLIC_ROUTES } from "@/seo/publicRoutes";
 
 afterEach(() => vi.useRealTimers());
 
@@ -42,6 +43,13 @@ describe("RouteAnnouncer", () => {
     expect(titleForPath("/properties/12/systems")).toBe("System ages | HomeGentic");
     expect(titleForPath("/properties/12/verify/identity")).toBe("Verify ownership | HomeGentic");
     expect(titleForPath("/contractor/profile")).toBe("Contractor profile | HomeGentic");
+  });
+
+  // The announcer's effect runs after an eagerly loaded page's own head tags,
+  // so a public page's title must be the one in PUBLIC_ROUTES or it would
+  // overwrite the page's (it did on /pricing).
+  it("RA.1b uses the PUBLIC_ROUTES title for every public page", () => {
+    for (const r of PUBLIC_ROUTES) expect(titleForPath(r.path)).toBe(r.title);
   });
 
   it("RA.2 sets the title on first render without moving focus", () => {

@@ -196,9 +196,10 @@ export default defineConfig(({ mode, command }) => {
         // routine changes don't flake the gate); raise them as coverage improves,
         // never lower them to make a PR pass.
         // store/, utils/ and packages/shared joined 2026-11-03 (test-gap audit M3);
+        // seo/ (the public route list) joined 2026-11-24;
         // shared's Candid declarations and generated types are data, not logic.
         include: [
-          "src/{services,hooks,components,pages,contexts,store,utils}/**/*.{ts,tsx}",
+          "src/{services,hooks,components,pages,contexts,store,utils,seo}/**/*.{ts,tsx}",
           "../packages/shared/src/**/*.ts",
         ],
         exclude: [

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { PageHead } from "@/components/PageHead";
+import { RouteHead } from "@/components/RouteHead";
 
 const C = {
   blue:   "#2B34FF",
@@ -210,14 +210,7 @@ const SECTIONS: Section[] = [
 export default function TermsOfServicePage() {
   return (
     <>
-      <PageHead>
-        <title>Terms of Service — HomeGentic</title>
-        <meta name="description" content="HomeGentic's Terms of Service: acceptable use, subscriptions, billing, AI disclaimers, and your legal rights." />
-        <link rel="canonical" href="https://homegentic.app/terms" />
-        <meta property="og:title" content="Terms of Service — HomeGentic" />
-        <meta property="og:description" content="HomeGentic's Terms of Service." />
-        <meta property="og:url" content="https://homegentic.app/terms" />
-      </PageHead>
+      <RouteHead path="/terms" />
 
       <div style={{ minHeight: "100vh", background: C.paper, fontFamily: F.body }}>
 

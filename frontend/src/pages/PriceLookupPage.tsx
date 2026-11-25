@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { SERVICE_CHOICE_LABELS } from "@homegentic/shared/serviceTypes";
 import { Link, useSearchParams } from "react-router-dom";
+import { RouteHead } from "@/components/RouteHead";
 import {
   getPriceBenchmark,
   hasSufficientSamples,
@@ -229,6 +230,7 @@ export default function PriceLookupPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.paper, display: "flex", flexDirection: "column" }}>
+      <RouteHead path="/prices" title={showForm ? undefined : `${service} cost in ${zip} | HomeGentic`} />
       <PublicNav />
 
       {showForm && <SearchForm defaultService={service} defaultZip={zip} />}

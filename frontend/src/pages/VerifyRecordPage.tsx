@@ -10,7 +10,7 @@
 
 import React, { useEffect, useState } from "react";
 import { ShieldCheck, ShieldAlert, Upload } from "lucide-react";
-import { PageHead } from "@/components/PageHead";
+import { RouteHead } from "@/components/RouteHead";
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
 import {
@@ -130,10 +130,7 @@ export default function VerifyRecordPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.paper, display: "flex", flexDirection: "column", fontFamily: F.body, color: C.ink }}>
-      <PageHead>
-        <title>Check a signed record | HomeGentic™</title>
-        <meta name="description" content="Check that a HomeGentic report or score certificate is exactly what HomeGentic issued." />
-      </PageHead>
+      <RouteHead path="/verify-record" />
       <PublicNav />
       <Main style={{ flex: 1, padding: "3rem 1rem", display: "flex", justifyContent: "center" }}>
         <div style={{ width: "100%", maxWidth: "40rem" }}>

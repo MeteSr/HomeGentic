@@ -9,7 +9,7 @@
  */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageHead } from "@/components/PageHead";
+import { RouteHead } from "@/components/RouteHead";
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
 import { agentService } from "@/services/agent";
@@ -64,15 +64,7 @@ export default function SellPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.paper, display: "flex", flexDirection: "column" }}>
-      <PageHead>
-        <title>Sell your home with Bid to List | HomeGentic</title>
-        <meta
-          name="description"
-          content="Verified agents bid for your listing with their commission and marketing plan. Agents set their own terms, and you choose."
-        />
-        <meta property="og:title" content="Sell your home with Bid to List | HomeGentic" />
-        <meta property="og:type" content="website" />
-      </PageHead>
+      <RouteHead path="/sell" />
       <PublicNav />
       <div style={{ flex: 1, padding: "3rem 1.5rem" }}>
         <div style={{ maxWidth: "40rem", margin: "0 auto" }}>

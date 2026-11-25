@@ -1,4 +1,6 @@
 # ICP assets canister — SPA deep-link fallback.
-# All unmatched paths serve index.html so client-side routing works.
-# Pre-rendered static routes are served directly from their HTML files.
-/*  /index.html  200
+# Public pages are real files written at build time (scripts/prerender.mjs:
+# index.html, pricing.html, …), and a real file always wins over this rule.
+# Every other path gets the generic shell, app-shell.html, so client-side
+# routing works. Built by the prerender, so `npm run build` must run it.
+/*  /app-shell.html  200
