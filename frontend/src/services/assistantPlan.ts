@@ -6,19 +6,28 @@
  * runs only the steps the user ticks. Nothing is saved before they approve.
  *
  * Writes stay curated (opportunity 4): a plan step can only be one of
- * PLAN_STEP_TOOLS. Bids, signatures, transfers, payments and account changes
- * are never plan steps; they keep their own confirmation or stay off the
- * assistant entirely.
+ * PLAN_STEP_TOOLS, the tools the capability catalogue scopes "plan"
+ * (packages/shared/src/capabilities.ts; tested to match). Bids, signatures,
+ * transfers, payments and account changes are never plan steps; they keep
+ * their own confirmation or stay off the assistant entirely.
  */
 import type { ToolCallResult } from "./agentTools";
 
-export const TASK_KINDS = ["storm_prep", "insurance_claim", "closing_handoff"] as const;
+export const TASK_KINDS = [
+  "storm_prep",
+  "insurance_claim",
+  "closing_handoff",
+  "insurance_renewal",
+  "find_contractor",
+] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 
 export const TASK_LABELS: Record<TaskKind, string> = {
   storm_prep: "Storm prep",
   insurance_claim: "Insurance claim packet",
   closing_handoff: "Closing handoff check",
+  insurance_renewal: "Insurance renewal prep",
+  find_contractor: "Find a contractor",
 };
 
 /** The writes a plan may contain, each with the fields it can't run without. */
@@ -215,6 +224,16 @@ const TASK_WORDS: [TaskKind, RegExp][] = [
     "closing_handoff",
     /\bclosing\b(?!\s+(my |the |a )?(quote|request|bid|job))|\bhand ?off to (the )?buyer\b|\bhandoff\b/i,
   ],
+  // A question about the date ("insurance renewal date") isn't a task: it needs a verb.
+  [
+    "insurance_renewal",
+    /\b(prep|prepare|ready|review|shop|check)\b[^.?!]*\b(insurance|policy)\b[^.?!]*\brenew(al|s)?\b|\b(insurance|policy) renewal (prep|check|review)\b/i,
+  ],
+  // Needs the work too ("... to fix the leak"): "find a contractor" alone opens the contractors panel.
+  [
+    "find_contractor",
+    /\b(find|hire|line up)\b[^.?!]*\b(contractor|plumber|electrician|roofer|handyman|pro)\b[^.?!]*\b(for|to)\s+\S/i,
+  ],
 ];
 
 /** The task a typed request names, or null for an ordinary question. */
@@ -229,6 +248,8 @@ const TASK_ASK: Record<TaskKind, string> = {
   storm_prep: "Run storm prep",
   insurance_claim: "Put together an insurance claim packet",
   closing_handoff: "Run the closing handoff check",
+  insurance_renewal: "Get my home insurance renewal ready",
+  find_contractor: "Help me find a contractor",
 };
 
 /** The user message a task chip or a typed task request sends to the assistant. */

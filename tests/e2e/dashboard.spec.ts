@@ -189,12 +189,14 @@ test.describe("DashboardPage — assistant tasks", () => {
     await setup(page);
   });
 
-  test("offers storm prep, a claim packet and a closing check above the ask bar", async ({ page }) => {
+  test("offers storm prep, a claim packet, a closing check, renewal prep and contractor sourcing above the ask bar", async ({ page }) => {
     await page.goto("/dashboard");
     const tasks = page.getByRole("group", { name: "Assistant tasks" });
     await expect(tasks.getByRole("button", { name: "Storm prep" })).toBeVisible();
     await expect(tasks.getByRole("button", { name: "Insurance claim packet" })).toBeVisible();
     await expect(tasks.getByRole("button", { name: "Closing handoff check" })).toBeVisible();
+    await expect(tasks.getByRole("button", { name: "Insurance renewal prep" })).toBeVisible();
+    await expect(tasks.getByRole("button", { name: "Find a contractor" })).toBeVisible();
   });
 
   test("a task shows one review card, and cancelling saves nothing", async ({ page }) => {

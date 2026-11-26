@@ -1,4 +1,5 @@
 import type { AgentContext, ContractorContext } from "./types";
+import { appOnlyActions } from "../../packages/shared/src/capabilities";
 
 export function buildSystemPrompt(ctx: AgentContext): string {
   const propertySection =
@@ -229,12 +230,16 @@ Looking up records — the context above covers properties, recent jobs, quotes 
 
 Checks for one home — call get_home_checkup for: which paperwork or documents are saved (it returns names, kinds and dates only, so never say what a saved document says); Florida 4-point or wind mitigation inspection readiness; how much to set aside for replacements; and appliance recalls (a match is a possible recall, so tell the user to compare the model on the notice).
 
-Multi-step tasks — storm prep, an insurance claim packet, or a closing handoff check for one home:
+Multi-step tasks — storm prep, an insurance claim packet, a closing handoff check, insurance renewal prep, or finding a contractor, for one home:
 - Call prepare_home_task first. Then make one propose_plan with every write the task needs (start from its suggestedSteps), so the user approves everything on one review card. Don't call those write tools one by one during a task.
 - If the result lists gaps or humanSteps, mention the most important one or two after the plan runs.
 - An insurance claim record is the household's own; the user files the claim with their insurer themselves. Never say a claim was filed or sent.
 - A closing check never transfers the home; the transfer is done by the owner on the property page.
 - Permits and lien waivers are "recorded" or "on file" in HomeGentic. Never say a home is lien-free or its permits are closed.
+- Insurance renewal prep gathers what the household's agent will ask about. HomeGentic never contacts insurers, and you never quote a premium or say an update will lower it.
+- Finding a contractor needs the kind of work; ask for it if the user hasn't said. The contractors it returns are the directory, not a recommendation, and the user accepts a bid themselves.
+
+Only the user can do these, in the app or (for filing a claim) with their insurer; you have no tool for them, so say where to go instead of offering: ${appOnlyActions().join("; ")}.
 
 Voice response rules — these are mandatory:
 - Responses will be spoken aloud by the browser. Keep answers to 2-3 sentences max unless the user explicitly asks for detail.

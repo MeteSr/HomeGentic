@@ -23,6 +23,7 @@ import {
   PLAN_STEP_TOOLS,
   MAX_PLAN_STEPS,
   TASK_KINDS,
+  TASK_LABELS,
   type PlanStep,
 } from "@/services/assistantPlan";
 
@@ -119,8 +120,13 @@ describe("AP.1 — only curated writes can be plan steps", () => {
 });
 
 describe("AP.2 — plan shape", () => {
-  it("knows the three tasks", () => {
-    expect(TASK_KINDS).toEqual(["storm_prep", "insurance_claim", "closing_handoff"]);
+  it("knows the five tasks", () => {
+    expect(TASK_KINDS).toEqual(["storm_prep", "insurance_claim", "closing_handoff", "insurance_renewal", "find_contractor"]);
+  });
+
+  it("labels every task", () => {
+    expect(TASK_LABELS.insurance_renewal).toBe("Insurance renewal prep");
+    expect(TASK_LABELS.find_contractor).toBe("Find a contractor");
   });
 
   it("refuses an unknown task, a missing title, no steps, or too many", () => {
@@ -212,11 +218,24 @@ describe("AP.5 — typed requests that name a task", () => {
     ["claim packet for the roof damage", "insurance_claim"],
     ["closing handoff check", "closing_handoff"],
     ["am I ready for closing?", "closing_handoff"],
+    ["get ready for my insurance renewal", "insurance_renewal"],
+    ["help me review my home insurance before it renews", "insurance_renewal"],
+    ["insurance renewal check", "insurance_renewal"],
+    ["find a plumber to fix the leak under the sink", "find_contractor"],
+    ["hire a roofer for the missing shingles", "find_contractor"],
   ])("%s → %s", (q, kind) => {
     expect(matchTaskQuery(q)).toBe(kind);
   });
 
-  it.each(["what's my score", "roof age", "insurance renewal date", "show my claims"])("%s is not a task", (q) => {
+  it.each([
+    "what's my score",
+    "roof age",
+    "insurance renewal date",
+    "when does my policy renew?",
+    "show my claims",
+    "find a contractor",
+    "who was the plumber last time",
+  ])("%s is not a task", (q) => {
     expect(matchTaskQuery(q)).toBeNull();
   });
 });
@@ -227,6 +246,13 @@ describe("AP.6 — the request a task sends", () => {
     expect(msg).toMatch(/closing handoff/i);
     expect(msg).toMatch(/12 Oak St/);
     expect(msg).toMatch(/P1/);
+  });
+
+  it("asks a contractor search for the kind of work when the chip gives none", () => {
+    const msg = taskRequest("find_contractor", { id: "P1", address: "12 Oak St" });
+    expect(msg).toMatch(/find a contractor/i);
+    expect(msg).toMatch(/P1/);
+    expect(taskRequest("insurance_renewal", { id: "P1", address: "12 Oak St" })).toMatch(/insurance renewal/i);
   });
 
   it("passes on what the user typed for a claim", () => {

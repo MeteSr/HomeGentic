@@ -692,6 +692,9 @@ Run MT-06 with a real microphone.
 | 1 | Tap a task chip above the ask bar (for example storm prep) | One review card listing the planned steps |
 | 2 | Untick a step and run it | Only the ticked steps run; results are in the app (tasks scheduled, quote requested) |
 | 3 | As a contractor | No task chips |
+| 4 | Tap "Insurance renewal prep" on a Florida home with a policy on file and no inspection report saved | The answer names the renewal date and gaps; the card offers a wind mitigation inspection request; nothing says what the premium will be |
+| 5 | Tap "Find a contractor", say "plumbing, the kitchen sink drain leaks" | The answer names directory matches (as a listing, not a recommendation) and a price range with its basis; the card holds one plumbing quote request |
+| 6 | Run step 5 again while that request is open | No new request is offered; the answer points to the open one |
 
 ### AI-04 — Limits and human check · P1 · Web
 | # | Step | Expected |

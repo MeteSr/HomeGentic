@@ -426,13 +426,16 @@ describe("DashboardV3 — answer cards", () => {
 });
 
 describe("DashboardV3 — multi-step assistant tasks", () => {
-  it("offers the three tasks for the home and starts one", () => {
+  it("offers the five tasks for the home and starts one", () => {
     const runTask = vi.fn();
     mockUseVoiceAgent.mockReturnValue(voiceReturn({ runTask }));
     renderDashboard();
     const group = screen.getByRole("group", { name: "Assistant tasks" });
     expect(within(group).getByRole("button", { name: /Storm prep/ })).toBeInTheDocument();
     expect(within(group).getByRole("button", { name: /Insurance claim packet/ })).toBeInTheDocument();
+    expect(within(group).getByRole("button", { name: /Insurance renewal prep/ })).toBeInTheDocument();
+    fireEvent.click(within(group).getByRole("button", { name: /Find a contractor/ }));
+    expect(runTask).toHaveBeenCalledWith("find_contractor", { id: "prop-1", address: "1 Main St" });
     fireEvent.click(within(group).getByRole("button", { name: /Closing handoff check/ }));
     expect(runTask).toHaveBeenCalledWith("closing_handoff", { id: "prop-1", address: "1 Main St" });
   });
