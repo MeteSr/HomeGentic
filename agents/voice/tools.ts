@@ -106,12 +106,18 @@ Tasks:
 - storm_prep: what the storm and emergency card is missing (never the house guide's text), roof and gutter state, the hurricane deductible, what's already scheduled.
 - insurance_claim: the policy on file, open claim records and their damage photos, earlier work on what was damaged, the contents inventory. Pass cause, date_of_loss and damage_description when the user gave them; never invent a date.
 - closing_handoff: whether the latest report link covers every job, permits and final lien waivers as recorded, jobs not fully signed.
+- insurance_renewal: the policy on file and days to renewal, roof, electrical, plumbing, HVAC and window work from the last year, saved insurance papers, Florida 4-point and wind mitigation readiness, open claim records. It never contacts an insurer or quotes a premium.
+- find_contractor: earlier work of that kind at the home, contractors in the directory who list the trade (a listing, not a recommendation), a price range with its basis, open quote requests. Needs service_type; pass work_description and urgency in the user's words when given.
 
 It returns facts, gaps, suggestedSteps (writes you can put in a plan, adjusted or dropped as fits), humanSteps (things only the user can do; never plan steps) and links. Then call propose_plan once.`,
     parameters: {
       type: "object" as const,
       properties: {
-        task: { type: "string", enum: ["storm_prep", "insurance_claim", "closing_handoff"], description: "Which task" },
+        task: {
+          type: "string",
+          enum: ["storm_prep", "insurance_claim", "closing_handoff", "insurance_renewal", "find_contractor"],
+          description: "Which task",
+        },
         property_id: { type: "string", description: "The [ID: ...] of the home, from the property list" },
         cause: {
           type: "string",
@@ -120,6 +126,13 @@ It returns facts, gaps, suggestedSteps (writes you can put in a plan, adjusted o
         },
         date_of_loss: { type: "string", description: "insurance_claim only: YYYY-MM-DD, as the user said it" },
         damage_description: { type: "string", description: "insurance_claim only: the damage in the user's words" },
+        service_type: { type: "string", enum: SERVICE_TYPES, description: "find_contractor only: the kind of work" },
+        work_description: { type: "string", description: "find_contractor only: the work in the user's words" },
+        urgency: {
+          type: "string",
+          enum: ["Low", "Medium", "High", "Emergency"],
+          description: "find_contractor only: how soon, as the user said it",
+        },
       },
       required: ["task", "property_id"],
     },
@@ -132,7 +145,11 @@ Rules: one home per plan; at most 8 steps; each step is one of the tools listed,
     parameters: {
       type: "object" as const,
       properties: {
-        task: { type: "string", enum: ["storm_prep", "insurance_claim", "closing_handoff"], description: "Which task this plan is for" },
+        task: {
+          type: "string",
+          enum: ["storm_prep", "insurance_claim", "closing_handoff", "insurance_renewal", "find_contractor"],
+          description: "Which task this plan is for",
+        },
         title: { type: "string", description: "A short title naming the task and the home, e.g. \"Storm prep for 12 Oak St\"" },
         steps: {
           type: "array",

@@ -11,6 +11,7 @@
 
 import { HOMEGENTIC_TOOLS } from "../tools";
 import { SERVICE_SUBTYPES } from "../../../packages/shared/src/serviceTypes";
+import { ASSISTANT_TOOL_SCOPES } from "../../../packages/shared/src/capabilities";
 import type { ToolDefinition } from "../provider";
 
 function getTool(name: string): ToolDefinition {
@@ -252,7 +253,7 @@ describe("query_home_records — generic OQL read tool", () => {
 // runs only the steps the user ticks on the card.
 
 describe("multi-step task tools", () => {
-  const TASKS = ["storm_prep", "insurance_claim", "closing_handoff"];
+  const TASKS = ["storm_prep", "insurance_claim", "closing_handoff", "insurance_renewal", "find_contractor"];
 
   it("prepare_home_task takes a task and a home, plus claim details", () => {
     expect(getRequired("prepare_home_task")).toEqual(["task", "property_id"]);
@@ -260,6 +261,16 @@ describe("multi-step task tools", () => {
     expect(props.task.enum).toEqual(TASKS);
     expect(Object.keys(props)).toEqual(expect.arrayContaining(["cause", "date_of_loss", "damage_description"]));
     expect(getTool("prepare_home_task").description).toMatch(/read-only|only reads/i);
+  });
+
+  it("prepare_home_task takes the work to source a contractor for", () => {
+    const props = getProperties("prepare_home_task");
+    expect(props.service_type.enum).toEqual(getProperties("create_quote_request").service_type.enum);
+    expect(props.urgency.enum).toEqual(["Low", "Medium", "High", "Emergency"]);
+    expect(props.work_description.type).toBe("string");
+    const desc = getTool("prepare_home_task").description;
+    expect(desc).toMatch(/insurance_renewal:[^\n]*(never|doesn't|does not) (contact|quote)/i);
+    expect(desc).toMatch(/find_contractor:[^\n]*directory/i);
   });
 
   it("propose_plan's steps can only be the four curated writes", () => {
@@ -284,6 +295,20 @@ describe("multi-step task tools", () => {
   it("create_insurance_claim starts the household's own record and files nothing", () => {
     expect(getRequired("create_insurance_claim")).toEqual(["property_id", "title", "date_of_loss"]);
     expect(getTool("create_insurance_claim").description).toMatch(/not filed|doesn't file|never files|nothing is sent/i);
+  });
+});
+
+// ── Every tool has a permission scope (packages/shared/src/capabilities.ts) ──
+
+describe("tool scopes", () => {
+  it("gives every tool sent to Claude a scope, and scopes no tool that doesn't exist", () => {
+    expect(HOMEGENTIC_TOOLS.map((t) => t.name).sort()).toEqual(Object.keys(ASSISTANT_TOOL_SCOPES).sort());
+  });
+
+  it("describes every plan-scoped write as something a plan can hold", () => {
+    const planned = getProperties("propose_plan").steps.items.properties.tool.enum;
+    const scoped = Object.entries(ASSISTANT_TOOL_SCOPES).filter(([, s]) => s === "plan").map(([t]) => t);
+    expect([...planned].sort()).toEqual(scoped.sort());
   });
 });
 

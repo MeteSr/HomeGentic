@@ -161,7 +161,8 @@ User speaks
   → Claude can call read tools such as query_home_records (OQL over the job, bills, property,
     maintenance, recurring and sensor canisters) and get_home_checkup (saved documents, inspection
     readiness, reserve target, recalls)
-  → For multi-step tasks (storm prep, claim packet, closing check) Claude proposes one plan;
+  → For multi-step tasks (storm prep, claim packet, closing check, insurance renewal prep,
+    finding a contractor) Claude proposes one plan;
     the user approves its writes on one review card before anything is saved
   → Text streams back into the answer card
   → SpeechSynthesis reads full response aloud

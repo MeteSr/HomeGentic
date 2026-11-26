@@ -15,6 +15,7 @@ import { useAuthStore } from "../store/authStore";
 import { paymentService } from "../services/payment";
 import { contractorService } from "../services/contractor";
 import { fetchWithAgentSession, aiRefusalMessage } from "../services/agentSession";
+import { toolsWithScope } from "@homegentic/shared/capabilities";
 import { validatePlan, runPlan, taskRequest, TASK_LABELS, type AssistantPlan, type TaskKind } from "../services/assistantPlan";
 
 // ── Minimal message types (mirrors Anthropic SDK without importing it) ─────────
@@ -127,25 +128,11 @@ export function warrantyExpiryMs(startDateStr: string, warrantyMonths: number): 
 // ── Tool confirmation (F-8) ─────────────────────────────────────────────────────
 // Tool results can carry third-party text (contractor names, quote notes,
 // homeowner job descriptions), so a prompt-injected model could ask for
-// state-changing calls the user never intended. Only these read-only tools run
-// without asking; anything else — including tools added later — needs an
-// explicit OK from the user first.
-export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
-  "classify_home_issue",
-  "draft_work_order",
-  "search_contractors",
-  "list_bids",
-  "list_leads",
-  "get_earnings_summary",
-  "get_maintenance_forecast",
-  "get_price_benchmark",
-  // OQL reads over job, bills and property; the canisters scope the rows.
-  "query_home_records",
-  // Document names, inspection readiness, reserve target, recall check; reads only.
-  "get_home_checkup",
-  // Gathers one home's facts for a multi-step task; reads only.
-  "prepare_home_task",
-]);
+// state-changing calls the user never intended. Only the tools the capability
+// catalogue scopes "read" (packages/shared/src/capabilities.ts) run without
+// asking; anything else — including tools added later — needs an explicit OK
+// from the user first.
+export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set(toolsWithScope("read"));
 
 export type ToolConfirmationHandler = (
   name: ToolName,

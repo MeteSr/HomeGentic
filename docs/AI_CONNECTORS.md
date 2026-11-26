@@ -63,6 +63,31 @@ OQL on bills and property, and the in-app read tool (2026-11-10):
   buyer-only report link) and shows it on one review card with the real arguments; only the steps the user
   ticks run. Bids, signatures, transfers and payments are never plan steps. Started from the task chips above
   the dashboard's ask bar, or by typing the task.
+- Two more tasks (2026-11-26): insurance renewal prep (policy and days to renewal, last year's roof, electrical,
+  plumbing, HVAC and window work, saved insurance papers, Florida 4-point and wind mitigation readiness; suggests
+  inspection or roof quote requests; never contacts an insurer or quotes a premium) and finding a contractor
+  (earlier work of that kind at the home, directory matches as a listing rather than a recommendation, the price
+  range with its basis; suggests one quote request unless one is open or a Free account is at 3).
+
+## Capabilities and what an assistant may do (2026-11-26)
+
+`packages/shared/src/capabilities.ts` is the one catalogue of what an assistant can find in HomeGentic: each
+capability (homes, insurance, warranty/mortgage/tax/HOA/flood, jobs, maintenance plan, service contracts, bills,
+smart-home devices, quotes, contractors, leads, reports, documents, account, selling) with the canister that
+holds it, its OQL entities, the in-app tools that touch it and what only the user can do in the app. Tests keep
+it honest:
+
+- Every OQL entity in the backend's `*Oql.mo` catalogues belongs to exactly one capability, so a new entity
+  can't ship unplaced (`frontend/src/__tests__/services/capabilities.test.ts`).
+- The ICP MCP manifest line for each exposed canister names every capability it holds (an assistant can tell
+  that insurance, warranty and mortgage live on `property`, and permits and lien waivers on `job`, without
+  reading every `getApiDoc`), and says which reads work in a "Questions only" session and that changes need
+  "Actions & questions".
+- Every in-app assistant tool has one scope: `read` (runs without asking), `ask` (asks every time) or `plan`
+  (asks, and may also be a step of a reviewed plan). `READ_ONLY_TOOLS` and `PLAN_STEP_TOOLS` are derived from
+  it and the Worker's tool list must match it (`agents/voice/__tests__/tools.test.ts`).
+- The homeowner system prompt lists the `appOnly` actions (transfer, payments, filing a claim with the insurer,
+  account deletion and so on), so the assistant says where to go instead of offering something it can't do.
 
 Owner: the registry request (recommendation 1) is drafted for mcp@dfinity.org; send it after the first mainnet
 deploy. Not built yet: the onboarding card and email (6), in-context prompts on other pages (7), mobile (9).

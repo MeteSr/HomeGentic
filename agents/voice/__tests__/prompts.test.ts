@@ -21,6 +21,7 @@
 import { describe, it, expect } from "@jest/globals";
 import { buildSystemPrompt } from "../prompts";
 import type { AgentContext } from "../types";
+import { appOnlyActions } from "../../../packages/shared/src/capabilities";
 
 const base: AgentContext = {
   properties:             [],
@@ -344,5 +345,24 @@ describe("PROMPT.15 — multi-step tasks", () => {
   });
   it("doesn't offer tasks to contractors", () => {
     expect(buildSystemPrompt({ ...base, role: "Contractor" } as any)).not.toMatch(/propose_plan/);
+  });
+  it("names the insurance renewal and contractor sourcing tasks and their limits", () => {
+    expect(prompt).toMatch(/insurance renewal/i);
+    expect(prompt).toMatch(/(never|don't) (quote|predict|estimate) (a )?premium/i);
+    expect(prompt).toMatch(/find(ing)? a contractor/i);
+    expect(prompt).toMatch(/directory[^\n]*not (a )?recommend/i);
+  });
+});
+
+// ── PROMPT.17 — what only the user can do (packages/shared/src/capabilities.ts) ──
+
+describe("PROMPT.17 — app-only actions", () => {
+  const prompt = buildSystemPrompt(base);
+  it("lists every action the assistant has no tool for, so it points to the app instead", () => {
+    for (const a of appOnlyActions()) expect(prompt).toContain(a);
+    expect(prompt).toMatch(/only the user can do[^\n]*in the app/i);
+  });
+  it("leaves the homeowner list out of the contractor persona", () => {
+    expect(buildSystemPrompt({ ...base, role: "Contractor" } as any)).not.toContain(appOnlyActions()[0]);
   });
 });

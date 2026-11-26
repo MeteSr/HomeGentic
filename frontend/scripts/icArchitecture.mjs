@@ -25,6 +25,11 @@
  * recurring, and making and sharing one stays in the app. report keeps its
  * getApiDoc() and can come back by listing it here.
  *
+ * Each description names every capability its canister holds and the consent
+ * mode its reads and changes need (packages/shared/src/capabilities.ts,
+ * checked by frontend/src/__tests__/services/capabilities.test.ts), so an
+ * assistant can tell where insurance or permits live from this file alone.
+ *
  * Canister IDs come from CANISTER_ID_* in .env (scripts/deploy.sh writes them
  * before the frontend build), so the manifest always matches the environment
  * being deployed. Nothing is written for a local build, where the IDs are
@@ -37,46 +42,49 @@ export const EXPOSED = [
     name: "property",
     role: "properties",
     description:
-      "The user's homes, rooms and fixtures, and who may act on each home. Start here for propertyIds. Call getApiDoc() first.",
+      "The user's homes, rooms and fixtures, who may act on each home, and the move-in plan; also each home's insurance policies, claims and contents inventory, home warranty, mortgage and property tax (owner and co-owners only), HOA and flood zone. Start here for propertyIds. Only homes the user has a role on. Queries and OQL (schema, execute) work in Questions only sessions; changes need Actions & questions. Call getApiDoc() first.",
   },
   {
     name: "job",
     role: "maintenance record",
     description:
-      "Jobs done on a home (repairs, servicing, upgrades), signed by homeowner and contractor. Call getApiDoc() first.",
+      "Jobs done on a home (repairs, servicing, upgrades), signed by homeowner and contractor, with permits, lien waivers and improvements (tax basis). Only homes the user has a role on. OQL (schema, execute) works in Questions only sessions; changes, and signing a job, need Actions & questions. Call getApiDoc() first.",
   },
   {
     name: "maintenance",
     role: "maintenance planning",
-    description: "System lifespan predictions and the owner's planned maintenance schedule. Call getApiDoc() first.",
+    description:
+      "System lifespan predictions and the owner's planned maintenance schedule. Only homes the user has a role on. Queries and OQL work in Questions only sessions; changes need Actions & questions. Call getApiDoc() first.",
   },
   {
     name: "recurring",
     role: "service contracts",
-    description: "Recurring service contracts (HVAC, pest, landscaping) and visit logs. Call getApiDoc() first.",
+    description:
+      "Recurring service contracts (HVAC, pest, landscaping) and visit logs. Only homes the user has a role on. OQL and the batch schedule read work in Questions only sessions; changes need Actions & questions. Call getApiDoc() first.",
   },
   {
     name: "bills",
     role: "utility bills",
     description:
-      "Utility bills and recurring home expenses, with usage trends and spike detection. Call getApiDoc() first.",
+      "Utility bills and recurring home expenses, with usage trends and spike detection. Only homes the user has a role on. OQL and the batch bills read work in Questions only sessions; changes need Actions & questions. Call getApiDoc() first.",
   },
   {
     name: "sensor",
     role: "smart-home devices",
     description:
-      "Smart-home devices linked to a home and the readings and alerts they reported (leaks, HVAC, humidity, solar). Call getApiDoc() first.",
+      "Smart-home devices linked to a home and the readings and alerts they reported (leaks, HVAC, humidity, solar). Only homes the user has a role on. OQL and the device list work in Questions only sessions; linking or removing a device needs Actions & questions. Call getApiDoc() first.",
   },
   {
     name: "contractor",
     role: "contractor directory",
-    description: "Contractor profiles, trust scores and reviews. Call getApiDoc() first.",
+    description:
+      "Contractor profiles, trust scores and reviews. Searching works in Questions only sessions; changes, such as posting a review, need Actions & questions. Call getApiDoc() first.",
   },
   {
     name: "quote",
     role: "quotes",
     description:
-      "Quote requests from homeowners and bids from contractors; accepting a bid can record a referral fee charged to the contractor. Call getApiDoc() first.",
+      "Quote requests from homeowners and bids from contractors; accepting a bid can record a referral fee charged to the contractor. Listing requests and bids works in Questions only sessions; opening a request, accepting a bid or booking a visit needs Actions & questions. Call getApiDoc() first.",
   },
 ];
 

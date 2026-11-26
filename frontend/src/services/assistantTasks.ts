@@ -1,6 +1,7 @@
 /**
  * prepare_home_task: the read-only first step of a multi-step assistant task
- * (storm prep, insurance claim packet, closing handoff check). It reads one
+ * (storm prep, insurance claim packet, closing handoff check, insurance
+ * renewal prep, finding a contractor). It reads one
  * home's records in the browser, under the signed-in user's identity, and
  * returns the facts, the gaps and suggested writes for the model to put in a
  * plan (assistantPlan.ts). Nothing here saves anything.
@@ -12,11 +13,19 @@
  * Copy limits carried over from the features these tasks use: a claim record
  * is the household's own (nothing is filed with the insurer), and permits and
  * lien waivers are "recorded" or "on file", never "closed" or "lien-free".
+ * Renewal prep never contacts an insurer or says what a premium will be, and a
+ * directory match is not a recommendation.
  */
 import { propertyService } from "./property";
 import { jobService, type Job } from "./job";
 import { houseGuideService, isBaselinePhoto } from "./houseGuide";
-import { insurancePolicyService, hurricaneDeductibleDollars, type InsurancePolicy } from "./insurancePolicy";
+import {
+  insurancePolicyService,
+  hurricaneDeductibleDollars,
+  renewalStatus,
+  RENEWAL_WINDOW_DAYS,
+  type InsurancePolicy,
+} from "./insurancePolicy";
 import { insuranceClaimService, claimPhotoJobId, CLAIM_CAUSES, type InsuranceClaim } from "./insuranceClaims";
 import { photoService } from "./photo";
 import { maintenanceService, predictMaintenance, type ScheduleEntry } from "./maintenance";
@@ -24,6 +33,20 @@ import { inventoryService, inventoryTotalCents } from "./inventory";
 import { quoteService } from "./quote";
 import { reportService, type ShareLink } from "./report";
 import { closeoutReview, type JobCloseout } from "./jobCloseout";
+import { contractorService, type ContractorProfile } from "./contractor";
+import { paymentService } from "./payment";
+import { getPriceBenchmark, benchmarkBasis, type PriceBenchmarkResult } from "./priceBenchmark";
+import {
+  fourPointReadiness,
+  windMitigationReadiness,
+  inspectionQuotePrefill,
+  isFlorida,
+  readinessCounts,
+  type ReadinessItem,
+} from "./insuranceReadiness";
+import { systemAgesService } from "./systemAges";
+import { listDocuments, type ListedDocument } from "@homegentic/shared/documentVault";
+import { SERVICE_TYPE_LABELS } from "@homegentic/shared/serviceTypes";
 import {
   buildEmergencyCard,
   isHurricaneZone,
@@ -39,6 +62,7 @@ interface Home {
   address: string;
   state: string;
   yearBuilt?: number;
+  zipCode?: string;
 }
 
 export interface TaskFacts {
@@ -399,6 +423,268 @@ export function closingHandoffFacts(input: {
   };
 }
 
+// ── Insurance renewal prep ───────────────────────────────────────────────────
+
+/** Work insurers commonly ask about at renewal: roof, the 4-point systems, and windows/openings. */
+const RENEWAL_TRADES = ["Roofing", "Electrical", "Plumbing", "HVAC", "Windows"];
+
+type RenewalUrgency = "Low" | "Medium";
+
+export function insuranceRenewalFacts(input: {
+  property: Home;
+  policy: InsurancePolicy | null;
+  jobs: Job[];
+  /** The home's saved papers (names, kinds, dates). */
+  documents: ListedDocument[];
+  /** Florida's 4-point and wind mitigation checklists, or null outside Florida. */
+  readiness: { fourPoint: ReadinessItem[]; windMitigation: ReadinessItem[] } | null;
+  roof: { urgency: "Critical" | "Soon" | "Watch" | "Good"; yearsRemaining: number } | null;
+  openClaims: number;
+  /** The home's open quote requests. */
+  openRequests: { serviceType: string; description: string }[];
+  now: Date;
+}): TaskFacts {
+  const { property: p, policy, now } = input;
+  const renewal = policy ? renewalStatus(policy.renewalDate, now.getTime()) : null;
+  const yearAgo = now.getTime() - 365 * DAY;
+  const updates = newest(
+    realJobs(input.jobs).filter((j) => RENEWAL_TRADES.includes(j.serviceType) && Date.parse(j.date) >= yearAgo),
+  );
+  const papers = input.documents.filter((d) => d.kind === "Insurance");
+  const inspections = input.documents.filter((d) => d.kind === "Inspection");
+  const openText = input.openRequests.map((r) => r.description.toLowerCase()).join("\n");
+  const urgency: RenewalUrgency =
+    renewal && renewal.days >= 0 && renewal.days <= RENEWAL_WINDOW_DAYS ? "Medium" : "Low";
+
+  const gaps: string[] = [];
+  if (!policy)
+    gaps.push("No insurance policy on file: add the carrier, renewal date and coverage from the declarations page");
+  else {
+    if (renewal && renewal.days < 0)
+      gaps.push(
+        `The renewal date on file (${policy.renewalDate}) has passed: update it from the new declarations page`,
+      );
+    if (policy.coverageA === null) gaps.push("Dwelling coverage (Coverage A) isn't recorded on the policy");
+    if (isHurricaneZone(p.state) && policy.hurricaneDeductible === null)
+      gaps.push("The hurricane deductible isn't recorded on the policy");
+  }
+  if (papers.length === 0) gaps.push("No declarations page or other insurance paper saved in the document vault");
+  if (input.openClaims > 0)
+    gaps.push(`${input.openClaims} claim record${input.openClaims === 1 ? "" : "s"} still open in the claim kit`);
+
+  const steps: PlanStep[] = [];
+  const florida = input.readiness;
+  if (florida && inspections.length === 0) {
+    const windOpen = florida.windMitigation.some((i) => i.status === "missing" || i.status === "partial");
+    if (windOpen && !openText.includes("wind mitigation")) {
+      gaps.push("No wind mitigation report saved in the document vault");
+      const pre = inspectionQuotePrefill("windMit", p.id);
+      steps.push({
+        tool: "create_quote_request",
+        input: { property_id: p.id, service_type: pre.serviceType, description: pre.description, urgency },
+        why: "A wind mitigation report documents the storm features Florida insurers give credits for",
+      });
+    }
+    const aging = florida.fourPoint.filter((i) => i.ageNote);
+    if (aging.length && !openText.includes("4-point")) {
+      const pre = inspectionQuotePrefill("fourPoint", p.id);
+      steps.push({
+        tool: "create_quote_request",
+        input: { property_id: p.id, service_type: pre.serviceType, description: pre.description, urgency },
+        why: `Carriers commonly ask for a 4-point inspection when systems are older (${aging.map((i) => i.label).join(", ")})`,
+      });
+    }
+  }
+  const roofWorn = input.roof && (input.roof.urgency === "Critical" || input.roof.urgency === "Soon");
+  if (roofWorn && !input.openRequests.some((r) => r.serviceType === "Roofing")) {
+    gaps.push("The roof is at or near the end of its expected life");
+    steps.push({
+      tool: "create_quote_request",
+      input: {
+        property_id: p.id,
+        service_type: "Roofing",
+        urgency: "Medium",
+        description:
+          "Roof inspection ahead of my home insurance renewal, with an estimate for any repairs or a replacement.",
+      },
+      why: "Carriers commonly look closely at older roofs, and this one is at or near the end of its expected life",
+    });
+  }
+
+  const summarize = (items: ReadinessItem[]) => {
+    const c = readinessCounts(items);
+    return {
+      ...c,
+      notInRecord: items.filter((i) => i.status === "missing" || i.status === "partial").map((i) => i.label),
+    };
+  };
+
+  return {
+    task: "insurance_renewal",
+    propertyId: p.id,
+    facts: {
+      address: p.address,
+      policy: policy
+        ? {
+            carrier: policy.carrier,
+            renewalDate: policy.renewalDate,
+            daysToRenewal: renewal?.days ?? null,
+            coverageADollars: policy.coverageA,
+            hurricaneDeductibleDollars: hurricaneDeductibleDollars(policy),
+            hasPolicyNumber: policy.policyNumber.trim() !== "",
+          }
+        : null,
+      recentUpdates: updates.slice(0, LIST_CAP).map((j) => ({
+        date: j.date,
+        serviceType: j.serviceType,
+        description: short(j.description),
+        contractor: j.isDiy ? "DIY" : (j.contractorName ?? null),
+        permitNumber: j.permitNumber ?? null,
+        verified: j.verified,
+      })),
+      roof: input.roof,
+      documents: {
+        insurancePapers: papers.length,
+        inspectionReports: inspections.slice(0, 5).map((d) => ({ name: d.name, added: d.added })),
+      },
+      florida: florida
+        ? { fourPoint: summarize(florida.fourPoint), windMitigation: summarize(florida.windMitigation) }
+        : null,
+      openClaims: input.openClaims,
+    },
+    gaps,
+    suggestedSteps: steps,
+    humanSteps: [
+      "Ask your agent or insurer for the renewal offer and compare it with other quotes; HomeGentic doesn't contact insurers or quote premiums",
+      ...(updates.length ? ["Tell your agent about the updates listed and ask whether they change the premium"] : []),
+      "Update the policy on file once the renewal is final",
+    ],
+    links: [
+      { label: "Insurance", path: `/properties/${p.id}?tab=insurance` },
+      ...(florida ? [{ label: "Inspection readiness", path: "/insurance-defense" }] : []),
+    ],
+  };
+}
+
+// ── Find a contractor ────────────────────────────────────────────────────────
+
+const DIRECTORY_CAP = 5;
+/** Free accounts' open quote request limit (payment canister; Pro is unlimited). */
+const FREE_OPEN_REQUESTS = 3;
+
+interface RequestRow {
+  id: string;
+  propertyId: string;
+  serviceType: string;
+  status: string;
+  createdAt: number;
+  description: string;
+}
+
+export function contractorSourcingFacts(input: {
+  property: Home;
+  serviceType: string;
+  description: string;
+  urgency: string;
+  jobs: Job[];
+  contractors: Pick<
+    ContractorProfile,
+    "name" | "trustScore" | "jobsCompleted" | "isVerified" | "serviceArea" | "serviceZips"
+  >[];
+  requests: RequestRow[];
+  price: PriceBenchmarkResult | null;
+  /** The caller's plan, or null when it couldn't be read. */
+  tier: string | null;
+  now: Date;
+}): TaskFacts {
+  const { property: p, serviceType } = input;
+  const zip = p.zipCode ?? "";
+  const description = input.description.trim();
+  const past = newest(realJobs(input.jobs).filter((j) => j.serviceType === serviceType)).slice(0, 5);
+  const serves = (c: { serviceZips: string[] }) => zip !== "" && c.serviceZips.includes(zip);
+  const ranked = [...input.contractors].sort(
+    (a, b) => Number(serves(b)) - Number(serves(a)) || b.trustScore - a.trustScore,
+  );
+  const open = input.requests.filter((r) => r.status === "open" || r.status === "quoted");
+  const same = open.find((r) => r.propertyId === p.id && r.serviceType === serviceType);
+  const atLimit = input.tier === "Free" && open.length >= FREE_OPEN_REQUESTS;
+
+  const gaps: string[] = [];
+  if (same) {
+    const opened = new Date(same.createdAt).toISOString().slice(0, 10);
+    gaps.push(`You already have an open ${serviceType} quote request from ${opened}; new bids arrive there`);
+  }
+  if (atLimit)
+    gaps.push(
+      `Free accounts can have ${FREE_OPEN_REQUESTS} open quote requests and you have ${open.length}, so a new one will be refused until one is closed`,
+    );
+  if (!description) gaps.push("Describe the work in a sentence or two so contractors can price it");
+  if (ranked.length === 0) gaps.push(`No contractor in the directory lists ${serviceType} yet`);
+
+  const steps: PlanStep[] =
+    same || atLimit || !description
+      ? []
+      : [
+          {
+            tool: "create_quote_request",
+            input: {
+              property_id: p.id,
+              service_type: serviceType,
+              description: short(description, 1000),
+              urgency: input.urgency,
+            },
+            why: `Contractors who do ${serviceType} work can see the request and send bids`,
+          },
+        ];
+
+  const price = input.price;
+  return {
+    task: "find_contractor",
+    propertyId: p.id,
+    facts: {
+      address: p.address,
+      serviceType,
+      zipCode: zip || null,
+      pastWork: past.map((j) => ({
+        date: j.date,
+        contractor: j.isDiy ? "DIY" : (j.contractorName ?? null),
+        amountDollars: dollars(j.amount),
+        description: short(j.description),
+        verified: j.verified,
+      })),
+      directory: {
+        listed: ranked.length,
+        top: ranked.slice(0, DIRECTORY_CAP).map((c) => ({
+          name: c.name,
+          trustScore: c.trustScore,
+          jobsCompleted: c.jobsCompleted,
+          verified: c.isVerified,
+          servesThisZip: serves(c),
+          serviceArea: c.serviceArea,
+        })),
+        note: "Contractors who list this trade in HomeGentic's directory, ranked by whether they serve this ZIP and then by trust score. A listing is not a recommendation.",
+      },
+      price: price
+        ? {
+            lowDollars: dollars(price.low),
+            typicalDollars: dollars(price.median),
+            highDollars: dollars(price.high),
+            basis: benchmarkBasis(price),
+          }
+        : null,
+      openRequests: open.length,
+      planTier: input.tier,
+    },
+    gaps,
+    suggestedSteps: steps,
+    humanSteps: [
+      "Compare the bids and accept one yourself; a plan never accepts a bid",
+      "Check a contractor's licence and reviews before hiring",
+    ],
+    links: [{ label: "Quotes", path: "/quotes" }],
+  };
+}
+
 // ── The tool ─────────────────────────────────────────────────────────────────
 
 /** Settles a read, noting what failed so the model can say so instead of guessing. */
@@ -409,6 +695,26 @@ async function read<T>(what: string, failed: string[], p: Promise<T>, fallback: 
     failed.push(what);
     return fallback;
   }
+}
+
+/** The roof's predicted state, as storm prep and renewal prep use it. */
+function roofOf(property: { yearBuilt: unknown; state: string }, jobs: Job[]) {
+  const r = predictMaintenance(Number(property.yearBuilt), jobs, {}, property.state).systemPredictions.find(
+    (s) => s.systemName === "Roofing",
+  );
+  return r ? { urgency: r.urgency, yearsRemaining: r.yearsRemaining } : null;
+}
+
+/** The home's saved papers as the assistant may see them: names, kinds and dates. */
+async function readDocuments(propertyId: string): Promise<ListedDocument[]> {
+  const [legacy, current] = await Promise.all([
+    photoService.listByJob(`receipts_${propertyId}`),
+    photoService.listByJob(`docs_${propertyId}`),
+  ]);
+  const listed = listDocuments(
+    [...legacy, ...current].map((m) => ({ description: m.description, createdAtMs: m.createdAt })),
+  );
+  return "error" in listed ? [] : listed.documents;
 }
 
 function summarise(f: TaskFacts): string {
@@ -432,7 +738,14 @@ export async function prepareHomeTask(input: Record<string, unknown>): Promise<T
     address: property.address,
     state: property.state,
     yearBuilt: Number(property.yearBuilt),
+    zipCode: property.zipCode,
   };
+  const serviceType = String(input.service_type ?? "");
+  if (task === "find_contractor" && !SERVICE_TYPE_LABELS.includes(serviceType))
+    return {
+      success: false,
+      error: "find_contractor needs service_type, the kind of work. Ask the user what work they need done.",
+    };
   const now = new Date();
   const failed: string[] = [];
   const jobs = await read("jobs", failed, jobService.getByProperty(propertyId), [] as Job[]);
@@ -446,12 +759,6 @@ export async function prepareHomeTask(input: Record<string, unknown>): Promise<T
       read("maintenance schedule", failed, maintenanceService.getScheduleByProperty(propertyId), [] as ScheduleEntry[]),
       read("quote requests", failed, quoteService.getRequests(), []),
     ]);
-    const roofPrediction = predictMaintenance(
-      Number(property.yearBuilt),
-      jobs,
-      {},
-      property.state,
-    ).systemPredictions.find((s) => s.systemName === "Roofing");
     facts = stormPrepFacts({
       property: home,
       jobs,
@@ -460,7 +767,7 @@ export async function prepareHomeTask(input: Record<string, unknown>): Promise<T
       now,
       schedule,
       baselinePhotos: photos.filter(isBaselinePhoto),
-      roof: roofPrediction ? { urgency: roofPrediction.urgency, yearsRemaining: roofPrediction.yearsRemaining } : null,
+      roof: roofOf(property, jobs),
       openQuoteServiceTypes: requests
         .filter((r) => r.propertyId === propertyId && (r.status === "open" || r.status === "quoted"))
         .map((r) => r.serviceType),
@@ -490,6 +797,58 @@ export async function prepareHomeTask(input: Record<string, unknown>): Promise<T
       cause: input.cause ? String(input.cause) : undefined,
       dateOfLoss: input.date_of_loss ? String(input.date_of_loss) : undefined,
       damage: input.damage_description ? String(input.damage_description) : undefined,
+    });
+  } else if (task === "insurance_renewal") {
+    const [policy, claims, docs, requests] = await Promise.all([
+      read("insurance policy", failed, insurancePolicyService.get(propertyId), null),
+      read("claim kit", failed, insuranceClaimService.list(propertyId), [] as InsuranceClaim[]),
+      read("documents", failed, readDocuments(propertyId), [] as ListedDocument[]),
+      read("quote requests", failed, quoteService.getRequests(), []),
+    ]);
+    const facts0 = { yearBuilt: Number(property.yearBuilt), state: property.state };
+    const ages = systemAgesService.get(propertyId);
+    facts = insuranceRenewalFacts({
+      property: home,
+      policy,
+      jobs,
+      documents: docs,
+      readiness: isFlorida(facts0)
+        ? {
+            fourPoint: fourPointReadiness(facts0, jobs, ages, now),
+            windMitigation: windMitigationReadiness(facts0, jobs),
+          }
+        : null,
+      roof: roofOf(property, jobs),
+      openClaims: claims.filter((c) => c.status === "open").length,
+      openRequests: requests
+        .filter((r) => r.propertyId === propertyId && (r.status === "open" || r.status === "quoted"))
+        .map((r) => ({ serviceType: r.serviceType, description: r.description })),
+      now,
+    });
+  } else if (task === "find_contractor") {
+    const [contractors, requests, sub, price] = await Promise.all([
+      read("contractor directory", failed, contractorService.search(serviceType), [] as ContractorProfile[]),
+      read("quote requests", failed, quoteService.getRequests(), []),
+      read("plan", failed, paymentService.getMySubscription(), null),
+      read(
+        "price range",
+        failed,
+        home.zipCode ? getPriceBenchmark(serviceType, home.zipCode) : Promise.resolve(null),
+        null,
+      ),
+    ]);
+    const urgency = String(input.urgency ?? "");
+    facts = contractorSourcingFacts({
+      property: home,
+      serviceType,
+      description: String(input.work_description ?? ""),
+      urgency: ["Low", "Medium", "High", "Emergency"].includes(urgency) ? urgency : "Medium",
+      jobs,
+      contractors,
+      requests,
+      price,
+      tier: sub ? String(sub.tier) : null,
+      now,
     });
   } else {
     const [closeouts, shareLinks] = await Promise.all([
